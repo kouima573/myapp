@@ -9,6 +9,7 @@ import { drawEnemyPortrait, drawMap, loadImages, npcActors, TILE, type ImageMap 
 import { RUNTIME_CSS } from "./styles";
 import { AudioManager, type AudioSettings } from "./audio";
 import { creditLines } from "./credits";
+import { withModules } from "../../modules/src/index";
 
 export interface SaveStorage {
   read(key: string): string | null;
@@ -71,7 +72,7 @@ function injectStyles() {
 export function mountGame(host: HTMLElement, options: MountOptions): GameHandle {
   injectStyles();
   const { content } = options;
-  const engine = createEngine(content, options.systems ?? []);
+  const engine = createEngine(content, withModules(content, options.systems ?? []));
   const storage = options.storage ?? browserStorage();
   const saveKey = `rpg-save:${content.project.id}`;
   const settingsKey = `rpg-settings:${content.project.id}`;
@@ -88,11 +89,21 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     try { storage.write(metaKey, text); } catch { /* optional */ }
   };
   const ticking = Object.values(content.maps).some(m => m.entities.some(e => e.states.some(st => st.behavior.type !== "still")))
-    || content.rules.some(r => r.on === "tick") || (options.systems ?? []).some(s => s.onTick);
+    || content.rules.some(r => r.on === "tick") || engine.systems.some(s => s.onTick);
   let lastTick = 0;
   /** Smooth movement for entities: id → tween. */
   const entityTweens = new Map<string, { fx: number; fy: number; tx: number; ty: number; start: number }>();
   let sceneHost: HTMLElement | null = null;
+  /** Buttons held for realtime scenes (shooting etc.). */
+  const realtimeHeld = new Set<string>();
+  let realtimeCanvas: HTMLCanvasElement | null = null;
+  let realtimeClock = 0;
+  const realtimeDef = () => {
+    if (state.scene.kind !== "custom") return null;
+    const scene = state.scene;
+    const def = engine.systems.find(s => s.id === scene.system)?.scenes?.[scene.scene];
+    return def?.realtime ? def : null;
+  };
 
   let state: GameState = options.initialState ?? engine.newGame(options.seed, options.useMeta === false ? undefined : (() => { try { const raw = (options.storage ?? browserStorage()).read(`rpg-meta:${content.project.id}`); return raw ? JSON.parse(raw) : undefined; } catch { return undefined; } })());
   const animator = new GridMovementAnimator({ x: state.player.x, y: state.player.y });
@@ -142,7 +153,9 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   const ab = el("div", "rpg-ab");
   const aButton = el("button", "rpg-a", "A"); aButton.type = "button"; aButton.title = "決定 / 調べる (Enter・Z)";
   const bButton = el("button", "rpg-b", "B"); bButton.type = "button"; bButton.title = "メニュー / 戻る (Esc・X)";
-  aButton.addEventListener("click", () => confirm());
+  aButton.addEventListener("click", () => { if (!realtimeDef()) confirm(); });
+  aButton.addEventListener("pointerdown", () => { if (realtimeDef()) realtimeHeld.add("fire"); });
+  for (const ev of ["pointerup", "pointercancel", "pointerleave"]) aButton.addEventListener(ev, () => realtimeHeld.delete("fire"));
   bButton.addEventListener("click", () => cancel());
   ab.append(bButton, aButton);
   touch.append(pad, ab);
@@ -199,6 +212,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
 
   /* ------------------------------------------------------------ input */
   function press(dir: Direction) {
+    if (realtimeDef()) { realtimeHeld.add(dir); return; }
     if (state.scene.kind === "custom") { audio.cue("cursor"); dispatch({ type: "sceneInput", input: { type: dir } }); return; }
     if (state.scene.kind === "field" && !menuOpen) {
       const fresh = !held.includes(dir);
@@ -210,6 +224,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     navigate(dir);
   }
   function releaseDir(dir: Direction) {
+    realtimeHeld.delete(dir);
     const i = held.indexOf(dir);
     if (i >= 0) held.splice(i, 1);
   }
@@ -260,9 +275,19 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
 
   const isTextTarget = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
   const accepts = (event: KeyboardEvent) => !isTextTarget(event.target) && (options.keyboard !== "focus" || root.contains(document.activeElement));
+  function realtimeKey(event: KeyboardEvent, down: boolean): boolean {
+    if (!realtimeDef()) return false;
+    const dir = directionFromKey(event.key);
+    const key = event.key.toLowerCase();
+    const button = dir ?? (key === "z" || key === "enter" || key === " " ? "fire" : key === "shift" ? "focus" : null);
+    if (button) { event.preventDefault(); if (down) realtimeHeld.add(button); else realtimeHeld.delete(button); return true; }
+    if (down && (key === "escape" || key === "x")) { event.preventDefault(); if (!event.repeat) dispatch({ type: "sceneInput", input: { type: "cancel" } }); return true; }
+    return false;
+  }
   function onKeyDown(event: KeyboardEvent) {
     if (!accepts(event) || event.metaKey || event.ctrlKey || event.altKey) return;
     audio.unlock();
+    if (realtimeKey(event, true)) return;
     const dir = directionFromKey(event.key);
     if (dir) { event.preventDefault(); if (!event.repeat || state.scene.kind === "field") press(dir); return; }
     const key = event.key.toLowerCase();
@@ -271,10 +296,11 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     else if (state.scene.kind === "battle" && /^[1-4]$/.test(key)) { selection = Number(key) - 1; confirm(); }
   }
   function onKeyUp(event: KeyboardEvent) {
+    if (realtimeKey(event, false)) return;
     const dir = directionFromKey(event.key);
     if (dir) releaseDir(dir);
   }
-  const onBlur = () => { held.length = 0; };
+  const onBlur = () => { held.length = 0; realtimeHeld.clear(); };
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("blur", onBlur);
@@ -401,6 +427,14 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const def = engine.systems.find(s => s.id === scene.system)?.scenes?.[scene.scene];
     sceneHost = el("div", "rpg-scene");
     windowLayer.appendChild(sceneHost);
+    if (def?.realtime) {
+      realtimeCanvas = el("canvas", "rpg-realtime");
+      realtimeCanvas.width = VIEW_COLS * TILE; realtimeCanvas.height = VIEW_ROWS * TILE;
+      sceneHost.appendChild(realtimeCanvas);
+      realtimeClock = performance.now();
+      return;
+    }
+    realtimeCanvas = null;
     if (!def?.render) {
       sceneHost.appendChild(el("div", "rpg-window rpg-message", `画面 ${scene.system}.${scene.scene}（表示なし。矢印・決定・キャンセルで操作）`));
       return;
@@ -597,9 +631,34 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   }
 
   /* ------------------------------------------------------------ frame loop */
+  function realtimeFrame(now: number, def: NonNullable<ReturnType<typeof realtimeDef>>) {
+    const step = 1000 / (def.realtime?.fps ?? 30);
+    let steps = 0;
+    while (now - realtimeClock >= step && steps < 3) {
+      realtimeClock += step; steps++;
+      let result: StepResult;
+      try { result = engine.step(state, { type: "sceneInput", input: { type: "frame", held: [...realtimeHeld] } }); } catch (error) { fail(error); return; }
+      const before = state.scene;
+      const after = result.state.scene;
+      if (after.kind === "custom" && before.kind === "custom" && after.system === before.system && after.scene === before.scene) {
+        state = result.state; // stay silent: no DOM rebuild at 30fps
+        for (const cue of result.cues) if (cue.kind === "hit") audio.cue(cue.target === "enemy" ? "hit" : "hurt");
+      } else { realtimeHeld.clear(); apply(result); return; }
+    }
+    if (now - realtimeClock > step * 6) realtimeClock = now; // tab was hidden
+    const scene = state.scene;
+    if (realtimeCanvas && scene.kind === "custom" && def.draw) {
+      try {
+        def.draw(realtimeCanvas.getContext("2d")!, { data: scene.data, state, content, width: realtimeCanvas.width, height: realtimeCanvas.height, time: now, send: input => dispatch({ type: "sceneInput", input }), assetUrl: id => images[id]?.src });
+      } catch (error) { fail(error); }
+    }
+  }
+
   function frame(now: number) {
     if (destroyed) return;
     raf = requestAnimationFrame(frame);
+    const rt = realtimeDef();
+    if (rt) { realtimeFrame(now, rt); return; }
     const moving = animator.update(now);
     renderPos = moving.position;
     if (!moving.moving && state.scene.kind === "field" && !menuOpen && held.length) {

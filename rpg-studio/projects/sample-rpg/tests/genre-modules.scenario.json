@@ -1,0 +1,287 @@
+{
+  "name": "ジャンルモジュール: ノベル（昔話）・育成（修行）・パズル（祠）・カードバトル（テト）",
+  "seed": 21,
+  "steps": [
+    {
+      "advance": "all"
+    },
+    {
+      "choose": "dwarf"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "elder-house",
+          "x": 4,
+          "y": 3,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "choice"
+      }
+    },
+    {
+      "choose": "story"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": "confirm"
+    },
+    {
+      "sceneInput": "confirm"
+    },
+    {
+      "sceneInput": "confirm"
+    },
+    {
+      "expect": {
+        "sets": {
+          "clues": [
+            "rune-order"
+          ]
+        },
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInputs": [
+        "confirm"
+      ],
+      "repeat": 5
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "village",
+          "x": 17,
+          "y": 9,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "choose": "training"
+    },
+    {
+      "expect": {
+        "textIncludes": "三日だけ"
+      }
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInputs": [
+        "confirm"
+      ],
+      "repeat": 3
+    },
+    {
+      "expect": {
+        "vars": {
+          "skill": 3
+        },
+        "stats": {
+          "attack": 6
+        },
+        "textIncludes": "攻撃力が1上がった"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "village",
+          "x": 5,
+          "y": 4,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": "up"
+    },
+    {
+      "sceneInput": "confirm"
+    },
+    {
+      "sceneInput": "left"
+    },
+    {
+      "sceneInput": "up"
+    },
+    {
+      "sceneInput": "left"
+    },
+    {
+      "sceneInput": "up"
+    },
+    {
+      "sceneInput": "right"
+    },
+    {
+      "sceneInput": "down"
+    },
+    {
+      "sceneInput": "down"
+    },
+    {
+      "sceneInput": "right"
+    },
+    {
+      "sceneInput": "right"
+    },
+    {
+      "sceneInput": "right"
+    },
+    {
+      "sceneInput": "right"
+    },
+    {
+      "sceneInput": "up"
+    },
+    {
+      "sceneInput": "up"
+    },
+    {
+      "sceneInput": "left"
+    },
+    {
+      "sceneInput": "down"
+    },
+    {
+      "expect": {
+        "done": [
+          "shrine-solved"
+        ],
+        "textIncludes": "幸運のお守り"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "items": {
+          "lucky-charm": 1
+        }
+      }
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "textIncludes": "心地よい風"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "village",
+          "x": 11,
+          "y": 10,
+          "facing": "down"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "choose": "card-match"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInputs": [
+        "confirm",
+        "confirm",
+        "confirm",
+        "down"
+      ],
+      "repeat": 30
+    },
+    {
+      "expect": {
+        "scene": "battle",
+        "battleOutcome": "victory",
+        "textIncludes": "カードの応酬を制した"
+      }
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "textIncludes": "お礼に"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    }
+  ]
+}

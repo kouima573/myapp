@@ -1294,6 +1294,17 @@
             },
             "canFlee": {
               "type": "boolean"
+            },
+            "mode": {
+              "type": "string",
+              "pattern": "^(builtin|[a-z0-9][a-z0-9._-]*\\.[a-z0-9][a-z0-9_-]*)$"
+            },
+            "args": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
             }
           },
           "required": [

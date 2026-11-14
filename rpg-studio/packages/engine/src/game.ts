@@ -347,11 +347,15 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
 
   function applyEffect(c: Ctx, state: GameState, effect: Effect, ctxValues?: EvalEnv["ctx"]): GameState {
     const inBattle = state.scene.kind === "battle";
+    /** While a custom scene is open, effects apply immediately; text and screens wait until it closes. */
+    const inScene = state.scene.kind === "custom";
+    const immediate = inBattle || inScene;
     switch (effect.type) {
       case "message":
       case "battleLog": {
         const line = text(effect.text, state, ctxValues);
         if (inBattle) return battleLog(state, line);
+        if (inScene) return { ...state, queue: [...state.queue, { ...effect, type: "message", text: line } as Effect] };
         return { ...state, scene: { kind: "message", text: line, ...(effect.type === "message" && effect.speaker ? { speaker: effect.speaker } : {}) } };
       }
       case "setFlag":
@@ -374,11 +378,11 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         let roll: number;
         [roll, state] = random(state);
         const branch = roll * 100 < ex(effect.percent, state, ctxValues) ? effect.then : effect.else ?? [];
-        return inBattle ? runNow(c, state, branch, ctxValues) : enqueue(state, branch);
+        return immediate ? runNow(c, state, branch, ctxValues) : enqueue(state, branch);
       }
       case "if": {
         const branch = ev(effect.when, state, ctxValues) ? effect.then : effect.else ?? [];
-        return inBattle ? runNow(c, state, branch, ctxValues) : enqueue(state, branch);
+        return immediate ? runNow(c, state, branch, ctxValues) : enqueue(state, branch);
       }
       case "setStat":
         return withHpCare(state, s => {
@@ -398,7 +402,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         c.log.push(`特性「${trait?.name ?? effect.trait}」を得た`);
         state = withHpCare(state, s => ({ ...s, traits: [...s.traits, effect.trait] }));
         const gifts = trait?.onGrant ?? [];
-        return inBattle ? runNow(c, state, gifts, ctxValues) : enqueue(state, gifts);
+        return immediate ? runNow(c, state, gifts, ctxValues) : enqueue(state, gifts);
       }
       case "removeTrait":
         return withHpCare(state, s => ({ ...s, traits: s.traits.filter(t => t !== effect.trait) }));
@@ -452,7 +456,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       case "event": {
         const event = content.events[effect.event];
         if (!event) throw new Error(`イベント '${effect.event}' がありません`);
-        return inBattle ? runNow(c, state, eventEffects(c, state, event), ctxValues) : enqueue(state, eventEffects(c, state, event));
+        return immediate ? runNow(c, state, eventEffects(c, state, event), ctxValues) : enqueue(state, eventEffects(c, state, event));
       }
       case "endBattle": {
         const battle = battleOf(state);
@@ -468,7 +472,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         const result = action({ content, state }, effect.args ?? {});
         c.log.push(...(result.log ?? []));
         state = result.state ?? state;
-        return inBattle ? runNow(c, state, result.effects ?? [], ctxValues) : enqueue(state, result.effects ?? []);
+        return immediate ? runNow(c, state, result.effects ?? [], ctxValues) : enqueue(state, result.effects ?? []);
       }
       case "addToSet": {
         const list = state.sets[effect.set] ?? [];
@@ -496,6 +500,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         c.log.push(`エンディング「${content.project.endings[effect.ending]?.title ?? effect.ending}」`);
         state = { ...state, sets: { ...state.sets, endings: endings.includes(effect.ending) ? endings : [...endings, effect.ending] } };
         if (inBattle) { const b = battleOf(state)!; return setBattle(state, { ...b, after: [...b.after, effect] }); }
+        if (inScene) return { ...state, queue: [...state.queue, effect] };
         return { ...state, queue: [], scene: { kind: "ending", ending: effect.ending } };
       }
       case "newCycle": {
@@ -506,6 +511,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       }
       case "startScene": {
         if (inBattle) { const b = battleOf(state)!; return setBattle(state, { ...b, after: [...b.after, effect] }); }
+        if (inScene) return { ...state, queue: [...state.queue, effect] };
         const def = sorted.find(sys => sys.id === effect.system)?.scenes?.[effect.scene];
         if (!def) throw new Error(`システム '${effect.system}' に画面 '${effect.scene}' がありません`);
         const data = def.start ? def.start({ content, state }, effect.args ?? {}) : null;
@@ -518,6 +524,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       case "teleport":
       case "battle":
         if (inBattle) { const b = battleOf(state)!; return setBattle(state, { ...b, after: [...b.after, effect] }); }
+        if (inScene) return { ...state, queue: [...state.queue, effect] };
         if (effect.type === "dialogue") {
           if (!content.dialogues[effect.dialogue]) throw new Error(`会話 '${effect.dialogue}' がありません`);
           return { ...state, scene: { kind: "dialogue", dialogueId: effect.dialogue, line: 0 } };
@@ -570,7 +577,28 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       const next = tryRule(c, state, entry);
       if (next) state = runNow(c, next, entry.rule.effects);
     }
-    return checkBattleEnd(c, state);
+    state = checkBattleEnd(c, state);
+    // Genre battle modes: fight in a module / system scene, then come back to the RPG battle result.
+    const mode = effect.mode ?? enemy.battle?.mode ?? "builtin";
+    const started = battleOf(state);
+    if (mode !== "builtin" && started && started.outcome === "ongoing") {
+      const [systemId, sceneName] = [mode.slice(0, mode.lastIndexOf(".")), mode.slice(mode.lastIndexOf(".") + 1)];
+      const def = sorted.find(sys => sys.id === systemId)?.scenes?.[sceneName];
+      if (!def) throw new Error(`戦闘モード '${mode}' の画面がありません（project.json の modules / systems を確認）`);
+      const args = { ...enemy.battle?.args, ...effect.args, enemyId: enemy.id, canFlee: started.canFlee };
+      const data = def.start ? def.start({ content, state }, args) : null;
+      c.log.push(`戦闘モード ${mode}`);
+      return { ...state, scene: { kind: "custom", system: systemId, scene: sceneName, data, battle: started } };
+    }
+    return state;
+  }
+
+  /** A module battle ended: rebuild the RPG battle result (drops, victory/defeat rules, respawn). */
+  function finishModuleBattle(c: Ctx, state: GameState, battle: BattleState, outcome: "victory" | "defeat" | "fled", lines: string[]): GameState {
+    state = setBattle(state, { ...battle, log: [...battle.log, ...lines].slice(-10) });
+    if (outcome === "fled") { c.cues.push({ kind: "battleEnd", outcome: "fled" }); return setBattle(state, { ...battleOf(state)!, outcome: "fled" }); }
+    if (outcome === "victory") return checkBattleEnd(c, setBattle(state, { ...battleOf(state)!, enemyHp: 0 }));
+    return checkBattleEnd(c, { ...state, player: { ...state.player, hp: 0 } });
   }
 
   function rollDamage(state: GameState, attack: number, power: number, defense: number, who: "player" | "enemy" = "player"): [number, GameState] {
@@ -1009,6 +1037,11 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const result = def.input({ content, state }, scene.data, input);
     c.log.push(...(result.log ?? []));
     let next = result.state ?? state;
+    if (result.apply?.length) next = runNow(c, next, result.apply);
+    if (scene.battle && (result.outcome || result.close)) {
+      const outcome = result.outcome ?? "fled";
+      return finishModuleBattle(c, enqueue(next, result.effects ?? []), scene.battle, outcome, result.battleLog ?? []);
+    }
     if (result.close) return runQueue(c, enqueue({ ...next, scene: { kind: "field" } }, result.effects ?? []));
     next = { ...next, scene: { ...scene, data: result.data === undefined ? scene.data : result.data } };
     return enqueue(next, result.effects ?? []);

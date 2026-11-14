@@ -110,6 +110,73 @@
           }
         }
       ]
+    },
+    {
+      "id": "wind-shrine",
+      "name": "風の祠",
+      "x": 5,
+      "y": 3,
+      "states": [
+        {
+          "when": {
+            "not": {
+              "done": "shrine-solved"
+            }
+          },
+          "marker": "statue",
+          "trigger": "action",
+          "effects": [
+            {
+              "type": "message",
+              "text": "小さな祠だ。床の石板を押して、風の通り道を作る仕掛けになっている。"
+            },
+            {
+              "type": "startScene",
+              "system": "puzzle",
+              "scene": "push",
+              "args": {
+                "title": "風の祠 — 石を目印（◇）に押し込もう",
+                "rows": [
+                  "########",
+                  "#  .   #",
+                  "# $##$ #",
+                  "#  @ . #",
+                  "########"
+                ],
+                "hint": "石は押すことしかできない。角に押し込むと動かせなくなる。",
+                "onSolve": [
+                  {
+                    "type": "markDone",
+                    "id": "shrine-solved"
+                  },
+                  {
+                    "type": "playSfx",
+                    "sound": "sfx-magic"
+                  },
+                  {
+                    "type": "message",
+                    "text": "風が祠を吹き抜けた。奥から『幸運のお守り』が出てきた！"
+                  },
+                  {
+                    "type": "giveItem",
+                    "item": "lucky-charm"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "marker": "sparkle",
+          "trigger": "action",
+          "effects": [
+            {
+              "type": "message",
+              "text": "祠の中を、心地よい風が巡っている。"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

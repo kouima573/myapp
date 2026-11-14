@@ -71,7 +71,8 @@ export async function loadSystems(root: string, content: GameContent): Promise<G
     }
     systems.push(system);
   }
-  return systems;
+  const { withModules } = await import("../../modules/src/index");
+  return withModules(content, systems);
 }
 
 /** Finds every {"custom"}, {"fn"}, startScene and system-action reference in the data and checks the loaded systems define it. */

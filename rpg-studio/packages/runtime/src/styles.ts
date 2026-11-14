@@ -63,6 +63,7 @@ export const RUNTIME_CSS = String.raw`
 .rpg-menu-ability { display:flex; flex-direction:column; font-size:.8em; padding:.2em .5em; }
 .rpg-menu-ability span { color:var(--rpg-dim); font-size:.9em; }
 .rpg-scene { position:absolute; inset:0; pointer-events:auto; }
+.rpg-realtime { position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; }
 .rpg-root[data-scene="ending"] .rpg-layer { background:rgba(4,6,5,.72); }
 .rpg-ending { position:absolute; left:10%; right:10%; top:14%; bottom:14%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.6em; padding:1.2em; text-align:center; animation:rpg-in .6s ease-out; }
 .rpg-ending-label { letter-spacing:.4em; color:var(--rpg-accent); font-size:.8em; }

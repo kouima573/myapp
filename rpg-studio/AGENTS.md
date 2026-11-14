@@ -6,6 +6,7 @@
 
 1. `docs/project-format.md` — データ形式v2（条件・効果・マップ・会話・イベント・戦闘・セーブ）
 2. `docs/customization-guide.md` — 種族・効果・仕組みをデータで作るレシピ集（フラグ・変数・特性・ルール・式）
+   `docs/genre-modules.md` — ノベル・パズル・弾幕・育成・カードなど他ジャンルの遊びをRPGに組み込むモジュール（作れるのはRPGのみ）
    `docs/innovation-guide.md` — 新しい遊びを発明するための部品（エンティティ・領域・集合・周回・独自画面・描画レイヤー）と発想集
 3. `docs/extension-api.md` — データで書けないものだけ使うTypeScriptフック（`defineSystem`）
 4. `docs/scenario-tests.md` — 自動プレイテスト

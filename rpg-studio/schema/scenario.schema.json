@@ -199,6 +199,65 @@
           {
             "type": "object",
             "properties": {
+              "frames": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 100000
+              },
+              "hold": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "up",
+                    "down",
+                    "left",
+                    "right",
+                    "fire",
+                    "focus"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "frames"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "sceneInputs": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "up",
+                    "down",
+                    "left",
+                    "right",
+                    "confirm",
+                    "cancel"
+                  ]
+                }
+              },
+              "repeat": {
+                "default": 1,
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 1000
+              }
+            },
+            "required": [
+              "sceneInputs"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
               "sceneInput": {
                 "anyOf": [
                   {
@@ -1132,6 +1191,17 @@
             },
             "canFlee": {
               "type": "boolean"
+            },
+            "mode": {
+              "type": "string",
+              "pattern": "^(builtin|[a-z0-9][a-z0-9._-]*\\.[a-z0-9][a-z0-9_-]*)$"
+            },
+            "args": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
             }
           },
           "required": [

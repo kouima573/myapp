@@ -75,6 +75,13 @@
       "initial": 0,
       "min": 0,
       "description": "直前に拾ったゴールド（文章表示用）"
+    },
+    "skill": {
+      "initial": 0,
+      "min": 0,
+      "max": 9,
+      "label": "剣の型",
+      "description": "修行で身につけた型の数"
     }
   },
   "sets": {
@@ -214,6 +221,13 @@
       "title": "遺跡の暗闇と灯り（描画レイヤーの例）"
     }
   ],
+  "modules": {
+    "novel": {},
+    "puzzle": {},
+    "shooter": {},
+    "planner": {},
+    "cards": {}
+  },
   "audio": {
     "battle": "song-battle",
     "victory": "sfx-victory",

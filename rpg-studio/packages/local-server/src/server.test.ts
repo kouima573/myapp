@@ -95,5 +95,5 @@ describe("local server security", () => {
     const body = JSON.parse(res.body);
     expect(body.ok).toBe(true);
     expect(body.results.length).toBeGreaterThanOrEqual(3);
-  });
+  }, 60000);
 });

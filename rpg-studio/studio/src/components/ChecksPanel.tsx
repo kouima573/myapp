@@ -14,6 +14,7 @@ const PRESETS: Array<{ label: string; task: string }> = [
   { label: "種族を追加", task: "次の種族を特性(traits)として追加して。各効果は docs/customization-guide.md のレシピ（statMods・rules・use）で実装し、データで書けないものは一覧にして相談して。\n\n種族名：\n説明：\n効果1：\n効果2：" },
   { label: "仕様書から効果を実装", task: "添付の仕様書の効果を、1種族ずつ database.json の traits / abilities と rules に実装して。仕様にない効果は推測で作らず、表現できない効果はリストアップして。各効果に tests/*.scenario.json の動作確認を付けて。" },
   { label: "仕組みを追加", task: "次の仕組みをフラグ・変数・rules.json のルールで追加して（例：昼夜、好感度、評判、空腹度）。\n\n仕組み：" },
+  { label: "ジャンルを混ぜる", task: "次の場面を、組み込みジャンルモジュール（docs/genre-modules.md: novel / puzzle / shooter / planner / cards）を使って作って。RPGの能力値・アイテム・フラグと結果がつながるようにし、合うモジュールがなければ新しいジャンルモジュールを systems/*.ts の defineSystem（scenes・realtime・draw・checkArgs）で作って。\n\n場面：\nジャンル：\n勝ち・成功したとき：\n負け・失敗したとき：" },
   { label: "マップとイベント", task: "村の東に小さな湖を作り、釣り人のNPCが『魚の鱗』をくれるイベントを追加して" },
 ];
 
@@ -24,7 +25,7 @@ function agentPrompt(task: string, projectDir: string) {
 - まず AGENTS.md（Claude Codeは CLAUDE.md）と docs/customization-guide.md・docs/project-format.md を読む。
 - pnpm rpg catalog --project ${projectDir} で既存のID・フラグ・変数・特性を確認する。
 - 対象プロジェクト: ${projectDir}
-- 種族・効果・仕組みはデータ（特性・能力・ルール・効果・条件・式）で作る。表現できないものだけ systems/*.ts の defineSystem で実装する。
+- 種族・効果・仕組みはデータ（特性・能力・ルール・効果・条件・式）で作る。ノベル・パズル・弾幕・育成・カードなどの場面は組み込みジャンルモジュール（docs/genre-modules.md）を使う。表現できないものだけ systems/*.ts の defineSystem で実装する。
 - 新しいフラグ・変数は project.json の flags / variables に宣言する。素材は assets.json に出典・寸法つきで登録する。
 - 変更を確かめる自動プレイテストを tests/*.scenario.json に追加する。
 - 最後に次を実行し、すべて OK になるまで直す:

@@ -8,9 +8,11 @@ import { z } from "zod";
 
 export const PROJECT_FORMAT_VERSION = 2;
 export const SAVE_FORMAT_VERSION = 2;
-export const ENGINE_VERSION = "0.5.0";
+export const ENGINE_VERSION = "0.6.0";
 
 export const IdSchema = z.string().min(1).max(96).regex(/^[a-z0-9][a-z0-9._-]*$/i, "IDは英数字で始まり、英数字・._-のみ使えます");
+/** "builtin" (command battle) or "<module or system id>.<scene>" e.g. "shooter.battle", "cards.battle". */
+export const BattleModeSchema = z.string().regex(/^(builtin|[a-z0-9][a-z0-9._-]*\.[a-z0-9][a-z0-9_-]*)$/i, "戦闘モードは builtin か 'モジュールID.画面名' です");
 const RelPathSchema = z.string().min(1).max(240).refine(value => !value.includes("\\") && !value.startsWith("/") && !value.split("/").some(part => part === "" || part === "." || part === ".."), "プロジェクト相対のPOSIXパスを指定してください");
 const CoordSchema = z.number().int().nonnegative();
 export const DirectionSchema = z.enum(["up", "down", "left", "right"]);
@@ -144,7 +146,7 @@ export type Effect =
   | { type: "dialogue"; dialogue: string }
   | { type: "choice"; prompt?: string; speaker?: string; options: ChoiceOption[] }
   | { type: "event"; event: string }
-  | { type: "battle"; enemy: string; onVictory?: Effect[]; onDefeat?: "respawn" | "continue"; canFlee?: boolean }
+  | { type: "battle"; enemy: string; onVictory?: Effect[]; onDefeat?: "respawn" | "continue"; canFlee?: boolean; mode?: string; args?: Record<string, unknown> }
   | { type: "battleLog"; text: string }
   | { type: "endBattle"; outcome: "victory" | "fled" }
   | { type: "markDone"; id: string }
@@ -186,7 +188,7 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("dialogue"), dialogue: IdSchema }).strict(),
   z.object({ type: z.literal("choice"), prompt: z.string().optional(), speaker: z.string().optional(), options: z.array(ChoiceOptionSchema).min(1) }).strict(),
   z.object({ type: z.literal("event"), event: IdSchema }).strict(),
-  z.object({ type: z.literal("battle"), enemy: IdSchema, onVictory: z.array(EffectSchema).optional(), onDefeat: z.enum(["respawn", "continue"]).optional(), canFlee: z.boolean().optional() }).strict(),
+  z.object({ type: z.literal("battle"), enemy: IdSchema, onVictory: z.array(EffectSchema).optional(), onDefeat: z.enum(["respawn", "continue"]).optional(), canFlee: z.boolean().optional(), mode: BattleModeSchema.optional(), args: z.record(z.string(), z.unknown()).optional() }).strict(),
   z.object({ type: z.literal("battleLog"), text: z.string().min(1) }).strict(),
   z.object({ type: z.literal("endBattle"), outcome: z.enum(["victory", "fled"]) }).strict(),
   z.object({ type: z.literal("markDone"), id: IdSchema }).strict(),
@@ -385,6 +387,8 @@ export const ProjectManifestSchema = z.object({
   systems: z.array(FileRefSchema).default([]),
   audio: AudioConfigSchema.default({ sfx: {}, volume: { bgm: 0.6, sfx: 0.8 } }),
   assetPolicy: AssetPolicySchema.default({ shareable: false, sources: {}, customSources: [], prefer: {}, budget: { warnTotalMB: 100, maxTotalMB: 300, maxFileMB: 20 } }),
+  /** Built-in genre modules enabled for this project (novel, puzzle, shooter, planner, cards…), with optional config. */
+  modules: z.record(IdSchema, z.record(z.string(), z.unknown())).default({}),
   /** Extra lines for the credits screen (staff, thanks). Asset credits are added automatically. */
   credits: z.array(z.string()).default([]),
 }).strict();
@@ -688,6 +692,8 @@ export const EnemySchema = z.object({
   /** Each turn, the available actions (whose `when` holds) are used in order, cycling. */
   actions: z.array(EnemyActionSchema).min(1),
   drops: z.array(z.object({ item: IdSchema, count: z.number().int().positive().default(1) }).strict()).default([]),
+  /** How this enemy is fought: a genre module scene instead of the command battle (e.g. shooter, cards). */
+  battle: z.object({ mode: BattleModeSchema, args: z.record(z.string(), z.unknown()).default({}) }).strict().optional(),
   /** Battle music for this enemy (overrides audio.battle). */
   bgm: IdSchema.optional(),
   /** Battle background (overrides the map's battleBackground). */
@@ -844,7 +850,7 @@ export const SceneSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("prompt"), prompt: z.string().optional(), speaker: z.string().optional(), options: z.array(z.object({ id: z.string(), label: z.string(), effects: z.array(EffectSchema) }).strict()) }).strict(),
   z.object({ kind: z.literal("battle"), battle: BattleStateSchema }).strict(),
   /** A screen provided by a project system (puzzle, card battle, minigame…). `data` is the system's JSON state. */
-  z.object({ kind: z.literal("custom"), system: IdSchema, scene: IdSchema, data: z.unknown() }).strict(),
+  z.object({ kind: z.literal("custom"), system: IdSchema, scene: IdSchema, data: z.unknown(), battle: BattleStateSchema.optional() }).strict(),
   z.object({ kind: z.literal("ending"), ending: IdSchema }).strict(),
 ]);
 export type Scene = z.infer<typeof SceneSchema>;

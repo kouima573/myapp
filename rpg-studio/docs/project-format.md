@@ -101,6 +101,7 @@
 - **時間** `schedule {id?, after: 式(歩数), effects}` / `cancelSchedule {id}`。ルールの `on: "tick"`。式 `{"ticks": true}`。
 - **その他の効果** `moveEntity {entity, mapId?, x, y, facing?}`、`startScene {system, scene, args}`（独自画面）。
 - **拡張の呼び出し** 条件 `{"custom": "system.name", "args"}`、式 `{"fn": "system.name", "args": [...]}`。
+- **ジャンルモジュール** `project.json › modules`（例 `{ "novel": {}, "shooter": {} }`）で有効にする。戦闘効果の `mode` / `args`、敵の `battle: { mode: "builtin" | "id.scene", args }` で戦い方を差し替える。詳しくは [genre-modules.md](genre-modules.md)。
 - **戦闘** `project.json › battle`: `playerDamage` / `enemyDamage` / `fleeChance`（式。ctx: attack, defense, power, variance）、`commands`（各コマンドのON/OFF）。
 
 ## 地形の変化

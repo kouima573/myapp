@@ -729,6 +729,23 @@
       },
       "additionalProperties": false
     },
+    "modules": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 96,
+        "pattern": "^[a-z0-9][a-z0-9._-]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "propertyNames": {
+          "type": "string"
+        },
+        "additionalProperties": {}
+      }
+    },
     "credits": {
       "default": [],
       "type": "array",
@@ -1953,6 +1970,17 @@
             },
             "canFlee": {
               "type": "boolean"
+            },
+            "mode": {
+              "type": "string",
+              "pattern": "^(builtin|[a-z0-9][a-z0-9._-]*\\.[a-z0-9][a-z0-9_-]*)$"
+            },
+            "args": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
             }
           },
           "required": [

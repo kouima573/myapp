@@ -172,7 +172,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   const itemIds = new Set(database.items.map(i => i.id));
   const enemyIds = new Set(database.enemies.map(e => e.id));
   const enemyTags = new Set(database.enemies.flatMap(e => e.tags));
-  const systemIds = new Set(project.systems.map(s => s.id));
+  const systemIds = new Set([...project.systems.map(s => s.id), ...Object.keys(project.modules)]);
   const assetById = new Map(assets.assets.map(a => [a.id, a]));
   const tileByCode = new Map(tileset.tiles.map(t => [t.code, t]));
   const flagIds = new Set(Object.keys(project.flags));
@@ -284,6 +284,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         case "event": if (!events[effect.event]) err(file, here, `未定義のイベント '${effect.event}'`); break;
         case "battle":
           if (!enemyIds.has(effect.enemy)) err(file, here, `未定義の敵 '${effect.enemy}'`);
+          if (effect.mode && effect.mode !== "builtin" && !systemIds.has(effect.mode.slice(0, effect.mode.lastIndexOf(".")))) err(file, here, `戦闘モード '${effect.mode}' のモジュール・システムがありません`);
           if (effect.onVictory) checkEffects(file, `${here}.onVictory`, effect.onVictory);
           break;
         case "if":
@@ -301,7 +302,10 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
           break;
         }
         case "schedule": checkExpr(file, here, effect.after, ctxAllowed); checkEffects(file, `${here}.effects`, effect.effects); break;
-        case "startScene": if (!systemIds.has(effect.system)) err(file, here, `project.jsonのsystemsにないシステム '${effect.system}'`); break;
+        case "startScene":
+          for (const [i, list] of nestedEffectLists(effect.args ?? {}).entries()) checkEffects(file, `${here}.args(効果${i})`, list);
+          for (const cond of nestedConditions(effect.args ?? {})) checkCondition(file, `${here}.args.when`, cond);
+          if (!systemIds.has(effect.system)) err(file, here, `'${effect.system}' は project.json の systems にも modules にもありません`); break;
         case "ending": if (!endingIds.has(effect.ending)) err(file, here, `未宣言のエンディング '${effect.ending}'（project.json の endings）`); break;
         case "playBgm": checkAudio(file, here, effect.music, MUSIC, "BGM"); break;
         default: break;
@@ -505,6 +509,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   database.items.forEach(i => { const at = `items[${i.id}]`; checkStatMods(DB, at, i.statMods); checkRules(DB, at, i.rules); checkUse(DB, at, i.use); });
   database.enemies.forEach(enemy => {
     const at = `enemies[${enemy.id}]`;
+    if (enemy.battle) for (const list of nestedEffectLists(enemy.battle.args)) checkEffects(DB, `${at}.battle.args`, list);
+    if (enemy.battle && enemy.battle.mode !== "builtin" && !systemIds.has(enemy.battle.mode.slice(0, enemy.battle.mode.lastIndexOf(".")))) err(DB, `${at}.battle.mode`, `戦闘モード '${enemy.battle.mode}' のモジュール・システムがありません（project.json の modules を確認）`);
     if (enemy.sprite && assetById.get(enemy.sprite)?.kind !== "enemy" && assetById.get(enemy.sprite)?.kind !== "character") err(DB, `${at}.sprite`, `素材 '${enemy.sprite}' がassets.jsonにありません`);
     enemy.drops.forEach((drop, i) => { if (!itemIds.has(drop.item)) err(DB, `${at}.drops[${i}]`, `未定義のアイテム '${drop.item}'`); });
     enemy.actions.forEach((action, i) => { checkCondition(DB, `${at}.actions[${i}].when`, action.when, true); checkEffects(DB, `${at}.actions[${i}].effects`, action.effects, true); if (action.message) checkText(DB, `${at}.actions[${i}]`, action.message); });
@@ -540,12 +546,35 @@ export function forEachEffectList(content: GameContent, visit: (effects: Effect[
   for (const a of content.database.abilities) { rules(a.rules); if (a.use) visit(a.use.effects); }
   for (const t of content.database.traits) { rules(t.rules); visit(t.onGrant); }
   for (const i of content.database.items) { rules(i.rules); if (i.use) visit(i.use.effects); }
-  for (const e of content.database.enemies) { rules(e.rules); e.actions.forEach(a => visit(a.effects)); }
+  for (const e of content.database.enemies) { rules(e.rules); e.actions.forEach(a => visit(a.effects)); if (e.battle) nestedEffectLists(e.battle.args).forEach(visit); }
   for (const t of content.tileset.tiles) if (t.inspect) { visit(t.inspect.effects); visit(t.inspect.otherwise); }
   for (const m of Object.values(content.maps)) {
     m.entities.forEach(e => e.states.forEach(st => visit(st.effects)));
     m.regions.forEach(r => { visit(r.onEnter); visit(r.onLeave); visit(r.onStep); visit(r.inspect); });
   }
+}
+
+/** Effect lists hidden inside module arguments (any array of objects with a string "type"). */
+export function nestedEffectLists(value: unknown, out: Effect[][] = []): Effect[][] {
+  if (Array.isArray(value)) {
+    if (value.length && value.every(v => v && typeof v === "object" && typeof (v as { type?: unknown }).type === "string")) out.push(value as Effect[]);
+    else value.forEach(v => nestedEffectLists(v, out));
+  } else if (value && typeof value === "object") {
+    for (const child of Object.values(value)) nestedEffectLists(child, out);
+  }
+  return out;
+}
+
+/** Conditions hidden inside module arguments (values of "when" keys). */
+export function nestedConditions(value: unknown, out: Condition[] = []): Condition[] {
+  if (Array.isArray(value)) value.forEach(v => nestedConditions(v, out));
+  else if (value && typeof value === "object") {
+    for (const [key, child] of Object.entries(value)) {
+      if (key === "when" && child && typeof child === "object") out.push(child as Condition);
+      else nestedConditions(child, out);
+    }
+  }
+  return out;
 }
 
 export function walkExpr(expr: Expr, visit: (expr: Expr) => void, onCondition?: (condition: Condition) => void): void {
@@ -573,6 +602,8 @@ export function walkEffects(effects: Effect[], visit: (effect: Effect) => void):
     if (effect.type === "if" || effect.type === "chance") { walkEffects(effect.then, visit); if (effect.else) walkEffects(effect.else, visit); }
     if (effect.type === "choice") effect.options.forEach(option => walkEffects(option.effects, visit));
     if (effect.type === "schedule") walkEffects(effect.effects, visit);
+    if (effect.type === "startScene" && effect.args) for (const list of nestedEffectLists(effect.args)) walkEffects(list, visit);
+    if (effect.type === "battle" && effect.args) for (const list of nestedEffectLists(effect.args)) walkEffects(list, visit);
   }
 }
 

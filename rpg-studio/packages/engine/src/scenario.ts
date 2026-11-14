@@ -44,6 +44,10 @@ const StepSchema = z.union([
   z.object({ battleItem: IdSchema }).strict(),
   z.object({ skill: IdSchema }).strict(),
   z.object({ tick: z.number().int().positive() }).strict(),
+  /** Realtime scenes (shooting): run up to `frames` simulation steps holding these buttons; stops when the scene ends. */
+  z.object({ frames: z.number().int().positive().max(100000), hold: z.array(z.enum(["up", "down", "left", "right", "fire", "focus"])).default([]) }).strict(),
+  /** Send a sequence of inputs, repeated up to `repeat` times, until the custom scene closes. */
+  z.object({ sceneInputs: z.array(z.enum(["up", "down", "left", "right", "confirm", "cancel"])).min(1), repeat: z.number().int().positive().max(1000).default(1) }).strict(),
   z.object({ sceneInput: z.union([z.enum(["up", "down", "left", "right", "confirm", "cancel"]), z.object({ custom: z.unknown() }).strict()]) }).strict(),
   z.object({ useItem: IdSchema }).strict(),
   z.object({ useAbility: IdSchema }).strict(),
@@ -132,6 +136,7 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
       else if (herb && state.player.hp * 2 < state.player.stats.maxHp) step({ type: "battle", command: "item", item: herb.id });
       else step({ type: "battle", command: "attack" });
     }
+    if (state.scene.kind === "custom" && state.scene.battle) throw new ScenarioError(`fight: この敵は戦闘モード ${state.scene.system}.${state.scene.scene} です。sceneInput / frames で操作してください`);
     if (state.scene.kind !== "battle") throw new ScenarioError("fight: 戦闘中ではありません");
     const outcome = state.scene.battle.outcome;
     step({ type: "advance" });
@@ -196,6 +201,22 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
       } else if ("battle" in s) step({ type: "battle", command: s.battle });
       else if ("battleItem" in s) step({ type: "battle", command: "item", item: s.battleItem });
       else if ("skill" in s) step({ type: "battle", command: "skill", ability: s.skill });
+      else if ("sceneInputs" in s) {
+        if (state.scene.kind !== "custom") throw new ScenarioError(`sceneInputs: 独自画面が開いていません (scene=${state.scene.kind})`);
+        outer: for (let r = 0; r < s.repeat; r++) for (const type of s.sceneInputs) {
+          if (state.scene.kind !== "custom") break outer;
+          step({ type: "sceneInput", input: { type } });
+        }
+      }
+      else if ("frames" in s) {
+        if (state.scene.kind !== "custom") throw new ScenarioError(`frames: リアルタイム画面が開いていません (scene=${state.scene.kind})`);
+        const opened = state.scene;
+        for (let i = 0; i < s.frames; i++) {
+          step({ type: "sceneInput", input: { type: "frame", held: s.hold } });
+          const now = state.scene;
+          if (now.kind !== "custom" || now.system !== opened.system || now.scene !== opened.scene) break;
+        }
+      }
       else if ("tick" in s) for (let i = 0; i < s.tick && state.scene.kind === "field"; i++) step({ type: "tick" });
       else if ("sceneInput" in s) {
         if (state.scene.kind !== "custom") throw new ScenarioError(`sceneInput: 独自画面が開いていません (scene=${state.scene.kind})`);

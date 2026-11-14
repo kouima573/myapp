@@ -28,7 +28,8 @@ export default defineSystem({
 | `conditions: { name(ctx, args) => boolean }` | `{ "custom": "id.name", "args": {...} }` | 夜か？ 距離3以内か？ |
 | `functions: { name(ctx, numbers) => number }` | `{ "fn": "id.name", "args": [式, ...] }` | 相性表、距離、時刻 |
 | `actions: { name(ctx, args) => { state?, effects?, log? } }` | `{ "type": "system", "system": "id", "action": "name", "args": {...} }` | ダンジョン生成（setTileを大量に返す）、集計 |
-| `scenes: { name: { start, input, render } }` | `{ "type": "startScene", "system": "id", "scene": "name", "args": {...} }` | パズル、カード戦闘、ミニゲーム |
+| `scenes: { name: { start, input, render } }` | `{ "type": "startScene", "system": "id", "scene": "name", "args": {...} }` | パズル、ノベル、育成、ミニゲーム |
+| `scenes` を戦闘モードに | 敵の `"battle": { "mode": "id.name" }` / 戦闘効果の `mode` | 弾幕、カード、リズム戦闘 |
 | `drawOverlay(ctx2d, info)` | （自動） | 暗闇と灯り、天候、霧 |
 | `hud(ctx) => string[]` | （自動） | 体温、時刻、残り時間 |
 | `onStep(ctx)` / `onTick(ctx)` | （自動） | 空腹、昼夜、匂い |
@@ -50,7 +51,12 @@ scenes: {
 
 - 入力: 矢印キー → `up/down/left/right`、決定 → `confirm`、キャンセル → `cancel`。`render` 内のボタンからは `view.send({ type: "custom", value: ... })` で任意の値を送れる。
 - 結果: `data`（新しい画面データ）、`close`（閉じる）、`effects`（閉じた後に実行）、`state`（ゲーム状態の置き換え）。
-- 自動プレイテストでは `{ "sceneInput": "up" }` や `{ "sceneInput": { "custom": ... } }` で操作できる。
+- 結果（続き）: `apply`（画面を開いたまま今すぐ適用する効果。育成の能力値上昇など）、`log`、戦闘モードでは `outcome`（`victory` / `defeat` / `fled`）と `battleLog`。
+- `checkArgs(args, { content })` を書くと、引数の誤りを `rpg validate` と工房の検証に表示できる（エラー文の配列を返す）。
+- **リアルタイム画面**: `realtime: { fps: 30 }` を付けると、毎フレーム `input(ctx, data, { type: "frame", held: ["left", "fire", ...] })` が呼ばれ、`draw(ctx2d, view)` でCanvasに描く（`view.width` / `height` / `time`）。`held` は `up/down/left/right/fire/focus`。シミュレーションは `data` に入れた種で乱数を回し、決定的にする。
+- **戦闘モード**: 敵の `"battle": { "mode": "id.scene", "args": {...} }` か戦闘効果の `mode` で、その画面が戦闘になる。`start` の `args.enemyId` に敵ID、`ctx.state.scene.battle` にRPG側の戦闘情報。決着は `outcome` で返す。
+- 組み込みのジャンルモジュール（ノベル・パズル・弾幕・育成・カード）は `packages/modules/src/` にあり、そのまま見本になる。[genre-modules.md](genre-modules.md)
+- 自動プレイテストでは `{ "sceneInput": "up" }` や `{ "sceneInput": { "custom": ... } }`、`{ "sceneInputs": ["confirm", "down"], "repeat": 10 }`、リアルタイム画面は `{ "frames": 600, "hold": ["fire"] }` で操作できる。
 - `rpg test` は、データが参照している条件・関数・画面・アクションが実際に定義されているかも確認する。
 
 ## フック一覧

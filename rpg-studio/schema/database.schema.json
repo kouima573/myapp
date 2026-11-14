@@ -672,6 +672,27 @@
               "additionalProperties": false
             }
           },
+          "battle": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "pattern": "^(builtin|[a-z0-9][a-z0-9._-]*\\.[a-z0-9][a-z0-9_-]*)$"
+              },
+              "args": {
+                "default": {},
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "mode"
+            ],
+            "additionalProperties": false
+          },
           "bgm": {
             "type": "string",
             "minLength": 1,
@@ -1986,6 +2007,17 @@
             },
             "canFlee": {
               "type": "boolean"
+            },
+            "mode": {
+              "type": "string",
+              "pattern": "^(builtin|[a-z0-9][a-z0-9._-]*\\.[a-z0-9][a-z0-9_-]*)$"
+            },
+            "args": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
             }
           },
           "required": [

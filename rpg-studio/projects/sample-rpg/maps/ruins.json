@@ -92,11 +92,11 @@
           "effects": [
             {
               "type": "message",
-              "text": "鬼火がまとわりついてきた！"
+              "text": "鬼火がまとわりついてきた！ 火の粉の弾幕だ！"
             },
             {
               "type": "battle",
-              "enemy": "cave-bat"
+              "enemy": "will-o-wisp"
             },
             {
               "type": "markDone",

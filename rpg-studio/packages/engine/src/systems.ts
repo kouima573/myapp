@@ -57,7 +57,9 @@ export interface SystemActionResult {
 /** Input delivered to a custom scene. Keys are mapped to the first six; buttons rendered by the scene can send anything. */
 export type SceneInput =
   | { type: "up" | "down" | "left" | "right" | "confirm" | "cancel" }
-  | { type: "custom"; value: unknown };
+  | { type: "custom"; value: unknown }
+  /** Realtime scenes: one fixed simulation step with the buttons currently held ("up","down","left","right","fire","focus"). */
+  | { type: "frame"; held: string[] };
 
 export interface SceneResult {
   /** New scene data (JSON). */
@@ -69,6 +71,12 @@ export interface SceneResult {
   /** Replacement game state (e.g. inventory changes). */
   state?: GameState;
   log?: string[];
+  /** Effects applied right now while the scene stays open (stats, variables, items…). Text and screen effects wait until it closes. */
+  apply?: Effect[];
+  /** Scenes started as a battle mode: how the battle ended. The RPG battle result (drops, rules, defeat) follows. */
+  outcome?: "victory" | "defeat" | "fled";
+  /** Lines for the RPG battle result screen. */
+  battleLog?: string[];
 }
 
 export interface SceneView {
@@ -86,9 +94,17 @@ export interface SceneView {
  * `start`/`input` are pure and run in tests; `render` only runs in the browser.
  */
 export interface SceneDefinition {
+  /** Short description shown in the studio and docs. */
+  title?: string;
   start?(ctx: SystemContext, args: Record<string, unknown>): unknown;
   input(ctx: SystemContext, data: unknown, input: SceneInput): SceneResult;
+  /** DOM screen (menus, novels, puzzles). Called after every input. */
   render?(host: HTMLElement, view: SceneView): void;
+  /** Realtime scenes: the runtime sends {type:"frame"} `fps` times per second and calls `draw` every animation frame. */
+  realtime?: { fps: number };
+  draw?(ctx2d: CanvasRenderingContext2D, view: SceneView & { width: number; height: number; time: number }): void;
+  /** Validates `args` (used by rpg validate for built-in modules). Return error messages. */
+  checkArgs?(args: Record<string, unknown>, ctx: { content: GameContent }): string[];
 }
 
 export interface OverlayContext extends SystemContext {

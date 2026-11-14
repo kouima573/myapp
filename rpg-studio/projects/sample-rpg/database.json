@@ -289,6 +289,105 @@
           ]
         }
       ]
+    },
+    {
+      "id": "will-o-wisp",
+      "name": "さまよう鬼火",
+      "tags": [
+        "monster",
+        "spirit"
+      ],
+      "stats": {
+        "maxHp": 10,
+        "attack": 3,
+        "defense": 0
+      },
+      "actions": [
+        {
+          "name": "火の粉",
+          "power": 1
+        }
+      ],
+      "drops": [],
+      "canFlee": true,
+      "battle": {
+        "mode": "shooter.battle",
+        "args": {
+          "hpScale": 4,
+          "phases": [
+            {
+              "untilHpPercent": 50,
+              "patterns": [
+                {
+                  "type": "ring",
+                  "count": 8,
+                  "speed": 1.4,
+                  "every": 45
+                },
+                {
+                  "type": "aimed",
+                  "count": 1,
+                  "speed": 2.2,
+                  "every": 30
+                }
+              ]
+            },
+            {
+              "patterns": [
+                {
+                  "type": "spiral",
+                  "count": 4,
+                  "speed": 1.6,
+                  "every": 9,
+                  "spread": 0.35
+                },
+                {
+                  "type": "aimed",
+                  "count": 3,
+                  "speed": 2.4,
+                  "every": 40,
+                  "spread": 0.5
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "training-dummy",
+      "name": "木人形",
+      "tags": [
+        "training"
+      ],
+      "stats": {
+        "maxHp": 15,
+        "attack": 3,
+        "defense": 0
+      },
+      "actions": [
+        {
+          "name": "構え",
+          "power": 0,
+          "message": "木人形がぎしりと構えた。"
+        },
+        {
+          "name": "突き",
+          "power": 4
+        },
+        {
+          "name": "薙ぎ払い",
+          "power": 2
+        }
+      ],
+      "drops": [],
+      "canFlee": true,
+      "battle": {
+        "mode": "cards.battle",
+        "args": {
+          "hpScale": 2
+        }
+      }
     }
   ],
   "traits": [

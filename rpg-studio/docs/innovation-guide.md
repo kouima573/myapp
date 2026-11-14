@@ -7,6 +7,7 @@
 | ① データ | JSON（マップ・会話・イベント・特性・ルール・式） | 大半のゲームはここだけで作れる。[customization-guide.md](customization-guide.md) |
 | ② 世界の仕組み | エンティティ・領域・調べるタイル・時限イベント・集合・周回・戦闘式 | 生きた世界、知識で開く探索、時間制限、ループもの |
 | ③ 拡張（TypeScript） | `defineSystem` の条件・関数・アクション・**独自画面**・**描画レイヤー**・HUD・歩行やtickのフック | 新しい画面と遊び（パズル、カード戦闘、ミニゲーム、天候、視界）。[extension-api.md](extension-api.md) |
+| ③' ジャンルモジュール | `project.json` の `modules` で有効にして、データから呼ぶ（ノベル・パズル・弾幕・育成・カード） | RPGの中に他ジャンルの遊びを織り込む。[genre-modules.md](genre-modules.md) |
 | ④ エンジン改造 | `packages/engine`・`runtime`・`schema` | 上でも足りない根本的な仕組み（形式とテストを一緒に更新する） |
 
 ## ② 世界の仕組み（データだけで使える）

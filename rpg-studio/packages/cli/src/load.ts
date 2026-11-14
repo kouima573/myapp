@@ -129,6 +129,10 @@ export async function loadProjectFromDisk(root: string): Promise<LoadedProject> 
     if (mb > budget.maxTotalMB) diagnostics.push({ severity: "error", file: "project.json", at: "assetPolicy.budget", message: `プロジェクトの合計 ${mb.toFixed(1)}MB が上限 ${budget.maxTotalMB}MB を超えています（pnpm rpg asset report で内訳を確認）` });
     else if (mb > budget.warnTotalMB) diagnostics.push({ severity: "warning", file: "project.json", at: "assetPolicy.budget", message: `プロジェクトの合計 ${mb.toFixed(1)}MB が目安 ${budget.warnTotalMB}MB を超えています。Web公開・スマホでの読み込みが重くなります` });
   }
+  if (result.content) {
+    const { moduleDiagnostics } = await import("../../modules/src/index");
+    diagnostics.push(...moduleDiagnostics(result.content));
+  }
   if (texts["art/requests.json"] !== undefined) {
     const { ArtRequestBundleSchema } = await import("../../schema/src/index");
     let parsed: unknown;

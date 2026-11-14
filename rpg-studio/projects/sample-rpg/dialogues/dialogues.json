@@ -79,6 +79,124 @@
           }
         },
         "番人の『岩砕き』は重い一撃だ。身を守るか、薬草を用意しておけ。長老の家は村の北だ。"
+      ],
+      "choices": [
+        {
+          "id": "training",
+          "label": "修行をつけてもらう（3日間）",
+          "once": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "ガルド「よし、三日だけ付き合ってやる。何をするかは自分で決めろ」"
+            },
+            {
+              "type": "startScene",
+              "system": "planner",
+              "scene": "schedule",
+              "args": {
+                "title": "ガルドの修行",
+                "turns": 3,
+                "turnLabel": "修行 {{turn}}日目 / {{turns}}日",
+                "show": [
+                  "skill",
+                  "gold"
+                ],
+                "activities": [
+                  {
+                    "id": "swing",
+                    "label": "素振り",
+                    "description": "剣の型が身につく",
+                    "effects": [
+                      {
+                        "type": "setVar",
+                        "var": "skill",
+                        "op": "add",
+                        "value": 1
+                      }
+                    ],
+                    "text": "型が {{var.skill}} つになった"
+                  },
+                  {
+                    "id": "run",
+                    "label": "走り込み",
+                    "description": "最大HP+2",
+                    "effects": [
+                      {
+                        "type": "setStat",
+                        "stat": "maxHp",
+                        "op": "add",
+                        "value": 2
+                      },
+                      {
+                        "type": "heal",
+                        "amount": 2
+                      }
+                    ],
+                    "text": "体力がついた"
+                  },
+                  {
+                    "id": "herbs",
+                    "label": "薬草採り",
+                    "description": "薬草を1つ",
+                    "effects": [
+                      {
+                        "type": "giveItem",
+                        "item": "herb"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "guard-duty",
+                    "label": "見張りの手伝い",
+                    "description": "3ゴールド",
+                    "effects": [
+                      {
+                        "type": "setVar",
+                        "var": "gold",
+                        "op": "add",
+                        "value": 3
+                      }
+                    ]
+                  }
+                ],
+                "onEnd": [
+                  {
+                    "type": "if",
+                    "when": {
+                      "var": "skill",
+                      "op": ">=",
+                      "value": 2
+                    },
+                    "then": [
+                      {
+                        "type": "setStat",
+                        "stat": "attack",
+                        "op": "add",
+                        "value": 1
+                      },
+                      {
+                        "type": "message",
+                        "text": "剣の型が体に馴染んだ。攻撃力が1上がった！"
+                      }
+                    ],
+                    "else": [
+                      {
+                        "type": "message",
+                        "text": "ガルド「よく頑張った。型は焦らず磨け」"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "later",
+          "label": "今はいい",
+          "effects": []
+        }
       ]
     },
     {
@@ -94,6 +212,34 @@
       "lines": [
         "小人の『不屈の魂』って知ってる？ 一度の戦いで一回だけ、倒れるはずの一撃をこらえられるんだって。",
         "でも同じ戦いで二度目はない。過信は禁物だよ。"
+      ],
+      "choices": [
+        {
+          "id": "card-match",
+          "label": "カード勝負をする（木人形が相手）",
+          "effects": [
+            {
+              "type": "battle",
+              "enemy": "training-dummy",
+              "onDefeat": "continue",
+              "onVictory": [
+                {
+                  "type": "message",
+                  "text": "テト「すごい！ これ、お礼に」"
+                },
+                {
+                  "type": "giveItem",
+                  "item": "herb"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "bye",
+          "label": "またね",
+          "effects": []
+        }
       ]
     },
     {
@@ -145,6 +291,63 @@
             {
               "type": "event",
               "event": "elder-shop"
+            }
+          ]
+        },
+        {
+          "id": "story",
+          "label": "昔話を聞く",
+          "effects": [
+            {
+              "type": "startScene",
+              "system": "novel",
+              "scene": "play",
+              "args": {
+                "script": [
+                  {
+                    "speaker": "長老オババ",
+                    "portrait": "village-herbalist",
+                    "pos": "left",
+                    "text": "昔むかし、この森には風を生む泉があったそうな。"
+                  },
+                  {
+                    "speaker": "長老オババ",
+                    "text": "泉を守るために、遺跡の民は石の番人と、三つの印の錠を残した。"
+                  },
+                  {
+                    "speaker": "長老オババ",
+                    "text": "印は……風、それから……はて、なんじゃったかの。",
+                    "choices": [
+                      {
+                        "label": "星では？",
+                        "effects": [
+                          {
+                            "type": "addToSet",
+                            "set": "clues",
+                            "value": "rune-order"
+                          }
+                        ],
+                        "jump": "star"
+                      },
+                      {
+                        "label": "思い出せないなら仕方ない",
+                        "jump": "end"
+                      }
+                    ]
+                  },
+                  {
+                    "label": "star",
+                    "speaker": "長老オババ",
+                    "text": "おお、そうじゃ、星じゃ！ 風は星を巡り、岩に還る……。よう知っとるのう。"
+                  },
+                  {
+                    "label": "end",
+                    "speaker": "長老オババ",
+                    "text": "年寄りの昔話じゃ。忘れておくれ。",
+                    "end": true
+                  }
+                ]
+              }
             }
           ]
         },

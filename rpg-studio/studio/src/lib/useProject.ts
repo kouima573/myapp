@@ -3,6 +3,7 @@ import { loadProjectContent, type Diagnostic, type GameContent } from "@rpg/sche
 import type { GameSystem } from "@rpg/engine";
 import type { BuildStatus, ConflictResponse } from "../../../packages/local-server/src/protocol";
 import type { ProjectSource } from "./source";
+import { moduleDiagnostics } from "../../../packages/modules/src/index";
 
 export const HISTORY_LIMIT = 100;
 
@@ -231,7 +232,12 @@ export function useProject(source: ProjectSource) {
   }, [log]);
 
   /* ---------------------------------------------------------- derived */
-  const loaded = useMemo(() => (Object.keys(texts).length ? loadProjectContent(texts) : { content: null, diagnostics: [] as Diagnostic[] }), [texts]);
+  const loaded = useMemo(() => {
+    if (!Object.keys(texts).length) return { content: null, diagnostics: [] as Diagnostic[] };
+    const result = loadProjectContent(texts);
+    // Genre modules (novel / puzzle / shooter …) check their own startScene / battle-mode arguments.
+    return result.content ? { ...result, diagnostics: [...result.diagnostics, ...moduleDiagnostics(result.content)] } : result;
+  }, [texts]);
   const lastGood = useRef<GameContent | null>(null);
   if (loaded.content) lastGood.current = loaded.content;
 

@@ -144,11 +144,21 @@
     },
     {
       "expect": {
-        "scene": "battle"
+        "scene": "custom"
       }
     },
     {
-      "fight": "auto"
+      "frames": 3000,
+      "hold": [
+        "fire"
+      ]
+    },
+    {
+      "expect": {
+        "scene": "battle",
+        "battleOutcome": "victory",
+        "textIncludes": "弾幕を撃ち抜いた"
+      }
     },
     {
       "advance": "all"
