@@ -32,18 +32,9 @@
       "battle": {
         "mode": "rhythm.play",
         "args": {
-          "bpm": 96,
-          "hpScale": 1.5,
-          "chart": [
-            "x...",
-            "..x.",
-            ".x..",
-            "...x",
-            "x.x.",
-            ".x.x",
-            "x...",
-            "...x"
-          ]
+          "song": "song-battle",
+          "every": 2,
+          "hpScale": 1.5
         }
       }
     },

@@ -1,0 +1,13 @@
+{
+  "id": "weather",
+  "title": "天候（雨・雪・霧）",
+  "version": "1.0.0",
+  "description": "変数 weather（0 晴れ・1 雨・2 雪・3 霧）でフィールドに天候を描き、HUDに表示する。条件 weather.is で天候による分岐もできる。",
+  "author": "RPGシステム工房",
+  "license": "MIT",
+  "entry": "index.ts",
+  "files": ["index.ts"],
+  "genres": ["サバイバル", "ホラー", "生活シミュ"],
+  "requires": { "flags": [], "variables": ["weather"], "sets": [] },
+  "usage": "project.json の variables に weather を宣言し、{ \"type\": \"setVar\", \"var\": \"weather\", \"value\": 1 } で雨にする。"
+}

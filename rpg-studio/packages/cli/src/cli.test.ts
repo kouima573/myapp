@@ -58,3 +58,43 @@ describe("rpg new", () => {
     } finally { await fs.rm(root, { recursive: true, force: true }); }
   }, 30000);
 });
+
+describe("rpg mod", () => {
+  it("lists, adds (with provenance) and exports mods", async () => {
+    const { listMods, addMod, exportMod } = await import("./mods");
+    const { newProject } = await import("./scaffold");
+    const os = await import("node:os");
+    const mods = await listMods();
+    expect(mods.find(m => m.manifest?.id === "weather")?.errors).toEqual([]);
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "rpg-mod-"));
+    try {
+      const dir = await newProject("mod-test", "mod", root);
+      const notes = await addMod("weather", dir, { today: "2026-11-14" });
+      expect(notes.join()).toContain("weather");
+      const project = JSON.parse(await fs.readFile(path.join(dir, "project.json"), "utf8"));
+      expect(project.systems).toContainEqual({ id: "weather", path: "systems/mods/weather/index.ts", title: "天候（雨・雪・霧）（mod 1.0.0）" });
+      const lock = JSON.parse(await fs.readFile(path.join(dir, "mods.json"), "utf8"));
+      expect(lock.weather).toMatchObject({ version: "1.0.0", license: "MIT", addedAt: "2026-11-14" });
+      expect(lock.weather.sha256).toMatch(/^[0-9a-f]{64}$/);
+      await expect(addMod("weather", dir)).rejects.toThrow(/--force/);
+      await addMod("weather", dir, { force: true });
+      const out = await exportMod("weather", dir, { author: "テスト", license: "CC0-1.0", root: path.join(root, "mods") });
+      expect(JSON.parse(await fs.readFile(path.join(out, "mod.json"), "utf8"))).toMatchObject({ id: "weather", license: "CC0-1.0", entry: "index.ts" });
+      await expect(exportMod("weather", dir, { root: path.join(root, "mods") })).rejects.toThrow(/--author/);
+    } finally { await fs.rm(root, { recursive: true, force: true }); }
+  }, 30000);
+});
+
+describe("@rpg/modules", () => {
+  it("project systems can import the module kit", async () => {
+    const { importSystemModule } = await import("./build");
+    const os = await import("node:os");
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "rpg-kit-"));
+    try {
+      const file = path.join(dir, "mini.ts");
+      await fs.writeFile(file, `import { defineSystem } from "@rpg/engine";\nimport { finish, pressed } from "@rpg/modules";\nexport default defineSystem({ id: "mini", scenes: { go: { start: (_c, a) => ({ onWin: [], onLose: [], held: pressed(["fire"], []), a }), input: (ctx, d) => finish(ctx, d as never, "win", "ok") } } });\n`);
+      const mod = await importSystemModule(file) as { default: { id: string } };
+      expect(mod.default.id).toBe("mini");
+    } finally { await fs.rm(dir, { recursive: true, force: true }); }
+  }, 30000);
+});

@@ -230,7 +230,13 @@
                     "left",
                     "right",
                     "fire",
-                    "focus"
+                    "focus",
+                    "p2up",
+                    "p2down",
+                    "p2left",
+                    "p2right",
+                    "p2fire",
+                    "p2focus"
                   ]
                 }
               }
@@ -265,7 +271,13 @@
                           "left",
                           "right",
                           "fire",
-                          "focus"
+                          "focus",
+                          "p2up",
+                          "p2down",
+                          "p2left",
+                          "p2right",
+                          "p2fire",
+                          "p2focus"
                         ]
                       }
                     }
@@ -697,6 +709,24 @@
                       }
                     },
                     "additionalProperties": false
+                  },
+                  "verbs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 96,
+                      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                    }
+                  },
+                  "lacksVerbs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 96,
+                      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                    }
                   }
                 },
                 "additionalProperties": false
@@ -1653,6 +1683,70 @@
           "properties": {
             "type": {
               "type": "string",
+              "const": "learnVerb"
+            },
+            "verb": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "verb"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "forgetVerb"
+            },
+            "verb": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "verb"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "useVerb"
+            },
+            "verb": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "target": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "type",
+            "verb"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
               "const": "setPlayer"
             },
             "name": {
@@ -2375,6 +2469,19 @@
           },
           "required": [
             "inRegion"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "target": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "target"
           ],
           "additionalProperties": false
         },

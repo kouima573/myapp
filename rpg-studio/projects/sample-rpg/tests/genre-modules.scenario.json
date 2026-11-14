@@ -68,6 +68,17 @@
     },
     {
       "expect": {
+        "textIncludes": "『思い出す』を覚えた",
+        "verbs": [
+          "recall"
+        ]
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
         "scene": "field"
       }
     },

@@ -293,7 +293,9 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   function heroName() { return state.player.name ?? content.project.player.name; }
   /** Self-made verbs usable right now. */
   function availableVerbs(): Array<[string, { label: string; key?: string; description?: string }]> {
-    return Object.entries(content.project.verbs).filter(([, verb]) => { try { return engine.evaluate(verb.when, state); } catch { return false; } });
+    let ids: string[];
+    try { ids = engine.usableVerbs(state); } catch { ids = []; }
+    return ids.map(id => [id, content.project.verbs[id]!] as [string, { label: string; key?: string; description?: string }]);
   }
   function useVerb(id: string) { menuOpen = false; audio.cue("confirm"); dispatch({ type: "verb", verb: id }); }
 
@@ -678,7 +680,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     while (now - realtimeClock >= step && steps < 3) {
       realtimeClock += step; steps++;
       let result: StepResult;
-      try { result = engine.step(state, { type: "sceneInput", input: { type: "frame", held: [...realtimeHeld] } }); } catch (error) { fail(error); return; }
+      try { result = engine.step(state, { type: "sceneInput", input: { type: "frame", held: [...new Set([...realtimeHeld, ...padHeld])] } }); } catch (error) { fail(error); return; }
       const before = state.scene;
       const after = result.state.scene;
       if (after.kind === "custom" && before.kind === "custom" && after.system === before.system && after.scene === before.scene) {
@@ -695,9 +697,52 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     }
   }
 
+  /* ------------------------------------------------------------ gamepads (standard mapping) */
+  const padHeld = new Set<string>();
+  const padPrev: string[][] = [[], []];
+  /** Pad 1 plays like the keyboard (D-pad / left stick, A confirm·fire, B cancel, X focus, Start menu); pad 2 is player 2 in two-player scenes. */
+  function pollGamepads() {
+    const list = typeof navigator !== "undefined" && navigator.getGamepads ? [...navigator.getGamepads()].filter((p): p is Gamepad => Boolean(p)) : [];
+    padHeld.clear();
+    if (!list.length && !padPrev[0]!.length && !padPrev[1]!.length) return;
+    const rt = realtimeDef();
+    const two = rt?.realtime?.players === 2;
+    for (let i = 0; i < 2; i++) {
+      const pad = list[i];
+      const now: string[] = [];
+      if (pad) {
+        const b = (n: number) => Boolean(pad.buttons[n]?.pressed);
+        const ax = pad.axes[0] ?? 0, ay = pad.axes[1] ?? 0;
+        if (b(12) || ay < -0.5) now.push("up");
+        if (b(13) || ay > 0.5) now.push("down");
+        if (b(14) || ax < -0.5) now.push("left");
+        if (b(15) || ax > 0.5) now.push("right");
+        if (b(0)) now.push("fire");
+        if (b(1)) now.push("cancel");
+        if (b(2)) now.push("focus");
+        if (b(9)) now.push("start");
+      }
+      const prev = padPrev[i]!;
+      padPrev[i] = now;
+      const fresh = (x: string) => now.includes(x) && !prev.includes(x);
+      if (rt) {
+        if (i === 1 && !two) continue;
+        for (const x of now) if (x !== "cancel" && x !== "start") padHeld.add(two && i === 1 ? `p2${x}` : x);
+        if (i === 0 && (fresh("cancel") || fresh("start"))) dispatch({ type: "sceneInput", input: { type: "cancel" } });
+        continue;
+      }
+      if (i !== 0) continue;
+      audio.unlock();
+      for (const dir of ["up", "down", "left", "right"] as const) { if (fresh(dir)) press(dir); else if (prev.includes(dir) && !now.includes(dir)) releaseDir(dir); }
+      if (fresh("fire")) confirm();
+      if (fresh("cancel") || fresh("start")) cancel();
+    }
+  }
+
   function frame(now: number) {
     if (destroyed) return;
     raf = requestAnimationFrame(frame);
+    pollGamepads();
     const rt = realtimeDef();
     if (rt) { realtimeFrame(now, rt); return; }
     const moving = animator.update(now);

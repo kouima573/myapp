@@ -202,3 +202,33 @@ describe("composer, program, factory", () => {
     expect(end.made).toBeGreaterThanOrEqual(5);
   });
 });
+
+describe("rhythm × song", () => {
+  it("builds the chart and playback cues from a song asset", async () => {
+    const { startRhythm, stepRhythm, rhythmStatus, accuracy, LANES } = await import("./rhythm");
+    let d = startRhythm(ctx(), { song: "song-village", every: 2, leadIn: 2 });
+    expect(d.args.bpm).toBe(100);
+    expect(d.notes.length).toBeGreaterThan(8);
+    expect(new Set(d.notes.map(n => n.lane)).size).toBeGreaterThan(1);
+    expect(d.cues.length).toBeGreaterThan(d.notes.length);
+    for (let i = 0; i < 20000 && rhythmStatus(d) === "playing"; i++) d = stepRhythm(ctx(), d, d.notes.filter(n => !n.hit && n.t === d.frame + 1).map(n => LANES[n.lane]!));
+    expect(rhythmStatus(d)).toBe("win");
+    expect(accuracy(d)).toBe(100);
+  });
+});
+
+describe("action co-op", () => {
+  it("player 2 moves on p2 buttons; either hero at the goal wins; both must fall to lose", async () => {
+    const { actionStatus, startAction, stepAction } = await import("./action");
+    let d = startAction(ctx(), { view: "top", rows: ["##########", "#@      G#", "#2       #", "##########"], goal: "exit" }, true);
+    expect(d.p2).not.toBeNull();
+    for (let i = 0; i < 200 && actionStatus(d) === "playing"; i++) d = stepAction(ctx(), d, ["p2right", "p2up"]);
+    expect(actionStatus(d)).toBe("win");
+    expect(d.px).toBeLessThan(30);
+    let e = startAction(ctx(), { view: "top", rows: ["######", "#@ 2 #", "######"], goal: "exit", seconds: 0 }, true);
+    e = { ...e, hp: 0 };
+    expect(actionStatus(e)).toBe("playing");
+    e = { ...e, p2: { ...e.p2!, hp: 0 } };
+    expect(actionStatus(e)).toBe("lose");
+  });
+});

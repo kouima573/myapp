@@ -388,6 +388,62 @@
           "when": {
             "$ref": "#/$defs/__schema1"
           },
+          "known": {
+            "default": true,
+            "type": "boolean"
+          },
+          "target": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "string",
+                "enum": [
+                  "items",
+                  "set",
+                  "list"
+                ]
+              },
+              "set": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 96,
+                "pattern": "^[a-z0-9][a-z0-9._-]*$"
+              },
+              "options": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "label": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "label"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "prompt": {
+                "type": "string"
+              },
+              "none": {
+                "default": "使えるものがない。",
+                "type": "string"
+              }
+            },
+            "required": [
+              "from"
+            ],
+            "additionalProperties": false
+          },
           "effects": {
             "default": [],
             "type": "array",
@@ -1459,6 +1515,19 @@
         {
           "type": "object",
           "properties": {
+            "target": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "target"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
             "front": {
               "type": "object",
               "properties": {
@@ -2441,6 +2510,70 @@
           "required": [
             "type",
             "signal"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "learnVerb"
+            },
+            "verb": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "verb"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "forgetVerb"
+            },
+            "verb": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "verb"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "useVerb"
+            },
+            "verb": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "target": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "type",
+            "verb"
           ],
           "additionalProperties": false
         },

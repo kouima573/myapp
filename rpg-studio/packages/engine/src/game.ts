@@ -93,6 +93,8 @@ export interface Engine {
   regions(state: GameState): string[];
   /** HUD lines from systems. */
   hudLines(state: GameState): string[];
+  /** Self-made verbs usable right now (known / learned, not forgotten, `when` holds). */
+  usableVerbs(state: GameState): string[];
   step(state: GameState, action: Action): StepResult;
   /** Run arbitrary effects (tests, studio debug console, system code). */
   run(state: GameState, effects: Effect[]): StepResult;
@@ -473,6 +475,21 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         if (!immediate) return enqueue(state, collected);
         c.signalDepth = depth;
         try { return runNow(c, state, collected, ctxValues); } finally { c.signalDepth = depth - 1; }
+      }
+      case "learnVerb":
+        return { ...state, verbsLearned: [...new Set([...(state.verbsLearned ?? []), effect.verb])], verbsForgotten: (state.verbsForgotten ?? []).filter(v => v !== effect.verb) };
+      case "forgetVerb":
+        return { ...state, verbsLearned: (state.verbsLearned ?? []).filter(v => v !== effect.verb), verbsForgotten: [...new Set([...(state.verbsForgotten ?? []), effect.verb])] };
+      case "useVerb": {
+        if (inBattle || inScene) return { ...state, queue: [...state.queue, effect] };
+        const verb = content.project.verbs[effect.verb];
+        if (!verb) throw new Error(`動詞 '${effect.verb}' がありません`);
+        const target = effect.target;
+        const next = target === undefined ? state : { ...state, target };
+        const withRules = fireFieldRules(c, next, "verb", effect.verb);
+        if (verb.target && target === undefined) return doVerb(c, withRules, effect.verb);
+        c.log.push(`動詞: ${verb.label}${target ? `（${target}）` : ""}`);
+        return enqueue(withRules, verb.effects);
       }
       case "setPlayer": {
         const player = { ...state.player };
@@ -1012,11 +1029,32 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   }
 
   /** A self-made verb: its own effects, then every rule listening with on "verb". */
-  function doVerb(c: Ctx, state: GameState, id: string): GameState {
+  /** Verbs the player can use right now (known or learned, not forgotten, `when` holds). */
+  function usableVerbs(state: GameState): string[] {
+    return Object.entries(content.project.verbs).filter(([id, v]) => (v.known || state.verbsLearned?.includes(id)) && !state.verbsForgotten?.includes(id) && ev(v.when, state)).map(([id]) => id);
+  }
+
+  /** Things a verb can be used on (verb.target). */
+  function verbTargets(state: GameState, id: string): Array<{ id: string; label: string }> {
+    const t = content.project.verbs[id]?.target;
+    if (!t) return [];
+    if (t.from === "items") return Object.entries(state.items).filter(([, n]) => n > 0).map(([item]) => ({ id: item, label: db.items.find(i => i.id === item)?.name ?? item }));
+    if (t.from === "set") { const decl = content.project.sets[t.set ?? ""]; return (state.sets[t.set ?? ""] ?? []).map(v => ({ id: v, label: decl?.entries[v] ?? v })); }
+    return t.options;
+  }
+
+  /** A self-made verb: pick a target if it needs one, then its own effects and every rule listening with on "verb". */
+  function doVerb(c: Ctx, state: GameState, id: string, target?: string): GameState {
     const verb = content.project.verbs[id];
     if (!verb) throw new Error(`動詞 '${id}' がありません（project.json の verbs）`);
-    if (!ev(verb.when, state)) { c.log.push(`動詞 ${id}: 今は使えない`); return state; }
-    c.log.push(`動詞: ${verb.label}`);
+    if (!usableVerbs(state).includes(id)) { c.log.push(`動詞 ${id}: 今は使えない`); return state; }
+    if (verb.target && target === undefined) {
+      const options = verbTargets(state, id);
+      if (!options.length) return runQueue(c, enqueue(state, [{ type: "message", text: verb.target.none }]));
+      return runQueue(c, enqueue(state, [{ type: "choice", prompt: verb.target.prompt ?? `${verb.label}：何に？`, options: [...options.map(o => ({ id: o.id, label: o.label, effects: [{ type: "useVerb" as const, verb: id, target: o.id }] })), { id: "cancel", label: "やめる", effects: [] }] }]));
+    }
+    c.log.push(`動詞: ${verb.label}${target ? `（${target}）` : ""}`);
+    state = target === undefined ? state : { ...state, target };
     state = fireFieldRules(c, state, "verb", id);
     return runQueue(c, enqueue(state, verb.effects));
   }
@@ -1250,6 +1288,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     systems: sorted,
     newGame,
     metaOf,
+    usableVerbs,
     visibleEntities: (state, map) => visibleEntities(state, map),
     regions: state => regionsAt(state, content, env),
     hudLines: state => sorted.flatMap(sys => sys.hud?.({ content, state }) ?? []),

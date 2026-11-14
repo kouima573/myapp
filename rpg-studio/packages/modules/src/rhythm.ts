@@ -5,6 +5,7 @@
  * Battle mode: hits damage the enemy, misses let the enemy strike; the chart loops until one side falls.
  */
 import { z } from "zod";
+import { parseNotes } from "../../schema/src/formats";
 import { defineSystem, type SystemContext } from "../../engine/src/index";
 import { enemyOf, finish, heroOf, inBattle, issues, OutcomeArgs, pressed } from "./common";
 
@@ -15,7 +16,13 @@ export const RhythmArgsSchema = z.object({
   title: z.string().default("リズム"),
   bpm: z.number().min(40).max(240).default(110),
   stepsPerBeat: z.number().int().min(1).max(4).default(2),
-  chart: z.array(z.string().regex(/^[x.]{4}$/, "各行は4文字（x か .）です")).min(1),
+  chart: z.array(z.string().regex(/^[x.]{4}$/, "各行は4文字（x か .）です")).default([]),
+  /** Play a song asset (楽譜BGM) and make the chart from it: its notes become the notes to hit (bpm = the song tempo). */
+  song: z.string().optional(),
+  /** Which track gives the notes (name or index). Default: the first track with pitched notes. */
+  track: z.union([z.string(), z.number().int().min(0)]).optional(),
+  /** Use every n-th note of the track (lower density). */
+  every: z.number().int().min(1).max(8).default(1),
   /** Beats before the first step. */
   leadIn: z.number().int().min(0).max(16).default(4),
   /** Field: accuracy (%) needed to pass. */
@@ -28,8 +35,10 @@ export const RhythmArgsSchema = z.object({
 export type RhythmArgs = z.infer<typeof RhythmArgsSchema>;
 
 export interface Note { t: number; lane: number; hit: "" | "perfect" | "good" | "miss" }
+/** Song playback events: [frame, frequency (0 = percussion hit), length in frames, wave, volume]. */
+export type SongCue = [number, number, number, string, number];
 export interface RhythmData {
-  args: RhythmArgs; frame: number; notes: Note[]; held: string[]; loop: number;
+  args: RhythmArgs; frame: number; notes: Note[]; held: string[]; loop: number; cues: SongCue[]; loopFrames: number;
   perfect: number; good: number; miss: number; combo: number; best: number;
   hp: number; maxHp: number; attack: number; defense: number; enemyHp: number; enemyMaxHp: number; battle: boolean; flash: string;
 }
@@ -41,13 +50,30 @@ export function chartNotes(a: RhythmArgs, offset: number): Note[] {
   return out;
 }
 
+/** Chart and playback cues from a song asset. Lanes follow pitch: the lowest notes go left, the highest right. */
+export function songChart(ctx: SystemContext, a: RhythmArgs, offset: number): { notes: Note[]; cues: SongCue[]; loopFrames: number } {
+  const song = ctx.content.songs[a.song ?? ""];
+  if (!song) return { notes: [], cues: [], loopFrames: 0 };
+  const perBeat = (FPS * 60) / song.tempo;
+  const tracks = song.tracks.map(t => ({ t, parsed: parseNotes(t.notes, t.transpose) }));
+  const chosen = typeof a.track === "number" ? tracks[a.track] : typeof a.track === "string" ? tracks.find(x => x.t.name === a.track) : tracks.find(x => x.parsed.events.some(e => e.freq));
+  const pitched = (chosen?.parsed.events ?? []).filter(e => e.freq).filter((_, i) => i % a.every === 0);
+  const pitches = [...new Set(pitched.map(e => Math.round(e.freq!)))].sort((x, y) => x - y);
+  const lane = (f: number) => Math.min(3, Math.floor((pitches.indexOf(Math.round(f)) / Math.max(1, pitches.length)) * 4));
+  const notes = pitched.map(e => ({ t: Math.round(offset + e.start * perBeat), lane: lane(e.freq!), hit: "" as const }));
+  const cues: SongCue[] = tracks.flatMap(({ t, parsed }) => parsed.events.map(e => [Math.round(offset + e.start * perBeat), e.freq ? Math.round(e.freq * 100) / 100 : 0, Math.max(1, Math.round(e.duration * perBeat)), t.wave, t.volume] as SongCue));
+  return { notes, cues, loopFrames: Math.round(Math.max(...tracks.map(x => x.parsed.length)) * perBeat) };
+}
+
 export function startRhythm(ctx: SystemContext, raw: Record<string, unknown>): RhythmData {
-  const args = RhythmArgsSchema.parse(raw);
+  let args = RhythmArgsSchema.parse(raw);
+  if (args.song && ctx.content.songs[args.song]) args = { ...args, bpm: ctx.content.songs[args.song]!.tempo };
   const hero = heroOf(ctx);
   const enemy = enemyOf(ctx, args.enemyId);
   const enemyMaxHp = enemy ? Math.max(1, Math.round(enemy.stats.maxHp * args.hpScale)) : 0;
   const lead = Math.round((FPS * 60 * args.leadIn) / args.bpm);
-  return { args, frame: 0, notes: chartNotes(args, lead), held: [], loop: 0, perfect: 0, good: 0, miss: 0, combo: 0, best: 0, hp: hero.hp, maxHp: hero.maxHp, attack: hero.attack, defense: hero.defense, enemyHp: enemyMaxHp, enemyMaxHp, battle: inBattle(ctx), flash: "" };
+  const fromSong = args.song ? songChart(ctx, args, lead) : null;
+  return { args, frame: 0, notes: fromSong ? fromSong.notes : chartNotes(args, lead), cues: fromSong?.cues ?? [], loopFrames: fromSong?.loopFrames ?? 0, held: [], loop: 0, perfect: 0, good: 0, miss: 0, combo: 0, best: 0, hp: hero.hp, maxHp: hero.maxHp, attack: hero.attack, defense: hero.defense, enemyHp: enemyMaxHp, enemyMaxHp, battle: inBattle(ctx), flash: "" };
 }
 
 export function stepRhythm(ctx: SystemContext, data: RhythmData, held: string[]): RhythmData {
@@ -71,7 +97,9 @@ export function stepRhythm(ctx: SystemContext, data: RhythmData, held: string[])
   const last = Math.max(...d.notes.map(n => n.t));
   if (d.battle && d.frame > last + 10) {
     d.loop++;
-    d.notes = chartNotes(d.args, d.frame + Math.round(framesPerStep(d.args) * d.args.stepsPerBeat));
+    const offset = d.frame + Math.round(framesPerStep(d.args) * d.args.stepsPerBeat);
+    if (d.args.song) { const again = songChart(ctx, d.args, offset); d.notes = again.notes; d.cues = again.cues; }
+    else d.notes = chartNotes(d.args, offset);
   }
   return d;
 }
@@ -84,6 +112,32 @@ export function rhythmStatus(d: RhythmData): "playing" | "win" | "lose" {
 }
 
 let audio: AudioContext | undefined;
+let lastCueFrame = -1;
+/** Plays the song cues due since the last drawn frame (synth: pulse / triangle / saw / sine, hits = noise). */
+function playCues(d: RhythmData) {
+  if (!d.cues.length) return;
+  if (d.frame < lastCueFrame) lastCueFrame = -1;
+  try {
+    audio ??= new AudioContext();
+    for (const [f, freq, len, wave, vol] of d.cues) {
+      if (f <= lastCueFrame || f > d.frame) continue;
+      const g = audio.createGain();
+      const dur = len / FPS;
+      g.gain.setValueAtTime(vol * 0.6, audio.currentTime); g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + Math.max(0.05, dur * 0.95));
+      g.connect(audio.destination);
+      if (!freq || wave === "noise") {
+        const buf = audio.createBuffer(1, Math.floor(audio.sampleRate * 0.06), audio.sampleRate);
+        const ch = buf.getChannelData(0); for (let i = 0; i < ch.length; i++) ch[i] = (Math.random() * 2 - 1) * (1 - i / ch.length);
+        const src = audio.createBufferSource(); src.buffer = buf; src.connect(g); src.start();
+      } else {
+        const o = audio.createOscillator();
+        o.type = wave.startsWith("pulse") || wave === "square" ? "square" : wave === "saw" || wave === "sawtooth" ? "sawtooth" : wave === "sine" ? "sine" : "triangle";
+        o.frequency.value = freq; o.connect(g); o.start(); o.stop(audio.currentTime + dur);
+      }
+    }
+  } catch { /* no audio */ }
+  lastCueFrame = d.frame;
+}
 const clicked = new Set<number>();
 function click(lane: number) {
   try {
@@ -101,7 +155,12 @@ export default defineSystem({
     play: {
       title: "リズム（4レーンの譜面。儀式・演奏・リズム戦闘）",
       realtime: { fps: FPS },
-      checkArgs: args => { const r = RhythmArgsSchema.safeParse(args); return r.success ? (r.data.chart.some(row => row.includes("x")) ? [] : ["chart にノーツ(x)がありません"]) : issues(r); },
+      checkArgs: (args, { content }) => {
+        const r = RhythmArgsSchema.safeParse(args);
+        if (!r.success) return issues(r);
+        if (r.data.song) return content.songs[r.data.song] ? [] : [`song: 楽譜BGM '${r.data.song}' がありません（assets.json の song）`];
+        return r.data.chart.some(row => row.includes("x")) ? [] : ["chart にノーツ(x)がありません（または song を指定）"];
+      },
       start: (ctx, raw) => startRhythm(ctx, raw),
       input(ctx, raw, input) {
         const d = raw as RhythmData;
@@ -128,7 +187,7 @@ export default defineSystem({
           if (n.hit === "perfect" || n.hit === "good") continue;
           const y = lineY - (n.t - d.frame) * speed;
           if (y < -20 || y > H + 20) continue;
-          if (d.args.click && !n.hit && n.t <= d.frame && !clicked.has(n.t * 4 + n.lane)) { clicked.add(n.t * 4 + n.lane); click(n.lane); }
+          if (d.args.click && !d.cues.length && !n.hit && n.t <= d.frame && !clicked.has(n.t * 4 + n.lane)) { clicked.add(n.t * 4 + n.lane); click(n.lane); }
           g.fillStyle = n.hit === "miss" ? "#555" : colors[n.lane]!;
           g.fillRect(left + n.lane * laneW + 8, y - 6, laneW - 16, 12);
         }
@@ -145,6 +204,7 @@ export default defineSystem({
         g.font = "12px system-ui"; g.fillStyle = "#a9b09d";
         g.fillText("← ↓ ↑ → で線の上のノーツを叩く　Esc やめる", W / 2, H - 30);
         if (d.frame < 2) clicked.clear();
+        playCues(d);
       },
     },
   },

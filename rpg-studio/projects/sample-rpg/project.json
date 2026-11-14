@@ -246,6 +246,24 @@
           "text": "風がほどけ、いつもの姿に戻った。"
         }
       ]
+    },
+    "recall": {
+      "label": "思い出す",
+      "key": "o",
+      "description": "集めた手がかりを思い返す",
+      "known": false,
+      "target": {
+        "from": "set",
+        "set": "clues",
+        "prompt": "何を思い出す？",
+        "none": "思い出せることがまだない。"
+      },
+      "effects": [
+        {
+          "type": "message",
+          "text": "{{targetLabel}}……そうだ、確かにそうだった。"
+        }
+      ]
     }
   },
   "signals": {

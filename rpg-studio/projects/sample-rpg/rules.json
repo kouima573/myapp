@@ -180,6 +180,53 @@
           "text": "風の身でも、水の上は渡れないらしい。"
         }
       ]
+    },
+    {
+      "id": "learn-recall",
+      "on": "auto",
+      "when": {
+        "compare": [
+          {
+            "size": "clues"
+          },
+          ">=",
+          1
+        ]
+      },
+      "description": "手がかりを一つ得ると『思い出す』を覚える",
+      "effects": [
+        {
+          "type": "learnVerb",
+          "verb": "recall"
+        },
+        {
+          "type": "message",
+          "text": "（新しい行動『思い出す』を覚えた。メニューか O キーで使える）"
+        }
+      ]
+    },
+    {
+      "id": "recall-rune",
+      "on": "verb",
+      "match": "recall",
+      "when": {
+        "target": "rune-order"
+      },
+      "description": "石板の順番を思い出すと遺跡の扉の前でヒント",
+      "effects": [
+        {
+          "type": "if",
+          "when": {
+            "map": "ruins"
+          },
+          "then": [
+            {
+              "type": "message",
+              "text": "星・月・太陽……この順で石板を回せばいい。"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

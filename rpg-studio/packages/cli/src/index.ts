@@ -15,12 +15,14 @@ import { catalog, jsonSchemas } from "./catalog";
 import { cmdArt, cmdAsset } from "./assets";
 import { loadProjectFromDisk, readProjectTexts, resolveInside } from "./load";
 import { newProject } from "./scaffold";
+import { cmdMod } from "./mods";
 import { genreAtlasMarkdown, GENRES, LEVEL_LABEL, searchGenres } from "../../modules/src/genres";
 
 const USAGE = `RPG Studio CLI
 
   rpg new      <id> [--title <名前>] [--dir projects]  発想を育てる空のプロジェクト（IDEA.md つき）を作る
   rpg genres   [--query <言葉>] [--write]  ジャンル地図（どのジャンルをどう作るか）。--write で docs/genre-atlas.md を更新
+  rpg mod      <list|add|export> [<id>] --project <dir>  作り手の仕組み（mod）を共有: 一覧・取り込み・書き出し（出どころは mods.json）
   rpg validate --project <dir>          形式・参照・素材を検証
   rpg test     --project <dir>          検証 + システム読込 + tests/*.scenario.json の自動プレイ
   rpg build    --project <dir> [--out <dir>]  型検査・bundleして dist/game/<id>/ に静的ゲームを出力
@@ -37,15 +39,16 @@ function parseArgs(argv: string[]) {
   const sub = afterCommand[0] && !afterCommand[0].startsWith("--") ? afterCommand[0] : undefined;
   const rest = sub ? afterCommand.slice(1) : afterCommand;
   const flags: Record<string, string | boolean> = {};
+  const positional: string[] = [];
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]!;
     if (arg === "--") continue;
-    if (!arg.startsWith("--")) throw new Error(`不明な引数: ${arg}`);
+    if (!arg.startsWith("--")) { if (positional.length || !sub) throw new Error(`不明な引数: ${arg}`); positional.push(arg); continue; }
     const key = arg.slice(2);
     const next = rest[i + 1];
     if (next !== undefined && !next.startsWith("--")) { flags[key] = next; i++; } else flags[key] = true;
   }
-  return { command, sub, flags };
+  return { command, sub, flags, arg: positional[0] };
 }
 
 function projectDir(flags: Record<string, string | boolean>): string {
@@ -302,6 +305,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       console.log(`${list.length}件${query ? `（"${query}"）` : ""}。詳しくは docs/genre-atlas.md と docs/genre-modules.md`);
       return 0;
     }
+    case "mod": return cmdMod(parsed.sub, projectDir(parsed.flags), parsed.flags, parsed.arg);
     case "validate": return cmdValidate(parsed.flags);
     case "test": return cmdTest(parsed.flags);
     case "build": return cmdBuild(parsed.flags);

@@ -144,6 +144,7 @@ export function evaluate(condition: Condition | undefined, state: GameState, env
   if ("enemy" in condition) return battleOf(state)?.enemyId === condition.enemy;
   if ("set" in condition) return (state.sets?.[condition.set] ?? []).includes(condition.has);
   if ("inRegion" in condition) return regionsAt(state, env.content, env).includes(condition.inRegion);
+  if ("target" in condition) return state.target === condition.target;
   if ("front" in condition) {
     const f = env.front?.(state);
     if (!f) return false;
@@ -171,6 +172,16 @@ export function evaluate(condition: Condition | undefined, state: GameState, env
  * Text templates: {{var.gold}} {{item.herb}} {{stat.attack}} {{hp}} {{maxHp}} {{name}} {{flag.x}} {{ctx.damage}} {{enemy}} {{trait.<category>}}
  * Unknown tokens are left as-is so mistakes are visible.
  */
+function targetLabel(state: GameState, env: EvalEnv): string | undefined {
+  const content = env.content;
+  if (!content || !state.target) return undefined;
+  const item = content.database.items.find(i => i.id === state.target);
+  if (item) return item.name;
+  for (const decl of Object.values(content.project.sets)) if (decl.entries[state.target]) return decl.entries[state.target];
+  for (const verb of Object.values(content.project.verbs)) { const o = verb.target?.options.find(x => x.id === state.target); if (o) return o.label; }
+  return undefined;
+}
+
 export function interpolate(text: string, state: GameState, env: EvalEnv = {}): string {
   if (!text.includes("{{")) return text;
   return text.replace(/\{\{\s*([a-zA-Z]+)(?:\.([^}\s]+))?\s*\}\}/g, (whole, kind: string, key?: string) => {
@@ -181,7 +192,9 @@ export function interpolate(text: string, state: GameState, env: EvalEnv = {}): 
       case "stat": return key && ["maxHp", "attack", "defense"].includes(key) ? String(effectiveStats(state, content)[key as "attack"]) : whole;
       case "hp": return String(state.player.hp);
       case "maxHp": return String(effectiveStats(state, content).maxHp);
-      case "name": return content?.project.player.name ?? whole;
+      case "name": return state.player.name ?? content?.project.player.name ?? whole;
+      case "target": return state.target ?? "";
+      case "targetLabel": return targetLabel(state, env) ?? state.target ?? "";
       case "flag": return key ? (state.flags[key] ? "ON" : "OFF") : whole;
       case "ctx": return key ? String(ctxValue(key as CtxName, state, env)) : whole;
       case "enemy": { const b = battleOf(state); return b ? content?.database.enemies.find(e => e.id === b.enemyId)?.name ?? b.enemyId : whole; }

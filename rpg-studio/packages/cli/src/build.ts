@@ -23,6 +23,7 @@ const ENGINE_INDEX = path.join(REPO_ROOT, "packages/engine/src/index.ts");
 export const PACKAGE_ALIASES: Record<string, string> = {
   "@rpg/engine": ENGINE_INDEX,
   "@rpg/schema": path.join(REPO_ROOT, "packages/schema/src/index.ts"),
+  "@rpg/modules": path.join(REPO_ROOT, "packages/modules/src/kit.ts"),
 };
 
 export interface BuildResult {

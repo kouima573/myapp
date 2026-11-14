@@ -121,6 +121,9 @@
                 "title": "跳躍の門",
                 "view": "side",
                 "goal": "exit",
+                "tiles": {
+                  "#": "w"
+                },
                 "rows": [
                   "#                                  #",
                   "#                                  #",
@@ -554,6 +557,11 @@
               "scene": "race",
               "args": {
                 "title": "風の走路",
+                "tiles": {
+                  ".": ":",
+                  "#": "R",
+                  "side": "T"
+                },
                 "length": 60,
                 "speed": 5,
                 "density": 0.18,
@@ -1365,6 +1373,109 @@
                     "type": "addToSet",
                     "set": "cleared",
                     "value": "factory"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sky-stone",
+      "name": "空読みの石",
+      "x": 10,
+      "y": 1,
+      "states": [
+        {
+          "marker": "statue",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "if",
+              "when": {
+                "var": "weather",
+                "op": ">=",
+                "value": 3
+              },
+              "then": [
+                {
+                  "type": "setVar",
+                  "var": "weather",
+                  "value": 0
+                }
+              ],
+              "else": [
+                {
+                  "type": "setVar",
+                  "var": "weather",
+                  "op": "add",
+                  "value": 1
+                }
+              ]
+            },
+            {
+              "type": "if",
+              "when": {
+                "custom": "weather.is",
+                "args": {
+                  "kind": "clear"
+                }
+              },
+              "then": [
+                {
+                  "type": "message",
+                  "text": "空が晴れた。（共有 mod「天候」）"
+                }
+              ],
+              "else": [
+                {
+                  "type": "message",
+                  "text": "空の様子が変わった。（共有 mod「天候」）"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "twin-gate",
+      "name": "ふたりの門",
+      "x": 1,
+      "y": 10,
+      "states": [
+        {
+          "marker": "statue",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "ふたりで挑む門（1P: WASD+F、2P: 矢印+Enter、ゲームパッド2台でも）。どちらかが旗に着けば突破。"
+            },
+            {
+              "type": "startScene",
+              "system": "action",
+              "scene": "coop",
+              "args": {
+                "title": "ふたりの門",
+                "view": "side",
+                "goal": "exit",
+                "rows": [
+                  "#                          #",
+                  "#                          #",
+                  "#           ***            #",
+                  "#          #####      w  G #",
+                  "#@2   w             ########",
+                  "############  ##############"
+                ],
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "coop"
                   }
                 ]
               }

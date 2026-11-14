@@ -1,0 +1,10 @@
+{
+  "weather": {
+    "version": "1.0.0",
+    "source": "mods/weather",
+    "author": "RPGシステム工房",
+    "license": "MIT",
+    "sha256": "a271315e03a41ecd9eb888a9139f1be9e8b5e317e33833eee3fff463ba2a7c3f",
+    "addedAt": "2026-11-14"
+  }
+}

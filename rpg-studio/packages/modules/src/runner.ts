@@ -6,7 +6,7 @@
  */
 import { z } from "zod";
 import { defineSystem, type SystemContext } from "../../engine/src/index";
-import { drawHero, finish, heroOf, issues, OutcomeArgs, pressed } from "./common";
+import { assetRefErrors, drawHero, drawTile, finish, heroOf, issues, OutcomeArgs, pressed } from "./common";
 import { nextRand } from "./ui";
 
 const FPS = 30;
@@ -28,6 +28,8 @@ export const RunnerArgsSchema = z.object({
   seconds: z.number().min(0).max(3600).default(0),
   /** HP lost per obstacle hit (0 = only slows you down). */
   hitDamage: z.number().int().min(0).max(999).default(2),
+  /** Draw with the project's tileset: { ".": road tile code, "#": obstacle tile code, "side": verge tile code }. */
+  tiles: z.record(z.string(), z.string().length(1)).default({}),
   ...OutcomeArgs,
 }).strict();
 export type RunnerArgs = z.infer<typeof RunnerArgsSchema>;
@@ -99,7 +101,7 @@ export default defineSystem({
     race: {
       title: "ランナー・レース（レーン移動・ジャンプ・ライバルとの競争）",
       realtime: { fps: FPS },
-      checkArgs: args => { const r = RunnerArgsSchema.safeParse(args); if (!r.success) return issues(r); return r.data.track.flatMap((row, i) => (/^[.#*+]+$/.test(row) ? [] : [`track[${i}]: 使えるのは . # * + です`])); },
+      checkArgs: (args, { content }) => { const r = RunnerArgsSchema.safeParse(args); if (!r.success) return issues(r); return assetRefErrors(content, r.data.tiles).concat(r.data.track.flatMap((row, i) => (/^[.#*+]+$/.test(row) ? [] : [`track[${i}]: 使えるのは . # * + です`]))); },
       start: (ctx, raw) => startRunner(ctx, raw),
       input(ctx, raw, input) {
         const d = raw as RunnerData;
@@ -117,11 +119,14 @@ export default defineSystem({
         const laneW = Math.min(90, (W * 0.5) / d.args.lanes), left = W / 2 - (laneW * d.args.lanes) / 2, playerY = H - 110;
         g.fillStyle = "#24301f"; g.fillRect(0, 0, W, H);
         g.fillStyle = "#5c5345"; g.fillRect(left, 0, laneW * d.args.lanes, H);
+        if (d.args.tiles.side) for (let y = -(d.dist % 32); y < H; y += 32) for (let x = 0; x < W; x += 32) if (x + 32 < left || x > left + laneW * d.args.lanes) drawTile(g, view, d.args.tiles.side, x, y, 32);
         const seg0 = Math.floor(d.dist / SEG);
         for (let s = seg0 - 3; s < seg0 + Math.ceil(H / SEG) + 2; s++) {
           const y = playerY - (s * SEG - d.dist);
           for (let l = 0; l < d.args.lanes; l++) {
             const c = cell(d, s, l), x = left + l * laneW + laneW / 2;
+            if (d.args.tiles["."]) drawTile(g, view, d.args.tiles["."], left + l * laneW, y - SEG / 2, laneW);
+            if (c === "#" && d.args.tiles["#"] && drawTile(g, view, d.args.tiles["#"], x - laneW * 0.35, y - laneW * 0.35, laneW * 0.7)) continue;
             if (d.taken.includes(`${s},${l}`) && c !== "#") continue;
             if (c === "#") { g.fillStyle = "#8a7f6a"; g.fillRect(x - laneW * 0.35, y - 10, laneW * 0.7, 20); g.fillStyle = "#3a332a"; g.fillRect(x - laneW * 0.35, y + 6, laneW * 0.7, 4); }
             else if (c === "*") { g.fillStyle = "#f0c36a"; g.beginPath(); g.arc(x, y, 7, 0, Math.PI * 2); g.fill(); }

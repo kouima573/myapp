@@ -61,7 +61,7 @@ export function catalog(content: GameContent): string {
   h("タイル (tiles)");
   out.push(content.tileset.tiles.map(t => `\`${t.code}\`${t.name}${t.passable ? "" : t.passableWhen ? "(条件)" : "(×)"}`).join(" "));
   h("動詞（プレイヤーがメニュー・キーで使う自作の行動。on: verb のルールで受ける）");
-  for (const [id, v] of Object.entries(project.verbs)) out.push(`- \`${id}\` ${v.label}${v.key ? ` [${v.key}]` : ""}${v.when ? "（条件つき）" : ""}${v.description ? ` — ${v.description}` : ""}`);
+  for (const [id, v] of Object.entries(project.verbs)) out.push(`- \`${id}\` ${v.label}${v.key ? ` [${v.key}]` : ""}${v.when ? "（条件つき）" : ""}${v.known ? "" : "（learnVerb で覚える）"}${v.target ? `　対象: ${v.target.from === "set" ? `集合 ${v.target.set}` : v.target.from === "items" ? "持ち物" : v.target.options.map(o => o.id).join("/")}` : ""}${v.description ? ` — ${v.description}` : ""}`);
   h("シグナル（自作のイベント。{ \"type\": \"signal\" } で発信、on: signal のルールで受ける）");
   for (const [id, d] of Object.entries(project.signals)) out.push(`- \`${id}\`${d.description ? ` — ${d.description}` : ""}`);
   h("ジャンルモジュール");

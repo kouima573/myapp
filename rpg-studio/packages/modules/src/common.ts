@@ -52,6 +52,14 @@ export function finish(ctx: SystemContext, args: { onWin: SceneResultEffects; on
 }
 type SceneResultEffects = z.infer<typeof OutcomeArgs.onWin>;
 
+/** checkArgs helper: tileset codes and character assets referenced by a module exist in the project. */
+export function assetRefErrors(content: SystemContext["content"], tiles: Record<string, string>, sprites: Record<string, string> = {}): string[] {
+  const out: string[] = [];
+  for (const [ch, code] of Object.entries(tiles)) if (!content.tileset.tiles.some(t => t.code === code)) out.push(`tiles.${ch}: タイルセットにないコード '${code}'`);
+  for (const [ch, id] of Object.entries(sprites)) if (content.assets.assets.find(a => a.id === id)?.kind !== "character") out.push(`sprites.${ch}: キャラクター素材 '${id}' がありません`);
+  return out;
+}
+
 /** zod issues → readable messages for checkArgs. */
 export function issues(result: z.ZodSafeParseResult<unknown>): string[] {
   return result.success ? [] : result.error.issues.map(i => `${i.path.join(".")}: ${i.message}`);
@@ -81,4 +89,32 @@ export function drawHero(g: CanvasRenderingContext2D, view: { state: GameState; 
     const cw = img.naturalWidth / cols, ch = img.naturalHeight / rows;
     g.drawImage(img, (frame % cols) * cw, Math.min(rows - 1, row) * ch, cw, ch, x - size / 2, y - size / 2, size, size);
   } else { g.fillStyle = "#7fc4ff"; g.fillRect(x - size / 3, y - size / 2, (size * 2) / 3, size); }
+}
+
+type DrawView = { state: GameState; content: SystemContext["content"]; assetUrl(id: string): string | undefined };
+
+/**
+ * Draws one tile of the project's tileset (tiles.json code) at x, y (top-left) in `size` pixels.
+ * Returns false when the tileset image is not loaded yet (draw a fallback then).
+ */
+export function drawTile(g: CanvasRenderingContext2D, view: DrawView, code: string, x: number, y: number, size: number): boolean {
+  const tile = view.content.tileset.tiles.find(t => t.code === code);
+  const atlas = view.content.assets.assets.find(a => a.id === view.content.tileset.atlas);
+  const img = image(view.assetUrl(view.content.tileset.atlas));
+  if (!tile || !atlas || !img) return false;
+  const cols = atlas.columns ?? Math.max(1, Math.floor(img.naturalWidth / (atlas.tileWidth ?? 16)));
+  const tw = img.naturalWidth / cols, th = atlas.tileHeight ?? tw;
+  g.drawImage(img, (tile.index % cols) * tw, Math.floor(tile.index / cols) * th, tw, th, x, y, size, size);
+  return true;
+}
+
+/** Draws a character sheet frame (row 0 down, 1 left, 2 right, 3 up) centred on x, y. Returns false if not loaded. */
+export function drawSprite(g: CanvasRenderingContext2D, view: DrawView, assetId: string, x: number, y: number, size: number, row: number, frame: number): boolean {
+  const asset = view.content.assets.assets.find(a => a.id === assetId);
+  const img = image(view.assetUrl(assetId));
+  if (!asset || !img) return false;
+  const cols = asset.columns ?? 1, rows = asset.rows ?? 1;
+  const cw = img.naturalWidth / cols, ch = img.naturalHeight / rows;
+  g.drawImage(img, (frame % cols) * cw, Math.min(rows - 1, row) * ch, cw, ch, x - size / 2, y - size / 2, size, size);
+  return true;
 }

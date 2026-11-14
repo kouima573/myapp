@@ -17,8 +17,9 @@
     "types": ["node", "vite/client"],
     "paths": {
       "@rpg/engine": ["./packages/engine/src/index.ts"],
-      "@rpg/schema": ["./packages/schema/src/index.ts"]
+      "@rpg/schema": ["./packages/schema/src/index.ts"],
+      "@rpg/modules": ["./packages/modules/src/kit.ts"]
     }
   },
-  "include": ["packages", "projects", "studio/src", "tests", "*.ts"]
+  "include": ["packages", "projects", "mods", "studio/src", "tests", "*.ts"]
 }

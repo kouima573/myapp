@@ -28,6 +28,12 @@
     "skill": {
       "initial": 0,
       "label": "技"
+    },
+    "weather": {
+      "initial": 0,
+      "min": 0,
+      "max": 3,
+      "description": "mod weather: 0 晴れ 1 雨 2 雪 3 霧"
     }
   },
   "sets": {
@@ -61,6 +67,7 @@
         "composer": "作曲",
         "program": "プログラミング",
         "factory": "工場",
+        "coop": "2人協力",
         "rhythm-battle": "リズムバトル",
         "puzzle-battle": "パズルバトル",
         "quiz-battle": "問答バトル",
@@ -94,7 +101,13 @@
   "databasePath": "database.json",
   "rulesPath": "rules.json",
   "assetsPath": "assets.json",
-  "systems": [],
+  "systems": [
+    {
+      "id": "weather",
+      "path": "systems/mods/weather/index.ts",
+      "title": "天候（雨・雪・霧）（mod 1.0.0）"
+    }
+  ],
   "modules": {
     "novel": {},
     "puzzle": {},

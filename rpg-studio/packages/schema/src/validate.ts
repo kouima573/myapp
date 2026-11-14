@@ -222,7 +222,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       if (kind === "var" && key && !varIds.has(key)) warn(file, at, `文中の {{var.${key}}} は未宣言の変数です`);
       else if (kind === "item" && key && !itemIds.has(key)) warn(file, at, `文中の {{item.${key}}} は未定義のアイテムです`);
       else if (kind === "flag" && key && !flagIds.has(key)) warn(file, at, `文中の {{flag.${key}}} は未宣言のフラグです`);
-      else if (!["var", "item", "flag", "stat", "hp", "maxHp", "name", "ctx", "enemy", "trait", "set", "cycle"].includes(kind!)) warn(file, at, `文中の {{${kind}}} は使えない差し込みです`);
+      else if (!["var", "item", "flag", "stat", "hp", "maxHp", "name", "ctx", "enemy", "trait", "set", "cycle", "target", "targetLabel"].includes(kind!)) warn(file, at, `文中の {{${kind}}} は使えない差し込みです`);
     }
   };
 
@@ -316,6 +316,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
           if (!systemIds.has(effect.system)) err(file, here, `'${effect.system}' は project.json の systems にも modules にもありません`); break;
         case "ending": if (!endingIds.has(effect.ending)) err(file, here, `未宣言のエンディング '${effect.ending}'（project.json の endings）`); break;
         case "playBgm": checkAudio(file, here, effect.music, MUSIC, "BGM"); break;
+        case "learnVerb": case "forgetVerb": case "useVerb": if (!verbIds.has(effect.verb)) err(file, here, `未定義の動詞 '${effect.verb}'（project.json の verbs）`); break;
         case "signal": if (!signalIds.has(effect.signal)) err(file, here, `未宣言のシグナル '${effect.signal}'（project.json の signals）`); break;
         case "setPlayer": if (effect.sprite && assetById.get(effect.sprite)?.kind !== "character") err(file, here, `キャラクター素材 '${effect.sprite}' がassets.jsonにありません`); break;
         default: break;
@@ -371,6 +372,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   for (const [id, verb] of Object.entries(project.verbs)) {
     checkCondition(P, `verbs.${id}.when`, verb.when);
     checkEffects(P, `verbs.${id}.effects`, verb.effects);
+    if (verb.target?.from === "set" && !setIds.has(verb.target.set ?? "")) err(P, `verbs.${id}.target.set`, `未宣言の集合 '${verb.target.set ?? ""}'（target.from が set のときは set が必要）`);
+    if (verb.target?.from === "list" && !verb.target.options.length) err(P, `verbs.${id}.target.options`, "target.from が list のときは options が必要です");
     if (verb.key) { const other = verbKeys.get(verb.key); if (other) err(P, `verbs.${id}.key`, `キー '${verb.key}' は動詞 '${other}' と重複しています`); verbKeys.set(verb.key, id); }
   }
   for (const [key, expr] of Object.entries({ playerDamage: project.battle.playerDamage, enemyDamage: project.battle.enemyDamage, fleeChance: project.battle.fleeChance })) checkExpr(P, `battle.${key}`, expr, true);

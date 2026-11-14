@@ -199,11 +199,82 @@
           "clues": [
             "rune-order"
           ]
-        }
+        },
+        "lacksVerbs": [
+          "recall"
+        ]
+      }
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "textIncludes": "『思い出す』を覚えた",
+        "verbs": [
+          "recall"
+        ]
       }
     },
     {
       "advance": "all"
+    },
+    {
+      "verb": "recall"
+    },
+    {
+      "expect": {
+        "scene": "prompt"
+      }
+    },
+    {
+      "choose": "rune-order"
+    },
+    {
+      "expect": {
+        "textIncludes": "確かにそうだった"
+      }
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "textIncludes": "この順で石板を回せばいい"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "effects": [
+        {
+          "type": "forgetVerb",
+          "verb": "recall"
+        }
+      ]
+    },
+    {
+      "expect": {
+        "lacksVerbs": [
+          "recall"
+        ]
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "learnVerb",
+          "verb": "recall"
+        }
+      ]
+    },
+    {
+      "expect": {
+        "verbs": [
+          "recall"
+        ]
+      }
     },
     {
       "verb": "return"

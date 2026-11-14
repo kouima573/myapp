@@ -98,6 +98,7 @@ export type Condition =
   | { set: string; has: string }
   | { inRegion: string }
   | { front: FrontCheck }
+  | { target: string }
   | { custom: string; args?: Record<string, unknown> };
 
 /** What is in front of the player. Every given field must match. */
@@ -120,6 +121,8 @@ export const ConditionSchema: z.ZodType<Condition> = z.lazy(() => z.union([
   z.object({ not: ConditionSchema }).strict(),
   z.object({ set: IdSchema, has: z.string().min(1) }).strict(),
   z.object({ inRegion: IdSchema }).strict(),
+  /** The target chosen for the verb being used (verb.target). */
+  z.object({ target: z.string().min(1) }).strict(),
   z.object({ front: z.object({ tile: z.string().length(1).optional(), entity: IdSchema.optional(), npc: IdSchema.optional(), blocked: z.boolean().optional() }).strict() }).strict(),
   z.object({ custom: z.string().regex(/^[a-z0-9][a-z0-9._-]*\.[a-z0-9][a-z0-9_-]*$/i, "customは 'システムID.条件名' の形です"), args: z.record(z.string(), z.unknown()).optional() }).strict(),
 ]));
@@ -167,6 +170,9 @@ export type Effect =
   | { type: "newCycle" }
   | { type: "playBgm"; music: string | null }
   | { type: "signal"; signal: string }
+  | { type: "learnVerb"; verb: string }
+  | { type: "forgetVerb"; verb: string }
+  | { type: "useVerb"; verb: string; target?: string }
   | { type: "setPlayer"; name?: string | null; sprite?: string | null }
   | { type: "if"; when: Condition; then: Effect[]; else?: Effect[] }
   | { type: "system"; system: string; action: string; args?: Record<string, unknown> };
@@ -212,6 +218,11 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("playBgm"), music: IdSchema.nullable() }).strict(),
   /** Broadcast a self-made event: every rule with on "signal" and match = this id runs right here. */
   z.object({ type: z.literal("signal"), signal: IdSchema }).strict(),
+  /** Teach / take away a verb (verbs with known: false start unlearned). */
+  z.object({ type: z.literal("learnVerb"), verb: IdSchema }).strict(),
+  z.object({ type: z.literal("forgetVerb"), verb: IdSchema }).strict(),
+  /** Use a verb from data (with an optional target, skipping the target menu). */
+  z.object({ type: z.literal("useVerb"), verb: IdSchema, target: z.string().min(1).optional() }).strict(),
   /** Change who the player is (transformation, possession, playing as the monster). null restores project.player. */
   z.object({ type: z.literal("setPlayer"), name: z.string().min(1).max(40).nullable().optional(), sprite: IdSchema.nullable().optional() }).strict(),
   z.object({ type: z.literal("if"), when: ConditionSchema, then: z.array(EffectSchema), else: z.array(EffectSchema).optional() }).strict(),
@@ -270,9 +281,23 @@ export const VerbSchema = z.object({
   label: z.string().min(1).max(20),
   description: z.string().optional(),
   /** Keyboard key (a-z / 0-9) that performs it on the field. Avoid the movement / menu keys (w a s d z x). */
-  key: z.string().regex(/^[a-z0-9]$/).refine(k => !"wasdzx".includes(k), "w a s d z x は移動・決定・メニューに使われています").optional(),
+  key: z.string().regex(/^[a-z0-9]$/).refine(k => !"wasdzxm".includes(k), "w a s d z x m は移動・決定・メニューに使われています").optional(),
   /** Only shown and usable while this holds. */
   when: ConditionSchema.optional(),
+  /** false: hidden until a learnVerb effect teaches it. */
+  known: z.boolean().default(true),
+  /**
+   * Choose what to use it on first: an item you carry, an entry of a set (words, memories, names), or a fixed list.
+   * The choice is available as the condition { "target": id } and the text {{target}} / {{targetLabel}}.
+   */
+  target: z.object({
+    from: z.enum(["items", "set", "list"]),
+    set: IdSchema.optional(),
+    options: z.array(z.object({ id: z.string().min(1), label: z.string().min(1) }).strict()).default([]),
+    prompt: z.string().optional(),
+    /** Message when there is nothing to choose. */
+    none: z.string().default("使えるものがない。"),
+  }).strict().optional(),
   effects: z.array(EffectSchema).default([]),
 }).strict();
 export type Verb = z.infer<typeof VerbSchema>;
@@ -915,6 +940,11 @@ export const GameStateSchema = z.object({
   /** Playthrough number (1 = first). Survives newCycle. */
   cycle: z.number().int().positive().default(1),
   ticks: z.number().int().nonnegative().default(0),
+  /** Verbs taught (learnVerb) / taken away (forgetVerb). */
+  verbsLearned: z.array(z.string()).optional(),
+  verbsForgotten: z.array(z.string()).optional(),
+  /** Target chosen for the verb in use. */
+  target: z.string().optional(),
   /** Regions the player is currently inside (for onEnter/onLeave). */
   regions: z.array(z.string()).default([]),
   /** playBgm override: asset id, null = silence, absent = map default. */

@@ -33,7 +33,13 @@ const ExpectSchema = z.object({
   textIncludes: z.string().optional(),
   /** Who the player currently is (after setPlayer). */
   player: z.object({ name: z.string().optional(), sprite: z.string().nullable().optional() }).strict().optional(),
+  /** Verbs usable right now (subset) / not usable. */
+  verbs: z.array(IdSchema).optional(),
+  lacksVerbs: z.array(IdSchema).optional(),
 }).strict();
+
+/** Buttons a realtime scene can see held (player 2: "p2" prefix). */
+const HeldSchema = z.enum(["up", "down", "left", "right", "fire", "focus", "p2up", "p2down", "p2left", "p2right", "p2fire", "p2focus"]);
 
 const StepSchema = z.union([
   z.object({ walkTo: z.object({ x: z.number().int(), y: z.number().int() }).strict() }).strict(),
@@ -49,9 +55,9 @@ const StepSchema = z.union([
   /** Use a self-made verb (project.json › verbs). */
   z.object({ verb: IdSchema }).strict(),
   /** Realtime scenes (shooting): run up to `frames` simulation steps holding these buttons; stops when the scene ends. */
-  z.object({ frames: z.number().int().positive().max(100000), hold: z.array(z.enum(["up", "down", "left", "right", "fire", "focus"])).default([]) }).strict(),
+  z.object({ frames: z.number().int().positive().max(100000), hold: z.array(HeldSchema).default([]) }).strict(),
   /** Realtime scenes: repeat a pattern of held buttons (e.g. run, then jump) until the scene ends or `repeat` runs out. */
-  z.object({ framesLoop: z.array(z.object({ frames: z.number().int().positive().max(10000), hold: z.array(z.enum(["up", "down", "left", "right", "fire", "focus"])).default([]) }).strict()).min(1), repeat: z.number().int().positive().max(10000).default(1) }).strict(),
+  z.object({ framesLoop: z.array(z.object({ frames: z.number().int().positive().max(10000), hold: z.array(HeldSchema).default([]) }).strict()).min(1), repeat: z.number().int().positive().max(10000).default(1) }).strict(),
   /** Send a sequence of inputs, repeated up to `repeat` times, until the custom scene closes. */
   z.object({ sceneInputs: z.array(z.enum(["up", "down", "left", "right", "confirm", "cancel"])).min(1), repeat: z.number().int().positive().max(1000).default(1) }).strict(),
   z.object({ sceneInput: z.union([z.enum(["up", "down", "left", "right", "confirm", "cancel"]), z.object({ custom: z.unknown() }).strict()]) }).strict(),
@@ -158,6 +164,11 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
     const abilities = engine.abilities(state);
     for (const id of expect.abilities ?? []) if (!abilities.includes(id)) fail(`能力 ${id} がありません`);
     for (const id of expect.lacksAbilities ?? []) if (abilities.includes(id)) fail(`能力 ${id} を持っています`);
+    if (expect.verbs || expect.lacksVerbs) {
+      const usable = engine.usableVerbs(state);
+      for (const v of expect.verbs ?? []) if (!usable.includes(v)) fail(`verbs: 「${v}」が使えません（使える: ${usable.join(", ") || "なし"}）`);
+      for (const v of expect.lacksVerbs ?? []) if (usable.includes(v)) fail(`lacksVerbs: 「${v}」が使えてしまいます`);
+    }
     if (expect.player?.name !== undefined) { const name = state.player.name ?? content.project.player.name; if (name !== expect.player.name) fail(`player.name: 期待 ${expect.player.name} / 実際 ${name}`); }
     if (expect.player?.sprite !== undefined) { const sprite = state.player.sprite ?? null; if (sprite !== expect.player.sprite) fail(`player.sprite: 期待 ${expect.player.sprite} / 実際 ${sprite}`); }
     for (const [id, count] of Object.entries(expect.items ?? {})) if ((state.items[id] ?? 0) !== count) fail(`items.${id}: 期待 ${count} / 実際 ${state.items[id] ?? 0}`);
