@@ -3,7 +3,7 @@
   "id": "start",
   "title": "ジャンルの回廊",
   "width": 20,
-  "height": 13,
+  "height": 19,
   "rows": [
     "TTTTTTTTTTTTTTTTTTTT",
     "T..................T",
@@ -12,6 +12,12 @@
     "T..................T",
     "T::::::::::::::::::T",
     "T..................T",
+    "T..................T",
+    "T..................T",
+    "T::::::::::::::::::T",
+    "T..................T",
+    "T..................T",
+    "T::::::::::::::::::T",
     "T..................T",
     "T..................T",
     "T::::::::::::::::::T",
@@ -750,6 +756,615 @@
                     "type": "addToSet",
                     "set": "cleared",
                     "value": "planner"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "watch-gate",
+      "name": "見張りの門",
+      "x": 10,
+      "y": 10,
+      "states": [
+        {
+          "marker": "statue",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "見張りの目（明るい扇形）に入らずに旗まで行こう。"
+            },
+            {
+              "type": "startScene",
+              "system": "action",
+              "scene": "stage",
+              "args": {
+                "title": "見張りの門",
+                "view": "top",
+                "goal": "exit",
+                "seen": "lose",
+                "sight": 64,
+                "rows": [
+                  "################",
+                  "#@     #       #",
+                  "#      #   g   #",
+                  "#  #####       #",
+                  "#          ### #",
+                  "#   g      #  G#",
+                  "################"
+                ],
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "stealth"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gun-range",
+      "name": "砲撃の谷",
+      "x": 18,
+      "y": 10,
+      "states": [
+        {
+          "marker": "statue",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "銃で谷の敵を一掃しよう（Z 押しっぱなしで連射）。"
+            },
+            {
+              "type": "startScene",
+              "system": "action",
+              "scene": "stage",
+              "args": {
+                "title": "砲撃の谷",
+                "view": "side",
+                "weapon": "gun",
+                "goal": "defeat",
+                "enemyHp": 4,
+                "rows": [
+                  "#                        #",
+                  "#                        #",
+                  "#        t       f       #",
+                  "#@    w     w       w  t #",
+                  "##########################"
+                ],
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "run-gun"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dojo-ring",
+      "name": "土俵",
+      "x": 2,
+      "y": 13,
+      "states": [
+        {
+          "marker": "statue",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "土俵だ。一対一で勝負！"
+            },
+            {
+              "type": "startScene",
+              "system": "fighter",
+              "scene": "duel",
+              "args": {
+                "title": "土俵の一番",
+                "opponent": {
+                  "name": "力士",
+                  "hp": 40,
+                  "attack": 3
+                },
+                "level": 2,
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "fighting"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "versus-ring",
+      "name": "対戦台",
+      "x": 10,
+      "y": 13,
+      "states": [
+        {
+          "marker": "sign",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "2人で対戦できる（1P: WASD+F/G、2P: 矢印+Enter//）。"
+            },
+            {
+              "type": "startScene",
+              "system": "fighter",
+              "scene": "versus",
+              "args": {
+                "title": "対戦台",
+                "player2": "友だち"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "watchtower",
+      "name": "物見やぐら",
+      "x": 5,
+      "y": 13,
+      "states": [
+        {
+          "marker": "statue",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "魔物の群れが来る。道沿いに塔を建てて村を守ろう。"
+            },
+            {
+              "type": "startScene",
+              "system": "defense",
+              "scene": "siege",
+              "args": {
+                "title": "村の防衛",
+                "rows": [
+                  "..............",
+                  "S=====....====",
+                  ".....=....=..=",
+                  ".....======..=",
+                  ".............H"
+                ],
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "defense"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rain-well",
+      "name": "色石の井戸",
+      "x": 8,
+      "y": 13,
+      "states": [
+        {
+          "marker": "sparkle",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "井戸に色石が降ってくる。同じ色を4つつなげて消そう。"
+            },
+            {
+              "type": "startScene",
+              "system": "blocks",
+              "scene": "drop",
+              "args": {
+                "title": "色石の井戸",
+                "target": 16,
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "blocks"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "riddle-tile",
+      "name": "絵合わせの床",
+      "x": 11,
+      "y": 13,
+      "states": [
+        {
+          "marker": "sign",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "床の数字を手がかりに、隠された絵を浮かび上がらせよう。"
+            },
+            {
+              "type": "startScene",
+              "system": "logic",
+              "scene": "solve",
+              "args": {
+                "title": "絵合わせの床",
+                "kind": "picture",
+                "solution": [
+                  "..#..",
+                  ".###.",
+                  "#####",
+                  "..#..",
+                  "..#.."
+                ],
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "logic"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "green",
+      "name": "小さな芝",
+      "x": 14,
+      "y": 13,
+      "states": [
+        {
+          "marker": "sparkle",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "球をカップに入れよう（←→ 向き、↑↓ 力、Z 打つ）。"
+            },
+            {
+              "type": "startScene",
+              "system": "physics",
+              "scene": "shot",
+              "args": {
+                "title": "小さな芝",
+                "view": "top",
+                "shots": 4,
+                "rows": [
+                  "##############",
+                  "#o     ~~    #",
+                  "#      ~~  O #",
+                  "#            #",
+                  "##############"
+                ],
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "golf"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "shooting-booth",
+      "name": "射的屋",
+      "x": 17,
+      "y": 13,
+      "states": [
+        {
+          "marker": "chest",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "射的だ。赤い的を撃とう、青い的は外して。"
+            },
+            {
+              "type": "startScene",
+              "system": "aim",
+              "scene": "shoot",
+              "args": {
+                "title": "祭りの射的",
+                "count": 14,
+                "ammo": 6,
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "gallery-shoot"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "deep-stair",
+      "name": "地下への階段",
+      "x": 2,
+      "y": 16,
+      "states": [
+        {
+          "marker": "chest",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "地下の迷宮だ。一人称で出口（緑の壁）を目指そう。"
+            },
+            {
+              "type": "startScene",
+              "system": "dungeon3d",
+              "scene": "explore",
+              "args": {
+                "title": "地下迷宮",
+                "facing": "right",
+                "goal": "exit",
+                "rows": [
+                  "#########",
+                  "#@..#..*#",
+                  "##.##.###",
+                  "#..e...G#",
+                  "#########"
+                ],
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "dungeon3d"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "war-camp",
+      "name": "陣幕",
+      "x": 5,
+      "y": 16,
+      "states": [
+        {
+          "marker": "sign",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "陣幕だ。部隊を選んで敵の拠点を落とそう。"
+            },
+            {
+              "type": "startScene",
+              "system": "squad",
+              "scene": "command",
+              "args": {
+                "title": "丘の合戦",
+                "rows": [
+                  "################",
+                  "#H a           #",
+                  "#@ a      e  e #",
+                  "#  a   ##    E #",
+                  "################"
+                ],
+                "goal": "base",
+                "enemies": [
+                  {
+                    "name": "影兵",
+                    "hp": 8,
+                    "attack": 2
+                  }
+                ],
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "squad"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "card-den",
+      "name": "札の卓",
+      "x": 8,
+      "y": 16,
+      "states": [
+        {
+          "marker": "chest",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "札の卓だ。表情を読んで勝ち越そう（チップは遊び用）。"
+            },
+            {
+              "type": "startScene",
+              "system": "table",
+              "scene": "hand",
+              "args": {
+                "title": "札の卓",
+                "rounds": 3,
+                "chips": 10,
+                "ante": 1,
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "table"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bard",
+      "name": "吟遊詩人の譜面台",
+      "x": 11,
+      "y": 16,
+      "states": [
+        {
+          "marker": "sign",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "吟遊詩人が口ずさむ旋律を、譜面に起こそう。"
+            },
+            {
+              "type": "startScene",
+              "system": "composer",
+              "scene": "compose",
+              "args": {
+                "title": "吟遊詩人の旋律",
+                "steps": 8,
+                "target": "C4 E4 G4 . G4 E4 C4 .",
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "composer"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "golem-desk",
+      "name": "ゴーレムの命令台",
+      "x": 14,
+      "y": 16,
+      "states": [
+        {
+          "marker": "sign",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "ゴーレムに命令を並べて、宝石を拾ってゴールへ。"
+            },
+            {
+              "type": "startScene",
+              "system": "program",
+              "scene": "run",
+              "args": {
+                "title": "ゴーレムに命じる",
+                "rows": [
+                  "########",
+                  "#@..*..#",
+                  "####.###",
+                  "#G....##",
+                  "########"
+                ],
+                "commands": [
+                  "F",
+                  "L",
+                  "R",
+                  "x2"
+                ],
+                "maxLength": 10,
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "program"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "workshop",
+      "name": "鍛冶工房",
+      "x": 17,
+      "y": 16,
+      "states": [
+        {
+          "marker": "chest",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "工房の機械にレシピを入れて、道具を3つ作ろう。"
+            },
+            {
+              "type": "startScene",
+              "system": "factory",
+              "scene": "line",
+              "args": {
+                "title": "鍛冶工房",
+                "seconds": 120,
+                "goal": {
+                  "item": "tool",
+                  "amount": 3
+                },
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "factory"
                   }
                 ]
               }

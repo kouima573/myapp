@@ -72,6 +72,9 @@ export type SceneInput =
   /** Realtime scenes: one fixed simulation step with the buttons currently held ("up","down","left","right","fire","focus"). */
   | { type: "frame"; held: string[] };
 
+/** Click position sent to realtime scenes, in canvas pixels (the canvas size is included so scenes can map it). */
+export interface SceneClick { x: number; y: number; width: number; height: number }
+
 export interface SceneResult {
   /** New scene data (JSON). */
   data?: unknown;
@@ -112,7 +115,12 @@ export interface SceneDefinition {
   /** DOM screen (menus, novels, puzzles). Called after every input. */
   render?(host: HTMLElement, view: SceneView): void;
   /** Realtime scenes: the runtime sends {type:"frame"} `fps` times per second and calls `draw` every animation frame. */
-  realtime?: { fps: number };
+  /**
+   * Realtime scenes. `players: 2` = local two-player: player 1 uses WASD + F (fire) + G (focus), player 2 the arrows +
+   * Enter/. (fire) + / (focus); held buttons for player 2 are prefixed "p2" ("p2left", "p2fire"…).
+   * Clicks on the canvas arrive as { type: "custom", value: { click: { x, y, width, height } } } (canvas pixels).
+   */
+  realtime?: { fps: number; players?: 1 | 2 };
   draw?(ctx2d: CanvasRenderingContext2D, view: SceneView & { width: number; height: number; time: number }): void;
   /** Validates `args` (used by rpg validate for built-in modules). Return error messages. */
   checkArgs?(args: Record<string, unknown>, ctx: { content: GameContent }): string[];

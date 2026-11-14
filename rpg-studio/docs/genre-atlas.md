@@ -48,10 +48,10 @@
 | ハクスラ `hack-and-slash` | 組み込み | `action` | action.stage view: top。勝利ルールで random ドロップ、装備は items の statMods |
 | サバイバー系（バレットヘブン） `survivors-like` | 組み込み | `action` | action.stage view: top、autoAttack: true、spawner s を複数、goal: survive と seconds |
 | ソウルライク `soulslike` | データで組める | `action` | ボスを action.stage（B）に。defeat ルールで「落とした魂」を変数に預け、teleport で篝火（セーブ地点）へ。拾い直しは entity |
-| ステルス `stealth` | 拡張で作る | — | 見張りは entities（patrol）。視界は system の onTick で向き・距離を判定 → 見つかったら signal。描画は drawOverlay で視界の扇形 |
-| ランアンドガン `run-and-gun` | 拡張で作る | `action` | action.stage の剣を弾に置き換える scene を systems/*.ts に（action.ts をコピーして swing を弾に） |
-| 格闘 `fighting` | 拡張で作る | `action` | 1対1は action.stage（view: side、B のみ）が近い。コマンド入力・ガード・コンボは action.ts を元に専用 scene を作る |
-| ツインスティック `twin-stick` | 拡張で作る | `action` | 移動と射撃方向を分ける scene。入力は held の組み合わせ（fire+矢印で射撃方向） |
+| ステルス `stealth` | 組み込み | `action` | action.stage に見張り g（巡回し、前方の扇形を見る。壁は視線をさえぎる）。seen: "lose"（見つかったら失敗）か "alarm"（見張りが追ってくる）。sight で視界の距離 |
+| ランアンドガン `run-and-gun` | 組み込み | `action` | action.stage view: side、weapon: "gun"（押しっぱなしで連射）。砲台 t・歩く敵 w・ボス B |
+| 格闘 `fighting` | 組み込み | `fighter` | fighter.duel（対CPU。戦闘モードならRPGの敵が相手）。上段・下段・↓→攻撃の気弾・ガード・コンボ・削り。level でCPUの強さ |
+| ツインスティック `twin-stick` | 組み込み | `action` | action.stage view: top、weapon: "gun"、aim: "lock"（Shift を押している間は狙いを固定して動ける）、autoAttack も可 |
 | パズルアクション `puzzle-platformer` | データで組める | `action` `puzzle` | 仕掛けの状態（フラグ）ごとに別の rows を if で選んで action.stage を開く。押しパズル puzzle.push と交互に |
 
 ## シューティング
@@ -59,9 +59,9 @@
 | ジャンル | 対応 | モジュール | 作り方 |
 | --- | --- | --- | --- |
 | 縦スクロールSTG・弾幕 `shmup` | 組み込み | `shooter` | 敵の battle.mode を shooter.battle に。phases と patterns（ring / aimed / spiral / rain） |
-| レールシューティング `rail-shooter` | 拡張で作る | `shooter` | shooter.ts を元に、自機の位置を自動で進めて照準だけを動かす scene |
-| 射的・ガンシューティング `gallery` | 拡張で作る | — | realtime scene で的を出し、決定で当たり判定。点数を変数に |
-| FPS / TPS `fps-tps` | 一部のみ | — | 3D描画は対象外。drawOverlay か realtime scene の疑似3D（レイキャスト）なら拡張で可能 |
+| レールシューティング `rail-shooter` | 組み込み | `aim` | aim.shoot rail: true（敵が奥から迫り、地面が流れる）。targets で出現の時間・位置・種類を指定 |
+| 射的・ガンシューティング `gallery` | 組み込み | `aim` | aim.shoot（照準は矢印かクリック、装填、味方は撃たない、残った敵は反撃） |
+| FPS / TPS `fps-tps` | 組み込み | `dungeon3d` `aim` | 一人称は dungeon3d.explore の move: "free"（疑似3Dの迷宮を歩き、照準の先を攻撃）。照準を合わせて撃つ場面は aim.shoot。本物の3D描画ではない |
 
 ## アドベンチャー・ノベル
 
@@ -85,12 +85,16 @@
 
 | ジャンル | 対応 | モジュール | 作り方 |
 | --- | --- | --- | --- |
+| お絵かきロジック `nonogram` | 組み込み | `logic` | logic.solve kind: picture。solution に # と . で絵を描くだけ |
+| 数字の配置（ナンバープレース風） `number-place` | 組み込み | `logic` | logic.solve kind: numbers、givens と box |
+| ライツアウト `lights-out` | 組み込み | `logic` | logic.solve kind: lights |
+| 砲撃・投てきパズル `artillery` | 組み込み | `physics` | physics.shot view: side、goal: targets |
 | 倉庫番・押しパズル `sokoban` | 組み込み | `puzzle` | puzzle.push。盤面を文字で書き、解き方をシナリオテストで確認 |
 | マッチ3 `match3` | 組み込み | `match3` | match3.battle。石ごとの効果（攻撃・回復・守り・得点・変数） |
 | パズルバトル `puzzle-battle` | 組み込み | `match3` | 敵の battle.mode を match3.battle に。enemyEvery 手ごとに敵が攻撃 |
-| 落ちもの `falling-blocks` | 拡張で作る | `match3` | match3.ts の重力・補充・連鎖を元に、落下する組を操作する realtime scene を作る |
-| ロジック（数独・お絵かきロジック） `logic` | 拡張で作る | — | 盤面を data に持つ scene。入力は矢印と決定、正解判定は純粋関数で（puzzle.ts が見本） |
-| 物理パズル `physics` | 拡張で作る | — | realtime scene に簡単な物理（action.ts の moveBox が見本） |
+| 落ちもの `falling-blocks` | 組み込み | `blocks` | blocks.drop。clear: "groups"（同じ色4つ以上・連鎖）か "rows"（横一列）。pieces で形、colors で色数、戦闘ではおじゃま列 |
+| ロジック（数独・お絵かきロジック） `logic` | 組み込み | `logic` | logic.solve。kind: picture（お絵かきロジック。solution の絵から手がかりを自動生成）・lights（ライツアウト）・numbers（数字の配置。box で枠） |
+| 物理パズル `physics` | 組み込み | `physics` | physics.shot view: side（重力で放物線、的 * を倒す）か top（転がる、カップ O）。bounce・friction・gravity を調整 |
 | 言葉遊び・なぞなぞ `word` | 組み込み | `quiz` | quiz.ask の入力式。表記ゆれ（カタカナ/ひらがな・全角半角）は吸収される |
 | 空間認識・スイッチ `spatial` | データで組める | `puzzle` | マップの床に tile inspect と setTile。押した順を変数で覚え、正しい順で扉（passableWhen） |
 | 隠し物探し `hidden-object` | 組み込み | `room` | room.explore の hotspot に hidden: true。見つけた数を変数に |
@@ -103,8 +107,8 @@
 | 国家運営・内政 `nation` | データで組める | `planner` | planner で政策を選び、民の不満などを変数に。条件で反乱イベント（auto ルール） |
 | 戦争・合戦 `war` | 組み込み | `tactics` | tactics.battle を章ごとに。兵力は allies、勝敗で領地（集合）が変わる |
 | ターン制ストラテジー `turn-strategy` | 組み込み | `tactics` | tactics.battle（goal: boss / survive）。大きな地図は planner で戦略、局地戦は tactics |
-| RTS `rts` | 拡張で作る | `action` | action.stage view: top を元に、複数のユニットを選んで命令する realtime scene |
-| タワーディフェンス `tower-defense` | 拡張で作る | `action` | 簡易版は action.stage（spawner + goal: survive）。設置型は、道とタワーを持つ realtime scene を作る（action.ts の敵の動きが流用できる） |
+| RTS `rts` | 組み込み | `squad` | squad.command（部隊を選んで行き先を指示、兵種の射程・速さ、拠点 H / E の防衛と破壊） |
+| タワーディフェンス `tower-defense` | 組み込み | `defense` | defense.siege。道 S=…=H、建設地 .、塔（射程・威力・間隔・範囲・足止め）を towers に、waves で敵の波 |
 | コロニーシミュ `colony` | データで組める | `planner` | 住人は entities（wander）と変数。planner で割り振り、tick ルールで食料が減る |
 | 4X `4x` | データで組める | `planner` `tactics` | 探索（マップ）→ 拡張（planner で開拓）→ 開発（変数）→ 殲滅（tactics） |
 | 神ゲー `god-game` | データで組める | — | 主人公を setPlayer で神に。verbs（雨を降らせる・大地を起こす）で setTile と変数、住人は entities |
@@ -121,10 +125,12 @@
 
 | ジャンル | 対応 | モジュール | 作り方 |
 | --- | --- | --- | --- |
+| ゴルフ・パターゴルフ `golf` | 組み込み | `physics` | physics.shot view: top、カップ O、水 ~（1打罰）、shots で打数。players: 2 で対戦 |
+| ビリヤード風・カーリング風 `billiards` | 組み込み | `physics` | physics.shot view: top、goal: targets（的に当てる）、bounce と friction で台の性質 |
 | レース `racing` | 組み込み | `runner` | runner.race。rivals と place、ブースト + 、障害物 # |
 | カートレース `kart` | 組み込み | `runner` | runner.race の track にブーストとコイン。アイテムはコイン数を変数に移して次のレースで使う |
 | ランゲーム `endless-runner` | 組み込み | `runner` | runner.race（track を空にすると自動生成、density で難易度） |
-| スポーツ競技 `sports` | 拡張で作る | `runner` `rhythm` | 短距離は runner、リズムを競う競技は rhythm。球技はボールの物理を持つ realtime scene を作る |
+| スポーツ競技 `sports` | 組み込み | `physics` `runner` `fighter` `rhythm` | ゴルフ・ビリヤード風・カーリングは physics（top）、投てき・バスケット風は physics（side）、短距離・障害走は runner、相撲や格闘技は fighter、演技は rhythm。2人で交互は physics の players: 2 |
 | 釣り `fishing` | 組み込み | `rhythm` | rhythm.play の1レーンの譜面（x... だけ）でタイミング、釣果は onWin の giveItem |
 
 ## リズム・音楽
@@ -134,7 +140,7 @@
 | リズムゲーム `rhythm` | 組み込み | `rhythm` | rhythm.play。chart は1行4文字、bpm と stepsPerBeat |
 | リズムバトル `rhythm-battle` | 組み込み | `rhythm` | 敵の battle.mode を rhythm.play に。当てれば攻撃、外せば被弾 |
 | ダンス `dance` | 組み込み | `rhythm` | rhythm.play と、踊りの成否で好感度や祭りの結果（変数） |
-| 作曲・演奏 `music-making` | 拡張で作る | — | 楽譜BGM（song）の形式を使い、音符を置く scene を作る |
+| 作曲・演奏 `music-making` | 組み込み | `composer` | composer.compose。target で旋律の再現（聞いた歌で扉が開く）、なければ自由作曲して saveTo の集合へ保存（後で条件に使える） |
 
 ## ホラー・サバイバル
 
@@ -155,19 +161,20 @@
 | トレーディングカード風 `ccg` | データで組める | `cards` | 持っているカードは items、デッキ編成は planner、対戦は cards.battle |
 | ボードゲーム（陣取り） `board` | 組み込み | `tactics` | tactics.battle の盤面と駒。将棋やチェスの完全なルールは拡張（tactics.ts が見本） |
 | すごろく `sugoroku` | データで組める | — | random でサイコロ、マスは entities、止まったマスのイベントは moveEntity と条件 |
-| 麻雀・ポーカーなど `table-games` | 拡張で作る | `cards` | 手札と役判定を持つ scene（cards.ts の山札・手札が見本）。実際のお金は扱わない |
-| オートバトラー `auto-battler` | 拡張で作る | `tactics` | tactics.ts の enemyPhase を味方にも適用して自動で戦う scene。編成は planner |
+| 麻雀・ポーカーなど `table-games` | 組み込み | `table` | table.hand（5枚の手役、1度の交換、降りる・勝負・上乗せ）。stakeVar でゴールドを賭ける。実際のお金は扱わない |
+| オートバトラー `auto-battler` | 組み込み | `squad` | squad.auto（布陣して自動で戦う）。編成は planner、兵種は allies に |
 | ガチャ（ゲーム内） `gacha` | データで組める | — | random と if でゲーム内通貨からアイテム。現実のお金や課金は扱わない |
 
 ## 推理・心理戦・対人
 
 | ジャンル | 対応 | モジュール | 作り方 |
 | --- | --- | --- | --- |
+| 賭場（ゲーム内通貨） `gambling-den` | 組み込み | `table` | table.hand の stakeVar に所持金の変数。勝ち負けがRPGの所持金に戻る |
 | 推理・心理戦 `deduction` | 組み込み | `deduce` | deduce.case |
 | 人狼・正体隠匿（対NPC） `social-deduction` | データで組める | `deduce` | 役は intro の random で NPC ごとの変数に。会話は when で役ごとに嘘をつき、最後は deduce の question で指名 |
-| ブラフ・駆け引き `bluffing` | 拡張で作る | `cards` | 相手の手が見えないカード scene。相手の思考は seed つき乱数と性格の変数 |
+| ブラフ・駆け引き `bluffing` | 組み込み | `table` | table.hand の相手は手の強さに応じて表情を見せ、bluff の確率で嘘をつく。boldness で降りにくさ |
 | パーティーゲーム（ミニゲーム集） `party` | データで組める | `action` `runner` `rhythm` `quiz` `match3` | すごろくの各マスで別のモジュールを startScene。点数を変数に集計 |
-| ローカル対戦・協力 `local-versus` | 拡張で作る | — | onAction で同じキーボードの別キーを2人目に割り当てる scene。オンライン対戦は対象外 |
+| ローカル対戦・協力 `local-versus` | 組み込み | `fighter` `physics` | fighter.versus（同じキーボードで2人対戦：1P WASD+F/G、2P 矢印+Enter//）。physics の players: 2 で交互に打つ対戦。オンラインは対象外 |
 | 非対称対戦（対NPC） `asymmetric` | データで組める | — | setPlayer で追う側／追われる側を周回ごとに入れ替え、相手は entities（chase / flee） |
 | バトルロイヤル風 `battle-royale` | データで組める | `action` | action.stage（top、spawner、goal: survive）を連続させ、狭まる範囲は rows を段階ごとに変える |
 
@@ -183,9 +190,9 @@
 | 写真・観察 `photography` | データで組める | — | verbs（撮る）と front 条件で対象を判定、撮った物は集合（アルバムは show: true） |
 | 配達・お使い `delivery` | データで組める | `runner` | schedule の制限時間、または runner.race（seconds）。届け先は entities |
 | タイムループ `time-loop` | データで組める | — | newCycle と meta の集合で記憶を持ち越し、NPCの台詞を cycle と記憶で変える |
-| プログラミング（命令を組む） `programming` | 拡張で作る | — | 命令の並びを組み立てる scene を作り、実行結果を setTile や moveEntity で見せる |
-| 工場・自動化 `factory` | 拡張で作る | `planner` | 簡易版は planner（生産ライン＝行動）。配置型はベルトと機械を持つ scene を作る |
-| 3Dダンジョン（疑似） `first-person-dungeon` | 拡張で作る | — | マップと向きから壁を描く疑似3D scene（drawOverlay か realtime scene） |
+| プログラミング（命令を組む） `programming` | 組み込み | `program` | program.run（進む・曲がる・跳ぶ・×2・くり返し、命令数と試行回数の制限） |
+| 工場・自動化 `factory` | 組み込み | `factory` | factory.line（原料の流入、機械の枠にレシピ、出来た物が次の材料、制限時間内に目標数） |
+| 3Dダンジョン（疑似） `first-person-dungeon` | 組み込み | `dungeon3d` | dungeon3d.explore（文字の地図がそのまま一人称の迷宮に。マス移動・90度回転・敵・宝・出口・ミニマップ） |
 | MUD・テキストRPG `mud` | データで組める | `novel` `quiz` | 移動は choice、戦闘は標準、描写は novel |
 
-全104ジャンル（組み込み 37・データで組める 45・拡張で作る 20・一部のみ 2）。ここにないジャンルも、[idea-to-game.md](idea-to-game.md) の分解（状態・きっかけ・変化・見せ方）で作れます。作ったら genres.ts に1行足してください。
+全111ジャンル（組み込み 65・データで組める 45・拡張で作る 0・一部のみ 1）。ここにないジャンルも、[idea-to-game.md](idea-to-game.md) の分解（状態・きっかけ・変化・見せ方）で作れます。作ったら genres.ts に1行足してください。

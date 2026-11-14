@@ -279,7 +279,12 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (!realtimeDef()) return false;
     const dir = directionFromKey(event.key);
     const key = event.key.toLowerCase();
-    const button = dir ?? (key === "z" || key === "enter" || key === " " ? "fire" : key === "shift" ? "focus" : null);
+    let button: string | null;
+    if (realtimeDef()?.realtime?.players === 2) {
+      const p1: Record<string, string> = { w: "up", a: "left", s: "down", d: "right", f: "fire", g: "focus" };
+      const p2: Record<string, string> = { arrowup: "p2up", arrowleft: "p2left", arrowdown: "p2down", arrowright: "p2right", enter: "p2fire", ".": "p2fire", "/": "p2focus" };
+      button = p1[key] ?? p2[key] ?? null;
+    } else button = dir ?? (key === "z" || key === "enter" || key === " " ? "fire" : key === "shift" ? "focus" : null);
     if (button) { event.preventDefault(); if (down) realtimeHeld.add(button); else realtimeHeld.delete(button); return true; }
     if (down && (key === "escape" || key === "x")) { event.preventDefault(); if (!event.repeat) dispatch({ type: "sceneInput", input: { type: "cancel" } }); return true; }
     return false;
@@ -454,6 +459,13 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (def?.realtime) {
       realtimeCanvas = el("canvas", "rpg-realtime");
       realtimeCanvas.width = VIEW_COLS * TILE; realtimeCanvas.height = VIEW_ROWS * TILE;
+      const target = realtimeCanvas;
+      target.addEventListener("pointerdown", event => {
+        event.stopPropagation();
+        const rect = target.getBoundingClientRect();
+        const click = { x: Math.round(((event.clientX - rect.left) / rect.width) * target.width), y: Math.round(((event.clientY - rect.top) / rect.height) * target.height), width: target.width, height: target.height };
+        dispatch({ type: "sceneInput", input: { type: "custom", value: { click } } });
+      });
       sceneHost.appendChild(realtimeCanvas);
       realtimeClock = performance.now();
       return;

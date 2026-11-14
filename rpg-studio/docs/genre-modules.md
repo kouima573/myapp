@@ -1,6 +1,6 @@
 # ジャンルモジュール — RPGに他ジャンルを織り込む
 
-> どのジャンルをどう作るかの一覧（104ジャンル）は [genre-atlas.md](genre-atlas.md)（`pnpm rpg genres --query <言葉>`）。全モジュールを遊べる見本は `projects/genre-gallery`。
+> どのジャンルをどう作るかの一覧（111ジャンル）は [genre-atlas.md](genre-atlas.md)（`pnpm rpg genres --query <言葉>`）。全モジュールを遊べる見本は `projects/genre-gallery`。
 
 作れるゲームは**RPGだけ**です。そのうえで、ノベル・パズル・シューティング・育成・カード・アクション・タクティクス・マッチ3・リズム・脱出・推理・レース・クイズなど**他ジャンルの遊びを、RPGの一場面や戦闘のやり方として組み込めます**。各モジュールが返す結果（勝った・解けた・選んだ・育った）は、RPGの能力値・アイテム・フラグ・集合・エンディングにそのままつながります。
 
@@ -26,7 +26,7 @@ RPGの土台（マップ・会話・能力値・アイテム・フラグ・周�
 `project.json` の `modules` に使うモジュールを書きます（書いていないモジュールを参照すると検証エラー）。
 
 ```json
-"modules": { "novel": {}, "puzzle": {}, "shooter": {}, "planner": {}, "cards": {}, "action": {}, "tactics": {}, "match3": {}, "rhythm": {}, "room": {}, "deduce": {}, "runner": {}, "quiz": {} }
+"modules": { "novel": {}, "puzzle": {}, "shooter": {}, "planner": {}, "cards": {}, "action": {}, "tactics": {}, "match3": {}, "rhythm": {}, "room": {}, "deduce": {}, "runner": {}, "quiz": {}, "fighter": {}, "defense": {}, "blocks": {}, "logic": {}, "physics": {}, "aim": {}, "dungeon3d": {}, "squad": {}, "table": {}, "composer": {}, "program": {}, "factory": {} }
 ```
 
 使い方は2通りです。
@@ -160,9 +160,74 @@ RPGの土台（マップ・会話・能力値・アイテム・フラグ・周�
 
 `questions[]`（`q`・`choices`（選択式）・`answer`（番号、または入力式の正解リスト。全角半角・カタカナ/ひらがなは区別しない）・`explain`・`onCorrect`）、`pass`。戦闘では正解で攻撃、不正解で被弾。
 
+## さらに12種と、アクションの拡張（v0.9）
+
+ジャンル地図で「拡張で作る」だったジャンルを、すべて組み込みにしました。どれも場面・戦闘モードの両方で使えます（`onWin` / `onLose`、`canFlee`）。
+
+### action の追加引数
+
+| 引数 | 内容 |
+| --- | --- |
+| `weapon` | `sword`（前方を斬る）／`gun`（狙いの方向に撃つ。押しっぱなしで連射）— ランアンドガン、ツインスティック |
+| `aim` | `move`（歩く方向を狙う）／`lock`（Shift を押す間は狙いを固定して動ける） |
+| 見張り `g` | 巡回し、進む方向の扇形（`sight` ピクセル、壁でさえぎられる）を見る。`seen`: `alarm`（見張りが追ってくる）／`lose`（見つかったら失敗）— ステルス |
+
+### fighter — 格闘（`fighter.duel` / `fighter.versus`、リアルタイム）
+
+`opponent`（name・hp・attack・defense。戦闘モードではRPGの敵 × `hpScale`）、`heroScale`（主人公のHP倍率）、`seconds`、`level`（CPUの強さ 1〜5）。上段（Z）・下段（↓+Z）・気弾（↓→Z、ゲージ50）・ガード（Shift）・ジャンプ・コンボ・削り。`versus` は同じキーボードで2人対戦（1P: WASD + F 攻撃 + G ガード、2P: 矢印 + Enter/. 攻撃 + / ガード）。
+
+### defense — タワーディフェンス（`defense.siege`、リアルタイム）
+
+`rows`（`S` 出現、`H` 拠点、`=` 道、`.` 建設地、`#` 景色）、`towers`（id・label・cost・range・damage・rate・`slow`・`splash`）、`waves`（count・hp・speed・every・reward）、`gold`、`lives`（0 = 主人公のHP）、`pause`。操作: 矢印でカーソル、Z で建てる・強化（Lv3まで）、Shift で塔の種類、クリックでも建てられる。
+
+### blocks — 落ちもの（`blocks.drop`、リアルタイム）
+
+`clear`（`groups`: 同じ色4つ以上がつながると消え、残りが落ちて連鎖／`rows`: 横一列）、`pieces`（形をマスの座標で）、`colors`、`width`・`height`、`speed`、`target`、`seconds`。戦闘では消すたびに攻撃、`junkEvery` 秒ごとにおじゃま列。
+
+### logic — ロジックパズル（`logic.solve`）
+
+`kind`: `picture`（`solution` に # と . で絵を描くと、行・列の手がかりが自動で付く。`mistakes` で間違いの上限）、`lights`（`start` の 1/0。押したマスと上下左右が反転）、`numbers`（`givens` の数字と .、`box` で太枠）。
+
+### physics — 物理ショット（`physics.shot`、リアルタイム）
+
+`view`（`top`: 転がる・摩擦／`side`: 重力・放物線）、`rows`（`#` 壁、`o` 球、`O` カップ、`*` 的、`~` 水＝1打罰）、`goal`（`hole` / `targets`）、`shots`、`gravity`・`friction`・`bounce`・`maxPower`、`players: 2`（交互に打って打数を競う）。操作: ←→ 向き、↑↓ 力、Z 打つ、狙う場所のクリックでも打てる。
+
+### aim — 射撃（`aim.shoot`、リアルタイム）
+
+`targets`（at 秒・x/y ％・`kind`: foe / friend / bonus・stay 秒。空なら `count` 個を自動生成）、`rail`（奥から迫る）、`need`、`ammo`、`damage`。照準は矢印かクリック、Shift で装填。
+
+### dungeon3d — 疑似3Dダンジョン（`dungeon3d.explore`、リアルタイム）
+
+`rows`（`#` 壁、`@` 開始、`G` 出口、`*` 宝、`e` 敵、`B` ボス）、`facing`、`move`（`grid`: 1マス移動と90度回転／`free`: 自由に歩いて照準の先を攻撃）、`goal`（exit / defeat / collect）、`enemyHp`・`enemyDamage`、`wallColor`。ミニマップつき。
+
+### squad — 部隊戦（`squad.command` / `squad.auto`、リアルタイム）
+
+`rows`（`@` 主人公、`a` 味方、`e` 敵、`H` 自軍拠点、`E` 敵拠点、`#` 壁）、`allies`・`enemies`（name・hp・attack・range・speed・color）、`goal`（rout / base）、`baseHp`、`seconds`。`command` はカーソルで部隊を選び（Shift で全員）行き先を指示、`auto` は布陣して見守るオートバトラー。
+
+### table — 札勝負（`table.hand`）
+
+`rounds`・`chips`・`ante`・`stakeVar`（RPGの変数を賭けて結果を戻す）・`suits`（4つの絵柄名）・`opponent`（name・`boldness` 降りにくさ・`bluff` はったりの確率）。5枚の役、1度の交換、相手の表情を読んで降りる／勝負／上乗せ。実際のお金は扱いません。
+
+### composer — 作曲（`composer.compose`）
+
+`steps`・`notes`（C4 や F#5）・`bpm`・`target`（再現する旋律、拍ごとに音名か .）・`saveTo`（自由作曲を集合に保存。会話の条件 `{ "set": …, "has": "C4 E4 …" }` に使える）。
+
+### program — プログラミング（`program.run`）
+
+`rows`（`#` 壁、`@` 開始、`G` ゴール、`*` 宝石）、`facing`、`commands`（`F` 進む・`L`・`R`・`J` 跳ぶ・`x2` 直前をもう一度・`loop` それまで全部をもう一度）、`maxLength`、`maxRuns`。
+
+### factory — 工場（`factory.line`、リアルタイム）
+
+`items`（id → 名前）、`sources`（毎秒入ってくる原料）、`recipes`（inputs → outputs、seconds）、`slots`、`goal`（item・amount）、`seconds`、`capacity`。機械の枠にレシピを入れ、出来た物を次の機械の材料にする。
+
+### リアルタイム画面の入力（v0.9）
+
+- `realtime: { fps, players: 2 }` で2人用のキー割り当て（held に `p2left`・`p2fire` などが入る）。
+- 画面のクリックは `{ type: "custom", value: { click: { x, y, width, height } } }`（キャンバスのピクセル）で届く。照準・建設・部隊指示に使える。
+
 ## 新しいジャンルモジュールを作る（AIに頼む）
 
-上の13個は出発点です。ジャンルは**プロジェクトの `systems/*.ts` に `defineSystem` で自由に追加**できます。組み込みモジュールと同じ仕組みです（`packages/modules/src/` が見本）。
+上の25個は出発点です。ジャンルは**プロジェクトの `systems/*.ts` に `defineSystem` で自由に追加**できます。組み込みモジュールと同じ仕組みです（`packages/modules/src/` が見本）。
 
 ```ts
 export default defineSystem({
@@ -189,4 +254,4 @@ export default defineSystem({
 
 ### ほかのジャンル
 
-104ジャンルの作り方（組み込み・データの組み合わせ・拡張）を [genre-atlas.md](genre-atlas.md) にまとめています。表にないジャンルを作ったら、`packages/modules/src/genres.ts` に1行足して `pnpm rpg genres --write` してください。
+111ジャンルの作り方（組み込み・データの組み合わせ）を [genre-atlas.md](genre-atlas.md) にまとめています。表にないジャンルを作ったら、`packages/modules/src/genres.ts` に1行足して `pnpm rpg genres --write` してください。

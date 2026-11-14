@@ -31,7 +31,7 @@ AIが読む: IDEA.md → このファイル → innovation-guide.md → genre-mo
 
 ## 発想 → 部品 対応表
 
-ジャンル単位で考えるときは [genre-atlas.md](genre-atlas.md)（104ジャンルの作り方、`pnpm rpg genres --query <言葉>`）から始めると早いです。
+ジャンル単位で考えるときは [genre-atlas.md](genre-atlas.md)（111ジャンルの作り方、`pnpm rpg genres --query <言葉>`）から始めると早いです。
 
 | 発想の形 | 使う部品 |
 | --- | --- |

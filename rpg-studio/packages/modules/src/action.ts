@@ -5,6 +5,8 @@
  * Levels are text rows so an AI can design them:
  *   #  wall/ground   ^ spikes   * coin   G goal   @ start
  *   w  walker   f flyer   c chaser   t turret   s spawner (makes chasers)   B boss (the RPG enemy in battle mode)
+ *   g  guard: patrols and watches a cone in front of it (stealth). Seen → `seen`: "alarm" (guards chase) or "lose"
+ * weapon "gun" shoots (run & gun); aim "lock" keeps the aim while Shift is held (twin-stick style strafing).
  * Field scene: { "type": "startScene", "system": "action", "scene": "stage", "args": { "rows": [...], "goal": "exit", "onWin": [...] } }
  * Battle mode: enemy "battle": { "mode": "action.stage", "args": { "rows": [...], "goal": "defeat" } }
  */
@@ -31,6 +33,13 @@ export const ActionArgsSchema = z.object({
   gravity: z.number().min(0.05).max(2).default(0.45),
   /** Swing automatically every half second (survivors-like). */
   autoAttack: z.boolean().default(false),
+  /** sword: a swing in front. gun: shots toward the aim (hold to keep firing). */
+  weapon: z.enum(["sword", "gun"]).default("sword"),
+  /** move: aim where you walk. lock: Shift keeps the current aim while moving (no dash). */
+  aim: z.enum(["move", "lock"]).default("move"),
+  /** Guards (g): how far they see (pixels, 16 per tile) and what happens when they see you. */
+  sight: z.number().min(8).max(400).default(72),
+  seen: z.enum(["alarm", "lose"]).default("alarm"),
   enemyHp: z.number().int().min(1).max(999).default(6),
   /** Damage enemies deal; 0 = from the RPG enemy's attack (or 4) minus the hero's defense. */
   enemyDamage: z.number().int().min(0).max(999).default(0),
@@ -42,7 +51,7 @@ export const ActionArgsSchema = z.object({
 }).strict();
 export type ActionArgs = z.infer<typeof ActionArgsSchema>;
 
-type Kind = "walker" | "flyer" | "chaser" | "turret" | "boss";
+type Kind = "walker" | "flyer" | "chaser" | "turret" | "boss" | "guard";
 interface Actor { id: number; kind: Kind; x: number; y: number; vx: number; vy: number; hp: number; maxHp: number; t: number; baseY: number; dead: boolean }
 interface Shot { x: number; y: number; vx: number; vy: number }
 export interface ActionData {
@@ -51,17 +60,18 @@ export interface ActionData {
   hp: number; maxHp: number; attack: number; defense: number; inv: number; swing: number; swingHits: number[];
   coins: string[]; coinTotal: number; actors: Actor[]; shots: Shot[]; spawners: Array<{ x: number; y: number }>; nextId: number;
   kills: number; held: string[]; message: string;
+  aimX: number; aimY: number; bolts: Shot[]; caught: boolean; alarm: boolean;
 }
 
 export function checkActionLevel(rows: string[], goal: string): string[] {
   const out: string[] = [];
   const all = rows.join("");
-  rows.forEach((row, y) => Array.from(row).forEach((ch, x) => { if (!"#^*G@wfctsB .".includes(ch)) out.push(`rows[${y}]: 使えない文字 '${ch}' (x=${x})`); }));
+  rows.forEach((row, y) => Array.from(row).forEach((ch, x) => { if (!"#^*G@wfctsBg .".includes(ch)) out.push(`rows[${y}]: 使えない文字 '${ch}' (x=${x})`); }));
   const starts = (all.match(/@/g) ?? []).length;
   if (starts !== 1) out.push(`開始位置 @ はちょうど1つ必要です（${starts}個）`);
   if (goal === "exit" && !all.includes("G")) out.push("goal が exit のときはゴール G が必要です");
   if (goal === "collect" && !all.includes("*")) out.push("goal が collect のときはコイン * が必要です");
-  if (goal === "defeat" && !/[wfctsB]/.test(all)) out.push("goal が defeat のときは敵（w f c t s B）が必要です");
+  if (goal === "defeat" && !/[wfctsBg]/.test(all)) out.push("goal が defeat のときは敵（w f c t s B g）が必要です");
   return out;
 }
 
@@ -98,7 +108,7 @@ export function startAction(ctx: SystemContext, raw: Record<string, unknown>): A
   const hero = heroOf(ctx);
   const d: ActionData = {
     args, frame: 0, seed: ctx.state.rng || 1, rows: [], w: width, h: args.rows.length, sx: 0, sy: 0, px: 0, py: 0, vx: 0, vy: 0, onGround: false, face: "right",
-    hp: hero.hp, maxHp: hero.maxHp, attack: hero.attack, defense: hero.defense, inv: 0, swing: 0, swingHits: [], coins: [], coinTotal: 0, actors: [], shots: [], spawners: [], nextId: 1, kills: 0, held: [], message: args.title,
+    hp: hero.hp, maxHp: hero.maxHp, attack: hero.attack, defense: hero.defense, inv: 0, swing: 0, swingHits: [], coins: [], coinTotal: 0, actors: [], shots: [], spawners: [], nextId: 1, kills: 0, held: [], message: args.title, aimX: 1, aimY: 0, bolts: [], caught: false, alarm: false,
   };
   const enemy = enemyOf(ctx, args.enemyId);
   d.rows = args.rows.map((row, y) => Array.from(row.padEnd(width, " ")).map((ch, x) => {
@@ -106,7 +116,7 @@ export function startAction(ctx: SystemContext, raw: Record<string, unknown>): A
     if (ch === "@") { d.sx = d.px = cx; d.sy = d.py = cy; return " "; }
     if (ch === "*") { d.coinTotal++; return "*"; }
     if (ch === "s") { d.spawners.push({ x: cx, y: cy }); return " "; }
-    const kind = ({ w: "walker", f: "flyer", c: "chaser", t: "turret", B: "boss" } as Record<string, Kind | undefined>)[ch];
+    const kind = ({ w: "walker", f: "flyer", c: "chaser", t: "turret", B: "boss", g: "guard" } as Record<string, Kind | undefined>)[ch];
     if (kind) { d.actors.push(makeActor(d, kind, cx, cy, kind === "boss" ? Math.max(1, Math.round((enemy?.stats.maxHp ?? 20) * args.hpScale)) : args.enemyHp)); return " "; }
     return ch === "." ? " " : ch;
   }).join(""));
@@ -120,7 +130,7 @@ function contactDamage(ctx: SystemContext, d: ActionData): number {
 
 /** One fixed 1/30 s step. Pure and deterministic. */
 export function stepAction(ctx: SystemContext, data: ActionData, held: string[]): ActionData {
-  const d: ActionData = { ...data, frame: data.frame + 1, inv: Math.max(0, data.inv - 1), swing: Math.max(0, data.swing - 1), actors: data.actors.map(a => ({ ...a })), shots: [], held };
+  const d: ActionData = { ...data, frame: data.frame + 1, inv: Math.max(0, data.inv - 1), swing: Math.max(0, data.swing - 1), actors: data.actors.map(a => ({ ...a })), shots: [], bolts: [], held };
   const now = pressed(held, data.held);
   const side = d.args.view === "side";
   const hurt = (amount: number, fromX: number) => {
@@ -129,11 +139,12 @@ export function stepAction(ctx: SystemContext, data: ActionData, held: string[])
     if (side) { d.vy = -4; d.vx = d.px < fromX ? -3 : 3; }
   };
   // Player movement.
-  const speed = d.args.playerSpeed * (held.includes("focus") ? 1.7 : 1);
+  const locked = d.args.aim === "lock" && held.includes("focus");
+  const speed = d.args.playerSpeed * (held.includes("focus") && !locked ? 1.7 : 1);
   const dx = (held.includes("right") ? 1 : 0) - (held.includes("left") ? 1 : 0);
   if (side) {
     d.vx = dx * speed + (d.inv > 20 ? d.vx * 0.5 : 0);
-    if (dx) d.face = dx > 0 ? "right" : "left";
+    if (dx && !locked) { d.face = dx > 0 ? "right" : "left"; d.aimX = dx; d.aimY = 0; }
     if ((now.includes("up")) && d.onGround) d.vy = -d.args.jump;
     if (!held.includes("up") && d.vy < -3) d.vy = -3;
     d.vy = Math.min(8, d.vy + d.args.gravity);
@@ -145,12 +156,14 @@ export function stepAction(ctx: SystemContext, data: ActionData, held: string[])
   } else {
     const dy = (held.includes("down") ? 1 : 0) - (held.includes("up") ? 1 : 0);
     const norm = dx && dy ? Math.SQRT1_2 : 1;
-    if (dx || dy) d.face = dy < 0 ? "up" : dy > 0 ? "down" : dx > 0 ? "right" : "left";
+    if ((dx || dy) && !locked) { d.face = dy < 0 ? "up" : dy > 0 ? "down" : dx > 0 ? "right" : "left"; d.aimX = dx * norm; d.aimY = dy * norm; }
     const m = moveBox(d, d.px, d.py, HW, HW, dx * speed * norm, dy * speed * norm);
     d.px = m.x; d.py = m.y;
   }
   // Attack.
-  if (now.includes("fire") || (d.args.autoAttack && d.frame % 15 === 0)) { d.swing = 8; d.swingHits = []; }
+  if (d.args.weapon === "gun") {
+    if (now.includes("fire") || (held.includes("fire") && d.frame % 6 === 0) || (d.args.autoAttack && d.frame % 12 === 0)) d.bolts.push({ x: d.px + d.aimX * 8, y: d.py + d.aimY * 8, vx: Math.round(d.aimX * 600) / 100, vy: Math.round(d.aimY * 600) / 100 });
+  } else if (now.includes("fire") || (d.args.autoAttack && d.frame % 15 === 0)) { d.swing = 8; d.swingHits = []; }
   const reach = { x: d.px + (d.face === "left" ? -14 : d.face === "right" ? 14 : 0), y: d.py + (d.face === "up" ? -14 : d.face === "down" ? 14 : 0) };
   // Tiles under the player.
   const here = tileAt(d, d.px, d.py);
@@ -188,6 +201,17 @@ export function stepAction(ctx: SystemContext, data: ActionData, held: string[])
         a.x = m.x; a.y = m.y;
       }
     }
+    if (a.kind === "guard") {
+      const m = moveBox(d, a.x, a.y, 6, 6, a.vx * 0.6, side ? Math.min(6, a.vy + d.args.gravity) : 0);
+      a.vy = side && !m.hitY ? Math.min(6, a.vy + d.args.gravity) : 0;
+      const ahead = side && m.hitY && !solidCh(d, Math.floor((m.x + Math.sign(a.vx) * 8) / T), Math.floor((m.y + 10) / T));
+      if (m.hitX || ahead || a.t % 150 === 0) a.vx = -a.vx;
+      a.x = m.x; a.y = m.y;
+      if (sees(d, a)) {
+        if (d.args.seen === "lose") d.caught = true;
+        else if (!d.alarm) { d.alarm = true; d.message = "見つかった！"; for (const o of d.actors) if (o.kind === "guard") o.kind = "chaser"; }
+      }
+    }
     if ((a.kind === "turret" && a.t % 70 === 0) || (a.kind === "boss" && a.t % 55 === 0)) {
       const base = Math.atan2(d.py - a.y, d.px - a.x);
       for (const off of a.kind === "boss" ? [-0.3, 0, 0.3] : [0]) d.shots.push({ x: a.x, y: a.y, vx: Math.round(Math.cos(base + off) * 220) / 100, vy: Math.round(Math.sin(base + off) * 220) / 100 });
@@ -200,6 +224,14 @@ export function stepAction(ctx: SystemContext, data: ActionData, held: string[])
       if (a.hp <= 0) { a.dead = true; d.kills++; }
     } else if (overlap(d.px, d.py, HW, HH, a.x, a.y, size, size)) hurt(dmg, a.x);
   }
+  // Player shots.
+  for (const b of [...data.bolts, ...d.bolts.splice(0)]) {
+    const n = { x: Math.round((b.x + b.vx) * 100) / 100, y: Math.round((b.y + b.vy) * 100) / 100, vx: b.vx, vy: b.vy };
+    if (solidCh(d, Math.floor(n.x / T), Math.floor(n.y / T))) continue;
+    const target = d.actors.find(a => !a.dead && overlap(n.x, n.y, 2, 2, a.x, a.y, a.kind === "boss" ? 10 : 6, a.kind === "boss" ? 10 : 6));
+    if (target) { target.hp -= Math.max(1, Math.round(d.attack * 0.6)); if (target.hp <= 0) { target.dead = true; d.kills++; } continue; }
+    d.bolts.push(n);
+  }
   // Enemy shots.
   for (const s of [...data.shots, ...d.shots.splice(0)]) {
     const n = { x: Math.round((s.x + s.vx) * 100) / 100, y: Math.round((s.y + s.vy) * 100) / 100, vx: s.vx, vy: s.vy };
@@ -211,9 +243,19 @@ export function stepAction(ctx: SystemContext, data: ActionData, held: string[])
   return d;
 }
 
+/** Guard vision: within `sight`, inside a ~70° cone in its walking direction, and not behind a wall. */
+function sees(d: ActionData, a: Actor): boolean {
+  const vx = d.px - a.x, vy = d.py - a.y, dist = Math.hypot(vx, vy);
+  if (dist > d.args.sight || dist < 1) return false;
+  const fx = Math.sign(a.vx) || 1;
+  if ((vx * fx) / dist < Math.cos(0.6)) return false;
+  for (let i = 1; i < dist / 4; i++) { const t = (i * 4) / dist; if (solidCh(d, Math.floor((a.x + vx * t) / T), Math.floor((a.y + vy * t) / T))) return false; }
+  return true;
+}
+
 export type ActionStatus = "playing" | "win" | "lose";
 export function actionStatus(d: ActionData): ActionStatus {
-  if (d.hp <= 0) return "lose";
+  if (d.hp <= 0 || d.caught) return "lose";
   const g = d.args.goal;
   const elapsed = d.frame / FPS;
   if (g === "exit" && tileAt(d, d.px, d.py) === "G") return "win";
@@ -243,7 +285,7 @@ export default defineSystem({
         const next = stepAction(ctx, data, input.held);
         const status = actionStatus(next);
         if (status === "win") return finish(ctx, data.args, "win", `${data.args.title || "ステージ"}を突破した！（${Math.round(next.frame / FPS)}秒・コイン${next.coins.length}）`, next.hp);
-        if (status === "lose") return finish(ctx, data.args, "lose", next.hp <= 0 ? "力尽きた……" : "時間切れだ……", next.hp);
+        if (status === "lose") return finish(ctx, data.args, "lose", next.caught ? "見つかってしまった……" : next.hp <= 0 ? "力尽きた……" : "時間切れだ……", next.hp);
         return { data: next };
       },
       draw(g, view) {
@@ -277,11 +319,17 @@ export default defineSystem({
             g.fillStyle = "#d9745b"; g.fillRect(a.x - 14, a.y - 22, 28 * (a.hp / a.maxHp), 2);
             continue;
           }
-          g.fillStyle = { walker: "#c96b4f", flyer: "#9d7fd1", chaser: "#d9745b", turret: "#8a8f7a", boss: "" }[a.kind];
+          if (a.kind === "guard") {
+            const fx = Math.sign(a.vx) || 1;
+            g.fillStyle = "rgba(255,230,120,.16)"; g.beginPath(); g.moveTo(a.x, a.y); g.arc(a.x, a.y, d.args.sight, fx > 0 ? -0.6 : Math.PI - 0.6, fx > 0 ? 0.6 : Math.PI + 0.6); g.closePath(); g.fill();
+          }
+          g.fillStyle = { walker: "#c96b4f", flyer: "#9d7fd1", chaser: "#d9745b", turret: "#8a8f7a", boss: "", guard: "#6f7fb0" }[a.kind];
           if (a.kind === "turret") g.fillRect(a.x - 6, a.y - 6, 12, 12);
           else { g.beginPath(); g.arc(a.x, a.y, 6, 0, Math.PI * 2); g.fill(); }
           g.fillStyle = "#fff"; g.fillRect(a.x - 3 + Math.sign(d.px - a.x) * 2, a.y - 2, 2, 2); g.fillRect(a.x + 1 + Math.sign(d.px - a.x) * 2, a.y - 2, 2, 2);
         }
+        g.fillStyle = "#f6e27a";
+        for (const b of d.bolts) g.fillRect(b.x - 2, b.y - 1, 4, 2);
         g.fillStyle = "#ff8a5c";
         for (const s of d.shots) { g.beginPath(); g.arc(s.x, s.y, 2.5, 0, Math.PI * 2); g.fill(); }
         if (!(d.inv > 0 && Math.floor(d.frame / 3) % 2 === 0)) {

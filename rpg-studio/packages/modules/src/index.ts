@@ -20,6 +20,18 @@ import room from "./room";
 import deduce from "./deduce";
 import runner from "./runner";
 import quiz from "./quiz";
+import fighter from "./fighter";
+import defense from "./defense";
+import blocks from "./blocks";
+import logic from "./logic";
+import physics from "./physics";
+import aim from "./aim";
+import dungeon3d from "./dungeon3d";
+import squad from "./squad";
+import table from "./table";
+import composer from "./composer";
+import program from "./program";
+import factory from "./factory";
 
 export interface ModuleInfo {
   system: GameSystem;
@@ -44,6 +56,18 @@ export const MODULES: Record<string, ModuleInfo> = {
   deduce: { system: deduce, title: "推理", genre: "推理ADV・法廷・尋問・心理戦", description: "証言の矛盾に証拠をつきつけ、最後に答え（犯人・真相）を選ぶ。証拠はRPGで集めた手がかり（集合・フラグ・アイテム）から現れる。", usage: '{ "type": "startScene", "system": "deduce", "scene": "case", "args": { "evidence": [ … ], "statements": [ … ], "question": { … } } }' },
   runner: { system: runner, title: "ランナー・レース", genre: "レース・ランゲーム・逃走劇・配達", description: "レーン移動とジャンプで障害物を避け、コインとブーストを取り、ライバルより先にゴールする。コースは文字で書くか自動生成。", usage: '{ "type": "startScene", "system": "runner", "scene": "race", "args": { "length": 120, "rivals": [ { "name": "風の子", "speed": 5 } ] } }' },
   quiz: { system: quiz, title: "クイズ・なぞなぞ", genre: "クイズ・なぞなぞ・言葉遊び・タイピング・学習", description: "選択式か入力式の問題。表記ゆれ（全角半角・カタカナ/ひらがな）を吸収。合言葉の扉、試験、知恵比べ、問答バトル。", usage: '{ "type": "startScene", "system": "quiz", "scene": "ask", "args": { "questions": [ { "q": "…", "answer": ["かぜ"] } ] } }' },
+  fighter: { system: fighter, title: "格闘", genre: "格闘・対戦（ローカル2人対戦）", description: "1対1の横画面格闘。移動・ジャンプ・ガード・上段/下段・コマンド技（↓→攻撃）・コンボ・削り。duel は対CPU（戦闘モードではRPGの敵）、versus は同じキーボードで2人対戦。", usage: '敵に "battle": { "mode": "fighter.duel" }／{ "type": "startScene", "system": "fighter", "scene": "versus", "args": {} }' },
+  defense: { system: defense, title: "タワーディフェンス", genre: "タワーディフェンス・拠点防衛", description: "道（S→H）を進む敵の波を、ゴールドで建てた塔（弓・砲・氷…自由に定義）で防ぐ。強化、範囲攻撃、足止め。", usage: '{ "type": "startScene", "system": "defense", "scene": "siege", "args": { "rows": [ "S===.", "...=H" ] } }' },
+  blocks: { system: blocks, title: "落ちもの", genre: "落ちものパズル", description: "落ちてくる小さな組を動かし回転させて積む。同じ色4つ以上で消える（連鎖）か、横一列で消える。形は自由に定義。戦闘ではおじゃま列が来る。", usage: '{ "type": "startScene", "system": "blocks", "scene": "drop", "args": { "clear": "groups", "target": 24 } }' },
+  logic: { system: logic, title: "ロジックパズル", genre: "ロジック（お絵かきロジック・ライツアウト・数字の配置）", description: "絵（#と.）を書くだけで数字の手がかりが自動で付くお絵かきロジック、ライツアウト、行・列・枠で数字が重ならない配置パズル。", usage: '{ "type": "startScene", "system": "logic", "scene": "solve", "args": { "kind": "picture", "solution": [ ".#.", "###", ".#." ] } }' },
+  physics: { system: physics, title: "物理ショット", genre: "物理パズル・ゴルフ・ビリヤード風・投てき・スポーツ", description: "向きと力を決めて打つ。上から（転がる・摩擦）か横から（重力・放物線）。カップに入れる・的を倒す。2人で交互に打つ対戦も。", usage: '{ "type": "startScene", "system": "physics", "scene": "shot", "args": { "view": "top", "rows": [ "#######", "#o...O#", "#######" ] } }' },
+  aim: { system: aim, title: "射撃", genre: "射的・ガンシューティング・レールシューティング", description: "照準を動かして（クリックでも）現れる的を撃つ。味方は撃たない、残った敵は反撃、装填。rail で迫ってくる敵。", usage: '{ "type": "startScene", "system": "aim", "scene": "shoot", "args": { "count": 20, "rail": true } }' },
+  dungeon3d: { system: dungeon3d, title: "疑似3Dダンジョン", genre: "3Dダンジョン・一人称探索・一人称戦闘（FPS風）", description: "文字の地図をそのまま一人称の迷宮として描く。マス移動（ダンジョンRPG）か自由移動（一人称アクション）。敵・宝・出口・ミニマップ。", usage: '{ "type": "startScene", "system": "dungeon3d", "scene": "explore", "args": { "rows": [ "#####", "#@.G#", "#####" ] } }' },
+  squad: { system: squad, title: "部隊戦", genre: "RTS・オートバトラー・合戦", description: "味方の部隊を選んで行き先を指示する（command）か、布陣して自動で戦わせる（auto）。兵種（射程・速さ）、拠点の防衛と破壊。", usage: '{ "type": "startScene", "system": "squad", "scene": "command", "args": { "rows": [ "#########", "#@a...ee#" ] } }' },
+  table: { system: table, title: "札勝負", genre: "テーブルゲーム・手役・駆け引き（はったり）", description: "5枚の手札を1度交換して役を作り、相手の表情（はったりかも）を読んで降りる・勝負・上乗せ。チップはゲーム内のみ（RPGの変数と連動可）。", usage: '{ "type": "startScene", "system": "table", "scene": "hand", "args": { "rounds": 5, "stakeVar": "gold" } }' },
+  composer: { system: composer, title: "作曲", genre: "作曲・演奏・音の謎解き", description: "拍ごとに音を置いて鳴らす。お手本の旋律を再現する課題か、自由に作曲して集合に保存（後の会話や条件で使える）。", usage: '{ "type": "startScene", "system": "composer", "scene": "compose", "args": { "target": "C4 E4 G4 . G4 E4 C4 ." } }' },
+  program: { system: program, title: "プログラミング", genre: "プログラミング・命令パズル", description: "進む・曲がる・跳ぶ・×2・くり返しの命令を並べて動かす。ゴールと宝石、命令数や試行回数の制限。", usage: '{ "type": "startScene", "system": "program", "scene": "run", "args": { "rows": [ "#####", "#@.G#", "#####" ] } }' },
+  factory: { system: factory, title: "工場", genre: "工場・自動化・生産ライン", description: "原料が流れ込む。機械の枠にレシピを入れ、出来た物を次の機械の材料につなぎ、制限時間内に目標の品を作る。", usage: '{ "type": "startScene", "system": "factory", "scene": "line", "args": { "goal": { "item": "tool", "amount": 5 } } }' },
 };
 
 /** Systems for the modules a project enabled. */
