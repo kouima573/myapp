@@ -177,6 +177,14 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   const tileByCode = new Map(tileset.tiles.map(t => [t.code, t]));
   const flagIds = new Set(Object.keys(project.flags));
   const varIds = new Set(Object.keys(project.variables));
+  const setIds = new Set([...Object.keys(project.sets), "endings"]);
+  const regionIds = new Set(Object.values(maps).flatMap(m => m.regions.map(r => r.id)));
+  const entityIds = new Set(Object.values(maps).flatMap(m => m.entities.map(e => e.id)));
+  const endingIds = new Set(Object.keys(project.endings));
+  const systemRef = (file: string, at: string, ref: string, what: string) => {
+    const systemId = ref.slice(0, ref.lastIndexOf("."));
+    if (!systemIds.has(systemId)) err(file, at, `${what} '${ref}' のシステム '${systemId}' が project.json の systems にありません`);
+  };
   const A = project.assetsPath;
   const checkAudio = (file: string, at: string, id: string | null | undefined, kinds: string[], label: string) => {
     if (!id) return;
@@ -211,7 +219,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       if (kind === "var" && key && !varIds.has(key)) warn(file, at, `文中の {{var.${key}}} は未宣言の変数です`);
       else if (kind === "item" && key && !itemIds.has(key)) warn(file, at, `文中の {{item.${key}}} は未定義のアイテムです`);
       else if (kind === "flag" && key && !flagIds.has(key)) warn(file, at, `文中の {{flag.${key}}} は未宣言のフラグです`);
-      else if (!["var", "item", "flag", "stat", "hp", "maxHp", "name", "ctx", "enemy", "trait"].includes(kind!)) warn(file, at, `文中の {{${kind}}} は使えない差し込みです`);
+      else if (!["var", "item", "flag", "stat", "hp", "maxHp", "name", "ctx", "enemy", "trait", "set", "cycle"].includes(kind!)) warn(file, at, `文中の {{${kind}}} は使えない差し込みです`);
     }
   };
 
@@ -222,6 +230,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       if ("var" in e && !varIds.has(e.var)) err(file, at, `未宣言の変数 '${e.var}' を参照しています。project.jsonのvariablesに宣言してください`);
       if ("count" in e && !itemIds.has(e.count)) err(file, at, `未定義のアイテム '${e.count}' を参照しています`);
       if ("ctx" in e && !ctxAllowed) warn(file, at, `{"ctx":"${e.ctx}"} は戦闘・ダメージのルール以外では常に0です`);
+      if ("size" in e && !setIds.has(e.size)) err(file, at, `未宣言の集合 '${e.size}'（project.json の sets）`);
+      if ("fn" in e) systemRef(file, at, e.fn, "関数");
     }, c => checkCondition(file, at, c, ctxAllowed));
   };
   function checkCondition(file: string, at: string, condition: Condition | undefined, ctxAllowed = false) {
@@ -237,6 +247,10 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       if ("map" in c && !maps[c.map]) err(file, at, `未定義のマップ '${c.map}'`);
       if ("enemy" in c && !enemyIds.has(c.enemy)) err(file, at, `未定義の敵 '${c.enemy}'`);
       if ("enemyTag" in c && !enemyTags.has(c.enemyTag)) warn(file, at, `どの敵にも付いていないタグ '${c.enemyTag}'`);
+      if ("set" in c && !setIds.has(c.set)) err(file, at, `未宣言の集合 '${c.set}'（project.json の sets）`);
+      if ("set" in c && c.set === "endings" && !endingIds.has(c.has)) err(file, at, `未宣言のエンディング '${c.has}'`);
+      if ("inRegion" in c && !regionIds.has(c.inRegion)) err(file, at, `どのマップにもない領域 '${c.inRegion}'`);
+      if ("custom" in c) systemRef(file, at, c.custom, "条件");
     });
   }
   const checkEffects = (file: string, at: string, effects: Effect[], ctxAllowed = false) => {
@@ -279,6 +293,16 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
           break;
         case "system": if (!systemIds.has(effect.system)) err(file, here, `project.jsonのsystemsにないシステム '${effect.system}'`); break;
         case "playSfx": checkAudio(file, here, effect.sound, SOUND, "効果音"); break;
+        case "addToSet": case "removeFromSet": case "clearSet": if (!setIds.has(effect.set)) err(file, here, `未宣言の集合 '${effect.set}'`); break;
+        case "moveEntity": {
+          const map = effect.mapId ? maps[effect.mapId] : undefined;
+          if (effect.mapId && !map) err(file, here, `未定義のマップ '${effect.mapId}'`);
+          if (!entityIds.has(effect.entity)) err(file, here, `どのマップにもないエンティティ '${effect.entity}'`);
+          break;
+        }
+        case "schedule": checkExpr(file, here, effect.after, ctxAllowed); checkEffects(file, `${here}.effects`, effect.effects); break;
+        case "startScene": if (!systemIds.has(effect.system)) err(file, here, `project.jsonのsystemsにないシステム '${effect.system}'`); break;
+        case "ending": if (!endingIds.has(effect.ending)) err(file, here, `未宣言のエンディング '${effect.ending}'（project.json の endings）`); break;
         case "playBgm": checkAudio(file, here, effect.music, MUSIC, "BGM"); break;
         default: break;
       }
@@ -325,6 +349,12 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     if (flagIds.has(id)) warn(P, `variables.${id}`, "同じ名前のフラグがあります。紛らわしいので別名にしてください");
   }
   checkEffects(P, "intro", project.intro);
+  for (const [key, expr] of Object.entries({ playerDamage: project.battle.playerDamage, enemyDamage: project.battle.enemyDamage, fleeChance: project.battle.fleeChance })) checkExpr(P, `battle.${key}`, expr, true);
+  for (const [id, decl] of Object.entries(project.sets)) {
+    if (flagIds.has(id) || varIds.has(id)) warn(P, `sets.${id}`, "同じ名前のフラグ・変数があります。紛らわしいので別名にしてください");
+    if (id === "endings") warn(P, `sets.${id}`, "endings は組み込みの集合（到達したエンディング）です");
+    void decl;
+  }
   if (project.rulesPath) checkRules(project.rulesPath, "rules", content.rules.length ? content.rules : []);
 
   // Audio.
@@ -365,6 +395,11 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       if (sheet && value !== undefined && value >= capacity) err(project.tilesetPath, `tiles[${index}].${field}`, `アトラスの範囲外です (${value} >= ${capacity})`);
     }
     checkCondition(project.tilesetPath, `tiles[${index}].passableWhen`, tile.passableWhen);
+    if (tile.inspect) {
+      checkCondition(project.tilesetPath, `tiles[${index}].inspect.when`, tile.inspect.when);
+      checkEffects(project.tilesetPath, `tiles[${index}].inspect.effects`, tile.inspect.effects);
+      checkEffects(project.tilesetPath, `tiles[${index}].inspect.otherwise`, tile.inspect.otherwise);
+    }
   });
 
   // Maps.
@@ -409,6 +444,27 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       occupy(item.id, item.x, item.y, at);
       if (!events[item.event]) err(file, `${at}.event`, `未定義のイベント '${item.event}'`);
       checkCondition(file, `${at}.visibleWhen`, item.visibleWhen);
+    });
+    map.entities.forEach(entity => {
+      const at = `entities[${entity.id}]`;
+      occupy(entity.id, entity.x, entity.y, at);
+      entity.states.forEach((st, i) => {
+        const here = `${at}.states[${i}]`;
+        checkCondition(file, `${here}.when`, st.when);
+        if (st.sprite && assetById.get(st.sprite)?.kind !== "character") err(file, `${here}.sprite`, `キャラクター素材 '${st.sprite}' がassets.jsonにありません`);
+        if (st.dialogue && !dialogues[st.dialogue]) err(file, `${here}.dialogue`, `未定義の会話 '${st.dialogue}'`);
+        if (st.event && !events[st.event]) err(file, `${here}.event`, `未定義のイベント '${st.event}'`);
+        checkEffects(file, `${here}.effects`, st.effects);
+        if (st.trigger !== "none" && !st.dialogue && !st.event && !st.effects.length) warn(file, here, `trigger=${st.trigger} ですが、会話・イベント・効果がありません`);
+        if (st.behavior.type === "patrol") st.behavior.path.forEach((pt, j) => { if (pt.x >= map.width || pt.y >= map.height) err(file, `${here}.behavior.path[${j}]`, "マップ範囲外です"); });
+        if (!st.sprite && st.marker === "none" && st.trigger !== "auto" && st.trigger !== "none") warn(file, here, "見た目(sprite / marker)がないので、プレイヤーから見えません");
+      });
+      if (entity.states[entity.states.length - 1]?.when) void 0; // last state may be conditional: entity then disappears — intended.
+    });
+    map.regions.forEach(region => {
+      const at = `regions[${region.id}]`;
+      checkCondition(file, `${at}.when`, region.when);
+      for (const key of ["onEnter", "onLeave", "onStep", "inspect"] as const) checkEffects(file, `${at}.${key}`, region[key]);
     });
     if (map.encounters) {
       map.encounters.enemies.forEach((id, i) => { if (!enemyIds.has(id)) err(file, `encounters.enemies[${i}]`, `未定義の敵 '${id}'`); });
@@ -463,6 +519,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   for (const map of Object.values(maps)) {
     map.interactables.forEach(i => usedEvents.add(i.event));
     map.npcs.forEach(n => n.dialogues.forEach(d => usedDialogues.add(d.dialogue)));
+    map.entities.forEach(e => e.states.forEach(st => { if (st.dialogue) usedDialogues.add(st.dialogue); if (st.event) usedEvents.add(st.event); }));
   }
   forEachEffectList(content, effects => walkEffects(effects, e => {
     if (e.type === "dialogue") usedDialogues.add(e.dialogue);
@@ -484,6 +541,11 @@ export function forEachEffectList(content: GameContent, visit: (effects: Effect[
   for (const t of content.database.traits) { rules(t.rules); visit(t.onGrant); }
   for (const i of content.database.items) { rules(i.rules); if (i.use) visit(i.use.effects); }
   for (const e of content.database.enemies) { rules(e.rules); e.actions.forEach(a => visit(a.effects)); }
+  for (const t of content.tileset.tiles) if (t.inspect) { visit(t.inspect.effects); visit(t.inspect.otherwise); }
+  for (const m of Object.values(content.maps)) {
+    m.entities.forEach(e => e.states.forEach(st => visit(st.effects)));
+    m.regions.forEach(r => { visit(r.onEnter); visit(r.onLeave); visit(r.onStep); visit(r.inspect); });
+  }
 }
 
 export function walkExpr(expr: Expr, visit: (expr: Expr) => void, onCondition?: (condition: Condition) => void): void {
@@ -510,6 +572,7 @@ export function walkEffects(effects: Effect[], visit: (effect: Effect) => void):
     if (effect.type === "battle" && effect.onVictory) walkEffects(effect.onVictory, visit);
     if (effect.type === "if" || effect.type === "chance") { walkEffects(effect.then, visit); if (effect.else) walkEffects(effect.else, visit); }
     if (effect.type === "choice") effect.options.forEach(option => walkEffects(option.effects, visit));
+    if (effect.type === "schedule") walkEffects(effect.effects, visit);
   }
 }
 

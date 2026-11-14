@@ -6,6 +6,7 @@
 
 1. `docs/project-format.md` — データ形式v2（条件・効果・マップ・会話・イベント・戦闘・セーブ）
 2. `docs/customization-guide.md` — 種族・効果・仕組みをデータで作るレシピ集（フラグ・変数・特性・ルール・式）
+   `docs/innovation-guide.md` — 新しい遊びを発明するための部品（エンティティ・領域・集合・周回・独自画面・描画レイヤー）と発想集
 3. `docs/extension-api.md` — データで書けないものだけ使うTypeScriptフック（`defineSystem`）
 4. `docs/scenario-tests.md` — 自動プレイテスト
 5. 対象プロジェクトの `README.md` と `pnpm rpg catalog --project projects/<id>`（定義済みIDの一覧）
@@ -13,6 +14,7 @@
 
 ## 作り方の原則
 
+- 新しい仕組みを頼まれたら、既存の型に押し込めず、innovation-guide の4層（データ → 世界の仕組み → 拡張 → エンジン改造）から最も素直な実現方法を選ぶ。拡張の処理（input・conditions・actions・onStep・onTick）では `Math.random()` や現在時刻を使わない（決定性を保つ）。
 - **データで書けることはデータで**（`projects/<id>/*.json`）。種族・職業などは特性(traits)、効果は能力のstatMods・rules・use、全体の仕組みは `rules.json` のルールで書く。条件・効果・式・ルールで表せないものだけを `systems/*.ts` に書く。
 - 種族や効果の**内容**（仕様書）はユーザーが用意する。仕様にない効果を推測で作らない。不明点は質問する。
 - 新しいフラグ・変数は必ず `project.json` の `flags`・`variables` に宣言する（未宣言は検証エラー）。

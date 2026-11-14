@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Brush, DoorOpen, Eraser, Flag, MousePointer2, PaintBucket, Pipette, Redo2, Sparkles, Undo2, UserRound, Grid3x3, Eye, ZoomIn, ZoomOut } from "lucide-react";
+import { Ghost, SquareDashed, Brush, DoorOpen, Eraser, Flag, MousePointer2, PaintBucket, Pipette, Redo2, Sparkles, Undo2, UserRound, Grid3x3, Eye, ZoomIn, ZoomOut } from "lucide-react";
 import type { GameContent, GameMap, Interactable, Npc, Portal, ProjectManifest } from "@rpg/schema";
 import { drawMap, TILE, type ImageMap } from "../../../packages/runtime/src/render";
 import type { ProjectStore } from "../lib/useProject";
 
 export type Selection =
   | { kind: "cell"; x: number; y: number }
-  | { kind: "npc" | "portal" | "interactable"; id: string; x: number; y: number }
+  | { kind: "npc" | "portal" | "interactable" | "entity" | "region"; id: string; x: number; y: number }
   | null;
 
-export type Tool = "select" | "paint" | "fill" | "erase" | "pick" | "npc" | "portal" | "interactable" | "start";
+export type Tool = "select" | "paint" | "fill" | "erase" | "pick" | "npc" | "portal" | "interactable" | "entity" | "region" | "start";
 
 interface Props {
   store: ProjectStore;
@@ -31,6 +31,8 @@ const TOOLS: Array<{ id: Tool; label: string; key: string; icon: typeof Brush }>
   { id: "npc", label: "NPCを置く", key: "N", icon: UserRound },
   { id: "portal", label: "出入口を置く", key: "P", icon: DoorOpen },
   { id: "interactable", label: "仕掛けを置く", key: "T", icon: Sparkles },
+  { id: "entity", label: "エンティティを置く（状態・移動・条件で変わる人や物）", key: "O", icon: Ghost },
+  { id: "region", label: "領域を置く（入る・出る・歩く・調べる）", key: "R", icon: SquareDashed },
   { id: "start", label: "開始位置", key: "S", icon: Flag },
 ];
 
@@ -40,6 +42,8 @@ function uniqueId(base: string, taken: Set<string>): string {
 }
 
 export function entityAt(map: GameMap, x: number, y: number): Selection {
+  const entity = map.entities.find(e => e.x === x && e.y === y);
+  if (entity) return { kind: "entity", id: entity.id, x, y };
   const npc = map.npcs.find(n => n.x === x && n.y === y);
   if (npc) return { kind: "npc", id: npc.id, x, y };
   const item = map.interactables.find(i => i.x === x && i.y === y);
@@ -75,7 +79,11 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
       content, map, images, time: 0,
       view: { camera: { x: 0, y: 0 }, cols: map.width, rows: map.height },
       interactables: map.interactables,
-      actors: map.npcs.map(n => ({ id: n.id, x: n.x, y: n.y, facing: n.facing, sprite: n.sprite, kind: "npc" as const, label: n.name })),
+      markers: map.entities.filter(e => !e.states[0]?.sprite && e.states[0]?.marker !== "none").map(e => ({ x: e.x, y: e.y, marker: e.states[0]!.marker })),
+      actors: [
+        ...map.npcs.map(n => ({ id: n.id, x: n.x, y: n.y, facing: n.facing, sprite: n.sprite, kind: "npc" as const, label: n.name })),
+        ...map.entities.filter(e => e.states[0]?.sprite).map(e => ({ id: e.id, x: e.x, y: e.y, facing: e.states[0]!.facing ?? "down" as const, sprite: e.states[0]!.sprite, kind: "npc" as const, label: e.name })),
+      ],
       editor: {
         grid, showEntities: true, showPassability: passability, hovered,
         selected: selection ? { x: selection.x, y: selection.y } : null,
@@ -118,8 +126,8 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
     });
   };
 
-  const addEntity = (kind: "npc" | "portal" | "interactable", x: number, y: number) => {
-    const taken = new Set([...map.npcs, ...map.portals, ...map.interactables].map(e => e.id));
+  const addEntity = (kind: "npc" | "portal" | "interactable" | "entity" | "region", x: number, y: number) => {
+    const taken = new Set([...map.npcs, ...map.portals, ...map.interactables, ...map.entities, ...map.regions].map(e => e.id));
     const firstDialogue = Object.keys(content.dialogues)[0] ?? "dialogue";
     const firstEvent = Object.keys(content.events)[0] ?? "event";
     const otherMap = content.project.maps.find(m => m.id !== mapId) ?? content.project.maps[0]!;
@@ -133,6 +141,12 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
         id = uniqueId(`${mapId}-to-${otherMap.id}`, taken);
         const portal: Portal = { id, x, y, targetMapId: otherMap.id, targetX: content.project.start.x, targetY: content.project.start.y };
         draft.portals.push(portal);
+      } else if (kind === "entity") {
+        id = uniqueId("entity", taken);
+        draft.entities.push({ id, name: "旅人", x, y, states: [{ sprite: content.assets.assets.find(a => a.kind === "character")?.id, marker: "none", solid: true, trigger: "action", effects: [{ type: "message", text: "……。" }], behavior: { type: "wander", radius: 2, every: 3 } }] } as GameMap["entities"][number]);
+      } else if (kind === "region") {
+        id = uniqueId("region", taken);
+        draft.regions.push({ id, label: "新しい領域", x, y, w: Math.min(3, map.width - x), h: Math.min(3, map.height - y), onEnter: [{ type: "message", text: "空気が変わった。" }], onLeave: [], onStep: [], inspect: [] });
       } else {
         id = uniqueId("object", taken);
         const item: Interactable = { id, x, y, label: "調べられる物", event: firstEvent, trigger: "action", solid: false, marker: "sparkle" };
@@ -157,13 +171,14 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
         break;
       case "fill": fill(x, y, tile); break;
       case "pick": setTile(code); setTool("paint"); break;
-      case "npc": case "portal": case "interactable": addEntity(tool, x, y); break;
+      case "npc": case "portal": case "interactable": case "entity": case "region": addEntity(tool, x, y); break;
       case "start":
         store.updateJson<ProjectManifest>("project.json", draft => { draft.start = { ...draft.start, mapId, x, y }; });
         store.log("info", `開始位置を ${mapId} (${x}, ${y}) に設定しました`);
         break;
       case "select": {
-        const entity = entityAt(map, x, y);
+        const region = map.regions.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+        const entity = entityAt(map, x, y) ?? (event.altKey || event.shiftKey ? null : region ? { kind: "region" as const, id: region.id, x: region.x, y: region.y } : null);
         onSelect(entity ?? { kind: "cell", x, y });
         if (entity && entity.kind !== "cell") { store.beginGroup(); drag.current = { mode: "move", id: entity.id, kind: entity.kind }; }
         break;
@@ -179,7 +194,7 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
     if (current.mode === "paint") setCell(cell.x, cell.y, tool === "erase" ? content.tileset.tiles[0]!.code : tile);
     else if (current.mode === "move" && current.id && current.kind) {
       if (selection && selection.x === cell.x && selection.y === cell.y) return;
-      const key = current.kind === "npc" ? "npcs" : current.kind === "portal" ? "portals" : "interactables";
+      const key = current.kind === "npc" ? "npcs" : current.kind === "portal" ? "portals" : current.kind === "entity" ? "entities" : current.kind === "region" ? "regions" : "interactables";
       store.updateJson<GameMap>(mapPath, draft => {
         const list = draft[key] as Array<{ id: string; x: number; y: number }>;
         const target = list.find(e => e.id === current.id);
@@ -206,7 +221,7 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
       if (mod || event.altKey) return;
       if ((event.key === "Delete" || event.key === "Backspace") && selection && selection.kind !== "cell") {
         event.preventDefault();
-        const key = selection.kind === "npc" ? "npcs" : selection.kind === "portal" ? "portals" : "interactables";
+        const key = selection.kind === "npc" ? "npcs" : selection.kind === "portal" ? "portals" : selection.kind === "entity" ? "entities" : selection.kind === "region" ? "regions" : "interactables";
         store.updateJson<GameMap>(mapPath, draft => { (draft[key] as Array<{ id: string }>) = (draft[key] as Array<{ id: string }>).filter(e => e.id !== selection.id) as never; });
         store.log("info", `${selection.id} を削除しました（Ctrl+Zで元に戻せます）`);
         onSelect(null);

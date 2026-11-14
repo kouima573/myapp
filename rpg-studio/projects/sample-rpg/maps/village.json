@@ -59,19 +59,6 @@
           "dialogue": "guard-warning"
         }
       ]
-    },
-    {
-      "id": "apprentice",
-      "name": "見習いのテト",
-      "x": 11,
-      "y": 11,
-      "facing": "down",
-      "sprite": "village-apprentice",
-      "dialogues": [
-        {
-          "dialogue": "apprentice-dialog"
-        }
-      ]
     }
   ],
   "portals": [
@@ -104,6 +91,25 @@
       "trigger": "action",
       "solid": true,
       "marker": "sign"
+    }
+  ],
+  "entities": [
+    {
+      "id": "apprentice",
+      "name": "見習いのテト",
+      "x": 11,
+      "y": 11,
+      "states": [
+        {
+          "sprite": "village-apprentice",
+          "dialogue": "apprentice-dialog",
+          "behavior": {
+            "type": "wander",
+            "radius": 2,
+            "every": 4
+          }
+        }
+      ]
     }
   ]
 }

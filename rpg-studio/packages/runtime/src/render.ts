@@ -72,6 +72,8 @@ export interface DrawMapOptions {
   state?: GameState;
   actors: ActorDraw[];
   interactables: Interactable[];
+  /** Entity markers (chests, signs… on entities). */
+  markers?: Array<{ x: number; y: number; marker: Interactable["marker"] }>;
   /** Editor overlays. */
   editor?: {
     grid: boolean;
@@ -84,7 +86,8 @@ export interface DrawMapOptions {
   time: number;
 }
 
-export function drawMap(ctx: CanvasRenderingContext2D, o: DrawMapOptions): void {
+/** Draws the map; returns where tile (0,0) landed so overlays can align. */
+export function drawMap(ctx: CanvasRenderingContext2D, o: DrawMapOptions): { originX: number; originY: number } {
   const { content, map, images, view, state } = o;
   const assetById = new Map(content.assets.assets.map(a => [a.id, a]));
   const tiles = new Map(content.tileset.tiles.map(t => [t.code, t]));
@@ -123,12 +126,14 @@ export function drawMap(ctx: CanvasRenderingContext2D, o: DrawMapOptions): void 
   }
 
   for (const item of o.interactables) drawMarker(ctx, item, o.time);
+  for (const item of o.markers ?? []) drawMarker(ctx, item as Interactable, o.time);
 
   const sorted = [...o.actors].sort((a, b) => a.y - b.y || (a.kind === "player" ? 1 : -1));
   for (const actor of sorted) drawActor(ctx, content, images, actor);
 
   if (o.editor) drawEditorOverlay(ctx, map, o.editor);
   ctx.restore();
+  return { originX: offsetX, originY: offsetY };
 }
 
 function drawMarker(ctx: CanvasRenderingContext2D, item: Interactable, time: number) {
@@ -209,6 +214,14 @@ function drawEditorOverlay(ctx: CanvasRenderingContext2D, map: GameMap, editor: 
     ctx.stroke();
   }
   if (editor.showEntities) {
+    for (const region of map.regions) {
+      ctx.fillStyle = "rgba(111,168,220,.10)"; ctx.fillRect(region.x * TILE, region.y * TILE, region.w * TILE, region.h * TILE);
+      ctx.strokeStyle = "rgba(111,168,220,.7)"; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+      ctx.strokeRect(region.x * TILE + 1, region.y * TILE + 1, region.w * TILE - 2, region.h * TILE - 2); ctx.setLineDash([]);
+      ctx.font = "9px system-ui"; ctx.fillStyle = "#a9cdf0"; ctx.textAlign = "left"; ctx.textBaseline = "top";
+      ctx.fillText(region.label ?? region.id, region.x * TILE + 3, region.y * TILE + 3);
+    }
+    for (const entity of map.entities) badge(ctx, entity.x, entity.y, "#85ad7b", entity.states.length > 1 ? String(entity.states.length) : "E");
     for (const portal of map.portals) badge(ctx, portal.x, portal.y, "#6fa8dc", "⇄");
     for (const item of map.interactables) badge(ctx, item.x, item.y, item.trigger === "touch" ? "#ae9bd2" : "#edc477", item.trigger === "touch" ? "▣" : "!");
     if (map.encounters) {

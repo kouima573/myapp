@@ -10,7 +10,13 @@ import type { GameSystem } from "./systems";
 const ExpectSchema = z.object({
   mapId: IdSchema.optional(),
   at: z.object({ x: z.number().int(), y: z.number().int() }).strict().optional(),
-  scene: z.enum(["field", "message", "dialogue", "choice", "prompt", "battle"]).optional(),
+  scene: z.enum(["field", "message", "dialogue", "choice", "prompt", "battle", "custom", "ending"]).optional(),
+  /** Each listed value must be in the set. */
+  sets: z.record(z.string(), z.array(z.string())).optional(),
+  lacksInSets: z.record(z.string(), z.array(z.string())).optional(),
+  cycle: z.number().int().positive().optional(),
+  entities: z.record(z.string(), z.object({ x: z.number().int(), y: z.number().int() }).strict().nullable()).optional(),
+  regions: z.array(IdSchema).optional(),
   flags: z.record(z.string(), z.boolean()).optional(),
   abilities: z.array(IdSchema).optional(),
   lacksAbilities: z.array(IdSchema).optional(),
@@ -37,6 +43,8 @@ const StepSchema = z.union([
   z.object({ battle: z.enum(["attack", "guard", "flee"]) }).strict(),
   z.object({ battleItem: IdSchema }).strict(),
   z.object({ skill: IdSchema }).strict(),
+  z.object({ tick: z.number().int().positive() }).strict(),
+  z.object({ sceneInput: z.union([z.enum(["up", "down", "left", "right", "confirm", "cancel"]), z.object({ custom: z.unknown() }).strict()]) }).strict(),
   z.object({ useItem: IdSchema }).strict(),
   z.object({ useAbility: IdSchema }).strict(),
   /** Simple AI: guard after a telegraph (power-0 move), heal under 1/2 HP, otherwise attack; then close the battle. */
@@ -145,6 +153,16 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
     for (const [id, value] of Object.entries(expect.vars ?? {})) if ((state.vars[id] ?? 0) !== value) fail(`vars.${id}: 期待 ${value} / 実際 ${state.vars[id] ?? 0}`);
     for (const id of expect.traits ?? []) if (!state.traits.includes(id)) fail(`特性 ${id} がありません`);
     for (const id of expect.lacksTraits ?? []) if (state.traits.includes(id)) fail(`特性 ${id} を持っています`);
+    for (const [set, values] of Object.entries(expect.sets ?? {})) for (const v of values) if (!(state.sets[set] ?? []).includes(v)) fail(`集合 ${set} に「${v}」がありません（実際: ${(state.sets[set] ?? []).join(", ") || "空"}）`);
+    for (const [set, values] of Object.entries(expect.lacksInSets ?? {})) for (const v of values) if ((state.sets[set] ?? []).includes(v)) fail(`集合 ${set} に「${v}」があります`);
+    if (expect.cycle !== undefined && state.cycle !== expect.cycle) fail(`cycle: 期待 ${expect.cycle} / 実際 ${state.cycle}`);
+    for (const [id, pos] of Object.entries(expect.entities ?? {})) {
+      const view = engine.visibleEntities(state).find(v => v.entity.id === id);
+      if (pos === null) { if (view) fail(`エンティティ ${id} が見えています`); continue; }
+      if (!view) fail(`エンティティ ${id} が見えません`);
+      else if (view.x !== pos.x || view.y !== pos.y) fail(`エンティティ ${id}: 期待 (${pos.x}, ${pos.y}) / 実際 (${view.x}, ${view.y})`);
+    }
+    for (const id of expect.regions ?? []) if (!engine.regions(state).includes(id)) fail(`領域 ${id} の中にいません`);
     const eff = engine.stats(state);
     for (const [key, value] of Object.entries(expect.stats ?? {})) if (eff[key as "attack"] !== value) fail(`stats.${key}: 期待 ${value} / 実際 ${eff[key as "attack"]}`);
     if (expect.hpAtLeast !== undefined && state.player.hp < expect.hpAtLeast) fail(`HP: ${expect.hpAtLeast}以上を期待 / 実際 ${state.player.hp}`);
@@ -178,6 +196,11 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
       } else if ("battle" in s) step({ type: "battle", command: s.battle });
       else if ("battleItem" in s) step({ type: "battle", command: "item", item: s.battleItem });
       else if ("skill" in s) step({ type: "battle", command: "skill", ability: s.skill });
+      else if ("tick" in s) for (let i = 0; i < s.tick && state.scene.kind === "field"; i++) step({ type: "tick" });
+      else if ("sceneInput" in s) {
+        if (state.scene.kind !== "custom") throw new ScenarioError(`sceneInput: 独自画面が開いていません (scene=${state.scene.kind})`);
+        step({ type: "sceneInput", input: typeof s.sceneInput === "string" ? { type: s.sceneInput } : { type: "custom", value: s.sceneInput.custom } });
+      }
       else if ("useItem" in s) step({ type: "useItem", item: s.useItem });
       else if ("useAbility" in s) step({ type: "useAbility", ability: s.useAbility });
       else if ("fight" in s) autoFight();

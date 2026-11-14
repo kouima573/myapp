@@ -8,7 +8,7 @@ import { z } from "zod";
 
 export const PROJECT_FORMAT_VERSION = 2;
 export const SAVE_FORMAT_VERSION = 2;
-export const ENGINE_VERSION = "0.3.0";
+export const ENGINE_VERSION = "0.5.0";
 
 export const IdSchema = z.string().min(1).max(96).regex(/^[a-z0-9][a-z0-9._-]*$/i, "IDは英数字で始まり、英数字・._-のみ使えます");
 const RelPathSchema = z.string().min(1).max(240).refine(value => !value.includes("\\") && !value.startsWith("/") && !value.split("/").some(part => part === "" || part === "." || part === ".."), "プロジェクト相対のPOSIXパスを指定してください");
@@ -20,7 +20,7 @@ export type Direction = z.infer<typeof DirectionSchema>;
 
 export const STAT_NAMES = ["maxHp", "attack", "defense"] as const;
 export type StatName = (typeof STAT_NAMES)[number];
-export const CTX_NAMES = ["damage", "turn", "enemyHp", "enemyMaxHp", "enemyAttack", "enemyDefense"] as const;
+export const CTX_NAMES = ["damage", "turn", "enemyHp", "enemyMaxHp", "enemyAttack", "enemyDefense", "attack", "defense", "power", "variance"] as const;
 export type CtxName = (typeof CTX_NAMES)[number];
 export const COMPARE_OPS = ["==", "!=", ">", ">=", "<", "<="] as const;
 export type CompareOp = (typeof COMPARE_OPS)[number];
@@ -47,6 +47,10 @@ export type Expr =
   | { min: Expr[] }
   | { max: Expr[] }
   | { percent: [Expr, Expr] }
+  | { size: string }
+  | { cycle: true }
+  | { ticks: true }
+  | { fn: string; args?: Expr[] }
   | { if: Condition; then: Expr; else: Expr };
 
 export const ExprSchema: z.ZodType<Expr> = z.lazy(() => z.union([
@@ -65,6 +69,10 @@ export const ExprSchema: z.ZodType<Expr> = z.lazy(() => z.union([
   z.object({ min: z.array(ExprSchema).min(1) }).strict(),
   z.object({ max: z.array(ExprSchema).min(1) }).strict(),
   z.object({ percent: z.tuple([ExprSchema, ExprSchema]) }).strict(),
+  z.object({ size: IdSchema }).strict(),
+  z.object({ cycle: z.literal(true) }).strict(),
+  z.object({ ticks: z.literal(true) }).strict(),
+  z.object({ fn: z.string().regex(/^[a-z0-9][a-z0-9._-]*\.[a-z0-9][a-z0-9_-]*$/i, "fnは 'システムID.関数名' の形です"), args: z.array(ExprSchema).optional() }).strict(),
   z.object({ if: ConditionSchema, then: ExprSchema, else: ExprSchema }).strict(),
 ]));
 
@@ -84,7 +92,10 @@ export type Condition =
   | { enemyTag: string }
   | { all: Condition[] }
   | { any: Condition[] }
-  | { not: Condition };
+  | { not: Condition }
+  | { set: string; has: string }
+  | { inRegion: string }
+  | { custom: string; args?: Record<string, unknown> };
 
 export const ConditionSchema: z.ZodType<Condition> = z.lazy(() => z.union([
   z.object({ flag: IdSchema, is: z.boolean().optional() }).strict(),
@@ -101,6 +112,9 @@ export const ConditionSchema: z.ZodType<Condition> = z.lazy(() => z.union([
   z.object({ all: z.array(ConditionSchema).min(1) }).strict(),
   z.object({ any: z.array(ConditionSchema).min(1) }).strict(),
   z.object({ not: ConditionSchema }).strict(),
+  z.object({ set: IdSchema, has: z.string().min(1) }).strict(),
+  z.object({ inRegion: IdSchema }).strict(),
+  z.object({ custom: z.string().regex(/^[a-z0-9][a-z0-9._-]*\.[a-z0-9][a-z0-9_-]*$/i, "customは 'システムID.条件名' の形です"), args: z.record(z.string(), z.unknown()).optional() }).strict(),
 ]));
 
 /* ------------------------------------------------------------------ Effects */
@@ -135,6 +149,15 @@ export type Effect =
   | { type: "endBattle"; outcome: "victory" | "fled" }
   | { type: "markDone"; id: string }
   | { type: "playSfx"; sound: string }
+  | { type: "addToSet"; set: string; value: string }
+  | { type: "removeFromSet"; set: string; value: string }
+  | { type: "clearSet"; set: string }
+  | { type: "moveEntity"; entity: string; mapId?: string; x: number; y: number; facing?: Direction }
+  | { type: "schedule"; id?: string; after: Expr; effects: Effect[] }
+  | { type: "cancelSchedule"; id: string }
+  | { type: "startScene"; system: string; scene: string; args?: Record<string, unknown> }
+  | { type: "ending"; ending: string }
+  | { type: "newCycle" }
   | { type: "playBgm"; music: string | null }
   | { type: "if"; when: Condition; then: Effect[]; else?: Effect[] }
   | { type: "system"; system: string; action: string; args?: Record<string, unknown> };
@@ -168,6 +191,15 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("endBattle"), outcome: z.enum(["victory", "fled"]) }).strict(),
   z.object({ type: z.literal("markDone"), id: IdSchema }).strict(),
   z.object({ type: z.literal("playSfx"), sound: IdSchema }).strict(),
+  z.object({ type: z.literal("addToSet"), set: IdSchema, value: z.string().min(1) }).strict(),
+  z.object({ type: z.literal("removeFromSet"), set: IdSchema, value: z.string().min(1) }).strict(),
+  z.object({ type: z.literal("clearSet"), set: IdSchema }).strict(),
+  z.object({ type: z.literal("moveEntity"), entity: IdSchema, mapId: IdSchema.optional(), x: CoordSchema, y: CoordSchema, facing: DirectionSchema.optional() }).strict(),
+  z.object({ type: z.literal("schedule"), id: IdSchema.optional(), after: ExprSchema, effects: z.array(EffectSchema) }).strict(),
+  z.object({ type: z.literal("cancelSchedule"), id: IdSchema }).strict(),
+  z.object({ type: z.literal("startScene"), system: IdSchema, scene: IdSchema, args: z.record(z.string(), z.unknown()).optional() }).strict(),
+  z.object({ type: z.literal("ending"), ending: IdSchema }).strict(),
+  z.object({ type: z.literal("newCycle") }).strict(),
   z.object({ type: z.literal("playBgm"), music: IdSchema.nullable() }).strict(),
   z.object({ type: z.literal("if"), when: ConditionSchema, then: z.array(EffectSchema), else: z.array(EffectSchema).optional() }).strict(),
   z.object({ type: z.literal("system"), system: IdSchema, action: IdSchema, args: z.record(z.string(), z.unknown()).optional() }).strict(),
@@ -175,7 +207,7 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
 
 /* ------------------------------------------------------------------ Rules (data-driven triggers) */
 
-export const RULE_TRIGGERS = ["auto", "step", "mapEnter", "battleStart", "turnEnd", "dealDamage", "takeDamage", "lethalDamage", "victory", "defeat"] as const;
+export const RULE_TRIGGERS = ["auto", "step", "tick", "mapEnter", "battleStart", "turnEnd", "dealDamage", "takeDamage", "lethalDamage", "victory", "defeat"] as const;
 export type RuleTrigger = (typeof RULE_TRIGGERS)[number];
 export const BATTLE_TRIGGERS: readonly RuleTrigger[] = ["battleStart", "turnEnd", "dealDamage", "takeDamage", "lethalDamage"];
 
@@ -218,7 +250,19 @@ export type Use = z.infer<typeof UseSchema>;
 /* ------------------------------------------------------------------ Project manifest */
 
 const FileRefSchema = z.object({ id: IdSchema, path: RelPathSchema, title: z.string().min(1) }).strict();
-export const FlagDeclSchema = z.object({ initial: z.boolean().default(false), description: z.string().optional() }).strict();
+/** "run" values reset on a new game / new cycle; "meta" values survive them (memories, endings seen, unlocks). */
+export const PersistSchema = z.enum(["run", "meta"]).default("run");
+export const FlagDeclSchema = z.object({ initial: z.boolean().default(false), description: z.string().optional(), persist: PersistSchema }).strict();
+export const SetDeclSchema = z.object({
+  label: z.string().optional(),
+  description: z.string().optional(),
+  /** Show the collected entries in the game menu (e.g. a notebook of clues). */
+  show: z.boolean().default(false),
+  persist: PersistSchema,
+  /** Optional display names for entries: value → text. */
+  entries: z.record(z.string(), z.string()).default({}),
+}).strict();
+export type SetDecl = z.infer<typeof SetDeclSchema>;
 export const VarDeclSchema = z.object({
   initial: z.number().int().default(0),
   min: z.number().int().optional(),
@@ -227,6 +271,7 @@ export const VarDeclSchema = z.object({
   /** Show on the field HUD. */
   hud: z.boolean().default(false),
   description: z.string().optional(),
+  persist: PersistSchema,
 }).strict();
 export type VarDecl = z.infer<typeof VarDeclSchema>;
 export const StatsSchema = z.object({
@@ -312,6 +357,21 @@ export const ProjectManifestSchema = z.object({
   flags: z.record(IdSchema, FlagDeclSchema).default({}),
   /** Integer variables (gold, reputation, mp, counters…). Must be declared like flags. */
   variables: z.record(IdSchema, VarDeclSchema).default({}),
+  /** Named sets of strings: knowledge, keywords, collected memories, visited places… */
+  sets: z.record(IdSchema, SetDeclSchema).default({}),
+  /** Endings the game can reach (recorded across cycles in the built-in meta set "endings"). */
+  endings: z.record(IdSchema, z.object({ title: z.string().min(1), text: z.string().default("") }).strict()).default({}),
+  /** Replace the battle maths with expressions. See docs/customization-guide.md. */
+  battle: z.object({
+    /** Player → enemy. ctx: attack, defense, power(0), variance(-1..1). */
+    playerDamage: ExprSchema.optional(),
+    /** Enemy → player (before guard halves it). ctx: attack, defense, power, variance. */
+    enemyDamage: ExprSchema.optional(),
+    /** Percent chance to flee. */
+    fleeChance: ExprSchema.optional(),
+    /** Which built-in commands exist. */
+    commands: z.object({ attack: z.boolean().default(true), guard: z.boolean().default(true), skills: z.boolean().default(true), items: z.boolean().default(true), flee: z.boolean().default(true) }).strict().default({ attack: true, guard: true, skills: true, items: true, flee: true }),
+  }).strict().default({ commands: { attack: true, guard: true, skills: true, items: true, flee: true } }),
   /** Effects run when a new game starts (e.g. race selection). */
   intro: z.array(EffectSchema).default([]),
   maps: z.array(FileRefSchema).min(1),
@@ -346,6 +406,8 @@ export const TileDefSchema = z.object({
   openIndex: z.number().int().nonnegative().optional(),
   /** Fallback colour used when the atlas image is unavailable. */
   color: z.string().regex(/^#[0-9a-f]{6}$/i).default("#63734f"),
+  /** Pressing the action key while facing this tile. Use `when` to make it investigable only after a flag/ability/knowledge. */
+  inspect: z.object({ when: ConditionSchema.optional(), effects: z.array(EffectSchema).min(1), otherwise: z.array(EffectSchema).default([]) }).strict().optional(),
 }).strict();
 export type TileDef = z.infer<typeof TileDefSchema>;
 
@@ -405,6 +467,62 @@ export const InteractableSchema = z.object({
 }).strict();
 export type Interactable = z.infer<typeof InteractableSchema>;
 
+export const BehaviorSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("still") }).strict(),
+  /** Random steps within `radius` of the home position, one step every `every` ticks. */
+  z.object({ type: z.literal("wander"), radius: z.number().int().min(1).default(3), every: z.number().int().min(1).default(3) }).strict(),
+  /** Walk a path of points in a loop. */
+  z.object({ type: z.literal("patrol"), path: z.array(z.object({ x: CoordSchema, y: CoordSchema }).strict()).min(1), every: z.number().int().min(1).default(2) }).strict(),
+  /** Approach the player when within `range` (Manhattan); otherwise wait. */
+  z.object({ type: z.literal("chase"), range: z.number().int().min(1).default(5), every: z.number().int().min(1).default(2) }).strict(),
+  /** Keep away from the player within `range`. */
+  z.object({ type: z.literal("flee"), range: z.number().int().min(1).default(4), every: z.number().int().min(1).default(2) }).strict(),
+]);
+export type Behavior = z.infer<typeof BehaviorSchema>;
+
+export const EntityStateSchema = z.object({
+  /** The first state whose `when` holds is active. If none holds the entity is absent. */
+  when: ConditionSchema.optional(),
+  name: z.string().optional(),
+  sprite: IdSchema.optional(),
+  marker: z.enum(["none", "sign", "chest", "sparkle", "statue"]).default("none"),
+  facing: DirectionSchema.optional(),
+  solid: z.boolean().default(true),
+  /** action: press the action key facing it. touch: player bumps into it or it reaches the player. auto: runs once when this state becomes active. none: scenery. */
+  trigger: z.enum(["action", "touch", "auto", "none"]).default("action"),
+  dialogue: IdSchema.optional(),
+  event: IdSchema.optional(),
+  effects: z.array(EffectSchema).default([]),
+  behavior: BehaviorSchema.default({ type: "still" }),
+}).strict();
+export type EntityState = z.infer<typeof EntityStateSchema>;
+
+export const EntitySchema = z.object({
+  id: IdSchema,
+  name: z.string().min(1),
+  x: CoordSchema,
+  y: CoordSchema,
+  states: z.array(EntityStateSchema).min(1),
+}).strict();
+export type Entity = z.infer<typeof EntitySchema>;
+
+export const RegionSchema = z.object({
+  id: IdSchema,
+  label: z.string().optional(),
+  x: CoordSchema,
+  y: CoordSchema,
+  w: z.number().int().positive(),
+  h: z.number().int().positive(),
+  /** Region effects only run while this holds. */
+  when: ConditionSchema.optional(),
+  onEnter: z.array(EffectSchema).default([]),
+  onLeave: z.array(EffectSchema).default([]),
+  onStep: z.array(EffectSchema).default([]),
+  /** Action key inside the region (when nothing else is in front). */
+  inspect: z.array(EffectSchema).default([]),
+}).strict();
+export type Region = z.infer<typeof RegionSchema>;
+
 export const GameMapSchema = z.object({
   formatVersion: z.literal(PROJECT_FORMAT_VERSION),
   id: IdSchema,
@@ -415,6 +533,9 @@ export const GameMapSchema = z.object({
   npcs: z.array(NpcSchema).default([]),
   portals: z.array(PortalSchema).default([]),
   interactables: z.array(InteractableSchema).default([]),
+  /** Living things and objects with condition-dependent states and movement. */
+  entities: z.array(EntitySchema).default([]),
+  regions: z.array(RegionSchema).default([]),
   /** BGM (bgm or song asset) for this map. */
   bgm: IdSchema.optional(),
   /** Battle background image (background asset) for fights on this map. */
@@ -439,9 +560,10 @@ export const GameMapSchema = z.object({
   const check = (kind: string, list: Array<{ id: string; x: number; y: number }>) => list.forEach((item, index) => {
     if (item.x >= map.width || item.y >= map.height) ctx.addIssue({ code: "custom", path: [kind, index], message: `${item.id}の座標(${item.x}, ${item.y})がマップ範囲外です` });
   });
-  check("npcs", map.npcs); check("portals", map.portals); check("interactables", map.interactables);
+  check("npcs", map.npcs); check("portals", map.portals); check("interactables", map.interactables); check("entities", map.entities);
+  map.regions.forEach((r, i) => { if (r.x + r.w > map.width || r.y + r.h > map.height) ctx.addIssue({ code: "custom", path: ["regions", i], message: `領域 ${r.id} がマップ範囲外にはみ出しています` }); });
   const ids = new Set<string>();
-  [...map.npcs, ...map.portals, ...map.interactables].forEach(item => {
+  [...map.npcs, ...map.portals, ...map.interactables, ...map.entities, ...map.regions].forEach(item => {
     if (ids.has(item.id)) ctx.addIssue({ code: "custom", path: ["id"], message: `マップ内でIDが重複しています: ${item.id}` });
     ids.add(item.id);
   });
@@ -721,6 +843,9 @@ export const SceneSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("choice"), dialogueId: IdSchema }).strict(),
   z.object({ kind: z.literal("prompt"), prompt: z.string().optional(), speaker: z.string().optional(), options: z.array(z.object({ id: z.string(), label: z.string(), effects: z.array(EffectSchema) }).strict()) }).strict(),
   z.object({ kind: z.literal("battle"), battle: BattleStateSchema }).strict(),
+  /** A screen provided by a project system (puzzle, card battle, minigame…). `data` is the system's JSON state. */
+  z.object({ kind: z.literal("custom"), system: IdSchema, scene: IdSchema, data: z.unknown() }).strict(),
+  z.object({ kind: z.literal("ending"), ending: IdSchema }).strict(),
 ]);
 export type Scene = z.infer<typeof SceneSchema>;
 
@@ -743,6 +868,16 @@ export const GameStateSchema = z.object({
   tileOverrides: z.record(z.string(), z.record(z.string(), z.string())).default({}),
   /** Keys of fired once:"game"/"map" rules and armed auto rules. */
   fired: z.array(z.string()).default([]),
+  sets: z.record(z.string(), z.array(z.string())).default({}),
+  /** Moved entities: mapId → entityId → position. */
+  entities: z.record(z.string(), z.record(z.string(), z.object({ x: CoordSchema, y: CoordSchema, facing: DirectionSchema, step: z.number().int().nonnegative().optional() }).strict())).default({}),
+  /** Pending `schedule` effects (fire when steps >= at). */
+  timers: z.array(z.object({ id: z.string().optional(), at: z.number().int(), effects: z.array(EffectSchema) }).strict()).default([]),
+  /** Playthrough number (1 = first). Survives newCycle. */
+  cycle: z.number().int().positive().default(1),
+  ticks: z.number().int().nonnegative().default(0),
+  /** Regions the player is currently inside (for onEnter/onLeave). */
+  regions: z.array(z.string()).default([]),
   /** playBgm override: asset id, null = silence, absent = map default. */
   music: IdSchema.nullable().optional(),
   /** Stable IDs of once-events, once-choices and markDone ids. */

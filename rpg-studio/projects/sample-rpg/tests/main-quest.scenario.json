@@ -217,6 +217,23 @@
       }
     },
     {
+      "expect": {
+        "textIncludes": "ひんやりとした空気",
+        "regions": [
+          "sanctum"
+        ]
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "walkTo": {
+        "x": 9,
+        "y": 6
+      }
+    },
+    {
       "face": "up"
     },
     {
@@ -367,6 +384,15 @@
     },
     {
       "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "prompt",
+        "textIncludes": "旅はこれで終わりかの？"
+      }
+    },
+    {
+      "choose": "stay"
     },
     {
       "expect": {

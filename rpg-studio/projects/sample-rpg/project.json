@@ -43,6 +43,10 @@
     "veteran": {
       "initial": false,
       "description": "3体倒して戦いに慣れた（攻撃+1済み）"
+    },
+    "runeDoorOpen": {
+      "initial": false,
+      "description": "封印の暗号錠を開けた"
     }
   },
   "variables": {
@@ -73,7 +77,58 @@
       "description": "直前に拾ったゴールド（文章表示用）"
     }
   },
+  "sets": {
+    "clues": {
+      "label": "手がかり帳",
+      "show": true,
+      "persist": "run",
+      "description": "この旅で知ったこと",
+      "entries": {
+        "ancient-script": "古代文字の読み方を覚えた",
+        "rune-order": "石板の言葉『風は星を巡り、岩に還る』"
+      }
+    },
+    "memories": {
+      "label": "かすかな記憶",
+      "show": true,
+      "persist": "meta",
+      "description": "周回をこえて残る記憶",
+      "entries": {
+        "rune-code": "封印の暗号は「風 → 星 → 岩」",
+        "wind-restored": "一度、村に風を取り戻した"
+      }
+    }
+  },
+  "endings": {
+    "wind": {
+      "title": "風の還る村",
+      "text": "番人は眠り、村に風が戻った。\n小さな旅人の名は、しばらく村の語り草になった。"
+    },
+    "secret": {
+      "title": "風の源へ",
+      "text": "封印の奥で、風は生まれていた。\n{{name}}は誰も知らない森の奥へと歩き出した。"
+    }
+  },
   "intro": [
+    {
+      "type": "if",
+      "when": {
+        "compare": [
+          {
+            "cycle": true
+          },
+          ">",
+          1
+        ]
+      },
+      "then": [
+        {
+          "type": "message",
+          "text": "（また、この森境から始まる。{{cycle}}度目の旅……何かを覚えている気がする）"
+        }
+      ],
+      "else": []
+    },
     {
       "type": "message",
       "text": "ここは森境の地。苔むした村から、あなたの旅が始まる。"
@@ -147,6 +202,16 @@
       "id": "chronicle",
       "path": "systems/chronicle.ts",
       "title": "旅の日誌（TypeScript拡張の例）"
+    },
+    {
+      "id": "rune-lock",
+      "path": "systems/rune-lock.ts",
+      "title": "暗号錠（独自画面の例）"
+    },
+    {
+      "id": "lantern",
+      "path": "systems/lantern.ts",
+      "title": "遺跡の暗闇と灯り（描画レイヤーの例）"
     }
   ],
   "audio": {

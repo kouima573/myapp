@@ -21,6 +21,38 @@ export default defineSystem({
 
 `@rpg/engine` はエンジンの公開APIです（プロジェクトの置き場所に関係なく解決されます）。
 
+## 何でも足せる — 拡張点の一覧
+
+| 拡張点 | データからの呼び方 | 例 |
+| --- | --- | --- |
+| `conditions: { name(ctx, args) => boolean }` | `{ "custom": "id.name", "args": {...} }` | 夜か？ 距離3以内か？ |
+| `functions: { name(ctx, numbers) => number }` | `{ "fn": "id.name", "args": [式, ...] }` | 相性表、距離、時刻 |
+| `actions: { name(ctx, args) => { state?, effects?, log? } }` | `{ "type": "system", "system": "id", "action": "name", "args": {...} }` | ダンジョン生成（setTileを大量に返す）、集計 |
+| `scenes: { name: { start, input, render } }` | `{ "type": "startScene", "system": "id", "scene": "name", "args": {...} }` | パズル、カード戦闘、ミニゲーム |
+| `drawOverlay(ctx2d, info)` | （自動） | 暗闇と灯り、天候、霧 |
+| `hud(ctx) => string[]` | （自動） | 体温、時刻、残り時間 |
+| `onStep(ctx)` / `onTick(ctx)` | （自動） | 空腹、昼夜、匂い |
+
+### 独自画面（scene）
+
+```ts
+scenes: {
+  dial: {
+    start(ctx, args) { return { cursor: 0, values: [0, 0, 0] }; },            // 初期データ（JSON）
+    input(ctx, data, input) {                                                 // 純粋。テストで動く
+      if (input.type === "confirm") return { close: true, effects: [{ type: "setFlag", flag: "opened" }] };
+      return { data: { ...(data as object) } };
+    },
+    render(host, view) { /* DOMを描く。view.send({type:"up"}) で入力を送れる */ },
+  },
+},
+```
+
+- 入力: 矢印キー → `up/down/left/right`、決定 → `confirm`、キャンセル → `cancel`。`render` 内のボタンからは `view.send({ type: "custom", value: ... })` で任意の値を送れる。
+- 結果: `data`（新しい画面データ）、`close`（閉じる）、`effects`（閉じた後に実行）、`state`（ゲーム状態の置き換え）。
+- 自動プレイテストでは `{ "sceneInput": "up" }` や `{ "sceneInput": { "custom": ... } }` で操作できる。
+- `rpg test` は、データが参照している条件・関数・画面・アクションが実際に定義されているかも確認する。
+
 ## フック一覧
 
 すべて**同期・純粋関数**です。状態を書き換えず、値を返してください。例外を投げると試遊にエラーとして表示され、状態は変わりません。

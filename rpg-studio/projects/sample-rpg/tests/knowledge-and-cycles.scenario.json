@@ -1,0 +1,356 @@
+{
+  "name": "知識・調べるタイル・追跡する鬼火・暗号錠（独自画面）・エンディング・記憶を持った2周目",
+  "seed": 11,
+  "steps": [
+    {
+      "advance": "all"
+    },
+    {
+      "choose": "dwarf"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "ruins",
+          "x": 8,
+          "y": 7,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "expect": {
+        "textIncludes": "ひんやりとした空気",
+        "regions": [
+          "sanctum"
+        ]
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "textIncludes": "意味はわからない"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "lacksInSets": {
+          "clues": [
+            "rune-order"
+          ]
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "elder-house",
+          "x": 2,
+          "y": 4,
+          "facing": "left"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "sets": {
+          "clues": [
+            "ancient-script"
+          ]
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "ruins",
+          "x": 8,
+          "y": 7,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "textIncludes": "風は星を巡り、岩に還る"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "sets": {
+          "clues": [
+            "ancient-script",
+            "rune-order"
+          ]
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "ruins",
+          "x": 16,
+          "y": 4
+        }
+      ]
+    },
+    {
+      "expect": {
+        "entities": {
+          "wisp": {
+            "x": 15,
+            "y": 6
+          }
+        }
+      }
+    },
+    {
+      "tick": 20
+    },
+    {
+      "expect": {
+        "textIncludes": "鬼火がまとわりついてきた"
+      }
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "battle"
+      }
+    },
+    {
+      "fight": "auto"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "entities": {
+          "wisp": null
+        },
+        "done": [
+          "wisp-defeated"
+        ]
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "heal"
+        },
+        {
+          "type": "teleport",
+          "mapId": "ruins",
+          "x": 14,
+          "y": 6,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "textIncludes": "暗号錠"
+      }
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": "confirm"
+    },
+    {
+      "expect": {
+        "scene": "custom",
+        "flags": {
+          "runeDoorOpen": false
+        }
+      }
+    },
+    {
+      "sceneInput": "right"
+    },
+    {
+      "sceneInput": "down"
+    },
+    {
+      "sceneInput": "right"
+    },
+    {
+      "sceneInput": "up"
+    },
+    {
+      "sceneInput": "confirm"
+    },
+    {
+      "expect": {
+        "flags": {
+          "runeDoorOpen": true
+        },
+        "sets": {
+          "memories": [
+            "rune-code"
+          ]
+        },
+        "textIncludes": "錠が外れた"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "prompt"
+      }
+    },
+    {
+      "choose": "go"
+    },
+    {
+      "expect": {
+        "scene": "ending",
+        "sets": {
+          "endings": [
+            "secret"
+          ]
+        }
+      }
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "cycle": 2,
+        "textIncludes": "2度目の旅",
+        "sets": {
+          "memories": [
+            "rune-code"
+          ],
+          "endings": [
+            "secret"
+          ]
+        },
+        "lacksInSets": {
+          "clues": [
+            "ancient-script"
+          ]
+        },
+        "flags": {
+          "runeDoorOpen": false
+        }
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "choose": "dwarf"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "walkTo": {
+        "x": 5,
+        "y": 9
+      }
+    },
+    {
+      "face": "up"
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "textIncludes": "前にも会ったっけ"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "choose": "later"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "ruins",
+          "x": 14,
+          "y": 6,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": "cancel"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    }
+  ]
+}

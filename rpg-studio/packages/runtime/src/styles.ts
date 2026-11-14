@@ -62,6 +62,13 @@ export const RUNTIME_CSS = String.raw`
 .rpg-menu-empty { font-size:.8em; color:var(--rpg-dim); padding:.2em .5em; }
 .rpg-menu-ability { display:flex; flex-direction:column; font-size:.8em; padding:.2em .5em; }
 .rpg-menu-ability span { color:var(--rpg-dim); font-size:.9em; }
+.rpg-scene { position:absolute; inset:0; pointer-events:auto; }
+.rpg-root[data-scene="ending"] .rpg-layer { background:rgba(4,6,5,.72); }
+.rpg-ending { position:absolute; left:10%; right:10%; top:14%; bottom:14%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.6em; padding:1.2em; text-align:center; animation:rpg-in .6s ease-out; }
+.rpg-ending-label { letter-spacing:.4em; color:var(--rpg-accent); font-size:.8em; }
+.rpg-ending-title { font-size:1.5em; letter-spacing:.1em; }
+.rpg-ending-text { white-space:pre-wrap; line-height:1.8; color:var(--rpg-dim); max-width:32em; }
+.rpg-ending-meta { font-size:.75em; color:var(--rpg-dim); }
 .rpg-credit-line { font-size:.8em; line-height:1.6; padding:.15em .5em; color:var(--rpg-ink); }
 .rpg-menu-row { display:grid; grid-template-columns:1fr 1fr; gap:.1em; }
 .rpg-toast { position:absolute; left:50%; top:16%; transform:translateX(-50%); max-width:80%; padding:.5em 1em; background:rgba(14,18,15,.92); border:1px solid var(--rpg-accent); border-radius:6px; font-size:.85em; text-align:center; pointer-events:none; }

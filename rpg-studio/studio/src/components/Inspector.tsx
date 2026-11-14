@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Play, Trash2 } from "lucide-react";
-import { ConditionSchema, NpcSchema, type Condition, type GameContent, type GameMap, type Interactable, type Npc, type Portal } from "@rpg/schema";
+import { ConditionSchema, EntitySchema, RegionSchema, NpcSchema, type Condition, type GameContent, type GameMap, type Interactable, type Npc, type Portal } from "@rpg/schema";
 import type { z } from "zod";
 import type { ProjectStore } from "../lib/useProject";
 import type { Selection } from "./MapEditor";
@@ -28,7 +28,7 @@ function TextInput({ value, onCommit, mono, type = "text", min, max }: { value: 
 
 /** JSON editor for nested data (conditions, dialogue rules). Only valid values are committed. */
 function JsonField<T>({ value, schema, onCommit, placeholder, rows = 3 }: { value: T | undefined; schema: z.ZodType<T>; onCommit: (value: T | undefined) => void; placeholder?: string; rows?: number }) {
-  const text = value === undefined ? "" : JSON.stringify(value);
+  const text = value === undefined ? "" : rows > 6 ? JSON.stringify(value, null, 2) : JSON.stringify(value);
   const [draft, setDraft] = useState(text);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => { setDraft(text); setError(null); }, [text]);
@@ -115,6 +115,22 @@ export default function Inspector({ store, content, mapId, selection, onSelect, 
       </dl>
       <button className="button" onClick={() => onPlayFrom(selection.x, selection.y)}><Play size={14} /> ここから試遊</button>
       <p className="muted small">タイルの種類や通行条件は「データ」→ tiles.json で編集します。</p>
+    </div>;
+  }
+
+  if (selection.kind === "entity" || selection.kind === "region") {
+    const isEntity = selection.kind === "entity";
+    const item = isEntity ? map.entities.find(e => e.id === selection.id) : map.regions.find(r => r.id === selection.id);
+    if (!item) return <div className="inspector"><p className="muted">選択した{isEntity ? "エンティティ" : "領域"}が見つかりません。</p></div>;
+    const key = isEntity ? "entities" : "regions";
+    return <div className="inspector">
+      <div className="inspector-head"><h3>{isEntity ? "エンティティ" : "領域"}: {"name" in item ? item.name : item.label ?? item.id}</h3>
+        <button className="icon-button danger" onClick={() => { edit(d => { (d as Record<string, unknown>)[key] = (d[key] as Array<{ id: string }>).filter(e => e.id !== item.id); }); onSelect(null); }} title="削除"><Trash2 size={14} /></button></div>
+      <p className="muted small">{isEntity
+        ? "states は上から順に、when（条件）を満たす最初の状態が有効になります。どれも満たさなければ消えます。trigger: action（調べる）/ touch（触れる・追いつかれる）/ auto（その状態になった時に1回）/ none。behavior: still / wander / patrol / chase / flee。"
+        : "プレイヤーがこの範囲に入る・出る・中を歩く・中で調べる時に効果を実行します。when で有効になる条件を付けられます。条件 inRegion でも参照できます。"}</p>
+      <JsonField<unknown> value={item} schema={(isEntity ? EntitySchema : RegionSchema) as never} rows={18} onCommit={v => { if (!v) return; edit(d => { const list = d[key] as Array<{ id: string }>; const i = list.findIndex(e => e.id === item.id); if (i >= 0) list[i] = v as never; }); const next = v as { id: string; x: number; y: number }; onSelect({ kind: selection.kind, id: next.id, x: next.x, y: next.y }); }} />
+      <p className="muted small">フォーカスを外すと検証して保存します。詳しくは docs/customization-guide.md。</p>
     </div>;
   }
 

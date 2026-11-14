@@ -27,6 +27,8 @@ export interface MountOptions {
   onStateChange?: (state: GameState) => void;
   onError?: (error: Error) => void;
   seed?: number;
+  /** Load cross-cycle memories (meta) from storage on start. Default true. */
+  useMeta?: boolean;
 }
 
 export interface GameHandle {
@@ -76,8 +78,23 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   const readSettings = (): AudioSettings => { try { return { bgm: true, sfx: true, ...JSON.parse(storage.read(settingsKey) ?? "{}") }; } catch { return { bgm: true, sfx: true }; } };
   const audio = new AudioManager(content, options.resolveAsset, readSettings());
   let creditsOpen = false;
+  const metaKey = `rpg-meta:${content.project.id}`;
+  const readMeta = () => { try { const raw = storage.read(metaKey); return raw ? JSON.parse(raw) : undefined; } catch { return undefined; } };
+  let lastMeta = "";
+  const saveMeta = () => {
+    const text = JSON.stringify(engine.metaOf(state));
+    if (text === lastMeta) return;
+    lastMeta = text;
+    try { storage.write(metaKey, text); } catch { /* optional */ }
+  };
+  const ticking = Object.values(content.maps).some(m => m.entities.some(e => e.states.some(st => st.behavior.type !== "still")))
+    || content.rules.some(r => r.on === "tick") || (options.systems ?? []).some(s => s.onTick);
+  let lastTick = 0;
+  /** Smooth movement for entities: id → tween. */
+  const entityTweens = new Map<string, { fx: number; fy: number; tx: number; ty: number; start: number }>();
+  let sceneHost: HTMLElement | null = null;
 
-  let state: GameState = options.initialState ?? engine.newGame(options.seed);
+  let state: GameState = options.initialState ?? engine.newGame(options.seed, options.useMeta === false ? undefined : (() => { try { const raw = (options.storage ?? browserStorage()).read(`rpg-meta:${content.project.id}`); return raw ? JSON.parse(raw) : undefined; } catch { return undefined; } })());
   const animator = new GridMovementAnimator({ x: state.player.x, y: state.player.y });
   let renderPos: Point = { x: state.player.x, y: state.player.y };
   let walkFrame = 0;
@@ -168,12 +185,13 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     }
     if (action?.type === "interact" && before.scene.kind === "field" && state.scene.kind === "dialogue") {
       const front = { x: before.player.x + ({ up: 0, down: 0, left: -1, right: 1 })[before.player.facing], y: before.player.y + ({ up: -1, down: 1, left: 0, right: 0 })[before.player.facing] };
-      const npc = engine.visibleNpcs(state).find(n => n.x === front.x && n.y === front.y);
+      const npc = engine.visibleNpcs(state).find(n => n.x === front.x && n.y === front.y) ?? engine.visibleEntities(state).map(e => ({ id: e.entity.id, x: e.x, y: e.y })).find(n => n.x === front.x && n.y === front.y);
       if (npc) talkFacing = { [npc.id]: OPPOSITE[before.player.facing] };
     }
     if (state.scene.kind === "field") talkFacing = {};
     if (state.scene.kind !== before.scene.kind || state.scene !== before.scene) selection = 0;
     syncMusic();
+    saveMeta();
     if (result.log.length) options.onLog?.(result.log, state);
     if (state !== before) options.onStateChange?.(state);
     renderUI();
@@ -181,6 +199,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
 
   /* ------------------------------------------------------------ input */
   function press(dir: Direction) {
+    if (state.scene.kind === "custom") { audio.cue("cursor"); dispatch({ type: "sceneInput", input: { type: dir } }); return; }
     if (state.scene.kind === "field" && !menuOpen) {
       const fresh = !held.includes(dir);
       if (fresh) held.push(dir);
@@ -213,6 +232,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   }
 
   function confirm() {
+    if (state.scene.kind === "custom") { dispatch({ type: "sceneInput", input: { type: "confirm" } }); return; }
+    if (state.scene.kind === "ending") { const b = buttons()[0]; b?.click(); return; }
     if (menuOpen || state.scene.kind === "choice" || state.scene.kind === "prompt" || state.scene.kind === "battle") {
       if (!typing.done) { finishTyping(); return; }
       const list = buttons();
@@ -228,6 +249,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (state.scene.kind === "field" && !animator.update(performance.now()).moving) dispatch({ type: "interact" });
   }
   function cancel() {
+    if (state.scene.kind === "custom") { audio.cue("cancel"); dispatch({ type: "sceneInput", input: { type: "cancel" } }); return; }
     if (creditsOpen) { creditsOpen = false; selection = 0; renderUI(); return; }
     if (state.scene.kind === "battle" && battlePicker) { battlePicker = null; selection = 0; renderUI(); return; }
     if (state.scene.kind !== "field") return;
@@ -329,8 +351,10 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     }
     const hp = el("div", "rpg-hud-hp");
     hp.append(el("span", "rpg-hud-label", `${content.project.player.name}  HP ${state.player.hp}/${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
+    const extra = (() => { try { return engine.hudLines(state); } catch { return []; } })();
+    if (extra.length) { const box = el("div", "rpg-hud-vars"); for (const line of extra) box.appendChild(el("span", undefined, line)); left.append(box); }
     hud.append(left, hp);
-    hud.hidden = state.scene.kind === "battle";
+    hud.hidden = state.scene.kind === "battle" || state.scene.kind === "ending" || state.scene.kind === "custom";
     root.dataset.scene = menuOpen ? "menu" : state.scene.kind;
 
     const scene = state.scene;
@@ -353,6 +377,17 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       if (scene.prompt) { messageWindow(scene.speaker, scene.prompt, list); typing = { ...typing, done: true }; }
       else windowLayer.appendChild(list);
     } else if (scene.kind === "battle") renderBattle(scene.battle);
+    else if (scene.kind === "custom") renderCustomScene(scene);
+    else if (scene.kind === "ending") {
+      const ending = content.project.endings[scene.ending];
+      const box = el("div", "rpg-window rpg-ending");
+      box.append(el("div", "rpg-ending-label", "ENDING"), el("div", "rpg-ending-title", ending?.title ?? scene.ending));
+      if (ending?.text) box.appendChild(el("div", "rpg-ending-text", engine.text(state, ending.text)));
+      const seen = state.sets.endings?.length ?? 0;
+      box.appendChild(el("div", "rpg-ending-meta", `到達したエンディング ${seen} / ${Object.keys(content.project.endings).length}　・　${state.cycle}周目`));
+      box.appendChild(navButton("記憶を引き継いで、もう一度旅をする", () => dispatch({ type: "advance" })));
+      windowLayer.appendChild(box);
+    }
     else if (menuOpen) renderMenu();
     if (toast && toast.until > performance.now()) windowLayer.appendChild(el("div", "rpg-toast", toast.text));
     selection = Math.min(selection, Math.max(0, buttons().length - 1));
@@ -361,6 +396,23 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   }
 
   let battlePicker: "items" | "skills" | null = null;
+
+  function renderCustomScene(scene: Extract<GameState["scene"], { kind: "custom" }>) {
+    const def = engine.systems.find(s => s.id === scene.system)?.scenes?.[scene.scene];
+    sceneHost = el("div", "rpg-scene");
+    windowLayer.appendChild(sceneHost);
+    if (!def?.render) {
+      sceneHost.appendChild(el("div", "rpg-window rpg-message", `画面 ${scene.system}.${scene.scene}（表示なし。矢印・決定・キャンセルで操作）`));
+      return;
+    }
+    try {
+      def.render(sceneHost, {
+        data: scene.data, state, content,
+        send: input => { audio.cue("confirm"); dispatch({ type: "sceneInput", input }); root.focus({ preventScroll: true }); },
+        assetUrl: id => images[id]?.src,
+      });
+    } catch (error) { fail(error); }
+  }
 
   function renderBattle(battle: Extract<GameState["scene"], { kind: "battle" }>["battle"]) {
     const enemy = content.database.enemies.find(e => e.id === battle.enemyId)!;
@@ -455,6 +507,14 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       vars.textContent = labeled.map(([id, decl]) => `${decl.label} ${state.vars[id] ?? decl.initial}`).join("　");
       menu.appendChild(vars);
     }
+    for (const [id, decl] of Object.entries(content.project.sets)) {
+      if (!decl.show) continue;
+      section(decl.label ?? id);
+      const values = state.sets[id] ?? [];
+      if (!values.length) menu.appendChild(el("div", "rpg-menu-empty", "まだない"));
+      for (const v of values) menu.appendChild(el("div", "rpg-menu-ability", decl.entries[v] ?? v));
+    }
+    if ((state.cycle ?? 1) > 1 || (state.sets.endings?.length ?? 0) > 0) stats.textContent += `　${state.cycle}周目`;
     if (state.traits.length) {
       section("とくせい");
       for (const id of state.traits) {
@@ -548,6 +608,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       const after = animator.update(now);
       renderPos = after.position;
     }
+    if (ticking && state.scene.kind === "field" && !menuOpen && now - lastTick > 330) { lastTick = now; dispatch({ type: "tick" }); }
     if (moving.moving && now - lastFrameSwap > WALK_ANIMATION_MS / 2) { walkFrame = (walkFrame + 1) % 4; lastFrameSwap = now; }
     if (!moving.moving && !held.length) walkFrame = 0;
 
@@ -559,15 +620,39 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       };
       const npcs = engine.visibleNpcs(state, map);
       const rows = engine.rowsFor(state, map.id);
-      drawMap(ctx, {
+      const entities = engine.visibleEntities(state, map);
+      const entityActors = entities.filter(e => e.state.sprite).map(e => {
+        const key = `${map.id}:${e.entity.id}`;
+        let tween = entityTweens.get(key);
+        if (!tween || tween.tx !== e.x || tween.ty !== e.y) {
+          const cur = tween ? currentTween(tween, now) : { x: e.x, y: e.y };
+          tween = { fx: cur.x, fy: cur.y, tx: e.x, ty: e.y, start: now };
+          if (Math.abs(cur.x - e.x) + Math.abs(cur.y - e.y) > 1.5) { tween.fx = e.x; tween.fy = e.y; }
+          entityTweens.set(key, tween);
+        }
+        const pos = currentTween(tween, now);
+        const moving = pos.x !== e.x || pos.y !== e.y;
+        return { id: e.entity.id, kind: "npc" as const, x: pos.x, y: pos.y, facing: talkFacing[e.entity.id] ?? e.facing, sprite: e.state.sprite, frame: moving ? Math.floor(now / 120) % 4 : 0 };
+      });
+      const origin = drawMap(ctx, {
         content, map: rows === map.rows ? map : { ...map, rows }, images, state, time: now,
         view: { camera: cam, cols: VIEW_COLS, rows: VIEW_ROWS },
         interactables: engine.visibleInteractables(state, map),
+        markers: entities.filter(e => e.state.marker !== "none").map(e => ({ x: e.x, y: e.y, marker: e.state.marker })),
         actors: [
           ...npcActors(content, map, npcs, { facingOverride: talkFacing }),
+          ...entityActors,
           { id: "player", kind: "player", x: renderPos.x, y: renderPos.y, facing: state.player.facing, sprite: content.project.player.sprite, frame: walkFrame },
         ],
       });
+      for (const system of engine.systems) {
+        if (!system.drawOverlay) continue;
+        try {
+          ctx.save();
+          system.drawOverlay(ctx, { content, state, map, originX: origin.originX, originY: origin.originY, tileSize: TILE, player: renderPos, width: VIEW_COLS * TILE, height: VIEW_ROWS * TILE, time: now });
+          ctx.restore();
+        } catch (error) { ctx.restore(); console.warn(`${system.id}.drawOverlay`, error); }
+      }
     }
     const fading = fadeUntil - now;
     fade.style.opacity = fading > 0 ? String(Math.min(1, fading / 220)) : "0";
@@ -582,6 +667,12 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     }
     if (!typing.done) updateTyping(now);
   }
+
+  function currentTween(t: { fx: number; fy: number; tx: number; ty: number; start: number }, now: number) {
+    const p = Math.min(1, (now - t.start) / 220);
+    return { x: Math.round((t.fx + (t.tx - t.fx) * p) * TILE) / TILE, y: Math.round((t.fy + (t.ty - t.fy) * p) * TILE) / TILE };
+  }
+  void readMeta;
 
   images = loadImages(content, options.resolveAsset);
   audio.preload();

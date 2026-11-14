@@ -1,9 +1,26 @@
 import type {
-  BattleState, Direction, Effect, Enemy, GameContent, GameEvent, GameMap, GameState, Interactable, Npc, Rule, RuleTrigger,
+  BattleState, Direction, Effect, Enemy, Entity, EntityState, GameContent, GameEvent, GameMap, GameState, Interactable, Npc, Rule, RuleTrigger,
   Stats, TileDef, Use,
 } from "../../schema/src/formats";
-import { abilitiesOf, effectiveStats, evalExpr, evaluate, interpolate, nextRandom, type EvalEnv } from "./conditions";
-import { sortSystems, type GameSystem } from "./systems";
+import { abilitiesOf, effectiveStats, evalExpr, evaluate, interpolate, nextRandom, regionsAt, type EvalEnv } from "./conditions";
+import { sortSystems, type GameSystem, type SceneInput, type SystemActionResult } from "./systems";
+
+/** Values that survive a new cycle (meta-scoped flags, variables, sets, endings seen, cycle number). */
+export interface MetaState {
+  cycle: number;
+  flags: Record<string, boolean>;
+  vars: Record<string, number>;
+  sets: Record<string, string[]>;
+}
+
+export interface EntityView {
+  entity: Entity;
+  state: EntityState;
+  index: number;
+  x: number;
+  y: number;
+  facing: Direction;
+}
 
 export type BattleCommand =
   | { command: "attack" }
@@ -20,7 +37,10 @@ export type Action =
   | { type: "choose"; choiceId: string }
   | ({ type: "battle" } & BattleCommand)
   | { type: "useItem"; item: string }
-  | { type: "useAbility"; ability: string };
+  | { type: "useAbility"; ability: string }
+  /** Advance the world clock: entities move, tick rules and systems run. */
+  | { type: "tick" }
+  | { type: "sceneInput"; input: SceneInput };
 
 /** Presentation hints for the runtime (sound, animation). Never needed for correctness. */
 export type Cue =
@@ -62,7 +82,13 @@ interface Ctx {
 export interface Engine {
   readonly content: GameContent;
   readonly systems: readonly GameSystem[];
-  newGame(seed?: number): GameState;
+  newGame(seed?: number, meta?: MetaState): GameState;
+  /** Values to keep across cycles / store as the "memory" of the game. */
+  metaOf(state: GameState): MetaState;
+  visibleEntities(state: GameState, map?: GameMap): EntityView[];
+  regions(state: GameState): string[];
+  /** HUD lines from systems. */
+  hudLines(state: GameState): string[];
   step(state: GameState, action: Action): StepResult;
   /** Run arbitrary effects (tests, studio debug console, system code). */
   run(state: GameState, effects: Effect[]): StepResult;
@@ -91,11 +117,11 @@ const DEFAULT_SEED = 20261114;
 export function createEngine(content: GameContent, systems: readonly GameSystem[] = []): Engine {
   const sorted = sortSystems(systems);
   const tiles = new Map(content.tileset.tiles.map(tile => [tile.code, tile]));
-  const env: EvalEnv = { content };
+  const env: EvalEnv = { content, systems: sorted };
   const db = content.database;
-  const ev = (cond: Parameters<typeof evaluate>[0], state: GameState, extra?: EvalEnv["ctx"]) => evaluate(cond, state, extra ? { content, ctx: extra } : env);
-  const ex = (expr: Parameters<typeof evalExpr>[0], state: GameState, extra?: EvalEnv["ctx"]) => evalExpr(expr, state, extra ? { content, ctx: extra } : env);
-  const text = (template: string, state: GameState, extra?: EvalEnv["ctx"]) => interpolate(template, state, extra ? { content, ctx: extra } : env);
+  const ev = (cond: Parameters<typeof evaluate>[0], state: GameState, extra?: EvalEnv["ctx"]) => evaluate(cond, state, extra ? { ...env, ctx: extra } : env);
+  const ex = (expr: Parameters<typeof evalExpr>[0], state: GameState, extra?: EvalEnv["ctx"]) => evalExpr(expr, state, extra ? { ...env, ctx: extra } : env);
+  const text = (template: string, state: GameState, extra?: EvalEnv["ctx"]) => interpolate(template, state, extra ? { ...env, ctx: extra } : env);
   const stats = (state: GameState) => effectiveStats(state, content);
   const enemyOf = (id: string): Enemy => {
     const enemy = db.enemies.find(e => e.id === id);
@@ -139,11 +165,32 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   const visibleNpcs = (state: GameState, map = content.maps[state.mapId]) => (map?.npcs ?? []).filter(npc => ev(npc.visibleWhen, state));
   const visibleInteractables = (state: GameState, map = content.maps[state.mapId]) => (map?.interactables ?? []).filter(item => ev(item.visibleWhen, state));
 
+  function visibleEntities(state: GameState, map = content.maps[state.mapId]): EntityView[] {
+    if (!map) return [];
+    const out: EntityView[] = [];
+    for (const entity of map.entities) {
+      const index = entity.states.findIndex(st => ev(st.when, state));
+      if (index < 0) continue;
+      const st = entity.states[index]!;
+      const pos = state.entities?.[map.id]?.[entity.id];
+      out.push({ entity, state: st, index, x: pos?.x ?? entity.x, y: pos?.y ?? entity.y, facing: pos?.facing ?? st.facing ?? "down" });
+    }
+    return out;
+  }
+
+  /** Tile-only passability (no actors). */
+  function tilePassable(state: GameState, map: GameMap, x: number, y: number): boolean {
+    if (x < 0 || y < 0 || x >= map.width || y >= map.height) return false;
+    const tile = tiles.get(codeAt(state, map, x, y));
+    return Boolean(tile && (tile.passable || (tile.passableWhen && ev(tile.passableWhen, state))));
+  }
+
   function isPassable(state: GameState, x: number, y: number, map = content.maps[state.mapId]): boolean {
     if (!map || x < 0 || y < 0 || x >= map.width || y >= map.height) return false;
     const tile = tiles.get(codeAt(state, map, x, y));
-    let passable = Boolean(tile && (tile.passable || (tile.passableWhen && ev(tile.passableWhen, state))));
+    let passable = tilePassable(state, map, x, y);
     if (passable && visibleNpcs(state, map).some(npc => npc.x === x && npc.y === y)) passable = false;
+    if (passable && visibleEntities(state, map).some(e => e.state.solid && e.x === x && e.y === y)) passable = false;
     if (passable && visibleInteractables(state, map).some(item => item.solid && item.trigger === "action" && item.x === x && item.y === y)) passable = false;
     for (const system of sorted) {
       const override = system.canPass?.({ content, state, map, x, y, tile, passable });
@@ -423,6 +470,48 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         state = result.state ?? state;
         return inBattle ? runNow(c, state, result.effects ?? [], ctxValues) : enqueue(state, result.effects ?? []);
       }
+      case "addToSet": {
+        const list = state.sets[effect.set] ?? [];
+        if (list.includes(effect.value)) return state;
+        c.log.push(`集合 ${effect.set} に「${effect.value}」を追加`);
+        return { ...state, sets: { ...state.sets, [effect.set]: [...list, effect.value] } };
+      }
+      case "removeFromSet":
+        return { ...state, sets: { ...state.sets, [effect.set]: (state.sets[effect.set] ?? []).filter(v => v !== effect.value) } };
+      case "clearSet":
+        return { ...state, sets: { ...state.sets, [effect.set]: [] } };
+      case "moveEntity": {
+        const mapId = effect.mapId ?? state.mapId;
+        const entity = content.maps[mapId]?.entities.find(e => e.id === effect.entity);
+        const facing = effect.facing ?? state.entities[mapId]?.[effect.entity]?.facing ?? "down";
+        if (!entity) throw new Error(`エンティティ '${effect.entity}' がマップ '${mapId}' にありません`);
+        return { ...state, entities: { ...state.entities, [mapId]: { ...state.entities[mapId], [effect.entity]: { x: effect.x, y: effect.y, facing } } } };
+      }
+      case "schedule":
+        return { ...state, timers: [...state.timers, { ...(effect.id ? { id: effect.id } : {}), at: state.steps + Math.max(0, ex(effect.after, state, ctxValues)), effects: effect.effects }] };
+      case "cancelSchedule":
+        return { ...state, timers: state.timers.filter(t => t.id !== effect.id) };
+      case "ending": {
+        const endings = state.sets.endings ?? [];
+        c.log.push(`エンディング「${content.project.endings[effect.ending]?.title ?? effect.ending}」`);
+        state = { ...state, sets: { ...state.sets, endings: endings.includes(effect.ending) ? endings : [...endings, effect.ending] } };
+        if (inBattle) { const b = battleOf(state)!; return setBattle(state, { ...b, after: [...b.after, effect] }); }
+        return { ...state, queue: [], scene: { kind: "ending", ending: effect.ending } };
+      }
+      case "newCycle": {
+        const meta = metaOf(state);
+        c.log.push(`${meta.cycle + 1}周目を開始（記憶を引き継ぎ）`);
+        c.cues.push({ kind: "mapChanged", from: state.mapId });
+        return enqueue(freshState(state.rng, { ...meta, cycle: meta.cycle + 1 }), introEffects());
+      }
+      case "startScene": {
+        if (inBattle) { const b = battleOf(state)!; return setBattle(state, { ...b, after: [...b.after, effect] }); }
+        const def = sorted.find(sys => sys.id === effect.system)?.scenes?.[effect.scene];
+        if (!def) throw new Error(`システム '${effect.system}' に画面 '${effect.scene}' がありません`);
+        const data = def.start ? def.start({ content, state }, effect.args ?? {}) : null;
+        c.log.push(`画面 ${effect.system}.${effect.scene} を開始`);
+        return { ...state, scene: { kind: "custom", system: effect.system, scene: effect.scene, data } };
+      }
       // Field-only (blocking) effects. In battle they wait until the battle closes.
       case "dialogue":
       case "choice":
@@ -445,10 +534,10 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
           state = { ...state, mapId: effect.mapId, player: { ...state.player, x: effect.x, y: effect.y, facing: effect.facing ?? state.player.facing } };
           if (from !== effect.mapId) {
             c.cues.push({ kind: "mapChanged", from });
-            state = { ...state, fired: state.fired.filter(k => !k.startsWith("map:")) };
+            state = { ...state, fired: state.fired.filter(k => !k.startsWith("map:")), regions: [] };
             state = fireFieldRules(c, state, "mapEnter");
           }
-          return state;
+          return updateRegions(c, state, false);
         }
         return startBattle(c, state, effect);
     }
@@ -484,9 +573,11 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     return checkBattleEnd(c, state);
   }
 
-  function rollDamage(state: GameState, attack: number, power: number, defense: number): [number, GameState] {
+  function rollDamage(state: GameState, attack: number, power: number, defense: number, who: "player" | "enemy" = "player"): [number, GameState] {
     const [roll, next] = random(state);
     const variance = Math.floor(roll * 3) - 1; // -1, 0, +1
+    const formula = who === "player" ? content.project.battle.playerDamage : content.project.battle.enemyDamage;
+    if (formula !== undefined) return [Math.max(0, ex(formula, next, { attack, defense, power, variance })), next];
     return [Math.max(1, attack + power - defense + variance), next];
   }
 
@@ -627,6 +718,9 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const name = content.project.player.name;
     state = setBattle(state, { ...battle, guarding: false });
 
+    const allowed = content.project.battle.commands;
+    const commandKey = command.command === "skill" ? "skills" : command.command === "item" ? "items" : command.command;
+    if (!allowed[commandKey]) return battleLog(state, "そのコマンドは使えない。");
     if (command.command === "attack") {
       const [raw, next] = rollDamage(state, stats(state).attack, 0, enemy.stats.defense);
       const [after, amount] = applyDamage(c, next, "enemy", raw);
@@ -648,7 +742,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       else {
         let roll: number;
         [roll, state] = random(state);
-        if (roll < 0.6) {
+        const fleePercent = content.project.battle.fleeChance !== undefined ? ex(content.project.battle.fleeChance, state) : 60;
+        if (roll * 100 < fleePercent) {
           c.cues.push({ kind: "battleEnd", outcome: "fled" });
           state = battleLog(state, "うまく逃げ切れた。");
           return setBattle(state, { ...battleOf(state)!, outcome: "fled" });
@@ -667,7 +762,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       state = battleLog(state, text(action.message ?? `${enemy.name}の${action.name}！`, state));
       if (action.power > 0) {
         const guarding = battleOf(state)!.guarding;
-        const [rolled, next] = rollDamage(state, enemy.stats.attack, action.power, stats(state).defense);
+        const [rolled, next] = rollDamage(state, enemy.stats.attack, action.power, stats(state).defense, "enemy");
         // Guarding halves the damage at step ① (before rules and systems see it).
         const [after, amount] = applyDamage(c, next, "player", guarding ? Math.max(1, Math.ceil(rolled / 2)) : rolled);
         state = battleLog(after, `${amount}のダメージを受けた。`);
@@ -707,12 +802,63 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   }
 
   /* ---------------------------------------------------------------- field */
+  const entityEffects = (c: Ctx, state: GameState, st: EntityState): Effect[] => [
+    ...(st.dialogue ? [{ type: "dialogue", dialogue: st.dialogue } as Effect] : []),
+    ...(st.event && content.events[st.event] ? eventEffects(c, state, content.events[st.event]!) : []),
+    ...st.effects,
+  ];
+
+  function applySystemResult(c: Ctx, state: GameState, result: SystemActionResult | void): GameState {
+    if (!result) return state;
+    c.log.push(...(result.log ?? []));
+    return enqueue(result.state ?? state, result.effects ?? []);
+  }
+
+  /** onEnter / onLeave / onStep of regions after the player moved or arrived. */
+  function updateRegions(c: Ctx, state: GameState, stepped: boolean): GameState {
+    const map = content.maps[state.mapId];
+    if (!map?.regions.length) return state.regions.length ? { ...state, regions: [] } : state;
+    const now = regionsAt(state, content, env);
+    const before = state.regions;
+    const effects: Effect[] = [];
+    for (const id of before) if (!now.includes(id)) effects.push(...(map.regions.find(r => r.id === id)?.onLeave ?? []));
+    for (const id of now) if (!before.includes(id)) effects.push(...(map.regions.find(r => r.id === id)?.onEnter ?? []));
+    if (stepped) for (const id of now) effects.push(...(map.regions.find(r => r.id === id)?.onStep ?? []));
+    return enqueue({ ...state, regions: now }, effects);
+  }
+
+  function fireTimers(c: Ctx, state: GameState): GameState {
+    const due = state.timers.filter(t => t.at <= state.steps);
+    if (!due.length) return state;
+    c.log.push(`予約イベント ${due.length}件`);
+    return enqueue({ ...state, timers: state.timers.filter(t => t.at > state.steps) }, due.flatMap(t => t.effects));
+  }
+
+  /** Auto-trigger entity states run once when they become active. */
+  function runEntityAutos(c: Ctx, state: GameState): GameState {
+    for (const view of visibleEntities(state)) {
+      if (view.state.trigger !== "auto") continue;
+      const key = `ent:${state.mapId}:${view.entity.id}:${view.index}`;
+      if (state.fired.includes(key)) continue;
+      c.log.push(`${view.entity.name} の自動イベント`);
+      return runQueue(c, enqueue({ ...state, fired: [...state.fired, key] }, entityEffects(c, state, view.state)));
+    }
+    return state;
+  }
+
+  function touchEntity(c: Ctx, state: GameState, view: EntityView): GameState {
+    c.log.push(`${view.state.name ?? view.entity.name} に触れた`);
+    return runQueue(c, enqueue(state, entityEffects(c, state, view.state)));
+  }
+
   function move(c: Ctx, state: GameState, direction: Direction): GameState {
     const map = content.maps[state.mapId];
     if (!map) throw new Error(`現在のマップ '${state.mapId}' がありません`);
     state = { ...state, player: { ...state.player, facing: direction } };
     const to = { x: state.player.x + DELTAS[direction].x, y: state.player.y + DELTAS[direction].y };
     if (!isPassable(state, to.x, to.y, map)) {
+      const bumped = visibleEntities(state, map).find(e => e.x === to.x && e.y === to.y && e.state.trigger === "touch");
+      if (bumped) return touchEntity(c, state, bumped);
       c.cues.push({ kind: "bump" });
       return state;
     }
@@ -723,13 +869,18 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const portal = map.portals.find(p => p.x === to.x && p.y === to.y && ev(p.when, state));
     if (portal) return runQueue(c, applyEffect(c, state, { type: "teleport", mapId: portal.targetMapId, x: portal.targetX, y: portal.targetY, ...(portal.facing ? { facing: portal.facing } : {}) }));
     state = fireFieldRules(c, state, "step");
+    state = fireTimers(c, state);
+    state = updateRegions(c, state, true);
+    for (const system of sorted) state = applySystemResult(c, state, system.onStep?.({ content, state }));
+    const walkedOn = visibleEntities(state, map).find(e => !e.state.solid && e.state.trigger === "touch" && e.x === to.x && e.y === to.y);
+    if (walkedOn) state = enqueue(state, entityEffects(c, state, walkedOn.state));
     const touch = visibleInteractables(state, map).find(item => item.trigger === "touch" && item.x === to.x && item.y === to.y);
     if (touch) {
       const event = content.events[touch.event];
       if (event) return runQueue(c, enqueue(state, eventEffects(c, state, event)));
     }
     state = runQueue(c, state);
-    if (state.scene.kind !== "field") return state;
+    if (state.scene.kind !== "field" || state.mapId !== map.id) return state;
     if (map.encounters && map.encounters.rate > 0) {
       const code = codeAt(state, map, to.x, to.y);
       if (!map.encounters.tiles.length || map.encounters.tiles.includes(code)) {
@@ -746,6 +897,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     return state;
   }
 
+  const OPPOSITE: Record<Direction, Direction> = { up: "down", down: "up", left: "right", right: "left" };
+
   function interact(c: Ctx, state: GameState): GameState {
     const map = content.maps[state.mapId];
     if (!map) return state;
@@ -757,6 +910,13 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       c.log.push(`${npc.name}に話しかけた`);
       return runQueue(c, enqueue(state, [{ type: "dialogue", dialogue: entry.dialogue }]));
     }
+    const entity = visibleEntities(state, map).find(e => e.x === front.x && e.y === front.y && (e.state.trigger === "action" || e.state.trigger === "touch"));
+    if (entity) {
+      // Living entities turn to face the player.
+      if (entity.state.sprite) state = { ...state, entities: { ...state.entities, [map.id]: { ...state.entities[map.id], [entity.entity.id]: { x: entity.x, y: entity.y, facing: OPPOSITE[state.player.facing] } } } };
+      c.log.push(`${entity.state.name ?? entity.entity.name}を調べた`);
+      return runQueue(c, enqueue(state, entityEffects(c, state, entity.state)));
+    }
     const items = visibleInteractables(state, map).filter(i => i.trigger === "action");
     const target = items.find(i => i.x === front.x && i.y === front.y) ?? items.find(i => i.x === state.player.x && i.y === state.player.y);
     if (target) {
@@ -764,7 +924,75 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       if (!event) throw new Error(`イベント '${target.event}' がありません`);
       return runQueue(c, enqueue(state, eventEffects(c, state, event)));
     }
+    const tile = tiles.get(codeAt(state, map, front.x, front.y));
+    if (tile?.inspect) {
+      const holds = ev(tile.inspect.when, state);
+      c.log.push(`${tile.name}を調べた${holds ? "" : "（条件を満たしていない）"}`);
+      return runQueue(c, enqueue(state, holds ? tile.inspect.effects : tile.inspect.otherwise));
+    }
+    for (const id of regionsAt(state, content, env)) {
+      const region = map.regions.find(r => r.id === id);
+      if (region?.inspect.length) return runQueue(c, enqueue(state, region.inspect));
+    }
     return state;
+  }
+
+  /** One world tick: entity behaviours, tick rules, systems' onTick. */
+  function tick(c: Ctx, state: GameState): GameState {
+    const map = content.maps[state.mapId];
+    if (!map) return state;
+    state = { ...state, ticks: state.ticks + 1 };
+    for (const view of visibleEntities(state, map)) {
+      const b = view.state.behavior;
+      if (b.type === "still" || state.ticks % b.every !== 0) continue;
+      const player = state.player;
+      const dist = Math.abs(view.x - player.x) + Math.abs(view.y - player.y);
+      let options: Direction[] = [];
+      if (b.type === "wander") {
+        let roll: number;
+        [roll, state] = random(state);
+        const all: Direction[] = ["up", "down", "left", "right"];
+        const dir = all[Math.floor(roll * 4)]!;
+        const nx = view.x + DELTAS[dir].x, ny = view.y + DELTAS[dir].y;
+        if (Math.abs(nx - view.entity.x) + Math.abs(ny - view.entity.y) <= b.radius) options = [dir];
+      } else if (b.type === "patrol") {
+        const index = state.entities[map.id]?.[view.entity.id]?.step ?? 0;
+        const target = b.path[index % b.path.length]!;
+        if (target.x === view.x && target.y === view.y) {
+          state = { ...state, entities: { ...state.entities, [map.id]: { ...state.entities[map.id], [view.entity.id]: { x: view.x, y: view.y, facing: view.facing, step: (index + 1) % b.path.length } } } };
+          continue;
+        }
+        options = towards(view, target);
+      } else if (b.type === "chase" && dist <= b.range) {
+        if (dist === 1 && view.state.trigger === "touch") { state = touchEntity(c, state, view); if (state.scene.kind !== "field") return state; continue; }
+        options = towards(view, player);
+      } else if (b.type === "flee" && dist <= b.range) {
+        options = towards(view, player).map(d => OPPOSITE[d]);
+      }
+      for (const dir of options) {
+        const nx = view.x + DELTAS[dir].x, ny = view.y + DELTAS[dir].y;
+        const occupied = (nx === player.x && ny === player.y) || visibleEntities(state, map).some(o => o.entity.id !== view.entity.id && o.state.solid && o.x === nx && o.y === ny)
+          || visibleNpcs(state, map).some(n => n.x === nx && n.y === ny) || map.portals.some(p => p.x === nx && p.y === ny);
+        if (!tilePassable(state, map, nx, ny) || occupied) continue;
+        const prev = state.entities[map.id]?.[view.entity.id];
+        state = { ...state, entities: { ...state.entities, [map.id]: { ...state.entities[map.id], [view.entity.id]: { x: nx, y: ny, facing: dir, ...(prev?.step !== undefined ? { step: prev.step } : {}) } } } };
+        if (b.type === "chase" && view.state.trigger === "touch" && Math.abs(nx - player.x) + Math.abs(ny - player.y) === 1) {
+          state = touchEntity(c, state, { ...view, x: nx, y: ny, facing: dir });
+          if (state.scene.kind !== "field") return state;
+        }
+        break;
+      }
+    }
+    state = fireFieldRules(c, state, "tick");
+    for (const system of sorted) state = applySystemResult(c, state, system.onTick?.({ content, state }));
+    return runQueue(c, state);
+  }
+
+  function towards(from: { x: number; y: number }, to: { x: number; y: number }): Direction[] {
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const h: Direction | null = dx > 0 ? "right" : dx < 0 ? "left" : null;
+    const v: Direction | null = dy > 0 ? "down" : dy < 0 ? "up" : null;
+    return (Math.abs(dx) >= Math.abs(dy) ? [h, v] : [v, h]).filter((d): d is Direction => d !== null);
   }
 
   function fieldUse(c: Ctx, state: GameState, kind: "ability" | "item", id: string): GameState {
@@ -773,17 +1001,49 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     return runQueue(c, enqueue(paid[0], paid[1]));
   }
 
-  function baseState(seed: number): GameState {
+  function sceneInput(c: Ctx, state: GameState, input: SceneInput): GameState {
+    if (state.scene.kind !== "custom") return state;
+    const scene = state.scene;
+    const def = sorted.find(sys => sys.id === scene.system)?.scenes?.[scene.scene];
+    if (!def) throw new Error(`画面 ${scene.system}.${scene.scene} の定義がありません`);
+    const result = def.input({ content, state }, scene.data, input);
+    c.log.push(...(result.log ?? []));
+    let next = result.state ?? state;
+    if (result.close) return runQueue(c, enqueue({ ...next, scene: { kind: "field" } }, result.effects ?? []));
+    next = { ...next, scene: { ...scene, data: result.data === undefined ? scene.data : result.data } };
+    return enqueue(next, result.effects ?? []);
+  }
+
+  /* ---------------------------------------------------------------- new game & cycles */
+  const SET_PERSIST = (id: string) => id === "endings" || content.project.sets[id]?.persist === "meta";
+
+  function metaOf(state: GameState): MetaState {
     const { project } = content;
     return {
+      cycle: state.cycle ?? 1,
+      flags: Object.fromEntries(Object.entries(project.flags).filter(([, d]) => d.persist === "meta").map(([id]) => [id, state.flags[id] ?? false])),
+      vars: Object.fromEntries(Object.entries(project.variables).filter(([, d]) => d.persist === "meta").map(([id, d]) => [id, state.vars[id] ?? d.initial])),
+      sets: Object.fromEntries(Object.entries(state.sets ?? {}).filter(([id]) => SET_PERSIST(id))),
+    };
+  }
+
+  function freshState(seed: number, meta?: MetaState): GameState {
+    const { project } = content;
+    let state: GameState = {
       mapId: project.start.mapId,
       player: { x: project.start.x, y: project.start.y, facing: project.start.facing, hp: project.player.stats.maxHp, stats: { ...project.player.stats } },
       abilities: [...project.player.abilities],
       traits: [],
       items: { ...project.player.items },
-      flags: Object.fromEntries(Object.entries(project.flags).map(([id, decl]) => [id, decl.initial])),
-      vars: Object.fromEntries(Object.entries(project.variables).map(([id, decl]) => [id, decl.initial])),
+      flags: { ...Object.fromEntries(Object.entries(project.flags).map(([id, decl]) => [id, decl.initial])), ...meta?.flags },
+      vars: { ...Object.fromEntries(Object.entries(project.variables).map(([id, decl]) => [id, decl.initial])), ...meta?.vars },
+      sets: { ...Object.fromEntries(Object.keys(project.sets).map(id => [id, [] as string[]])), ...meta?.sets },
       tileOverrides: {},
+      entities: {},
+      timers: [],
+      cycle: meta?.cycle ?? 1,
+      ticks: 0,
+      regions: [],
       fired: [],
       done: [],
       scene: { kind: "field" },
@@ -792,15 +1052,18 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       rng: seed >>> 0,
       steps: 0,
     };
+    state = { ...state, player: { ...state.player, hp: stats(state).maxHp } };
+    return state;
   }
 
-  function newGame(seed = DEFAULT_SEED): GameState {
+  const introEffects = (): Effect[] => [...content.project.player.traits.map(trait => ({ type: "grantTrait", trait }) as Effect), ...content.project.intro];
+
+  function newGame(seed = DEFAULT_SEED, meta?: MetaState): GameState {
     const c: Ctx = { log: [], cues: [] };
-    let state = withHpCare(baseState(seed), s => s);
-    state = { ...state, player: { ...state.player, hp: stats(state).maxHp } };
-    const initialTraits: Effect[] = content.project.player.traits.map(trait => ({ type: "grantTrait", trait }));
-    state = runQueue(c, enqueue(state, [...initialTraits, ...content.project.intro]));
-    return runAuto(c, state);
+    let state = runQueue(c, enqueue(freshState(seed, meta), introEffects()));
+    state = updateRegions(c, state, false);
+    state = runQueue(c, state);
+    return runAuto(c, runEntityAutos(c, state));
   }
 
   function step(state: GameState, action: Action): StepResult {
@@ -824,6 +1087,12 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       case "useAbility":
         if (scene.kind === "field") next = fieldUse(c, state, "ability", action.ability);
         break;
+      case "tick":
+        if (scene.kind === "field") next = tick(c, state);
+        break;
+      case "sceneInput":
+        next = sceneInput(c, state, action.input);
+        break;
       case "advance":
         if (scene.kind === "message") next = runQueue(c, { ...state, scene: { kind: "field" } });
         else if (scene.kind === "dialogue") {
@@ -833,6 +1102,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
           else if (dialogue.choices.some(choice => ev(choice.when, state))) next = { ...state, scene: { kind: "choice", dialogueId: dialogue.id } };
           else next = runQueue(c, enqueue({ ...state, scene: { kind: "field" } }, dialogue.effects));
         } else if (scene.kind === "battle") next = closeBattle(c, state);
+        else if (scene.kind === "ending") next = runQueue(c, applyEffect(c, { ...state, scene: { kind: "field" } }, { type: "newCycle" }));
         break;
       case "choose": {
         if (scene.kind === "prompt") {
@@ -857,14 +1127,16 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         next = battleStep(c, state, action);
         break;
     }
-    if (next !== state) next = runAuto(c, next);
+    if (next !== state && next.scene.kind === "field") next = runQueue(c, next);
+    if (next !== state) next = runAuto(c, runEntityAutos(c, next));
     return { state: next, log: c.log, cues: c.cues };
   }
 
   function run(state: GameState, effects: Effect[]): StepResult {
     const c: Ctx = { log: [], cues: [] };
     let next = state.scene.kind === "battle" ? checkBattleEnd(c, runNow(c, state, effects)) : runQueue(c, enqueue(state, effects));
-    next = runAuto(c, next);
+    if (next.scene.kind === "field") next = runQueue(c, updateRegions(c, next, false));
+    next = runAuto(c, runEntityAutos(c, next));
     return { state: next, log: c.log, cues: c.cues };
   }
 
@@ -872,6 +1144,10 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     content,
     systems: sorted,
     newGame,
+    metaOf,
+    visibleEntities: (state, map) => visibleEntities(state, map),
+    regions: state => regionsAt(state, content, env),
+    hudLines: state => sorted.flatMap(sys => sys.hud?.({ content, state }) ?? []),
     step,
     run,
     isPassable: (state, x, y) => isPassable(state, x, y),

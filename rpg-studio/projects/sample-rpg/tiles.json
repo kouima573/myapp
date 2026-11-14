@@ -98,7 +98,30 @@
       "name": "太陽の石板",
       "index": 13,
       "passable": true,
-      "color": "#c8a050"
+      "color": "#c8a050",
+      "inspect": {
+        "when": {
+          "set": "clues",
+          "has": "ancient-script"
+        },
+        "effects": [
+          {
+            "type": "message",
+            "text": "古代文字が読める……『風は星を巡り、岩に還る』"
+          },
+          {
+            "type": "addToSet",
+            "set": "clues",
+            "value": "rune-order"
+          }
+        ],
+        "otherwise": [
+          {
+            "type": "message",
+            "text": "太陽の石板。細かな模様が刻まれているが、意味はわからない。"
+          }
+        ]
+      }
     },
     {
       "code": "R",

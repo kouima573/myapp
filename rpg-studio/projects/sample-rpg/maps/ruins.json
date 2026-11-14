@@ -73,6 +73,180 @@
       "marker": "chest"
     }
   ],
+  "entities": [
+    {
+      "id": "wisp",
+      "name": "さまよう鬼火",
+      "x": 15,
+      "y": 6,
+      "states": [
+        {
+          "when": {
+            "not": {
+              "done": "wisp-defeated"
+            }
+          },
+          "marker": "sparkle",
+          "trigger": "touch",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "鬼火がまとわりついてきた！"
+            },
+            {
+              "type": "battle",
+              "enemy": "cave-bat"
+            },
+            {
+              "type": "markDone",
+              "id": "wisp-defeated"
+            }
+          ],
+          "behavior": {
+            "type": "chase",
+            "range": 3,
+            "every": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "rune-door",
+      "name": "封印の石扉",
+      "x": 14,
+      "y": 5,
+      "states": [
+        {
+          "when": {
+            "flag": "runeDoorOpen"
+          },
+          "marker": "sparkle",
+          "trigger": "action",
+          "effects": [
+            {
+              "type": "message",
+              "text": "扉の奥から、強い風が吹き出している。"
+            },
+            {
+              "type": "choice",
+              "prompt": "風の源へ進む？",
+              "options": [
+                {
+                  "id": "go",
+                  "label": "進む（旅を終える）",
+                  "effects": [
+                    {
+                      "type": "ending",
+                      "ending": "secret"
+                    }
+                  ]
+                },
+                {
+                  "id": "stay",
+                  "label": "まだやめておく",
+                  "effects": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "marker": "statue",
+          "trigger": "action",
+          "effects": [
+            {
+              "type": "if",
+              "when": {
+                "any": [
+                  {
+                    "set": "clues",
+                    "has": "ancient-script"
+                  },
+                  {
+                    "set": "memories",
+                    "has": "rune-code"
+                  }
+                ]
+              },
+              "then": [
+                {
+                  "type": "message",
+                  "text": "古代文字の暗号錠だ。三つの印を回せるようになっている。"
+                },
+                {
+                  "type": "startScene",
+                  "system": "rune-lock",
+                  "scene": "dial",
+                  "args": {
+                    "code": [
+                      "風",
+                      "星",
+                      "岩"
+                    ],
+                    "onSolve": [
+                      {
+                        "type": "setFlag",
+                        "flag": "runeDoorOpen"
+                      },
+                      {
+                        "type": "playSfx",
+                        "sound": "sfx-magic"
+                      },
+                      {
+                        "type": "message",
+                        "text": "カチリ、と錠が外れた。石扉がゆっくりと開いていく……。"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "else": [
+                {
+                  "type": "message",
+                  "text": "見たことのない文字の錠前だ。何かの手がかりがあれば……。"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "regions": [
+    {
+      "id": "sanctum",
+      "label": "聖域",
+      "x": 5,
+      "y": 5,
+      "w": 8,
+      "h": 3,
+      "onEnter": [
+        {
+          "type": "if",
+          "when": {
+            "not": {
+              "done": "sanctum-seen"
+            }
+          },
+          "then": [
+            {
+              "type": "message",
+              "text": "ひんやりとした空気。床の石板に模様が刻まれている。"
+            },
+            {
+              "type": "markDone",
+              "id": "sanctum-seen"
+            }
+          ],
+          "else": []
+        }
+      ],
+      "onLeave": [],
+      "onStep": [],
+      "inspect": []
+    }
+  ],
   "overlays": [
     {
       "when": {

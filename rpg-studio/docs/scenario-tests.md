@@ -24,10 +24,12 @@
 | `{ "choose": "選択肢ID" }` | 会話の選択肢・`choice`効果の選択肢を選ぶ（IDか表示名。表示されていない場合は失敗） |
 | `{ "battle": "attack" \| "guard" \| "flee" }` / `{ "battleItem": "herb" }` / `{ "skill": "bite" }` | 戦闘コマンド |
 | `{ "useItem": "herb" }` / `{ "useAbility": "first-aid" }` | フィールドでアイテム・技を使う |
+| `{ "tick": 10 }` | 世界の時間を進める（エンティティの移動・tickルール）。フィールド以外になったら止まる |
+| `{ "sceneInput": "up" }` / `{ "sceneInput": { "custom": 値 } }` | 独自画面に入力を送る |
 | `{ "fight": "auto" }` | 簡易AIで戦闘を最後まで行い閉じる（予告技の次は防御、HP半分以下で回復）。勝てなければ失敗 |
 | `{ "effects": [...] }` | 効果を直接実行（テストの前提づくり：テレポート、フラグ設定、戦闘開始など） |
 | `{ "saveAndLoad": true }` | 状態をJSONにして戻す（セーブ・再起動の再現） |
-| `{ "expect": {...} }` | `mapId`・`at`・`scene`・`flags`・`vars`・`abilities`（特性由来も含む）・`lacksAbilities`・`traits`・`lacksTraits`・`stats`（補正込み）・`items`・`done`・`notDone`・`hpAtLeast`・`passable`・`battleOutcome`・`textIncludes` |
+| `{ "expect": {...} }` | `mapId`・`at`・`scene`（custom / ending も）・`flags`・`vars`・`sets`（含まれていること）・`lacksInSets`・`cycle`・`entities`（`{"id": {"x","y"}}`、`null` で消えていること）・`regions`・`abilities`（特性由来も含む）・`lacksAbilities`・`traits`・`lacksTraits`・`stats`（補正込み）・`items`・`done`・`notDone`・`hpAtLeast`・`passable`・`battleOutcome`・`textIncludes` |
 
 - 既定ではランダムエンカウントを無効にして実行します（`"encounters": true` で有効）。乱数は `seed` で固定され、毎回同じ結果になります。
 - 失敗すると `ERROR tests/xxx.scenario.json › steps[12]: flags.sentinelCalmed: 期待 true / 実際 false` のように、何番目の手順で何が違ったかを表示します。

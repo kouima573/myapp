@@ -1,4 +1,5 @@
 import type { CompareOp, Condition, CtxName, Expr, GameContent, GameState, Stats, StatMods } from "../../schema/src/formats";
+import type { GameSystem } from "./systems";
 
 /**
  * Evaluation environment. `content` is needed for trait abilities, stat modifiers and enemy data;
@@ -9,6 +10,21 @@ export interface EvalEnv {
   ctx?: Partial<Record<CtxName, number>>;
   /** Internal: evaluate {"stat"} as base stats (avoids recursion inside statMods). */
   baseStats?: boolean;
+  /** Project systems, for {"custom"} conditions and {"fn"} functions. */
+  systems?: readonly GameSystem[];
+}
+
+function splitRef(ref: string): [string, string] {
+  const dot = ref.lastIndexOf(".");
+  return [ref.slice(0, dot), ref.slice(dot + 1)];
+}
+
+/** Regions (on the current map) that contain the player and whose `when` holds. */
+export function regionsAt(state: GameState, content: GameContent | undefined, env: EvalEnv = {}): string[] {
+  const map = content?.maps[state.mapId];
+  if (!map) return [];
+  const { x, y } = state.player;
+  return map.regions.filter(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h && evaluate(r.when, state, { ...env, content })).map(r => r.id);
 }
 
 const MAX_DEPTH = 64;
@@ -82,6 +98,16 @@ export function evalExpr(expr: Expr, state: GameState, env: EvalEnv = {}, depth 
   if ("min" in expr) return Math.min(...expr.min.map(e));
   if ("max" in expr) return Math.max(...expr.max.map(e));
   if ("percent" in expr) return Math.floor((e(expr.percent[0]) * e(expr.percent[1])) / 100);
+  if ("size" in expr) return (state.sets?.[expr.size] ?? []).length;
+  if ("cycle" in expr) return state.cycle ?? 1;
+  if ("ticks" in expr) return state.ticks ?? 0;
+  if ("fn" in expr) {
+    const [systemId, name] = splitRef(expr.fn);
+    const fn = env.systems?.find(s => s.id === systemId)?.functions?.[name];
+    if (!fn || !env.content) throw new Error(`関数 '${expr.fn}' がありません（project.json の systems と defineSystem の functions を確認）`);
+    const value = fn({ content: env.content, state }, (expr.args ?? []).map(e));
+    return Number.isFinite(value) ? Math.trunc(value) : 0;
+  }
   if ("if" in expr) return evaluate(expr.if, state, env) ? e(expr.then) : e(expr.else);
   return 0;
 }
@@ -112,6 +138,14 @@ export function evaluate(condition: Condition | undefined, state: GameState, env
   if ("map" in condition) return state.mapId === condition.map;
   if ("inBattle" in condition) return (state.scene.kind === "battle") === condition.inBattle;
   if ("enemy" in condition) return battleOf(state)?.enemyId === condition.enemy;
+  if ("set" in condition) return (state.sets?.[condition.set] ?? []).includes(condition.has);
+  if ("inRegion" in condition) return regionsAt(state, env.content, env).includes(condition.inRegion);
+  if ("custom" in condition) {
+    const [systemId, name] = splitRef(condition.custom);
+    const check = env.systems?.find(s => s.id === systemId)?.conditions?.[name];
+    if (!check || !env.content) throw new Error(`条件 '${condition.custom}' がありません（project.json の systems と defineSystem の conditions を確認）`);
+    return Boolean(check({ content: env.content, state }, condition.args ?? {}));
+  }
   if ("enemyTag" in condition) {
     const battle = battleOf(state);
     const enemy = battle && env.content?.database.enemies.find(e => e.id === battle.enemyId);
@@ -138,6 +172,13 @@ export function interpolate(text: string, state: GameState, env: EvalEnv = {}): 
       case "flag": return key ? (state.flags[key] ? "ON" : "OFF") : whole;
       case "ctx": return key ? String(ctxValue(key as CtxName, state, env)) : whole;
       case "enemy": { const b = battleOf(state); return b ? content?.database.enemies.find(e => e.id === b.enemyId)?.name ?? b.enemyId : whole; }
+      case "cycle": return String(state.cycle ?? 1);
+      case "set": {
+        if (!key) return whole;
+        const decl = content?.project.sets[key];
+        const values = state.sets?.[key] ?? [];
+        return values.map(v => decl?.entries[v] ?? v).join("、") || "なし";
+      }
       case "trait": {
         if (!key || !content) return whole;
         const names = (state.traits ?? []).map(id => content.database.traits.find(t => t.id === id)).filter(t => t && t.category === key).map(t => t!.name);

@@ -74,6 +74,28 @@ export async function loadSystems(root: string, content: GameContent): Promise<G
   return systems;
 }
 
+/** Finds every {"custom"}, {"fn"}, startScene and system-action reference in the data and checks the loaded systems define it. */
+export function systemRefDiagnostics(texts: Record<string, string>, systems: GameSystem[]): Diagnostic[] {
+  const out: Diagnostic[] = [];
+  const byId = new Map(systems.map(s => [s.id, s]));
+  const split = (ref: string) => [ref.slice(0, ref.lastIndexOf(".")), ref.slice(ref.lastIndexOf(".") + 1)] as const;
+  const visit = (file: string, node: unknown, at: string) => {
+    if (Array.isArray(node)) { node.forEach((child, i) => visit(file, child, `${at}[${i}]`)); return; }
+    if (!node || typeof node !== "object") return;
+    const o = node as Record<string, unknown>;
+    if (typeof o.custom === "string") { const [id, name] = split(o.custom); if (!byId.get(id)?.conditions?.[name]) out.push({ severity: "error", file, at, message: `条件 '${o.custom}' が ${id} の conditions にありません` }); }
+    if (typeof o.fn === "string") { const [id, name] = split(o.fn); if (!byId.get(id)?.functions?.[name]) out.push({ severity: "error", file, at, message: `関数 '${o.fn}' が ${id} の functions にありません` }); }
+    if (o.type === "startScene" && typeof o.system === "string" && typeof o.scene === "string" && !byId.get(o.system)?.scenes?.[o.scene]) out.push({ severity: "error", file, at, message: `画面 '${o.system}.${o.scene}' が scenes にありません` });
+    if (o.type === "system" && typeof o.system === "string" && typeof o.action === "string" && !byId.get(o.system)?.actions?.[o.action]) out.push({ severity: "error", file, at, message: `アクション '${o.system}.${o.action}' が actions にありません` });
+    for (const [key, child] of Object.entries(o)) visit(file, child, at ? `${at}.${key}` : key);
+  };
+  for (const [file, text] of Object.entries(texts)) {
+    if (!file.endsWith(".json")) continue;
+    try { visit(file, JSON.parse(text), ""); } catch { /* reported by validate */ }
+  }
+  return out;
+}
+
 export async function runProjectScenarios(root: string, content: GameContent, systems: GameSystem[]): Promise<Array<ScenarioResult & { file: string }>> {
   const dir = path.join(root, "tests");
   let files: string[] = [];
@@ -113,8 +135,10 @@ async function cmdTest(flags: Record<string, string | boolean>): Promise<number>
   if (errors || !loaded.content) { console.log("FAILED test: validation errors"); return 1; }
   let systems: GameSystem[];
   try { systems = await loadSystems(root, loaded.content); } catch (error) { console.log(`ERROR ${String(error instanceof Error ? error.message : error)}`); console.log("FAILED test: system load"); return 1; }
+  const refErrors = systemRefDiagnostics(loaded.texts, systems);
+  report(refErrors);
   const results = await runProjectScenarios(root, loaded.content, systems);
-  let failed = 0;
+  let failed = refErrors.length;
   for (const result of results) {
     if (result.ok) console.log(`PASS  ${result.file} — ${result.name} (${result.steps} steps)`);
     else { failed++; console.log(`ERROR ${result.file} › steps[${result.failedStep ?? "?"}]: ${result.message} — ${result.name}`); }

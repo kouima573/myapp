@@ -13,7 +13,7 @@ import path from "node:path";
 import { watch, type FSWatcher } from "chokidar";
 import { formatDiagnostic } from "../../schema/src/index";
 import { buildProject, REPO_ROOT } from "../../cli/src/build";
-import { loadSystems, runProjectScenarios } from "../../cli/src/index";
+import { loadSystems, runProjectScenarios, systemRefDiagnostics } from "../../cli/src/index";
 import { loadProjectFromDisk, readProjectTexts } from "../../cli/src/load";
 import {
   LOCAL_TOKEN_HEADER, LOCAL_TOKEN_META,
@@ -221,8 +221,9 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     if (!loaded.content) return { ok: false, results: [], diagnostics };
     try {
       const systems = await loadSystems(root, loaded.content);
+      const refs = systemRefDiagnostics(loaded.texts, systems).map(formatDiagnostic);
       const results = await runProjectScenarios(root, loaded.content, systems);
-      return { ok: results.every(r => r.ok), results, diagnostics };
+      return { ok: results.every(r => r.ok) && !refs.length, results, diagnostics: [...diagnostics, ...refs] };
     } catch (error) {
       return { ok: false, results: [], diagnostics: [...diagnostics, `ERROR ${error instanceof Error ? error.message : String(error)}`] };
     }

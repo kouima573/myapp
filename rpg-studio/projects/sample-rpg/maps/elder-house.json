@@ -68,5 +68,50 @@
       "solid": true,
       "marker": "sign"
     }
+  ],
+  "entities": [
+    {
+      "id": "old-book",
+      "name": "古い本",
+      "x": 1,
+      "y": 4,
+      "states": [
+        {
+          "when": {
+            "not": {
+              "set": "clues",
+              "has": "ancient-script"
+            }
+          },
+          "marker": "sign",
+          "trigger": "action",
+          "effects": [
+            {
+              "type": "message",
+              "text": "ほこりをかぶった本だ。古代文字の読み方が図解されている……。"
+            },
+            {
+              "type": "addToSet",
+              "set": "clues",
+              "value": "ancient-script"
+            },
+            {
+              "type": "message",
+              "text": "古代文字が少し読めるようになった。（手がかり帳に記録）"
+            }
+          ]
+        },
+        {
+          "marker": "sign",
+          "trigger": "action",
+          "effects": [
+            {
+              "type": "message",
+              "text": "古代文字の手引き書だ。もう内容は覚えている。"
+            }
+          ]
+        }
+      ]
+    }
   ]
 }

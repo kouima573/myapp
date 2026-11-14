@@ -3,8 +3,10 @@ import type { BattleState, Effect, Enemy, GameContent, GameMap, GameState, TileD
 /**
  * Extension contract for project systems (`projects/<id>/systems/*.ts`).
  *
- * All hooks are synchronous and pure: they receive state and return values, never mutate.
- * Systems run in ascending `priority` (default 0), then by id. See docs/extension-api.md.
+ * A system can add new conditions, expression functions, effects (actions), whole screens (scenes),
+ * map overlays and HUD lines, and react to steps / ticks / damage. Logic hooks are synchronous and pure:
+ * they receive state and return values, never mutate. Systems run in ascending `priority` (default 0), then by id.
+ * See docs/extension-api.md.
  */
 export interface SystemContext {
   content: GameContent;
@@ -52,6 +54,56 @@ export interface SystemActionResult {
   log?: string[];
 }
 
+/** Input delivered to a custom scene. Keys are mapped to the first six; buttons rendered by the scene can send anything. */
+export type SceneInput =
+  | { type: "up" | "down" | "left" | "right" | "confirm" | "cancel" }
+  | { type: "custom"; value: unknown };
+
+export interface SceneResult {
+  /** New scene data (JSON). */
+  data?: unknown;
+  /** Close the scene and return to the field. */
+  close?: boolean;
+  /** Effects to run after closing (or immediately queued when not closing). */
+  effects?: Effect[];
+  /** Replacement game state (e.g. inventory changes). */
+  state?: GameState;
+  log?: string[];
+}
+
+export interface SceneView {
+  data: unknown;
+  state: GameState;
+  content: GameContent;
+  /** Send an input to `input()`; use for clickable buttons. */
+  send(input: SceneInput): void;
+  /** Resolve an asset id to a URL (images). */
+  assetUrl(id: string): string | undefined;
+}
+
+/**
+ * A whole screen: puzzle, card battle, crafting, map overview, rhythm minigame…
+ * `start`/`input` are pure and run in tests; `render` only runs in the browser.
+ */
+export interface SceneDefinition {
+  start?(ctx: SystemContext, args: Record<string, unknown>): unknown;
+  input(ctx: SystemContext, data: unknown, input: SceneInput): SceneResult;
+  render?(host: HTMLElement, view: SceneView): void;
+}
+
+export interface OverlayContext extends SystemContext {
+  map: GameMap;
+  /** Pixel offset of tile (0,0) on the canvas, and tile size in pixels. */
+  originX: number;
+  originY: number;
+  tileSize: number;
+  /** Player position in tiles (fractional while walking). */
+  player: { x: number; y: number };
+  width: number;
+  height: number;
+  time: number;
+}
+
 export interface GameSystem {
   id: string;
   priority?: number;
@@ -65,6 +117,20 @@ export interface GameSystem {
   onBattleStart?(ctx: SystemContext & { battle: BattleState; enemy: Enemy }): unknown;
   /** Custom actions invoked from data via `{ "type": "system", "system": id, "action": name }`. */
   actions?: Record<string, (ctx: SystemContext, args: Record<string, unknown>) => SystemActionResult>;
+  /** Custom conditions: data `{ "custom": "<id>.<name>", "args": {...} }`. */
+  conditions?: Record<string, (ctx: SystemContext, args: Record<string, unknown>) => boolean>;
+  /** Custom expression functions: data `{ "fn": "<id>.<name>", "args": [expr, ...] }`. */
+  functions?: Record<string, (ctx: SystemContext, args: number[]) => number>;
+  /** Custom screens: data `{ "type": "startScene", "system": id, "scene": name, "args": {...} }`. */
+  scenes?: Record<string, SceneDefinition>;
+  /** After every successful player step (field). */
+  onStep?(ctx: SystemContext): SystemActionResult | void;
+  /** Every world tick (entities move on ticks; the runtime ticks ~3 times per second in the field). */
+  onTick?(ctx: SystemContext): SystemActionResult | void;
+  /** Draw on top of the map (lighting, weather, fog of war, highlights). Browser only. */
+  drawOverlay?(ctx2d: CanvasRenderingContext2D, ctx: OverlayContext): void;
+  /** Extra HUD lines in the field. */
+  hud?(ctx: SystemContext): string[];
 }
 
 /** Identity helper that gives project code full type checking. */

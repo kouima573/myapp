@@ -5,6 +5,18 @@
       "id": "scout-dialog",
       "speaker": "リオ",
       "lines": [
+        {
+          "text": "……あれ？ 前にも会ったっけ。なんだか懐かしい顔だね。",
+          "when": {
+            "compare": [
+              {
+                "cycle": true
+              },
+              ">",
+              1
+            ]
+          }
+        },
         "やあ、{{trait.種族}}の旅人さん。森の獣人に伝わる『獣道』を知ってる？",
         "岩場のわずかな隙間も、獣の感覚なら抜けられるんだ。遺跡の近道に使えるよ。"
       ],
@@ -160,6 +172,33 @@
               "type": "message",
               "text": "村はもう大丈夫じゃ。ゆっくりしていきなされ。",
               "speaker": "長老オババ"
+            },
+            {
+              "type": "choice",
+              "speaker": "長老オババ",
+              "prompt": "旅はこれで終わりかの？",
+              "options": [
+                {
+                  "id": "end",
+                  "label": "旅を終える（エンディング）",
+                  "effects": [
+                    {
+                      "type": "addToSet",
+                      "set": "memories",
+                      "value": "wind-restored"
+                    },
+                    {
+                      "type": "ending",
+                      "ending": "wind"
+                    }
+                  ]
+                },
+                {
+                  "id": "stay",
+                  "label": "もう少し村にいる",
+                  "effects": []
+                }
+              ]
             }
           ],
           "else": [

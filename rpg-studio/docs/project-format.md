@@ -91,6 +91,18 @@
 - **敵**: `tags`（条件 `enemyTag` 用）、`actions[].when`（条件付き行動）、`actions[].effects`、`rules`（その敵との戦闘中だけ有効）。
 - **開始時**: `project.json` の `player.traits`（初期特性）と `intro`（新規ゲーム開始時の効果。種族選択など）。
 
+## 世界の仕組み（エンティティ・領域・調べるタイル・時間・集合・周回）
+
+- **エンティティ** `maps › entities[]`: `{ id, name, x, y, states: [{ when, name, sprite, marker, facing, solid, trigger, dialogue, event, effects, behavior }] }`。`states` のうち条件を満たす最初のものが有効で、どれも満たさなければ消える。`trigger`: action / touch / auto / none。`behavior`: still / wander{radius, every} / patrol{path, every} / chase{range, every} / flee{range, every}（単位はtick）。
+- **領域** `maps › regions[]`: `{ id, label, x, y, w, h, when, onEnter, onLeave, onStep, inspect }`。条件 `{"inRegion": id}`。
+- **調べるタイル** `tiles.json › tiles[].inspect`: `{ when, effects, otherwise }`。
+- **集合** `project.json › sets`: `{ label, description, show, persist, entries }`。効果 `addToSet` / `removeFromSet` / `clearSet`、条件 `{"set", "has"}`、式 `{"size"}`、文中の `{{set.<id>}}`。組み込みの集合 `endings`（到達したエンディング、meta）。
+- **周回** フラグ・変数・集合の `persist: "meta"` は、`newCycle` やゲームの再開をまたいで残る。式 `{"cycle": true}`、文中の `{{cycle}}`。`project.json › endings` と効果 `ending`（エンディング画面 → 閉じると次の周回）。
+- **時間** `schedule {id?, after: 式(歩数), effects}` / `cancelSchedule {id}`。ルールの `on: "tick"`。式 `{"ticks": true}`。
+- **その他の効果** `moveEntity {entity, mapId?, x, y, facing?}`、`startScene {system, scene, args}`（独自画面）。
+- **拡張の呼び出し** 条件 `{"custom": "system.name", "args"}`、式 `{"fn": "system.name", "args": [...]}`。
+- **戦闘** `project.json › battle`: `playerDamage` / `enemyDamage` / `fleeChance`（式。ctx: attack, defense, power, variance）、`commands`（各コマンドのON/OFF）。
+
 ## 地形の変化
 
 マップの `overlays` は「条件が成り立つ間だけ、指定したマスを別のタイルにする」もの（例：番人を倒すと大岩が消える）。`setTile` 効果は、その場でマスを書き換えてセーブに残します。
