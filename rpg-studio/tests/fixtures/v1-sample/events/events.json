@@ -1,0 +1,13 @@
+{
+  "formatVersion": 1,
+  "events": [
+    {
+      "id": "open-ruins-shortcut",
+      "kind": "shortcut",
+      "label": "獣道で岩の脇を抜ける",
+      "requiredAbilityId": "beast-trail",
+      "setFlag": "ruinsShortcutOpen",
+      "once": true
+    }
+  ]
+}

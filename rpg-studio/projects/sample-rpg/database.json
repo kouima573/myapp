@@ -1,0 +1,99 @@
+{
+  "formatVersion": 2,
+  "abilities": [
+    {
+      "id": "unyielding-soul",
+      "name": "不屈の魂",
+      "description": "小人の種族能力。1回の戦闘で一度だけ、致命傷をHP1でこらえる。",
+      "kind": "passive"
+    },
+    {
+      "id": "beast-trail",
+      "name": "獣道",
+      "description": "獣人に伝わる技。岩場のわずかな隙間を抜けられる。",
+      "kind": "field"
+    }
+  ],
+  "items": [
+    {
+      "id": "herb",
+      "name": "薬草",
+      "description": "HPを10回復する。",
+      "heal": 10
+    },
+    {
+      "id": "wind-shard",
+      "name": "風の欠片",
+      "description": "遺跡の番人が守っていた、淡く光る石。",
+      "key": true
+    }
+  ],
+  "enemies": [
+    {
+      "id": "moss-slime",
+      "name": "コケスライム",
+      "stats": {
+        "maxHp": 7,
+        "attack": 3,
+        "defense": 0
+      },
+      "actions": [
+        {
+          "name": "体当たり",
+          "power": 1
+        }
+      ],
+      "drops": [],
+      "canFlee": true
+    },
+    {
+      "id": "cave-bat",
+      "name": "ほらあなコウモリ",
+      "stats": {
+        "maxHp": 5,
+        "attack": 4,
+        "defense": 0
+      },
+      "actions": [
+        {
+          "name": "噛みつき",
+          "power": 1
+        },
+        {
+          "name": "超音波",
+          "power": 0,
+          "message": "ほらあなコウモリは超音波を放った！"
+        }
+      ],
+      "drops": [],
+      "canFlee": true
+    },
+    {
+      "id": "stone-sentinel",
+      "name": "石像の番人",
+      "stats": {
+        "maxHp": 16,
+        "attack": 4,
+        "defense": 1
+      },
+      "actions": [
+        {
+          "name": "体当たり",
+          "power": 2
+        },
+        {
+          "name": "力をためる",
+          "power": 0,
+          "message": "番人は腕に力をためている……！"
+        },
+        {
+          "name": "岩砕き",
+          "power": 15,
+          "message": "番人の岩砕き！"
+        }
+      ],
+      "drops": [],
+      "canFlee": false
+    }
+  ]
+}

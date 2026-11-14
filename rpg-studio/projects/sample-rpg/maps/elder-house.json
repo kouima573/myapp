@@ -1,0 +1,50 @@
+{
+  "formatVersion": 2,
+  "id": "elder-house",
+  "title": "長老の家",
+  "width": 10,
+  "height": 8,
+  "rows": [
+    "hhhhhhhhhh",
+    "hcccccccch",
+    "hcccccccch",
+    "hcccccccch",
+    "hcccccccch",
+    "hcccccccch",
+    "hcccccccch",
+    "hhhhdhhhhh"
+  ],
+  "npcs": [
+    {
+      "id": "elder",
+      "name": "長老オババ",
+      "x": 4,
+      "y": 2,
+      "facing": "down",
+      "sprite": "village-herbalist",
+      "dialogues": [
+        {
+          "when": {
+            "flag": "sentinelCalmed"
+          },
+          "dialogue": "elder-after"
+        },
+        {
+          "dialogue": "elder-before"
+        }
+      ]
+    }
+  ],
+  "portals": [
+    {
+      "id": "house-to-village",
+      "x": 4,
+      "y": 7,
+      "targetMapId": "village",
+      "targetX": 8,
+      "targetY": 6,
+      "facing": "down"
+    }
+  ],
+  "interactables": []
+}

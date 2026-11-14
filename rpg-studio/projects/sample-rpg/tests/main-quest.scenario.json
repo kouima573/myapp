@@ -1,0 +1,355 @@
+{
+  "name": "本編: 獣道を覚え、近道から番人を倒して長老に報告する",
+  "seed": 3,
+  "steps": [
+    {
+      "expect": {
+        "mapId": "village",
+        "at": {
+          "x": 3,
+          "y": 9
+        },
+        "flags": {
+          "beastPathUnlocked": false
+        }
+      }
+    },
+    {
+      "walkTo": {
+        "x": 5,
+        "y": 9
+      }
+    },
+    {
+      "face": "up"
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "scene": "dialogue",
+        "textIncludes": "獣道"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "choice"
+      }
+    },
+    {
+      "choose": "learn-trail"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "abilities": [
+          "beast-trail"
+        ],
+        "flags": {
+          "beastPathUnlocked": true
+        },
+        "done": [
+          "scout-dialog/learn-trail"
+        ]
+      }
+    },
+    {
+      "walkTo": {
+        "x": 8,
+        "y": 5
+      }
+    },
+    {
+      "expect": {
+        "mapId": "elder-house"
+      }
+    },
+    {
+      "walkTo": {
+        "x": 4,
+        "y": 3
+      }
+    },
+    {
+      "face": "up"
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "choose": "get-herbs"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "items": {
+          "herb": 2
+        }
+      }
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "choose": "get-herbs"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "items": {
+          "herb": 2
+        }
+      }
+    },
+    {
+      "walkTo": {
+        "x": 4,
+        "y": 7
+      }
+    },
+    {
+      "expect": {
+        "mapId": "village"
+      }
+    },
+    {
+      "walkTo": {
+        "x": 18,
+        "y": 9
+      }
+    },
+    {
+      "expect": {
+        "mapId": "ruins",
+        "at": {
+          "x": 3,
+          "y": 9
+        }
+      }
+    },
+    {
+      "expect": {
+        "passable": [
+          {
+            "x": 9,
+            "y": 8,
+            "is": false
+          }
+        ]
+      }
+    },
+    {
+      "walkTo": {
+        "x": 9,
+        "y": 9
+      }
+    },
+    {
+      "face": "up"
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "flags": {
+          "ruinsShortcutOpen": true
+        },
+        "passable": [
+          {
+            "x": 9,
+            "y": 8,
+            "is": true
+          }
+        ]
+      }
+    },
+    {
+      "saveAndLoad": true
+    },
+    {
+      "expect": {
+        "flags": {
+          "ruinsShortcutOpen": true
+        },
+        "abilities": [
+          "beast-trail"
+        ]
+      }
+    },
+    {
+      "walkTo": {
+        "x": 9,
+        "y": 6
+      }
+    },
+    {
+      "face": "up"
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "battle"
+      }
+    },
+    {
+      "fight": "auto"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "flags": {
+          "sentinelCalmed": true
+        },
+        "items": {
+          "wind-shard": 1
+        },
+        "done": [
+          "sentinel-battle"
+        ],
+        "passable": [
+          {
+            "x": 9,
+            "y": 5,
+            "is": true
+          }
+        ]
+      }
+    },
+    {
+      "walkTo": {
+        "x": 16,
+        "y": 9
+      }
+    },
+    {
+      "face": "left"
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "textIncludes": "空っぽ"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "walkTo": {
+        "x": 9,
+        "y": 9
+      }
+    },
+    {
+      "walkTo": {
+        "x": 2,
+        "y": 9
+      }
+    },
+    {
+      "expect": {
+        "mapId": "village",
+        "at": {
+          "x": 17,
+          "y": 9
+        }
+      }
+    },
+    {
+      "walkTo": {
+        "x": 17,
+        "y": 9
+      }
+    },
+    {
+      "face": "up"
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "textIncludes": "番人を鎮めた"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "walkTo": {
+        "x": 8,
+        "y": 5
+      }
+    },
+    {
+      "walkTo": {
+        "x": 4,
+        "y": 3
+      }
+    },
+    {
+      "face": "up"
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "flags": {
+          "questComplete": true
+        },
+        "done": [
+          "elder-thanks"
+        ]
+      }
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    }
+  ]
+}

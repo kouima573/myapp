@@ -1,0 +1,73 @@
+{
+  "name": "不屈の魂は1戦闘に1回だけ致命傷をHP1でこらえ、2度目の致命傷では倒れる",
+  "seed": 4,
+  "steps": [
+    {
+      "effects": [
+        {
+          "type": "battle",
+          "enemy": "stone-sentinel",
+          "onDefeat": "continue"
+        }
+      ]
+    },
+    {
+      "battle": "attack"
+    },
+    {
+      "battle": "attack"
+    },
+    {
+      "battle": "attack"
+    },
+    {
+      "expect": {
+        "textIncludes": "不屈の魂！ 致命傷をHP1でこらえた。",
+        "battleOutcome": "ongoing"
+      }
+    },
+    {
+      "battle": "attack"
+    },
+    {
+      "expect": {
+        "battleOutcome": "defeat"
+      }
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "heal"
+        },
+        {
+          "type": "battle",
+          "enemy": "stone-sentinel",
+          "onDefeat": "continue"
+        }
+      ]
+    },
+    {
+      "battle": "attack"
+    },
+    {
+      "battle": "attack"
+    },
+    {
+      "battle": "attack"
+    },
+    {
+      "expect": {
+        "textIncludes": "不屈の魂！",
+        "battleOutcome": "ongoing"
+      }
+    }
+  ]
+}

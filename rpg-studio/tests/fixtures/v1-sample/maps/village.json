@@ -1,0 +1,45 @@
+{
+  "formatVersion": 1,
+  "id": "village",
+  "title": "苔森の村",
+  "width": 20,
+  "height": 14,
+  "tileSize": 32,
+  "rows": [
+    "TTTTTTTTTTTTTTTTTTTT",
+    "T..................T",
+    "T.TTTT*.rrrr.*TT...T",
+    "T.TTT.*.rrrr...~~~.T",
+    "T.TTTT..hhhh...~~~.T",
+    "T..TT...hhhh.*.~~~.T",
+    "T.*......:.........T",
+    "T....*...:.........T",
+    "T.TT..sssssss....*.T",
+    "T:::::::::::::bbb::T",
+    "T........:...*.TT..T",
+    "T...TT.*.:.*....T*.T",
+    "T........:.........T",
+    "TTTTTTTTTTTTTTTTTTTT"
+  ],
+  "npcs": [
+    {
+      "id": "scout",
+      "name": "リオ",
+      "x": 6,
+      "y": 9,
+      "dialogueId": "scout-dialog",
+      "sprite": "village-courier"
+    }
+  ],
+  "portals": [
+    {
+      "id": "village-to-ruins",
+      "x": 18,
+      "y": 9,
+      "targetMapId": "ruins",
+      "targetX": 2,
+      "targetY": 9
+    }
+  ],
+  "interactables": []
+}

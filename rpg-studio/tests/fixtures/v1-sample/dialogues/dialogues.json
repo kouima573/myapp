@@ -1,0 +1,15 @@
+{
+  "formatVersion": 1,
+  "dialogues": [
+    {
+      "id": "scout-dialog",
+      "speaker": "リオ",
+      "lines": ["森の獣人に伝わる『獣道』なら、岩場の隙間も通れるよ。", "この技を覚えて、遺跡の奥へ進んでみる？"],
+      "choices": [
+        { "id": "learn-trail", "label": "獣道を教わる", "unlockAbilityId": "beast-trail", "setFlag": "beastPathUnlocked" },
+        { "id": "later", "label": "あとで" }
+      ],
+      "once": true
+    }
+  ]
+}

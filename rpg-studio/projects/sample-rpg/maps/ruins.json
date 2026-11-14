@@ -1,0 +1,85 @@
+{
+  "formatVersion": 2,
+  "id": "ruins",
+  "title": "風穴の遺跡",
+  "width": 20,
+  "height": 14,
+  "rows": [
+    "TTTTTTTTTTTTTTTTTTTT",
+    "T...*..........*...T",
+    "T.wwwwwwwwwwwwwwww.T",
+    "T.wiiiiiiiiiiiiiiw.T",
+    "T.wiwwwwwwwwwwwwiw.T",
+    "T.wiwsssssssswRiiw.T",
+    "T.wiwsooooooswiiiw.T",
+    "T.wiwsoossoossiiiw.T",
+    "T.wiwwwwwgwwwwwwiw.T",
+    "T.dssssssssRiiiiiw.T",
+    "T.wwwwwwwwwwwwwwww.T",
+    "T..*.............*.T",
+    "T.......*..........T",
+    "TTTTTTTTTTTTTTTTTTTT"
+  ],
+  "npcs": [],
+  "portals": [
+    {
+      "id": "ruins-to-village",
+      "x": 2,
+      "y": 9,
+      "targetMapId": "village",
+      "targetX": 17,
+      "targetY": 9,
+      "facing": "left"
+    }
+  ],
+  "interactables": [
+    {
+      "id": "shortcut-gate",
+      "x": 9,
+      "y": 8,
+      "label": "岩の隙間",
+      "event": "open-ruins-shortcut",
+      "trigger": "action",
+      "solid": false,
+      "marker": "sparkle",
+      "visibleWhen": {
+        "flag": "ruinsShortcutOpen",
+        "is": false
+      }
+    },
+    {
+      "id": "sentinel",
+      "x": 9,
+      "y": 5,
+      "label": "石像の番人",
+      "event": "sentinel-battle",
+      "trigger": "action",
+      "solid": true,
+      "marker": "statue",
+      "visibleWhen": {
+        "flag": "sentinelCalmed",
+        "is": false
+      }
+    },
+    {
+      "id": "ruins-chest",
+      "x": 15,
+      "y": 9,
+      "label": "古い宝箱",
+      "event": "ruins-chest",
+      "trigger": "action",
+      "solid": true,
+      "marker": "chest"
+    }
+  ],
+  "encounters": {
+    "rate": 0.08,
+    "enemies": [
+      "moss-slime",
+      "cave-bat"
+    ],
+    "tiles": [
+      "i"
+    ]
+  }
+}

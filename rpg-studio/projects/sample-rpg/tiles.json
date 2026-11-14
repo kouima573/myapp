@@ -1,0 +1,129 @@
+{
+  "formatVersion": 2,
+  "atlas": "village-tiles",
+  "tiles": [
+    {
+      "code": ".",
+      "name": "草地",
+      "index": 0,
+      "passable": true,
+      "color": "#627a4c"
+    },
+    {
+      "code": ":",
+      "name": "土の道",
+      "index": 1,
+      "passable": true,
+      "color": "#9b8054"
+    },
+    {
+      "code": "s",
+      "name": "石畳",
+      "index": 2,
+      "passable": true,
+      "color": "#8f927f"
+    },
+    {
+      "code": "~",
+      "name": "水辺",
+      "index": 3,
+      "passable": false,
+      "color": "#4d7f91"
+    },
+    {
+      "code": "T",
+      "name": "樹木",
+      "index": 4,
+      "passable": false,
+      "color": "#294538"
+    },
+    {
+      "code": "*",
+      "name": "草花",
+      "index": 5,
+      "passable": true,
+      "color": "#718557"
+    },
+    {
+      "code": "h",
+      "name": "漆喰壁",
+      "index": 6,
+      "passable": false,
+      "color": "#c9b994"
+    },
+    {
+      "code": "r",
+      "name": "屋根",
+      "index": 7,
+      "passable": false,
+      "color": "#934f3f"
+    },
+    {
+      "code": "d",
+      "name": "木戸",
+      "index": 8,
+      "passable": true,
+      "color": "#d3a15f"
+    },
+    {
+      "code": "f",
+      "name": "柵",
+      "index": 9,
+      "passable": false,
+      "color": "#876a44"
+    },
+    {
+      "code": "b",
+      "name": "橋",
+      "index": 10,
+      "passable": true,
+      "color": "#ad8756"
+    },
+    {
+      "code": "w",
+      "name": "遺跡の石壁",
+      "index": 11,
+      "passable": false,
+      "color": "#555e5b"
+    },
+    {
+      "code": "c",
+      "name": "板張りの床",
+      "index": 12,
+      "passable": true,
+      "color": "#8a5a36"
+    },
+    {
+      "code": "o",
+      "name": "太陽の石板",
+      "index": 13,
+      "passable": true,
+      "color": "#c8a050"
+    },
+    {
+      "code": "R",
+      "name": "大岩",
+      "index": 14,
+      "passable": false,
+      "color": "#6f7468"
+    },
+    {
+      "code": "i",
+      "name": "落ち葉の床",
+      "index": 15,
+      "passable": true,
+      "color": "#8b5a2b"
+    },
+    {
+      "code": "g",
+      "name": "岩の隙間（獣道）",
+      "index": 14,
+      "passable": false,
+      "passableWhen": {
+        "flag": "ruinsShortcutOpen"
+      },
+      "openIndex": 1,
+      "color": "#83785d"
+    }
+  ]
+}

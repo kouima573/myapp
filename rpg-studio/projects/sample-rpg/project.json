@@ -1,0 +1,74 @@
+{
+  "formatVersion": 2,
+  "id": "sample-rpg",
+  "title": "森境の小さな冒険",
+  "engineCompatibility": {
+    "min": "0.2.0"
+  },
+  "start": {
+    "mapId": "village",
+    "x": 3,
+    "y": 9,
+    "facing": "right"
+  },
+  "player": {
+    "name": "アオ",
+    "sprite": "adventurer",
+    "stats": {
+      "maxHp": 18,
+      "attack": 5,
+      "defense": 1
+    },
+    "abilities": [
+      "unyielding-soul"
+    ],
+    "items": {}
+  },
+  "flags": {
+    "beastPathUnlocked": {
+      "initial": false,
+      "description": "リオから獣道を教わった"
+    },
+    "ruinsShortcutOpen": {
+      "initial": false,
+      "description": "遺跡の岩の隙間（近道）が開通した"
+    },
+    "sentinelCalmed": {
+      "initial": false,
+      "description": "遺跡の石像の番人を倒した"
+    },
+    "questComplete": {
+      "initial": false,
+      "description": "長老に報告してクエスト完了"
+    }
+  },
+  "maps": [
+    {
+      "id": "village",
+      "path": "maps/village.json",
+      "title": "苔森の村"
+    },
+    {
+      "id": "elder-house",
+      "path": "maps/elder-house.json",
+      "title": "長老の家"
+    },
+    {
+      "id": "ruins",
+      "path": "maps/ruins.json",
+      "title": "風穴の遺跡"
+    }
+  ],
+  "tilesetPath": "tiles.json",
+  "dialoguesPath": "dialogues/dialogues.json",
+  "eventsPath": "events/events.json",
+  "databasePath": "database.json",
+  "assetsPath": "assets.json",
+  "systems": [
+    {
+      "id": "sample-abilities",
+      "path": "systems/abilities.ts",
+      "title": "種族固有能力（不屈の魂）"
+    }
+  ]
+}

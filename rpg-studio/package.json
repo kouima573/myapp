@@ -1,0 +1,47 @@
+{
+  "name": "rpg-studio",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "packageManager": "pnpm@10.18.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build:studio": "vite build",
+    "studio": "vite build && tsx packages/local-server/src/index.ts",
+    "check": "tsc --noEmit",
+    "test": "vitest run",
+    "rpg": "tsx packages/cli/src/index.ts",
+    "rpg:validate": "tsx packages/cli/src/index.ts validate",
+    "rpg:migrate": "tsx packages/cli/src/index.ts migrate",
+    "rpg:test": "vitest run packages projects",
+    "build:game": "tsx packages/cli/src/index.ts build",
+    "dev:game": "tsx packages/cli/src/index.ts dev"
+  },
+  "dependencies": {
+    "chokidar": "^4.0.3",
+    "esbuild": "^0.25.0",
+    "lucide-react": "^0.453.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "typescript": "5.9.3",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.0",
+    "@types/react": "^19.2.1",
+    "@types/react-dom": "^19.2.1",
+    "@vitejs/plugin-react": "^5.0.4",
+    "tsx": "^4.19.1",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}

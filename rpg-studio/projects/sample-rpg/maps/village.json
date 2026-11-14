@@ -1,0 +1,108 @@
+{
+  "formatVersion": 2,
+  "id": "village",
+  "title": "苔森の村",
+  "width": 20,
+  "height": 14,
+  "rows": [
+    "TTTTTTTTTTTTTTTTTTTT",
+    "T....*.........~~..T",
+    "T.TT...rrrr....~~.TT",
+    "T.TT...rrrr..*.~~..T",
+    "T......hhhh....~~..T",
+    "T..*...hdhh....~~*.T",
+    "T.......:......~~..T",
+    "T.ff....:...*..~~..T",
+    "T.......ssssss.~~..T",
+    "T:::::::ssssss:bb::T",
+    "T.......ssssss.~~..T",
+    "T..*.TT........~~..T",
+    "T....*.........~~*.T",
+    "TTTTTTTTTTTTTTTTTTTT"
+  ],
+  "npcs": [
+    {
+      "id": "scout",
+      "name": "リオ",
+      "x": 5,
+      "y": 8,
+      "facing": "down",
+      "sprite": "village-courier",
+      "dialogues": [
+        {
+          "when": {
+            "ability": "beast-trail"
+          },
+          "dialogue": "rio-after"
+        },
+        {
+          "dialogue": "scout-dialog"
+        }
+      ]
+    },
+    {
+      "id": "guard",
+      "name": "ガルド",
+      "x": 17,
+      "y": 8,
+      "facing": "left",
+      "sprite": "village-guard",
+      "dialogues": [
+        {
+          "when": {
+            "flag": "sentinelCalmed"
+          },
+          "dialogue": "guard-thanks"
+        },
+        {
+          "dialogue": "guard-warning"
+        }
+      ]
+    },
+    {
+      "id": "apprentice",
+      "name": "見習いのテト",
+      "x": 11,
+      "y": 11,
+      "facing": "down",
+      "sprite": "village-apprentice",
+      "dialogues": [
+        {
+          "dialogue": "apprentice-dialog"
+        }
+      ]
+    }
+  ],
+  "portals": [
+    {
+      "id": "village-to-ruins",
+      "x": 18,
+      "y": 9,
+      "targetMapId": "ruins",
+      "targetX": 3,
+      "targetY": 9,
+      "facing": "right"
+    },
+    {
+      "id": "village-to-house",
+      "x": 8,
+      "y": 5,
+      "targetMapId": "elder-house",
+      "targetX": 4,
+      "targetY": 6,
+      "facing": "up"
+    }
+  ],
+  "interactables": [
+    {
+      "id": "village-sign",
+      "x": 2,
+      "y": 8,
+      "label": "立て札",
+      "event": "village-sign",
+      "trigger": "action",
+      "solid": true,
+      "marker": "sign"
+    }
+  ]
+}

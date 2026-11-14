@@ -1,0 +1,89 @@
+{
+  "formatVersion": 2,
+  "events": [
+    {
+      "id": "village-sign",
+      "label": "立て札",
+      "effects": [
+        {
+          "type": "message",
+          "text": "← 苔森の村　　｜　　橋を渡って東 → 風穴の遺跡"
+        }
+      ]
+    },
+    {
+      "id": "open-ruins-shortcut",
+      "label": "獣道で岩の隙間を抜ける",
+      "when": {
+        "ability": "beast-trail"
+      },
+      "once": true,
+      "effects": [
+        {
+          "type": "setFlag",
+          "flag": "ruinsShortcutOpen"
+        },
+        {
+          "type": "message",
+          "text": "獣道の感覚で足場を見つけた。岩の隙間を抜けられるようになった！"
+        }
+      ],
+      "otherwise": [
+        {
+          "type": "message",
+          "text": "岩の間にわずかな隙間がある。今の自分では通れそうにない……。"
+        }
+      ]
+    },
+    {
+      "id": "sentinel-battle",
+      "label": "石像の番人",
+      "once": true,
+      "effects": [
+        {
+          "type": "message",
+          "text": "石像の目に光が宿った……！"
+        },
+        {
+          "type": "battle",
+          "enemy": "stone-sentinel",
+          "canFlee": false,
+          "onDefeat": "respawn"
+        },
+        {
+          "type": "setFlag",
+          "flag": "sentinelCalmed"
+        },
+        {
+          "type": "giveItem",
+          "item": "wind-shard"
+        },
+        {
+          "type": "message",
+          "text": "番人は静かに崩れ落ちた。中から淡く光る『風の欠片』が現れた。"
+        }
+      ]
+    },
+    {
+      "id": "ruins-chest",
+      "label": "古い宝箱",
+      "once": true,
+      "effects": [
+        {
+          "type": "giveItem",
+          "item": "herb"
+        },
+        {
+          "type": "message",
+          "text": "宝箱を開けた。薬草を見つけた！"
+        }
+      ],
+      "afterDone": [
+        {
+          "type": "message",
+          "text": "宝箱は空っぽだ。"
+        }
+      ]
+    }
+  ]
+}

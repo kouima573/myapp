@@ -1,0 +1,353 @@
+/**
+ * Local studio service. Binds to 127.0.0.1 only and exposes a fixed set of operations on ONE project folder.
+ * There is deliberately no endpoint that runs commands, scripts or arbitrary paths.
+ *
+ * Security layers (each request): Host allow-list → Origin check (no CORS) → per-launch token header →
+ * normalized project-relative path → extension allow-list → no symlink in any path component → size limit.
+ */
+import crypto from "node:crypto";
+import { constants as FS } from "node:fs";
+import fs from "node:fs/promises";
+import http from "node:http";
+import path from "node:path";
+import { watch, type FSWatcher } from "chokidar";
+import { formatDiagnostic } from "../../schema/src/index";
+import { buildProject, REPO_ROOT } from "../../cli/src/build";
+import { loadSystems, runProjectScenarios } from "../../cli/src/index";
+import { loadProjectFromDisk, readProjectTexts } from "../../cli/src/load";
+import {
+  LOCAL_TOKEN_HEADER, LOCAL_TOKEN_META,
+  type BuildStatus, type ChangeEvent, type ProjectSnapshot, type SaveRequest, type TestResponse,
+} from "./protocol";
+
+const TEXT_EXT = new Set([".json", ".ts", ".md"]);
+const BINARY_EXT: Record<string, string> = { ".png": "image/png", ".ogg": "audio/ogg", ".mp3": "audio/mpeg", ".wav": "audio/wav" };
+const MAX_TEXT = 4 * 1024 * 1024;
+const MAX_BINARY = 20 * 1024 * 1024;
+const IGNORED = /(^|\/)(\.git|node_modules|dist|\.rpg-backup|\.rpg-studio)(\/|$)/;
+
+class HttpError extends Error {
+  constructor(readonly status: number, message: string) { super(message); }
+}
+
+export interface ServerOptions {
+  projectDir: string;
+  port: number;
+  /** Directory with the built studio UI (index.html etc). */
+  uiDir?: string;
+  /** Inject a fixed token (tests). Default: random per launch. */
+  token?: string;
+  watch?: boolean;
+  /** Build on start (default true). */
+  buildOnStart?: boolean;
+}
+
+export interface RunningServer {
+  url: string;
+  token: string;
+  server: http.Server;
+  close(): Promise<void>;
+  /** Resolves when the build queue is idle (tests). */
+  idle(): Promise<void>;
+}
+
+const sha256 = (bytes: Buffer | string) => crypto.createHash("sha256").update(bytes).digest("hex");
+
+export function isSafeRelative(relative: string): boolean {
+  return typeof relative === "string" && relative.length > 0 && relative.length < 300 && !relative.includes("\\") && !relative.includes("\0")
+    && !relative.startsWith("/") && !/^[a-z]:/i.test(relative)
+    && relative.split("/").every(part => part !== "" && part !== "." && part !== ".." && !part.startsWith("."));
+}
+
+/** Resolves a project-relative path, refusing escapes and any symlink / junction on the way. */
+export async function securePath(root: string, relative: string, opts: { allowMissing?: boolean } = {}): Promise<string> {
+  if (!isSafeRelative(relative)) throw new HttpError(400, "プロジェクト相対の正規化済みパスを指定してください");
+  const ext = path.extname(relative).toLowerCase();
+  if (!TEXT_EXT.has(ext) && !BINARY_EXT[ext]) throw new HttpError(415, `拡張子 ${ext || "(なし)"} は扱えません`);
+  const realRoot = await fs.realpath(root);
+  let current = realRoot;
+  const parts = relative.split("/");
+  for (let i = 0; i < parts.length; i++) {
+    current = path.join(current, parts[i]!);
+    try {
+      const stat = await fs.lstat(current);
+      if (stat.isSymbolicLink()) throw new HttpError(403, `シンボリックリンク／ジャンクションは拒否します: ${relative}`);
+      if (i < parts.length - 1 && !stat.isDirectory()) throw new HttpError(400, "パスの途中がディレクトリではありません");
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      if ((error as NodeJS.ErrnoException).code === "ENOENT" && opts.allowMissing) break;
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") throw new HttpError(404, `ファイルがありません: ${relative}`);
+      throw error;
+    }
+  }
+  const target = path.join(realRoot, ...parts);
+  const rel = path.relative(realRoot, target);
+  if (rel.startsWith("..") || path.isAbsolute(rel)) throw new HttpError(403, "プロジェクト外へのアクセスは拒否します");
+  return target;
+}
+
+async function readNoFollow(file: string, limit: number): Promise<Buffer> {
+  const noFollow = process.platform === "win32" ? 0 : FS.O_NOFOLLOW;
+  const handle = await fs.open(file, FS.O_RDONLY | noFollow);
+  try {
+    const stat = await handle.stat();
+    if (!stat.isFile()) throw new HttpError(400, "通常ファイルではありません");
+    if (stat.size > limit) throw new HttpError(413, "ファイルが大きすぎます");
+    return await handle.readFile();
+  } finally {
+    await handle.close();
+  }
+}
+
+export async function startServer(options: ServerOptions): Promise<RunningServer> {
+  const root = await fs.realpath(path.resolve(options.projectDir));
+  const token = options.token ?? crypto.randomBytes(32).toString("base64url");
+  const allowedHosts = new Set([`127.0.0.1:${options.port}`, `localhost:${options.port}`]);
+  const allowedOrigins = new Set([`http://127.0.0.1:${options.port}`, `http://localhost:${options.port}`]);
+  const uiDir = options.uiDir ?? path.join(REPO_ROOT, "dist/studio");
+
+  /* ------------------------------------------------------------ change feed */
+  const changes: ChangeEvent[] = [];
+  let seq = 0;
+  const pushChange = (relative: string, kind: ChangeEvent["kind"], hash?: string) => {
+    changes.push({ seq: ++seq, path: relative, kind, ...(hash ? { hash } : {}) });
+    if (changes.length > 500) changes.splice(0, changes.length - 500);
+  };
+
+  /* ------------------------------------------------------------ build queue */
+  let build: BuildStatus = { state: "idle", version: null, diagnostics: [], stale: false, finishedAt: null };
+  let systemsBundle = "";
+  let revision = 0;
+  let queue: Promise<void> = Promise.resolve();
+  let scheduled: NodeJS.Timeout | undefined;
+  const requestBuild = () => {
+    clearTimeout(scheduled);
+    scheduled = setTimeout(() => { queue = queue.then(runBuild, runBuild); }, 150);
+  };
+  async function runBuild(): Promise<void> {
+    const startedAt = revision;
+    build = { ...build, state: "building", stale: build.version !== null };
+    const result = await buildProject(root).catch(error => ({ ok: false as const, diagnostics: [{ severity: "error" as const, message: String(error) }] }));
+    if (revision !== startedAt) { requestBuild(); return; } // inputs changed mid-build: discard and retry
+    if (result.ok && "version" in result) {
+      systemsBundle = result.systemsBundle ?? "";
+      build = { state: "ready", version: result.version!, diagnostics: result.diagnostics.map(formatDiagnostic), stale: false, finishedAt: new Date().toISOString() };
+    } else {
+      build = { state: "error", version: build.version, diagnostics: result.diagnostics.filter(d => d.severity === "error").map(formatDiagnostic), stale: build.version !== null, finishedAt: new Date().toISOString() };
+    }
+  }
+
+  /* ------------------------------------------------------------ watcher */
+  let watcher: FSWatcher | undefined;
+  if (options.watch !== false) {
+    const sources = ["engine", "runtime", "schema"].map(name => path.join(REPO_ROOT, "packages", name, "src"));
+    watcher = watch([root, ...sources], {
+      ignoreInitial: true,
+      followSymlinks: false,
+      ignored: (p: string) => IGNORED.test(p.split(path.sep).join("/")) || /\.tmp$/.test(p),
+      awaitWriteFinish: { stabilityThreshold: 120, pollInterval: 40 },
+    });
+    watcher.on("all", async (event, file) => {
+      if (!["add", "change", "unlink"].includes(event)) return;
+      revision++;
+      const inProject = path.relative(root, file);
+      if (!inProject.startsWith("..") && !path.isAbsolute(inProject)) {
+        const relative = inProject.split(path.sep).join("/");
+        let hash: string | undefined;
+        if (event !== "unlink") { try { hash = sha256(await readNoFollow(await securePath(root, relative), MAX_BINARY)); } catch { /* not a served file */ } }
+        pushChange(relative, event as ChangeEvent["kind"], hash);
+      } else {
+        pushChange(`engine:${path.relative(REPO_ROOT, file).split(path.sep).join("/")}`, event as ChangeEvent["kind"]);
+      }
+      requestBuild();
+    });
+  }
+
+  /* ------------------------------------------------------------ handlers */
+  const writeLocks = new Map<string, Promise<unknown>>();
+  async function withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const previous = writeLocks.get(key) ?? Promise.resolve();
+    const next = previous.then(fn, fn);
+    writeLocks.set(key, next.catch(() => undefined));
+    return next;
+  }
+
+  async function snapshot(): Promise<ProjectSnapshot> {
+    const { texts } = await readProjectTexts(root);
+    // Also expose scenario tests so the studio can list them.
+    try {
+      for (const name of await fs.readdir(path.join(root, "tests"))) {
+        if (name.endsWith(".scenario.json")) texts[`tests/${name}`] = (await readNoFollow(await securePath(root, `tests/${name}`), MAX_TEXT)).toString("utf8");
+      }
+    } catch { /* no tests folder */ }
+    const hashes: Record<string, string> = {};
+    for (const [file, text] of Object.entries(texts)) hashes[file] = sha256(Buffer.from(text, "utf8"));
+    return { projectDir: path.relative(REPO_ROOT, root).split(path.sep).join("/") || root, texts, hashes };
+  }
+
+  async function save(body: SaveRequest) {
+    if (!body || typeof body.path !== "string" || typeof body.content !== "string" || typeof body.expectedHash !== "string") throw new HttpError(400, "{path, content, expectedHash} が必要です");
+    const ext = path.extname(body.path).toLowerCase();
+    if (!TEXT_EXT.has(ext)) throw new HttpError(415, "工房から保存できるのはテキスト(.json/.ts/.md)のみです");
+    if (Buffer.byteLength(body.content, "utf8") > MAX_TEXT) throw new HttpError(413, "内容が大きすぎます");
+    if (ext === ".json") { try { JSON.parse(body.content); } catch { throw new HttpError(422, "JSONとして正しくない内容は保存しません"); } }
+    const target = await securePath(root, body.path);
+    return withLock(target, async () => {
+      const current = await readNoFollow(await securePath(root, body.path), MAX_TEXT);
+      const currentHash = sha256(current);
+      if (currentHash !== body.expectedHash) return { status: 409, json: { error: "conflict", path: body.path, latestContent: current.toString("utf8"), latestHash: currentHash } };
+      const temp = path.join(path.dirname(target), `.${path.basename(target)}.${crypto.randomBytes(6).toString("hex")}.tmp`);
+      const bytes = Buffer.from(body.content, "utf8");
+      try {
+        const handle = await fs.open(temp, "wx", 0o644);
+        try { await handle.writeFile(bytes); await handle.sync(); } finally { await handle.close(); }
+        await securePath(root, body.path); // re-check right before replacing
+        await fs.rename(temp, target);
+      } catch (error) {
+        await fs.rm(temp, { force: true }).catch(() => {});
+        throw error;
+      }
+      const hash = sha256(bytes);
+      revision++;
+      pushChange(body.path, "change", hash);
+      requestBuild();
+      return { status: 200, json: { path: body.path, hash } };
+    });
+  }
+
+  async function runTests(): Promise<TestResponse> {
+    const loaded = await loadProjectFromDisk(root);
+    const diagnostics = loaded.diagnostics.map(formatDiagnostic);
+    if (!loaded.content) return { ok: false, results: [], diagnostics };
+    try {
+      const systems = await loadSystems(root, loaded.content);
+      const results = await runProjectScenarios(root, loaded.content, systems);
+      return { ok: results.every(r => r.ok), results, diagnostics };
+    } catch (error) {
+      return { ok: false, results: [], diagnostics: [...diagnostics, `ERROR ${error instanceof Error ? error.message : String(error)}`] };
+    }
+  }
+
+  async function serveUi(pathname: string, res: http.ServerResponse) {
+    const relative = pathname === "/" ? "index.html" : decodeURIComponent(pathname.slice(1));
+    if (!isSafeRelative(relative)) throw new HttpError(404, "not found");
+    const types: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml", ".png": "image/png", ".woff2": "font/woff2" };
+    let file = path.join(uiDir, ...relative.split("/"));
+    let body: Buffer;
+    try {
+      const real = await fs.realpath(file);
+      if (path.relative(await fs.realpath(uiDir), real).startsWith("..")) throw new HttpError(403, "forbidden");
+      body = await fs.readFile(real);
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      if (path.extname(relative)) throw new HttpError(404, "not found");
+      file = path.join(uiDir, "index.html");
+      try { body = await fs.readFile(file); } catch { throw new HttpError(503, "工房UIがビルドされていません。`pnpm studio` で起動してください"); }
+    }
+    if (file.endsWith(".html")) {
+      const meta = `<meta name="${LOCAL_TOKEN_META}" content="${token}">`;
+      body = Buffer.from(body.toString("utf8").replace(/<head>/i, `<head>\n    ${meta}`));
+    }
+    res.writeHead(200, {
+      "content-type": types[path.extname(file)] ?? "application/octet-stream",
+      "cache-control": file.endsWith(".html") ? "no-store" : "public, max-age=3600",
+      "x-content-type-options": "nosniff",
+      "referrer-policy": "no-referrer",
+      "x-frame-options": "DENY",
+      "content-security-policy": "default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self' blob:; connect-src 'self'; frame-ancestors 'none'",
+    });
+    res.end(body);
+  }
+
+  async function readBody(req: http.IncomingMessage): Promise<unknown> {
+    const chunks: Buffer[] = [];
+    let size = 0;
+    for await (const chunk of req) {
+      size += (chunk as Buffer).length;
+      if (size > MAX_TEXT + 4096) throw new HttpError(413, "リクエストが大きすぎます");
+      chunks.push(chunk as Buffer);
+    }
+    try { return JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { throw new HttpError(400, "JSON本文が必要です"); }
+  }
+
+  const json = (res: http.ServerResponse, status: number, body: unknown) => {
+    res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
+    res.end(JSON.stringify(body));
+  };
+
+  const server = http.createServer(async (req, res) => {
+    try {
+      const host = (req.headers.host ?? "").toLowerCase();
+      if (!allowedHosts.has(host)) throw new HttpError(403, "Hostが許可されていません");
+      const origin = req.headers.origin;
+      if (origin !== undefined && !allowedOrigins.has(origin)) throw new HttpError(403, "Originが一致しません");
+      const url = new URL(req.url ?? "/", `http://${host}`);
+      if (!url.pathname.startsWith("/api/")) {
+        if (req.method !== "GET" && req.method !== "HEAD") throw new HttpError(405, "method not allowed");
+        await serveUi(url.pathname, res);
+        return;
+      }
+      if (req.headers[LOCAL_TOKEN_HEADER] !== token) throw new HttpError(401, "セッショントークンが必要です");
+      const mutating = req.method !== "GET";
+      if (mutating && origin === undefined) throw new HttpError(403, "更新系の操作にはOriginが必要です");
+      if (mutating && !String(req.headers["content-type"] ?? "").startsWith("application/json")) throw new HttpError(415, "application/json が必要です");
+
+      const route = `${req.method} ${url.pathname}`;
+      switch (route) {
+        case "GET /api/project": return json(res, 200, await snapshot());
+        case "GET /api/asset": {
+          const relative = url.searchParams.get("path") ?? "";
+          const ext = path.extname(relative).toLowerCase();
+          if (!BINARY_EXT[ext]) throw new HttpError(415, "素材は画像・音声のみ取得できます");
+          const bytes = await readNoFollow(await securePath(root, relative), MAX_BINARY);
+          res.writeHead(200, { "content-type": BINARY_EXT[ext]!, "cache-control": "no-store", "x-content-type-options": "nosniff" });
+          res.end(bytes);
+          return;
+        }
+        case "PUT /api/file": {
+          const result = await save(await readBody(req) as SaveRequest);
+          return json(res, result.status, result.json);
+        }
+        case "GET /api/changes": {
+          const after = Number(url.searchParams.get("after") ?? 0);
+          if (!Number.isSafeInteger(after) || after < 0) throw new HttpError(400, "invalid cursor");
+          return json(res, 200, { cursor: seq, changes: changes.filter(c => c.seq > after), build });
+        }
+        case "GET /api/build": return json(res, 200, build);
+        case "POST /api/build": { revision++; requestBuild(); return json(res, 202, { ...build, state: "building" }); }
+        case "GET /api/build/systems.js": {
+          if (!systemsBundle) throw new HttpError(404, "まだ成功したビルドがありません");
+          res.writeHead(200, { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" });
+          res.end(systemsBundle);
+          return;
+        }
+        case "POST /api/test": return json(res, 200, await runTests());
+        default: throw new HttpError(404, "unknown endpoint");
+      }
+    } catch (error) {
+      const status = error instanceof HttpError ? error.status : 500;
+      if (status === 500) console.error(error);
+      if (!res.headersSent) json(res, status, { error: error instanceof Error ? error.message : String(error) });
+      else res.end();
+    }
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(options.port, "127.0.0.1", () => resolve());
+  });
+  if (options.buildOnStart !== false) { revision++; queue = queue.then(runBuild); }
+
+  return {
+    url: `http://127.0.0.1:${options.port}`,
+    token,
+    server,
+    idle: async () => { await new Promise(r => setTimeout(r, 200)); await queue; },
+    close: async () => {
+      clearTimeout(scheduled);
+      await watcher?.close();
+      await new Promise<void>(resolve => server.close(() => resolve()));
+      server.closeAllConnections?.();
+    },
+  };
+}

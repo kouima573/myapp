@@ -1,0 +1,17 @@
+{
+  "formatVersion": 1,
+  "id": "sample-rpg",
+  "title": "森境の小さな冒険",
+  "engineCompatibility": { "min": "0.1.0" },
+  "startMapId": "village",
+  "maps": [
+    { "id": "village", "path": "maps/village.json", "title": "苔森の村" },
+    { "id": "ruins", "path": "maps/ruins.json", "title": "風穴の遺跡" }
+  ],
+  "eventsPath": "events/events.json",
+  "dialoguesPath": "dialogues/dialogues.json",
+  "assetsPath": "assets.json",
+  "systems": [
+    { "id": "sample-abilities", "path": "systems/abilities.ts", "title": "種族固有能力サンプル" }
+  ]
+}

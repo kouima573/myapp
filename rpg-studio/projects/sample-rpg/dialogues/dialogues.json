@@ -1,0 +1,165 @@
+{
+  "formatVersion": 2,
+  "dialogues": [
+    {
+      "id": "scout-dialog",
+      "speaker": "リオ",
+      "lines": [
+        "やあ、小人の旅人さん。森の獣人に伝わる『獣道』を知ってる？",
+        "岩場のわずかな隙間も、獣の感覚なら抜けられるんだ。遺跡の近道に使えるよ。"
+      ],
+      "choices": [
+        {
+          "id": "learn-trail",
+          "label": "獣道を教わる",
+          "once": true,
+          "effects": [
+            {
+              "type": "unlockAbility",
+              "ability": "beast-trail"
+            },
+            {
+              "type": "setFlag",
+              "flag": "beastPathUnlocked"
+            },
+            {
+              "type": "message",
+              "text": "『獣道』を覚えた！ 遺跡の石畳の先にある岩の隙間を調べてみよう。"
+            }
+          ]
+        },
+        {
+          "id": "later",
+          "label": "あとで",
+          "effects": [
+            {
+              "type": "message",
+              "text": "いつでも声をかけてね。",
+              "speaker": "リオ"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rio-after",
+      "speaker": "リオ",
+      "lines": [
+        "獣道はもう体が覚えてるはず。遺跡に入ってまっすぐ石畳を進むと、岩の隙間があるよ。",
+        "落ち葉の積もった回り道は魔物が多いから気をつけて。"
+      ]
+    },
+    {
+      "id": "guard-warning",
+      "speaker": "ガルド",
+      "lines": [
+        "橋の先は風穴の遺跡だ。奥の石像の番人が最近目を覚ましたらしい。",
+        "番人の『岩砕き』は重い一撃だ。身を守るか、薬草を用意しておけ。長老の家は村の北だ。"
+      ]
+    },
+    {
+      "id": "guard-thanks",
+      "speaker": "ガルド",
+      "lines": [
+        "番人を鎮めたのか！ 大したもんだ。長老に報告してやってくれ。"
+      ]
+    },
+    {
+      "id": "apprentice-dialog",
+      "speaker": "テト",
+      "lines": [
+        "小人の『不屈の魂』って知ってる？ 一度の戦いで一回だけ、倒れるはずの一撃をこらえられるんだって。",
+        "でも同じ戦いで二度目はない。過信は禁物だよ。"
+      ]
+    },
+    {
+      "id": "elder-before",
+      "speaker": "長老オババ",
+      "lines": [
+        "遺跡の番人が目覚めてから、村に風が吹かなくなってしもうた……。",
+        "旅の人、もしよければ様子を見てきてはくれんか。"
+      ],
+      "choices": [
+        {
+          "id": "get-herbs",
+          "label": "薬草をもらう",
+          "once": true,
+          "effects": [
+            {
+              "type": "giveItem",
+              "item": "herb",
+              "count": 2
+            },
+            {
+              "type": "message",
+              "text": "薬草を2つもらった。"
+            }
+          ]
+        },
+        {
+          "id": "rest",
+          "label": "休ませてもらう",
+          "effects": [
+            {
+              "type": "heal"
+            },
+            {
+              "type": "message",
+              "text": "ゆっくり休んだ。HPが全回復した。"
+            }
+          ]
+        },
+        {
+          "id": "bye",
+          "label": "行ってきます",
+          "effects": []
+        }
+      ]
+    },
+    {
+      "id": "elder-after",
+      "speaker": "長老オババ",
+      "lines": [
+        "おお……風が戻ってきた。番人を鎮めてくれたのじゃな。"
+      ],
+      "effects": [
+        {
+          "type": "if",
+          "when": {
+            "done": "elder-thanks"
+          },
+          "then": [
+            {
+              "type": "message",
+              "text": "村はもう大丈夫じゃ。ゆっくりしていきなされ。",
+              "speaker": "長老オババ"
+            }
+          ],
+          "else": [
+            {
+              "type": "giveItem",
+              "item": "herb",
+              "count": 3
+            },
+            {
+              "type": "setFlag",
+              "flag": "questComplete"
+            },
+            {
+              "type": "markDone",
+              "id": "elder-thanks"
+            },
+            {
+              "type": "message",
+              "text": "長老から薬草を3つ受け取った。"
+            },
+            {
+              "type": "message",
+              "text": "— 森境の小さな冒険　おしまい —"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

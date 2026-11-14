@@ -1,0 +1,60 @@
+{
+  "name": "獣道を覚える前は岩の隙間を通れず、長い回り道になる",
+  "steps": [
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "ruins",
+          "x": 9,
+          "y": 9
+        }
+      ]
+    },
+    {
+      "face": "up"
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "textIncludes": "通れそうにない"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "flags": {
+          "ruinsShortcutOpen": false
+        },
+        "notDone": [
+          "open-ruins-shortcut"
+        ],
+        "passable": [
+          {
+            "x": 9,
+            "y": 8,
+            "is": false
+          }
+        ]
+      }
+    },
+    {
+      "walkTo": {
+        "x": 13,
+        "y": 7
+      }
+    },
+    {
+      "expect": {
+        "at": {
+          "x": 13,
+          "y": 7
+        }
+      }
+    }
+  ]
+}

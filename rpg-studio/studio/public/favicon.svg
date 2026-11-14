@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="RPGシステム工房">
+  <rect width="128" height="128" rx="24" fill="#14201a"/>
+  <path d="M24 24h32v32H24z" fill="#d6ad58"/>
+  <path d="M72 24h32v32H72z" fill="#6c8d70"/>
+  <path d="M24 72h32v32H24z" fill="#45634b"/>
+  <path d="M72 72h32v32H72z" fill="#ecd68c"/>
+  <path d="M40 40h16v16H40zM72 56h16v16H72zM56 72h16v16H56z" fill="#14201a"/>
+</svg>

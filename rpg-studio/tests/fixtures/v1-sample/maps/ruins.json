@@ -1,0 +1,44 @@
+{
+  "formatVersion": 1,
+  "id": "ruins",
+  "title": "風穴の遺跡",
+  "width": 20,
+  "height": 14,
+  "tileSize": 32,
+  "rows": [
+    "TTTTTTTTTTTTTTTTTTTT",
+    "T..................T",
+    "T..................T",
+    "T.wwwwwwwwwwwwwwww.T",
+    "T.wi*iiiisssssssiw.T",
+    "T.wiiTTiisii*ii*iw.T",
+    "T.wiiiiiisgsssssiw.T",
+    "T.wiiii*isiiTTTTiw.T",
+    "T.wiiTTiisiiiTTTiw.T",
+    "T.dsssssssiiiiiiiw.T",
+    "T.wwwwwwwwwwwwwwww.T",
+    "T..................T",
+    "T..................T",
+    "TTTTTTTTTTTTTTTTTTTT"
+  ],
+  "npcs": [],
+  "portals": [
+    {
+      "id": "ruins-to-village",
+      "x": 2,
+      "y": 9,
+      "targetMapId": "village",
+      "targetX": 17,
+      "targetY": 9
+    }
+  ],
+  "interactables": [
+    {
+      "id": "shortcut-gate",
+      "x": 10,
+      "y": 6,
+      "eventId": "open-ruins-shortcut",
+      "label": "獣道で岩の脇を抜ける"
+    }
+  ]
+}
