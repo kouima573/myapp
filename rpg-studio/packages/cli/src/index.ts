@@ -12,6 +12,7 @@ import type { GameSystem } from "../../engine/src/index";
 import { runScenario, ScenarioSchema, type ScenarioResult } from "../../engine/src/scenario";
 import { buildProject, importSystemModule, REPO_ROOT } from "./build";
 import { catalog, jsonSchemas } from "./catalog";
+import { cmdArt, cmdAsset } from "./assets";
 import { loadProjectFromDisk, readProjectTexts, resolveInside } from "./load";
 
 const USAGE = `RPG Studio CLI
@@ -23,10 +24,14 @@ const USAGE = `RPG Studio CLI
   rpg migrate  --project <dir> [--write]      旧形式を移行（既定は差分表示のみ。--writeでバックアップ後に保存）
   rpg catalog  --project <dir>          定義済みのID・フラグ・変数・特性・ルールの一覧（Markdown）
   rpg schema   [--check]                schema/*.schema.json（エディター・AI向けJSON Schema）を生成／最新か確認
+  rpg asset    <sources|enable|disable|add|gen-sfx|report|credits> --project <dir>   素材の取得元・追加・生成・容量・クレジット
+  rpg art      <list|prompt|check> --project <dir>                                   画像の要件定義（art/requests.json）から生成用プロンプト・納品チェック
 `;
 
 function parseArgs(argv: string[]) {
-  const [command, ...rest] = argv;
+  const [command, ...afterCommand] = argv;
+  const sub = afterCommand[0] && !afterCommand[0].startsWith("--") ? afterCommand[0] : undefined;
+  const rest = sub ? afterCommand.slice(1) : afterCommand;
   const flags: Record<string, string | boolean> = {};
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]!;
@@ -36,7 +41,7 @@ function parseArgs(argv: string[]) {
     const next = rest[i + 1];
     if (next !== undefined && !next.startsWith("--")) { flags[key] = next; i++; } else flags[key] = true;
   }
-  return { command, flags };
+  return { command, sub, flags };
 }
 
 function projectDir(flags: Record<string, string | boolean>): string {
@@ -258,6 +263,8 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "migrate": return cmdMigrate(parsed.flags);
     case "catalog": return cmdCatalog(parsed.flags);
     case "schema": return cmdSchema(parsed.flags);
+    case "asset": return cmdAsset(parsed.sub, projectDir(parsed.flags), parsed.flags);
+    case "art": return cmdArt(parsed.sub, projectDir(parsed.flags), parsed.flags);
     default: console.log(USAGE); return parsed.command && parsed.command !== "help" && parsed.command !== "--help" ? 2 : 0;
   }
 }

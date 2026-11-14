@@ -117,6 +117,16 @@
 
 `{ formatVersion, projectId, savedAt, state }`。`state` には現在地・向き・HP・基本能力値・能力・特性・アイテム・フラグ・変数・地形変更・発動済みルール・完了ID・乱数シード・システム用データを安定IDで記録します。0.3で増えた項目がない古いセーブも既定値で読み込めます。会話や戦闘の途中ではセーブできません。読込時はプロジェクトID・形式・マップの存在・座標を確認し、壊れていても例外にせず理由を表示して新規開始を選べます。v1セーブは読込時に変換します（元データは書き換えません）。後から追加したフラグは初期値で補います。
 
+## 音
+
+- `project.json` › `audio`: `battle`（戦闘BGM）、`victory`（勝利の音）、`sfx`（場面ごとの効果音: cursor / confirm / cancel / bump / hit / hurt / heal / encounter / victory / defeat / door / item / save / menu）、`volume`。
+- マップの `bgm`、敵の `bgm`、効果 `playBgm`（`null` で無音、セーブに残る）・`playSfx`。
+- 素材の種類 `bgm`・`sfx`（OGG/MP3/WAV）と `song`（楽譜BGM `.song.json`。書式は [asset-guide.md](asset-guide.md)）。
+
+## 素材の出どころ（assets.json）
+
+`origin`（original / generated / site / purchased / commission）、`sourceId`（取得元カタログのID）、`url`、`author`、`license`、`licenseUrl`、`credit`、`creditRequired`、`redistributable`、`termsCheckedAt`（YYYY-MM-DD）、`notes`、`request`（画像依頼ID）、`generator`。外部素材は sourceId・規約確認日・規約名（サイトならURLも）が必須です。`project.json` › `assetPolicy` で、取得元のON/OFF・共有用かどうか・入手方法の優先順・容量予算を決めます。詳しくは [asset-guide.md](asset-guide.md)。
+
 ## 画像シート
 
 `tileWidth`・`tileHeight`・`columns`・`rows`（・`margin`・`spacing`）で寸法を宣言し、`rpg validate` がPNGの実寸と照合します。キャラクターは行＝向き（下・左・右・上）、列＝歩行フレーム。ソース64pxセルを32pxで、補間なしで描画します。

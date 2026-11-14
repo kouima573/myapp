@@ -134,6 +134,8 @@ export type Effect =
   | { type: "battleLog"; text: string }
   | { type: "endBattle"; outcome: "victory" | "fled" }
   | { type: "markDone"; id: string }
+  | { type: "playSfx"; sound: string }
+  | { type: "playBgm"; music: string | null }
   | { type: "if"; when: Condition; then: Effect[]; else?: Effect[] }
   | { type: "system"; system: string; action: string; args?: Record<string, unknown> };
 
@@ -165,6 +167,8 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("battleLog"), text: z.string().min(1) }).strict(),
   z.object({ type: z.literal("endBattle"), outcome: z.enum(["victory", "fled"]) }).strict(),
   z.object({ type: z.literal("markDone"), id: IdSchema }).strict(),
+  z.object({ type: z.literal("playSfx"), sound: IdSchema }).strict(),
+  z.object({ type: z.literal("playBgm"), music: IdSchema.nullable() }).strict(),
   z.object({ type: z.literal("if"), when: ConditionSchema, then: z.array(EffectSchema), else: z.array(EffectSchema).optional() }).strict(),
   z.object({ type: z.literal("system"), system: IdSchema, action: IdSchema, args: z.record(z.string(), z.unknown()).optional() }).strict(),
 ]));
@@ -232,6 +236,64 @@ export const StatsSchema = z.object({
 }).strict();
 export type Stats = z.infer<typeof StatsSchema>;
 
+export const SFX_CUES = ["cursor", "confirm", "cancel", "bump", "hit", "hurt", "heal", "encounter", "victory", "defeat", "door", "item", "save", "menu"] as const;
+export type SfxCue = (typeof SFX_CUES)[number];
+
+export const AudioConfigSchema = z.object({
+  /** BGM played in battles unless the enemy has its own. bgm/song asset id. */
+  battle: IdSchema.optional(),
+  /** Jingle (sfx/song) after victory. */
+  victory: IdSchema.optional(),
+  /** Which sound plays for each built-in cue. Unset cues use a tiny built-in beep. */
+  sfx: z.partialRecord(z.enum(SFX_CUES), IdSchema).default({}),
+  volume: z.object({ bgm: z.number().min(0).max(1).default(0.6), sfx: z.number().min(0).max(1).default(0.8) }).strict().default({ bgm: 0.6, sfx: 0.8 }),
+}).strict();
+export type AudioConfig = z.infer<typeof AudioConfigSchema>;
+
+export const SOURCE_CATEGORIES = ["image", "bgm", "sfx", "song"] as const;
+export const AssetSourceSchema = z.object({
+  id: IdSchema,
+  name: z.string().min(1),
+  url: z.string().url().optional(),
+  termsUrl: z.string().url().optional(),
+  categories: z.array(z.enum(SOURCE_CATEGORIES)).min(1),
+  origin: z.enum(["site", "purchased", "commission", "generated"]),
+  /** Summary of the terms as last checked. Always re-read termsUrl before adding files. */
+  summary: z.string(),
+  /** What the agent/person must confirm for each file. */
+  checklist: z.array(z.string()).default([]),
+  creditRequired: z.enum(["yes", "no", "varies", "unknown"]),
+  /** Raw files inside a shared template / sample project. */
+  redistribution: z.enum(["allowed", "prohibited", "varies", "unknown"]),
+  /** May an AI agent fetch files automatically, or must a person download them? */
+  automatedDownload: z.enum(["allowed", "manual", "unknown"]),
+  /** null = the summary has not been verified against the original terms page. */
+  verifiedAt: z.string().nullable().default(null),
+  defaultEnabled: z.boolean().default(false),
+  notes: z.string().optional(),
+}).strict();
+export type AssetSource = z.infer<typeof AssetSourceSchema>;
+
+export const AssetPolicySchema = z.object({
+  /** This project is meant to be shared as a template/sample: only redistributable assets allowed. */
+  shareable: z.boolean().default(false),
+  /** Turn catalog sources on/off for this project (missing = the source's defaultEnabled). */
+  sources: z.record(IdSchema, z.boolean()).default({}),
+  /** Extra sites the user trusts (same shape as the catalog). */
+  customSources: z.array(AssetSourceSchema).default([]),
+  /** Preferred way to get each kind of asset, in order. */
+  prefer: z.partialRecord(z.enum(SOURCE_CATEGORIES), z.array(z.enum(["generate", "site", "purchased", "commission"]))).default({}),
+  budget: z.object({
+    /** Warn above this total (MB) for the web build. */
+    warnTotalMB: z.number().positive().default(100),
+    /** Error above this total (MB). */
+    maxTotalMB: z.number().positive().default(300),
+    /** Error for any single file above this (MB). */
+    maxFileMB: z.number().positive().default(20),
+  }).strict().default({ warnTotalMB: 100, maxTotalMB: 300, maxFileMB: 20 }),
+}).strict();
+export type AssetPolicy = z.infer<typeof AssetPolicySchema>;
+
 export const ProjectManifestSchema = z.object({
   formatVersion: z.literal(PROJECT_FORMAT_VERSION),
   id: IdSchema,
@@ -261,6 +323,10 @@ export const ProjectManifestSchema = z.object({
   rulesPath: RelPathSchema.optional(),
   assetsPath: RelPathSchema,
   systems: z.array(FileRefSchema).default([]),
+  audio: AudioConfigSchema.default({ sfx: {}, volume: { bgm: 0.6, sfx: 0.8 } }),
+  assetPolicy: AssetPolicySchema.default({ shareable: false, sources: {}, customSources: [], prefer: {}, budget: { warnTotalMB: 100, maxTotalMB: 300, maxFileMB: 20 } }),
+  /** Extra lines for the credits screen (staff, thanks). Asset credits are added automatically. */
+  credits: z.array(z.string()).default([]),
 }).strict();
 export type ProjectManifest = z.infer<typeof ProjectManifestSchema>;
 
@@ -269,6 +335,8 @@ export type ProjectManifest = z.infer<typeof ProjectManifestSchema>;
 export const TileDefSchema = z.object({
   code: z.string().length(1).refine(code => code !== " " && code !== "\"" && code !== "\\", "空白・引用符・バックスラッシュはタイルコードに使えません"),
   name: z.string().min(1),
+  /** Tileset image for this tile (defaults to the tileset's `atlas`). Lets one project use many tile sheets. */
+  atlas: IdSchema.optional(),
   /** Cell index in the atlas, row-major. */
   index: z.number().int().nonnegative(),
   passable: z.boolean(),
@@ -347,6 +415,10 @@ export const GameMapSchema = z.object({
   npcs: z.array(NpcSchema).default([]),
   portals: z.array(PortalSchema).default([]),
   interactables: z.array(InteractableSchema).default([]),
+  /** BGM (bgm or song asset) for this map. */
+  bgm: IdSchema.optional(),
+  /** Battle background image (background asset) for fights on this map. */
+  battleBackground: IdSchema.optional(),
   /** Tiles that change while a condition holds (bridge built, rubble cleared…). Later overlays win. */
   overlays: z.array(z.object({
     when: ConditionSchema,
@@ -494,6 +566,10 @@ export const EnemySchema = z.object({
   /** Each turn, the available actions (whose `when` holds) are used in order, cycling. */
   actions: z.array(EnemyActionSchema).min(1),
   drops: z.array(z.object({ item: IdSchema, count: z.number().int().positive().default(1) }).strict()).default([]),
+  /** Battle music for this enemy (overrides audio.battle). */
+  bgm: IdSchema.optional(),
+  /** Battle background (overrides the map's battleBackground). */
+  background: IdSchema.optional(),
   /** Rules active during battles with this enemy. */
   rules: z.array(RuleSchema).default([]),
   canFlee: z.boolean().default(true),
@@ -512,14 +588,40 @@ export type Database = z.infer<typeof DatabaseSchema>;
 /* ------------------------------------------------------------------ Assets (format 1, unchanged) */
 
 export const ASSET_MANIFEST_FORMAT_VERSION = 1;
+export const ASSET_KINDS = ["tileset", "character", "enemy", "animation", "portrait", "background", "bgm", "sfx", "song"] as const;
+export type AssetKind = (typeof ASSET_KINDS)[number];
+export const IMAGE_KINDS: readonly AssetKind[] = ["tileset", "character", "enemy", "animation", "portrait", "background"];
+export const ASSET_ORIGINS = ["original", "generated", "site", "purchased", "commission"] as const;
 export const AssetEntrySchema = z.object({
   id: IdSchema,
   path: RelPathSchema,
-  kind: z.enum(["tileset", "character", "enemy", "animation", "bgm", "sfx"]),
+  kind: z.enum(ASSET_KINDS),
   mimeType: z.string().min(1),
   bytes: z.number().int().nonnegative(),
+  /** Human readable origin (kept for v1 compatibility). */
   source: z.string().default("自作"),
   license: z.string().default("プロジェクト内素材"),
+  /** Where it came from. "site" / "purchased" / "commission" require a sourceId and a terms check date. */
+  origin: z.enum(ASSET_ORIGINS).default("original"),
+  /** Id in the asset-source catalog (packages/schema/src/asset-sources.json or assetPolicy.customSources). */
+  sourceId: IdSchema.optional(),
+  /** Page the file was obtained from. */
+  url: z.string().url().optional(),
+  author: z.string().optional(),
+  licenseUrl: z.string().url().optional(),
+  /** Exact credit text to show in the game's credits. */
+  credit: z.string().optional(),
+  creditRequired: z.boolean().default(false),
+  /** May the raw file be shipped inside a shared template / sample project? (Shipping inside your own game is separate.) */
+  redistributable: z.boolean().default(true),
+  /** YYYY-MM-DD when a person/agent read the terms for this file. */
+  termsCheckedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  /** Anything the creator said that matters (e.g. "クレジット推奨", "AI学習禁止"). */
+  notes: z.string().optional(),
+  /** Art request id this asset fulfils (art/requests.json). */
+  request: IdSchema.optional(),
+  /** How a generated asset was made (tool, preset, seed, prompt). */
+  generator: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
   tileWidth: z.number().int().positive().optional(),
   tileHeight: z.number().int().positive().optional(),
   margin: z.number().int().nonnegative().optional(),
@@ -541,8 +643,20 @@ export const AssetManifestSchema = z.object({
   manifest.assets.forEach((asset, index) => {
     if (ids.has(asset.id)) ctx.addIssue({ code: "custom", path: ["assets", index, "id"], message: `素材IDが重複しています: ${asset.id}` });
     ids.add(asset.id);
-    const image = asset.kind === "tileset" || asset.kind === "character" || asset.kind === "enemy" || asset.kind === "animation";
-    if (image) {
+    const at = (field: string) => ["assets", index, field];
+    if (asset.origin === "site" || asset.origin === "purchased" || asset.origin === "commission") {
+      if (!asset.sourceId) ctx.addIssue({ code: "custom", path: at("sourceId"), message: "外部から入手した素材には取得元(sourceId)が必要です" });
+      if (!asset.termsCheckedAt) ctx.addIssue({ code: "custom", path: at("termsCheckedAt"), message: "外部素材には規約を確認した日(termsCheckedAt: YYYY-MM-DD)が必要です" });
+      if (asset.origin === "site" && !asset.url) ctx.addIssue({ code: "custom", path: at("url"), message: "サイトから入手した素材には入手ページのURLが必要です" });
+      if (!asset.license || asset.license === "プロジェクト内素材") ctx.addIssue({ code: "custom", path: at("license"), message: "外部素材には規約・ライセンス名を書いてください" });
+    }
+    if (asset.origin === "generated" && !asset.generator) ctx.addIssue({ code: "custom", path: at("generator"), message: "生成素材には生成方法(generator: ツール・プロンプト・シード等)を記録してください" });
+    if (asset.creditRequired && !asset.credit) ctx.addIssue({ code: "custom", path: at("credit"), message: "クレジット表記が必要な素材には表示する文言(credit)を書いてください" });
+    if (asset.kind === "song") {
+      if (asset.mimeType !== "application/json" || !asset.path.toLowerCase().endsWith(".song.json")) ctx.addIssue({ code: "custom", path: at("mimeType"), message: "楽譜BGM(song)は .song.json と application/json で指定してください" });
+      return;
+    }
+    if (IMAGE_KINDS.includes(asset.kind)) {
       if (asset.mimeType !== "image/png" || !asset.path.toLowerCase().endsWith(".png")) ctx.addIssue({ code: "custom", path: ["assets", index, "mimeType"], message: "画像素材はPNG形式で指定してください" });
       for (const field of ["tileWidth", "tileHeight", "columns", "rows"] as const) {
         if (!asset[field]) ctx.addIssue({ code: "custom", path: ["assets", index, field], message: `画像シートには${field}が必要です` });
@@ -575,6 +689,8 @@ export interface GameContent {
   assets: AssetManifest;
   /** Global rules (rulesPath). */
   rules: Rule[];
+  /** Parsed .song.json files (when their text was available to the loader). */
+  songs: Record<string, Song>;
 }
 
 /* ------------------------------------------------------------------ Runtime state & saves */
@@ -627,6 +743,8 @@ export const GameStateSchema = z.object({
   tileOverrides: z.record(z.string(), z.record(z.string(), z.string())).default({}),
   /** Keys of fired once:"game"/"map" rules and armed auto rules. */
   fired: z.array(z.string()).default([]),
+  /** playBgm override: asset id, null = silence, absent = map default. */
+  music: IdSchema.nullable().optional(),
   /** Stable IDs of once-events, once-choices and markDone ids. */
   done: z.array(z.string()),
   scene: SceneSchema,
@@ -646,3 +764,76 @@ export const GameSaveSchema = z.object({
   state: GameStateSchema,
 }).strict();
 export type GameSave = z.infer<typeof GameSaveSchema>;
+
+/* ------------------------------------------------------------------ Song (chiptune BGM written as text) */
+
+export const SONG_WAVES = ["square", "pulse25", "pulse12", "triangle", "sawtooth", "sine", "noise"] as const;
+export const SongSchema = z.object({
+  formatVersion: z.literal(1),
+  title: z.string().min(1),
+  /** Quarter notes per minute. */
+  tempo: z.number().min(30).max(300),
+  loop: z.boolean().default(true),
+  tracks: z.array(z.object({
+    name: z.string().optional(),
+    wave: z.enum(SONG_WAVES),
+    volume: z.number().min(0).max(1).default(0.2),
+    /** Space separated: "C4/8 E4/8 G4/4. R/8 | x/16" — note+octave (or R rest, x hit) / 1 2 4 8 16 32, "." = dotted. "|" is ignored. */
+    notes: z.string().min(1),
+    transpose: z.number().int().min(-24).max(24).default(0),
+  }).strict()).min(1).max(8),
+}).strict();
+export type Song = z.infer<typeof SongSchema>;
+
+export interface SongEvent { start: number; duration: number; freq: number | null; hit: boolean }
+const NOTE_INDEX: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+/** Parses a track's note string into events measured in beats (quarter note = 1). Throws with the token position on error. */
+export function parseNotes(text: string, transpose = 0): { events: SongEvent[]; length: number } {
+  const events: SongEvent[] = [];
+  let time = 0;
+  const tokens = text.split(/\s+/).filter(t => t && t !== "|");
+  tokens.forEach((token, i) => {
+    const m = /^(R|x|[A-G](#|b)?(-?\d))\/(1|2|4|8|16|32)(\.?)$/.exec(token);
+    if (!m) throw new Error(`${i + 1}番目の「${token}」が読めません（例: C4/8, F#3/4., R/16, x/8）`);
+    const beats = (4 / Number(m[4])) * (m[5] ? 1.5 : 1);
+    if (m[1] === "R") { time += beats; return; }
+    if (m[1] === "x") { events.push({ start: time, duration: beats, freq: null, hit: true }); time += beats; return; }
+    const letter = m[1]![0]!;
+    const accidental = m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0;
+    const octave = Number(m[3]);
+    const midi = 12 * (octave + 1) + NOTE_INDEX[letter]! + accidental + transpose;
+    events.push({ start: time, duration: beats, freq: 440 * 2 ** ((midi - 69) / 12), hit: false });
+    time += beats;
+  });
+  return { events, length: time };
+}
+
+/* ------------------------------------------------------------------ Art requests (requirements for generated / sourced images) */
+
+export const ArtRequestSchema = z.object({
+  id: IdSchema,
+  title: z.string().min(1),
+  kind: z.enum(["tileset", "character", "enemy", "animation", "portrait", "background"]),
+  status: z.enum(["draft", "approved", "in-progress", "done", "rejected"]).default("draft"),
+  /** generate = AI image generation, site = find a commercially usable file, commission = ask a creator. */
+  mode: z.enum(["generate", "site", "commission"]).default("generate"),
+  purpose: z.string().default(""),
+  description: z.string().min(1),
+  mustHave: z.array(z.string()).default([]),
+  avoid: z.array(z.string()).default([]),
+  /** The user's own wishes and feedback on previous attempts. */
+  userNotes: z.string().default(""),
+  spec: z.object({
+    cellWidth: z.number().int().positive(),
+    cellHeight: z.number().int().positive(),
+    columns: z.number().int().positive(),
+    rows: z.number().int().positive(),
+    layout: z.string().default(""),
+    transparent: z.boolean().default(true),
+  }).strict(),
+  /** Asset id the result will be registered as. */
+  assetId: IdSchema.optional(),
+  candidates: z.array(z.object({ sourceId: IdSchema, url: z.string().url(), note: z.string().default("") }).strict()).default([]),
+}).strict();
+export type ArtRequest = z.infer<typeof ArtRequestSchema>;
+export const ArtRequestBundleSchema = z.object({ formatVersion: z.literal(1), requests: z.array(ArtRequestSchema) }).strict();

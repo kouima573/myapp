@@ -31,5 +31,7 @@
 | 仕掛けの処理（条件・効果） | `events/events.json` |
 | 旅の日誌（データで書きにくい文章づくり） | `systems/chronicle.ts` |
 | 自動プレイテスト | `tests/*.scenario.json` |
+| BGM（楽譜）・効果音（生成） | `assets/audio/`、割り当ては `project.json` › `audio` とマップの `bgm` |
+| 画像のスタイルガイドと追加依頼 | `art/style-guide.md`、`art/requests.json` |
 
 獣道はタイルの `passableWhen` とイベントの `when: { ability }`、不屈の魂は `lethalDamage` ルール（`once: "battle"`, `modify.hp: 1`）だけで実現しています。

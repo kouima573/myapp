@@ -148,5 +148,56 @@
       "path": "systems/chronicle.ts",
       "title": "旅の日誌（TypeScript拡張の例）"
     }
+  ],
+  "audio": {
+    "battle": "song-battle",
+    "victory": "sfx-victory",
+    "sfx": {
+      "cursor": "sfx-cursor",
+      "confirm": "sfx-confirm",
+      "cancel": "sfx-cancel",
+      "bump": "sfx-bump",
+      "hit": "sfx-hit",
+      "hurt": "sfx-hurt",
+      "heal": "sfx-heal",
+      "encounter": "sfx-encounter",
+      "victory": "sfx-victory",
+      "defeat": "sfx-defeat",
+      "door": "sfx-door",
+      "item": "sfx-item",
+      "save": "sfx-save",
+      "menu": "sfx-menu"
+    },
+    "volume": {
+      "bgm": 0.55,
+      "sfx": 0.8
+    }
+  },
+  "assetPolicy": {
+    "shareable": true,
+    "sources": {},
+    "customSources": [],
+    "prefer": {
+      "image": [
+        "generate"
+      ],
+      "bgm": [
+        "generate",
+        "site"
+      ],
+      "sfx": [
+        "generate",
+        "site"
+      ]
+    },
+    "budget": {
+      "warnTotalMB": 50,
+      "maxTotalMB": 100,
+      "maxFileMB": 10
+    }
+  },
+  "credits": [
+    "企画・データ: RPGシステム工房 サンプル",
+    "効果音・BGM: 内蔵ジェネレーターと楽譜BGMによるオリジナル"
   ]
 }

@@ -29,7 +29,10 @@ export type Cue =
   | { kind: "mapChanged"; from: string }
   | { kind: "battleStart"; enemyId: string }
   | { kind: "hit"; target: "player" | "enemy"; amount: number }
-  | { kind: "battleEnd"; outcome: BattleState["outcome"] };
+  | { kind: "battleEnd"; outcome: BattleState["outcome"] }
+  | { kind: "sfx"; sound: string }
+  | { kind: "item" }
+  | { kind: "heal" };
 
 export interface StepResult {
   state: GameState;
@@ -355,6 +358,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       case "giveItem": {
         const count = effect.count ?? 1;
         c.log.push(`${itemName(effect.item)} ×${count} を入手`);
+        c.cues.push({ kind: "item" });
         return withHpCare(state, s => ({ ...s, items: { ...s.items, [effect.item]: (s.items[effect.item] ?? 0) + count } }));
       }
       case "takeItem":
@@ -367,6 +371,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       case "heal": {
         const max = stats(state).maxHp;
         const amount = effect.amount === undefined ? max : ex(effect.amount, state, ctxValues);
+        if (amount > 0) c.cues.push({ kind: "heal" });
         return { ...state, player: { ...state.player, hp: Math.max(0, Math.min(max, state.player.hp + amount)) } };
       }
       case "damage": {
@@ -392,6 +397,11 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       }
       case "markDone":
         return state.done.includes(effect.id) ? state : { ...state, done: [...state.done, effect.id] };
+      case "playSfx":
+        c.cues.push({ kind: "sfx", sound: effect.sound });
+        return state;
+      case "playBgm":
+        return { ...state, music: effect.music };
       case "event": {
         const event = content.events[effect.event];
         if (!event) throw new Error(`イベント '${effect.event}' がありません`);

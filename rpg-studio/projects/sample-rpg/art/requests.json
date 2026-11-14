@@ -1,0 +1,326 @@
+{
+  "formatVersion": 1,
+  "requests": [
+    {
+      "id": "char-elder",
+      "title": "長老オババ",
+      "kind": "character",
+      "status": "draft",
+      "mode": "generate",
+      "purpose": "村や遺跡に置くNPC",
+      "description": "小柄な老婆。大きなつば広帽子、木の杖、深緑のショール。",
+      "mustHave": [
+        "杖",
+        "帽子"
+      ],
+      "avoid": [
+        "既存作品のキャラクターに似せない",
+        "武器を大きく描きすぎない"
+      ],
+      "userNotes": "現在は薬師のシートを流用中",
+      "spec": {
+        "cellWidth": 64,
+        "cellHeight": 64,
+        "columns": 1,
+        "rows": 4,
+        "layout": "上から下向き・左向き・右向き・上向き",
+        "transparent": true
+      },
+      "assetId": "village-elder",
+      "candidates": []
+    },
+    {
+      "id": "char-elf-ranger",
+      "title": "エルフの弓使い",
+      "kind": "character",
+      "status": "draft",
+      "mode": "generate",
+      "purpose": "村や遺跡に置くNPC",
+      "description": "細身の若い女性。尖った耳、短いマント、背中に弓。森の緑と生成り色。",
+      "mustHave": [
+        "尖った耳",
+        "弓"
+      ],
+      "avoid": [
+        "既存作品のキャラクターに似せない",
+        "武器を大きく描きすぎない"
+      ],
+      "userNotes": "",
+      "spec": {
+        "cellWidth": 64,
+        "cellHeight": 64,
+        "columns": 1,
+        "rows": 4,
+        "layout": "上から下向き・左向き・右向き・上向き",
+        "transparent": true
+      },
+      "assetId": "elf-ranger",
+      "candidates": []
+    },
+    {
+      "id": "char-dwarf-smith",
+      "title": "小人の鍛冶師",
+      "kind": "character",
+      "status": "draft",
+      "mode": "generate",
+      "purpose": "村や遺跡に置くNPC",
+      "description": "がっしりした小柄な男性。長いひげ、革の前掛け、小さなハンマー。",
+      "mustHave": [
+        "ひげ",
+        "前掛け"
+      ],
+      "avoid": [
+        "既存作品のキャラクターに似せない",
+        "武器を大きく描きすぎない"
+      ],
+      "userNotes": "",
+      "spec": {
+        "cellWidth": 64,
+        "cellHeight": 64,
+        "columns": 1,
+        "rows": 4,
+        "layout": "上から下向き・左向き・右向き・上向き",
+        "transparent": true
+      },
+      "assetId": "dwarf-smith",
+      "candidates": []
+    },
+    {
+      "id": "char-merchant",
+      "title": "行商人",
+      "kind": "character",
+      "status": "draft",
+      "mode": "generate",
+      "purpose": "村や遺跡に置くNPC",
+      "description": "大きな背負い袋の商人。丸眼鏡、ベスト、愛想のよい表情。",
+      "mustHave": [
+        "背負い袋"
+      ],
+      "avoid": [
+        "既存作品のキャラクターに似せない",
+        "武器を大きく描きすぎない"
+      ],
+      "userNotes": "",
+      "spec": {
+        "cellWidth": 64,
+        "cellHeight": 64,
+        "columns": 1,
+        "rows": 4,
+        "layout": "上から下向き・左向き・右向き・上向き",
+        "transparent": true
+      },
+      "assetId": "merchant",
+      "candidates": []
+    },
+    {
+      "id": "char-child",
+      "title": "村の子ども",
+      "kind": "character",
+      "status": "draft",
+      "mode": "generate",
+      "purpose": "村や遺跡に置くNPC",
+      "description": "元気な子ども。短パン、つぎあてのシャツ、手に木の枝。",
+      "mustHave": [],
+      "avoid": [
+        "既存作品のキャラクターに似せない",
+        "武器を大きく描きすぎない"
+      ],
+      "userNotes": "",
+      "spec": {
+        "cellWidth": 64,
+        "cellHeight": 64,
+        "columns": 1,
+        "rows": 4,
+        "layout": "上から下向き・左向き・右向き・上向き",
+        "transparent": true
+      },
+      "assetId": "village-child",
+      "candidates": []
+    },
+    {
+      "id": "char-beastfolk-hunter",
+      "title": "獣人の狩人",
+      "kind": "character",
+      "status": "draft",
+      "mode": "generate",
+      "purpose": "村や遺跡に置くNPC",
+      "description": "狼の耳と尾を持つ獣人の青年。毛皮の肩当て、腰に短剣。",
+      "mustHave": [
+        "獣の耳と尾"
+      ],
+      "avoid": [
+        "既存作品のキャラクターに似せない",
+        "武器を大きく描きすぎない"
+      ],
+      "userNotes": "",
+      "spec": {
+        "cellWidth": 64,
+        "cellHeight": 64,
+        "columns": 1,
+        "rows": 4,
+        "layout": "上から下向き・左向き・右向き・上向き",
+        "transparent": true
+      },
+      "assetId": "beast-hunter",
+      "candidates": []
+    },
+    {
+      "id": "enemy-stone-sentinel",
+      "title": "石像の番人",
+      "kind": "enemy",
+      "status": "draft",
+      "mode": "generate",
+      "purpose": "戦闘画面の敵グラフィック",
+      "description": "苔むした古い石の守護像。胸と目に琥珀色の光。重量感。",
+      "mustHave": [
+        "4コマの待機アニメ",
+        "正面向き"
+      ],
+      "avoid": [
+        "グロテスクな表現"
+      ],
+      "userNotes": "",
+      "spec": {
+        "cellWidth": 64,
+        "cellHeight": 64,
+        "columns": 4,
+        "rows": 1,
+        "layout": "左から右へ待機アニメ4コマ",
+        "transparent": true
+      },
+      "assetId": "stone-sentinel",
+      "candidates": []
+    },
+    {
+      "id": "enemy-moss-slime",
+      "title": "コケスライム",
+      "kind": "enemy",
+      "status": "draft",
+      "mode": "generate",
+      "purpose": "戦闘画面の敵グラフィック",
+      "description": "苔と小さな花をのせた半透明の緑の粘体。つぶらな目。",
+      "mustHave": [
+        "4コマの待機アニメ",
+        "正面向き"
+      ],
+      "avoid": [
+        "グロテスクな表現"
+      ],
+      "userNotes": "",
+      "spec": {
+        "cellWidth": 64,
+        "cellHeight": 64,
+        "columns": 4,
+        "rows": 1,
+        "layout": "左から右へ待機アニメ4コマ",
+        "transparent": true
+      },
+      "assetId": "moss-slime",
+      "candidates": []
+    },
+    {
+      "id": "enemy-cave-bat",
+      "title": "ほらあなコウモリ",
+      "kind": "enemy",
+      "status": "draft",
+      "mode": "generate",
+      "purpose": "戦闘画面の敵グラフィック",
+      "description": "紫がかった灰色、大きな耳。羽ばたき4コマ。",
+      "mustHave": [
+        "4コマの待機アニメ",
+        "正面向き"
+      ],
+      "avoid": [
+        "グロテスクな表現"
+      ],
+      "userNotes": "",
+      "spec": {
+        "cellWidth": 64,
+        "cellHeight": 64,
+        "columns": 4,
+        "rows": 1,
+        "layout": "左から右へ待機アニメ4コマ",
+        "transparent": true
+      },
+      "assetId": "cave-bat",
+      "candidates": []
+    },
+    {
+      "id": "tiles-ruins-interior",
+      "title": "遺跡・屋内タイル（第2シート）",
+      "kind": "tileset",
+      "status": "draft",
+      "mode": "generate",
+      "purpose": "遺跡の内部と家の中を作り込む",
+      "description": "16種類のタイル：ひび割れた石の床、苔むした石の床、石の床の継ぎ目、遺跡の壁（上端）、遺跡の壁（正面）、崩れた柱、岩の隙間（閉）、岩の隙間（開・獣道）、木の床、木の壁（腰板と漆喰）、本棚、かまど、ベッド、テーブル、樽、宝箱（閉）",
+      "mustHave": [
+        "既存の village シートと同じ光源・彩度",
+        "床タイルは継ぎ目なく並べられる"
+      ],
+      "avoid": [
+        "既存ゲームのタイルの模写"
+      ],
+      "userNotes": "",
+      "spec": {
+        "cellWidth": 64,
+        "cellHeight": 64,
+        "columns": 4,
+        "rows": 4,
+        "layout": "左上から行優先で description の順",
+        "transparent": false
+      },
+      "assetId": "interior-tiles",
+      "candidates": []
+    },
+    {
+      "id": "tiles-town-extra",
+      "title": "町・野外タイル追加（第3シート）",
+      "kind": "tileset",
+      "status": "draft",
+      "mode": "generate",
+      "purpose": "村を広げ、町や街道を作る",
+      "description": "16種類：石垣、井戸、畑、麦畑、花壇、石の階段、木の柵（縦）、立て看板、街灯、岩場、砂地、浅瀬、深い水、橋（縦）、洞窟の入口、きのこ",
+      "mustHave": [
+        "village シートと並べて違和感がない"
+      ],
+      "avoid": [],
+      "userNotes": "",
+      "spec": {
+        "cellWidth": 64,
+        "cellHeight": 64,
+        "columns": 4,
+        "rows": 4,
+        "layout": "左上から行優先で description の順",
+        "transparent": false
+      },
+      "assetId": "town-tiles",
+      "candidates": []
+    },
+    {
+      "id": "bg-ruins-battle",
+      "title": "遺跡の戦闘背景",
+      "kind": "background",
+      "status": "draft",
+      "mode": "generate",
+      "purpose": "遺跡での戦闘画面の背景",
+      "description": "苔むした石壁と天井の割れ目から差し込む光。中央は敵が映えるよう暗めで空間を空ける。",
+      "mustHave": [
+        "中央下部は空ける"
+      ],
+      "avoid": [
+        "人物を描かない"
+      ],
+      "userNotes": "",
+      "spec": {
+        "cellWidth": 640,
+        "cellHeight": 448,
+        "columns": 1,
+        "rows": 1,
+        "layout": "1枚絵",
+        "transparent": false
+      },
+      "assetId": "bg-ruins",
+      "candidates": []
+    }
+  ]
+}

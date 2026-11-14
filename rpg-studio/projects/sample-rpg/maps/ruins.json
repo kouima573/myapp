@@ -4,6 +4,7 @@
   "title": "風穴の遺跡",
   "width": 20,
   "height": 14,
+  "bgm": "song-ruins",
   "rows": [
     "TTTTTTTTTTTTTTTTTTTT",
     "T...*..........*...T",
@@ -72,16 +73,6 @@
       "marker": "chest"
     }
   ],
-  "encounters": {
-    "rate": 0.08,
-    "enemies": [
-      "moss-slime",
-      "cave-bat"
-    ],
-    "tiles": [
-      "i"
-    ]
-  },
   "overlays": [
     {
       "when": {
@@ -95,5 +86,15 @@
         }
       ]
     }
-  ]
+  ],
+  "encounters": {
+    "rate": 0.08,
+    "enemies": [
+      "moss-slime",
+      "cave-bat"
+    ],
+    "tiles": [
+      "i"
+    ]
+  }
 }

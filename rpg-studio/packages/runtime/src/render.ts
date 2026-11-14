@@ -86,8 +86,7 @@ export interface DrawMapOptions {
 
 export function drawMap(ctx: CanvasRenderingContext2D, o: DrawMapOptions): void {
   const { content, map, images, view, state } = o;
-  const atlasAsset = content.assets.assets.find(a => a.id === content.tileset.atlas);
-  const atlas = images[content.tileset.atlas];
+  const assetById = new Map(content.assets.assets.map(a => [a.id, a]));
   const tiles = new Map(content.tileset.tiles.map(t => [t.code, t]));
   const width = view.cols * TILE, height = view.rows * TILE;
   ctx.imageSmoothingEnabled = false;
@@ -108,8 +107,10 @@ export function drawMap(ctx: CanvasRenderingContext2D, o: DrawMapOptions): void 
       if (!tile) { ctx.fillStyle = "#ff00aa"; ctx.fillRect(px, py, TILE, TILE); continue; }
       const open = state && tile.passableWhen && evaluate(tile.passableWhen, state);
       const index = open && tile.openIndex !== undefined ? tile.openIndex : tile.index;
+      const sheetId = tile.atlas ?? content.tileset.atlas;
+      const atlas = images[sheetId];
       if (ready(atlas)) {
-        const cell = sheetCell(atlasAsset, atlas, index);
+        const cell = sheetCell(assetById.get(sheetId), atlas, index);
         ctx.drawImage(atlas, cell.sx, cell.sy, cell.sw, cell.sh, px, py, TILE, TILE);
       } else {
         fallbackTile(ctx, open ? { ...tile, passable: true, color: shade(tile.color, 30) } : tile, px, py, x, y);

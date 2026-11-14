@@ -59,6 +59,20 @@ export async function readProjectTexts(root: string): Promise<{ texts: ProjectFi
     const text = await readTextIfExists(root, relative).catch(() => undefined);
     if (text !== undefined) texts[relative] = text;
   }
+  // Text-score songs live in assets.json; read them so validation can check the notes.
+  const assetsPath = typeof manifest.assetsPath === "string" ? manifest.assetsPath : undefined;
+  if (assetsPath && texts[assetsPath]) {
+    try {
+      for (const asset of (JSON.parse(texts[assetsPath]!) as { assets?: Array<{ kind?: string; path?: unknown }> }).assets ?? []) {
+        if (asset.kind === "song" && typeof asset.path === "string") { const text = await readTextIfExists(root, asset.path); if (text !== undefined) texts[asset.path] = text; }
+      }
+    } catch { /* schema reports broken assets.json */ }
+  }
+  // Art requirements (not game data, but shown in the studio and validated by the CLI).
+  for (const relative of ["art/requests.json", "art/style-guide.md"]) {
+    const text = await readTextIfExists(root, relative);
+    if (text !== undefined) texts[relative] = text;
+  }
   return { texts, formatVersion };
 }
 
@@ -69,7 +83,7 @@ function pngSize(bytes: Buffer): { width: number; height: number } | null {
 }
 
 /** File-level checks that need disk access: existence, byte size, PNG signature and sheet dimensions. */
-export async function checkAssetFiles(root: string, assets: AssetEntry[], assetsPath: string): Promise<Diagnostic[]> {
+export async function checkAssetFiles(root: string, assets: AssetEntry[], assetsPath: string, maxFileBytes = 0, total = { bytes: 0 }): Promise<Diagnostic[]> {
   const out: Diagnostic[] = [];
   for (const asset of assets) {
     const at = `assets[${asset.id}]`;
@@ -83,6 +97,8 @@ export async function checkAssetFiles(root: string, assets: AssetEntry[], assets
       out.push({ severity: "error", file: assetsPath, at, message: `素材ファイルがありません: ${asset.path}` });
       continue;
     }
+    if (maxFileBytes && bytes.length > maxFileBytes) out.push({ severity: "error", file: assetsPath, at, message: `${(bytes.length / 1048576).toFixed(1)}MB は1ファイルの上限(assetPolicy.budget.maxFileMB)を超えています。音声はOGG 96〜128kbps、画像は分割・減色を検討してください` });
+    total.bytes += bytes.length;
     if (bytes.length !== asset.bytes) out.push({ severity: "warning", file: assetsPath, at: `${at}.bytes`, message: `bytes=${asset.bytes} ですが実ファイルは${bytes.length}バイトです` });
     if (asset.mimeType === "image/png") {
       const size = pngSize(bytes);
@@ -105,7 +121,31 @@ export async function loadProjectFromDisk(root: string): Promise<LoadedProject> 
   }
   const result = loadProjectContent(texts);
   const diagnostics = [...result.diagnostics];
-  if (result.content) diagnostics.push(...await checkAssetFiles(root, result.content.assets.assets, result.content.project.assetsPath));
+  if (result.content) {
+    const budget = result.content.project.assetPolicy.budget;
+    const total = { bytes: Object.values(texts).reduce((sum, text) => sum + Buffer.byteLength(text), 0) };
+    diagnostics.push(...await checkAssetFiles(root, result.content.assets.assets, result.content.project.assetsPath, budget.maxFileMB * 1048576, total));
+    const mb = total.bytes / 1048576;
+    if (mb > budget.maxTotalMB) diagnostics.push({ severity: "error", file: "project.json", at: "assetPolicy.budget", message: `プロジェクトの合計 ${mb.toFixed(1)}MB が上限 ${budget.maxTotalMB}MB を超えています（pnpm rpg asset report で内訳を確認）` });
+    else if (mb > budget.warnTotalMB) diagnostics.push({ severity: "warning", file: "project.json", at: "assetPolicy.budget", message: `プロジェクトの合計 ${mb.toFixed(1)}MB が目安 ${budget.warnTotalMB}MB を超えています。Web公開・スマホでの読み込みが重くなります` });
+  }
+  if (texts["art/requests.json"] !== undefined) {
+    const { ArtRequestBundleSchema } = await import("../../schema/src/index");
+    let parsed: unknown;
+    try { parsed = JSON.parse(texts["art/requests.json"]!); } catch (error) { diagnostics.push({ severity: "error", file: "art/requests.json", message: `JSONとして読めません: ${String(error)}` }); }
+    if (parsed !== undefined) {
+      const result = ArtRequestBundleSchema.safeParse(parsed);
+      if (!result.success) for (const issue of result.error.issues) diagnostics.push({ severity: "error", file: "art/requests.json", at: issue.path.join("."), message: issue.message });
+      else for (const request of result.data.requests) {
+        if (request.status === "done" && !(request.assetId && (await assetExists(root, texts, request.assetId)))) diagnostics.push({ severity: "warning", file: "art/requests.json", at: `requests[${request.id}]`, message: `完了(done)ですが素材 '${request.assetId ?? "(assetId未設定)"}' がassets.jsonにありません` });
+      }
+    }
+  }
   const hasError = diagnostics.some(d => d.severity === "error");
   return { root, texts, formatVersion, content: hasError ? null : result.content, diagnostics };
+}
+
+async function assetExists(_root: string, texts: ProjectFileTexts, id: string): Promise<boolean> {
+  const manifest = JSON.parse(texts["project.json"] ?? "{}") as { assetsPath?: string };
+  try { return (JSON.parse(texts[manifest.assetsPath ?? "assets.json"] ?? "{}") as { assets?: Array<{ id: string }> }).assets?.some(a => a.id === id) ?? false; } catch { return false; }
 }

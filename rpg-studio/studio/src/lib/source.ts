@@ -99,8 +99,8 @@ export class LocalSource implements ProjectSource {
 
 /* ------------------------------------------------------------ preview (bundled sample) */
 const SAMPLE_ROOT = "../../../projects/sample-rpg/";
-const sampleTexts = import.meta.glob("../../../projects/sample-rpg/**/*.{json,ts}", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
-const sampleAssets = import.meta.glob("../../../projects/sample-rpg/assets/**/*.png", { query: "?url", import: "default", eager: true }) as Record<string, string>;
+const sampleTexts = import.meta.glob("../../../projects/sample-rpg/**/*.{json,ts,md}", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
+const sampleAssets = import.meta.glob("../../../projects/sample-rpg/assets/**/*.{png,wav,ogg,mp3,json}", { query: "?url", import: "default", eager: true }) as Record<string, string>;
 const sampleSystems = import.meta.glob("../../../projects/sample-rpg/systems/*.ts", { eager: true }) as Record<string, { default?: GameSystem }>;
 
 export class PreviewSource implements ProjectSource {

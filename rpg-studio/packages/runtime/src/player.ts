@@ -7,6 +7,8 @@ import { createEngine, makeSave, readSave, type Action, type Engine, type GameSy
 import { directionFromKey, GridMovementAnimator, WALK_ANIMATION_MS, type Point } from "./movement";
 import { drawEnemyPortrait, drawMap, loadImages, npcActors, TILE, type ImageMap } from "./render";
 import { RUNTIME_CSS } from "./styles";
+import { AudioManager, type AudioSettings } from "./audio";
+import { creditLines } from "./credits";
 
 export interface SaveStorage {
   read(key: string): string | null;
@@ -64,36 +66,16 @@ function injectStyles() {
   document.head.appendChild(style);
 }
 
-class Beeper {
-  private ctx: AudioContext | null = null;
-  muted = false;
-  play(kind: "step" | "bump" | "ok" | "hit" | "hurt" | "win" | "lose" | "open") {
-    if (this.muted) return;
-    try {
-      this.ctx ??= new AudioContext();
-      const table: Record<string, [number, number, OscillatorType, number]> = {
-        step: [0, 0, "square", 0], bump: [110, 0.06, "square", 0.04], ok: [660, 0.07, "square", 0.05], open: [520, 0.12, "triangle", 0.06],
-        hit: [180, 0.09, "sawtooth", 0.06], hurt: [90, 0.16, "sawtooth", 0.07], win: [880, 0.25, "triangle", 0.06], lose: [70, 0.4, "triangle", 0.07],
-      };
-      const [freq, dur, type, vol] = table[kind]!;
-      if (!freq) return;
-      const osc = this.ctx.createOscillator(), gain = this.ctx.createGain();
-      osc.type = type; osc.frequency.value = freq;
-      if (kind === "win") osc.frequency.linearRampToValueAtTime(freq * 1.5, this.ctx.currentTime + dur);
-      gain.gain.value = vol; gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + dur);
-      osc.connect(gain).connect(this.ctx.destination);
-      osc.start(); osc.stop(this.ctx.currentTime + dur);
-    } catch { /* audio is optional */ }
-  }
-}
-
 export function mountGame(host: HTMLElement, options: MountOptions): GameHandle {
   injectStyles();
   const { content } = options;
   const engine = createEngine(content, options.systems ?? []);
   const storage = options.storage ?? browserStorage();
   const saveKey = `rpg-save:${content.project.id}`;
-  const beeper = new Beeper();
+  const settingsKey = `rpg-settings:${content.project.id}`;
+  const readSettings = (): AudioSettings => { try { return { bgm: true, sfx: true, ...JSON.parse(storage.read(settingsKey) ?? "{}") }; } catch { return { bgm: true, sfx: true }; } };
+  const audio = new AudioManager(content, options.resolveAsset, readSettings());
+  let creditsOpen = false;
 
   let state: GameState = options.initialState ?? engine.newGame(options.seed);
   const animator = new GridMovementAnimator({ x: state.player.x, y: state.player.y });
@@ -167,10 +149,17 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     state = result.state;
     for (const cue of result.cues) {
       if (cue.kind === "moved") { animator.enqueue({ x: state.player.x, y: state.player.y }); }
-      else if (cue.kind === "bump") beeper.play("bump");
-      else if (cue.kind === "battleStart") { beeper.play("open"); fadeUntil = performance.now() + 260; }
-      else if (cue.kind === "hit") { beeper.play(cue.target === "enemy" ? "hit" : "hurt"); if (cue.target === "player") shakeUntil = performance.now() + 220; }
-      else if (cue.kind === "battleEnd") beeper.play(cue.outcome === "victory" ? "win" : cue.outcome === "defeat" ? "lose" : "ok");
+      else if (cue.kind === "bump") audio.cue("bump");
+      else if (cue.kind === "battleStart") { audio.cue("encounter"); fadeUntil = performance.now() + 260; }
+      else if (cue.kind === "hit") { audio.cue(cue.target === "enemy" ? "hit" : "hurt"); if (cue.target === "player") shakeUntil = performance.now() + 220; }
+      else if (cue.kind === "battleEnd") {
+        if (cue.outcome === "victory") { const v = content.project.audio.victory; if (v) audio.playSound(v); else audio.cue("victory"); }
+        else if (cue.outcome === "defeat") audio.cue("defeat");
+      }
+      else if (cue.kind === "sfx") audio.playSound(cue.sound);
+      else if (cue.kind === "item") audio.cue("item");
+      else if (cue.kind === "heal") audio.cue("heal");
+      else if (cue.kind === "mapChanged") audio.cue("door");
     }
     if (state.mapId !== before.mapId || result.cues.some(c => c.kind === "mapChanged") || Math.abs(state.player.x - before.player.x) + Math.abs(state.player.y - before.player.y) > 1) {
       animator.reset({ x: state.player.x, y: state.player.y });
@@ -184,6 +173,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     }
     if (state.scene.kind === "field") talkFacing = {};
     if (state.scene.kind !== before.scene.kind || state.scene !== before.scene) selection = 0;
+    syncMusic();
     if (result.log.length) options.onLog?.(result.log, state);
     if (state !== before) options.onStateChange?.(state);
     renderUI();
@@ -215,7 +205,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const delta = dir === "up" ? -grid : dir === "down" ? grid : dir === "left" ? -1 : 1;
     if (grid === 1 && (dir === "left" || dir === "right")) return;
     selection = (selection + delta + list.length) % list.length;
-    beeper.play("step");
+    audio.cue("cursor");
     highlight();
   }
   function highlight() {
@@ -231,17 +221,18 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     }
     if (state.scene.kind === "message" || state.scene.kind === "dialogue") {
       if (!typing.done) { finishTyping(); return; }
-      beeper.play("ok");
+      audio.cue("confirm");
       dispatch({ type: "advance" });
       return;
     }
     if (state.scene.kind === "field" && !animator.update(performance.now()).moving) dispatch({ type: "interact" });
   }
   function cancel() {
+    if (creditsOpen) { creditsOpen = false; selection = 0; renderUI(); return; }
     if (state.scene.kind === "battle" && battlePicker) { battlePicker = null; selection = 0; renderUI(); return; }
     if (state.scene.kind !== "field") return;
     menuOpen = !menuOpen; selection = 0; held.length = 0;
-    beeper.play("ok");
+    audio.cue(menuOpen ? "menu" : "cancel");
     renderUI();
   }
 
@@ -249,6 +240,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   const accepts = (event: KeyboardEvent) => !isTextTarget(event.target) && (options.keyboard !== "focus" || root.contains(document.activeElement));
   function onKeyDown(event: KeyboardEvent) {
     if (!accepts(event) || event.metaKey || event.ctrlKey || event.altKey) return;
+    audio.unlock();
     const dir = directionFromKey(event.key);
     if (dir) { event.preventDefault(); if (!event.repeat || state.scene.kind === "field") press(dir); return; }
     const key = event.key.toLowerCase();
@@ -265,6 +257,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("blur", onBlur);
   root.addEventListener("focusout", event => { if (!root.contains(event.relatedTarget as Node | null)) held.length = 0; });
+  root.addEventListener("pointerdown", () => audio.unlock(), { capture: true });
   canvas.addEventListener("pointerdown", () => { root.focus({ preventScroll: true }); if (state.scene.kind !== "field") confirm(); });
 
   /* ------------------------------------------------------------ windows */
@@ -304,7 +297,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     button.append(el("span", "rpg-option-label", label));
     if (opts.hint) button.append(el("span", "rpg-option-hint", opts.hint));
     button.disabled = Boolean(opts.disabled);
-    button.addEventListener("click", event => { event.stopPropagation(); beeper.play("ok"); onClick(); root.focus({ preventScroll: true }); });
+    button.addEventListener("click", event => { event.stopPropagation(); audio.cue("confirm"); onClick(); root.focus({ preventScroll: true }); });
     button.addEventListener("pointerenter", () => { selection = buttons().indexOf(button); highlight(); });
     return button;
   }
@@ -373,6 +366,9 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const enemy = content.database.enemies.find(e => e.id === battle.enemyId)!;
     const eff = engine.stats(state);
     const panel = el("div", "rpg-battle");
+    const backgroundId = enemy.background ?? content.maps[state.mapId]?.battleBackground;
+    const backgroundUrl = backgroundId ? images[backgroundId]?.src : undefined;
+    if (backgroundUrl) panel.style.backgroundImage = `linear-gradient(rgba(10,12,10,.15), rgba(10,12,10,.55)), url("${backgroundUrl}")`;
     const stage = el("div", "rpg-battle-stage");
     portraitCanvas = el("canvas", "rpg-portrait");
     portraitCanvas.width = 128; portraitCanvas.height = 128;
@@ -418,7 +414,34 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     windowLayer.appendChild(panel);
   }
 
+  function setAudio(next: AudioSettings) {
+    audio.applySettings(next);
+    try { storage.write(settingsKey, JSON.stringify(next)); } catch { /* settings are optional */ }
+    renderUI();
+  }
+
+  /** Which BGM should play now: enemy / battle music, a playBgm override, or the map's. */
+  function syncMusic() {
+    const scene = state.scene;
+    if (scene.kind === "battle" && scene.battle.outcome === "ongoing") {
+      const enemy = content.database.enemies.find(e => e.id === scene.battle.enemyId);
+      const battleMusic = enemy?.bgm ?? content.project.audio.battle;
+      if (battleMusic) { audio.setMusic(battleMusic); return; }
+    }
+    if (scene.kind === "battle" && scene.battle.outcome === "victory" && content.project.audio.victory) { audio.setMusic(null); return; }
+    audio.setMusic(state.music !== undefined ? state.music : content.maps[state.mapId]?.bgm ?? null);
+  }
+
+  function renderCredits() {
+    const panel = el("div", "rpg-window rpg-menu rpg-credits");
+    panel.appendChild(el("div", "rpg-menu-title", "クレジット"));
+    for (const line of creditLines(content)) panel.appendChild(el("div", "rpg-credit-line", line));
+    panel.appendChild(navButton("もどる", () => { creditsOpen = false; selection = 0; renderUI(); }));
+    windowLayer.appendChild(panel);
+  }
+
   function renderMenu() {
+    if (creditsOpen) { renderCredits(); return; }
     const menu = el("div", "rpg-window rpg-menu");
     menu.appendChild(el("div", "rpg-menu-title", "メニュー"));
     const stats = el("div", "rpg-menu-stats");
@@ -469,7 +492,9 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     row.append(
       navButton("セーブ", () => save()),
       navButton("ロード", () => load()),
-      navButton(beeper.muted ? "音: オフ" : "音: オン", () => { beeper.muted = !beeper.muted; renderUI(); }),
+      navButton(`BGM: ${audio.settings.bgm ? "オン" : "オフ"}`, () => { setAudio({ ...audio.settings, bgm: !audio.settings.bgm }); }),
+      navButton(`効果音: ${audio.settings.sfx ? "オン" : "オフ"}`, () => { setAudio({ ...audio.settings, sfx: !audio.settings.sfx }); }),
+      navButton("クレジット", () => { creditsOpen = true; selection = 0; renderUI(); }),
       navButton("とじる", () => { menuOpen = false; renderUI(); }),
     );
     menu.appendChild(row);
@@ -506,6 +531,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     renderPos = animator.currentPosition;
     talkFacing = {};
     held.length = 0;
+    syncMusic();
     options.onStateChange?.(state);
     renderUI();
   }
@@ -558,6 +584,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   }
 
   images = loadImages(content, options.resolveAsset);
+  audio.preload();
+  syncMusic();
   renderUI();
   raf = requestAnimationFrame(frame);
 
@@ -571,6 +599,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     destroy() {
       destroyed = true;
       cancelAnimationFrame(raf);
+      audio.dispose();
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);

@@ -6,6 +6,14 @@ import * as esbuild from "esbuild";
 import ts from "typescript";
 import type { Diagnostic } from "../../schema/src/index";
 import { loadProjectFromDisk, resolveInside } from "./load";
+import { creditLines } from "../../runtime/src/credits";
+import type { GameContent } from "../../schema/src/index";
+
+/** Credits plus the provenance of every bundled asset, shipped next to the game. */
+function creditsMarkdown(content: GameContent): string {
+  const rows = content.assets.assets.map(a => `| ${a.id} | ${a.kind} | ${a.origin} | ${a.author ?? ""} | ${a.license} | ${a.url ?? a.sourceId ?? a.source} | ${a.termsCheckedAt ?? ""} |`);
+  return `# ${content.project.title} — クレジット\n\n${creditLines(content).map(l => `- ${l}`).join("\n")}\n\n## 素材一覧\n\n| ID | 種類 | 出どころ | 作者 | 規約・ライセンス | 入手元 | 規約確認日 |\n| --- | --- | --- | --- | --- | --- | --- |\n${rows.join("\n")}\n`;
+}
 
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const RUNTIME_ENTRY = path.join(REPO_ROOT, "packages/runtime/src/standalone.ts");
@@ -147,6 +155,7 @@ export async function buildProject(projectRoot: string, options: BuildOptions = 
       return { ok: false, diagnostics: [...diagnostics, ...(errors.length ? errors : [{ text: String(error) }]).map(e => ({ severity: "error" as const, file: (e as esbuild.Message).location?.file, at: (e as esbuild.Message).location ? `${(e as esbuild.Message).location!.line}:${(e as esbuild.Message).location!.column + 1}` : undefined, message: e.text }))] };
     }
     await fs.writeFile(path.join(stage, "index.html"), gameHtml(content.project.title));
+    await fs.writeFile(path.join(stage, "CREDITS.md"), creditsMarkdown(content));
     for (const relative of Object.keys(loaded.texts)) if (relative.endsWith(".json")) await copyFile(projectRoot, relative, path.join(stage, "data"));
     for (const asset of content.assets.assets) await copyFile(projectRoot, asset.path, path.join(stage, "data"));
 

@@ -1,13 +1,71 @@
 {
   "json.schemas": [
-    { "fileMatch": ["projects/*/project.json"], "url": "./schema/project.schema.json" },
-    { "fileMatch": ["projects/*/tiles.json"], "url": "./schema/tiles.schema.json" },
-    { "fileMatch": ["projects/*/maps/*.json"], "url": "./schema/map.schema.json" },
-    { "fileMatch": ["projects/*/dialogues/*.json"], "url": "./schema/dialogues.schema.json" },
-    { "fileMatch": ["projects/*/events/*.json"], "url": "./schema/events.schema.json" },
-    { "fileMatch": ["projects/*/database.json"], "url": "./schema/database.schema.json" },
-    { "fileMatch": ["projects/*/rules.json", "projects/*/rules/*.json"], "url": "./schema/rules.schema.json" },
-    { "fileMatch": ["projects/*/assets.json"], "url": "./schema/assets.schema.json" },
-    { "fileMatch": ["projects/*/tests/*.scenario.json"], "url": "./schema/scenario.schema.json" }
+    {
+      "fileMatch": [
+        "projects/*/project.json"
+      ],
+      "url": "./schema/project.schema.json"
+    },
+    {
+      "fileMatch": [
+        "projects/*/tiles.json"
+      ],
+      "url": "./schema/tiles.schema.json"
+    },
+    {
+      "fileMatch": [
+        "projects/*/maps/*.json"
+      ],
+      "url": "./schema/map.schema.json"
+    },
+    {
+      "fileMatch": [
+        "projects/*/dialogues/*.json"
+      ],
+      "url": "./schema/dialogues.schema.json"
+    },
+    {
+      "fileMatch": [
+        "projects/*/events/*.json"
+      ],
+      "url": "./schema/events.schema.json"
+    },
+    {
+      "fileMatch": [
+        "projects/*/database.json"
+      ],
+      "url": "./schema/database.schema.json"
+    },
+    {
+      "fileMatch": [
+        "projects/*/rules.json",
+        "projects/*/rules/*.json"
+      ],
+      "url": "./schema/rules.schema.json"
+    },
+    {
+      "fileMatch": [
+        "projects/*/assets.json"
+      ],
+      "url": "./schema/assets.schema.json"
+    },
+    {
+      "fileMatch": [
+        "projects/*/tests/*.scenario.json"
+      ],
+      "url": "./schema/scenario.schema.json"
+    },
+    {
+      "fileMatch": [
+        "projects/*/assets/**/*.song.json"
+      ],
+      "url": "./schema/song.schema.json"
+    },
+    {
+      "fileMatch": [
+        "projects/*/art/requests.json"
+      ],
+      "url": "./schema/art-requests.schema.json"
+    }
   ]
 }

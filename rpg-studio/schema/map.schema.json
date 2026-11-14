@@ -241,6 +241,18 @@
         "additionalProperties": false
       }
     },
+    "bgm": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96,
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "battleBackground": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96,
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
     "overlays": {
       "default": [],
       "type": "array",

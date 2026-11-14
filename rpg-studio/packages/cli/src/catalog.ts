@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  AssetManifestSchema, DatabaseSchema, DialogueBundleSchema, EventBundleSchema, GameMapSchema, ProjectManifestSchema, RuleBundleSchema, TilesetSchema,
+  ArtRequestBundleSchema, AssetManifestSchema, DatabaseSchema, SongSchema, DialogueBundleSchema, EventBundleSchema, GameMapSchema, ProjectManifestSchema, RuleBundleSchema, TilesetSchema,
   type GameContent, type Rule,
 } from "../../schema/src/index";
 import { ScenarioSchema } from "../../engine/src/scenario";
@@ -18,6 +18,8 @@ export function jsonSchemas(): Record<string, unknown> {
     "rules.schema.json": z.toJSONSchema(RuleBundleSchema, opts),
     "assets.schema.json": z.toJSONSchema(AssetManifestSchema, opts),
     "scenario.schema.json": z.toJSONSchema(ScenarioSchema, opts),
+    "song.schema.json": z.toJSONSchema(SongSchema, opts),
+    "art-requests.schema.json": z.toJSONSchema(ArtRequestBundleSchema, opts),
   };
 }
 

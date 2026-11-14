@@ -313,6 +313,284 @@
         ],
         "additionalProperties": false
       }
+    },
+    "audio": {
+      "default": {
+        "sfx": {},
+        "volume": {
+          "bgm": 0.6,
+          "sfx": 0.8
+        }
+      },
+      "type": "object",
+      "properties": {
+        "battle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96,
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "victory": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96,
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "sfx": {
+          "default": {},
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "enum": [
+              "cursor",
+              "confirm",
+              "cancel",
+              "bump",
+              "hit",
+              "hurt",
+              "heal",
+              "encounter",
+              "victory",
+              "defeat",
+              "door",
+              "item",
+              "save",
+              "menu"
+            ]
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          }
+        },
+        "volume": {
+          "default": {
+            "bgm": 0.6,
+            "sfx": 0.8
+          },
+          "type": "object",
+          "properties": {
+            "bgm": {
+              "default": 0.6,
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "sfx": {
+              "default": 0.8,
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "assetPolicy": {
+      "default": {
+        "shareable": false,
+        "sources": {},
+        "customSources": [],
+        "prefer": {},
+        "budget": {
+          "warnTotalMB": 100,
+          "maxTotalMB": 300,
+          "maxFileMB": 20
+        }
+      },
+      "type": "object",
+      "properties": {
+        "shareable": {
+          "default": false,
+          "type": "boolean"
+        },
+        "sources": {
+          "default": {},
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "additionalProperties": {
+            "type": "boolean"
+          }
+        },
+        "customSources": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 96,
+                "pattern": "^[a-z0-9][a-z0-9._-]*$"
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "termsUrl": {
+                "type": "string",
+                "format": "uri"
+              },
+              "categories": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "image",
+                    "bgm",
+                    "sfx",
+                    "song"
+                  ]
+                }
+              },
+              "origin": {
+                "type": "string",
+                "enum": [
+                  "site",
+                  "purchased",
+                  "commission",
+                  "generated"
+                ]
+              },
+              "summary": {
+                "type": "string"
+              },
+              "checklist": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "creditRequired": {
+                "type": "string",
+                "enum": [
+                  "yes",
+                  "no",
+                  "varies",
+                  "unknown"
+                ]
+              },
+              "redistribution": {
+                "type": "string",
+                "enum": [
+                  "allowed",
+                  "prohibited",
+                  "varies",
+                  "unknown"
+                ]
+              },
+              "automatedDownload": {
+                "type": "string",
+                "enum": [
+                  "allowed",
+                  "manual",
+                  "unknown"
+                ]
+              },
+              "verifiedAt": {
+                "default": null,
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "defaultEnabled": {
+                "default": false,
+                "type": "boolean"
+              },
+              "notes": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "categories",
+              "origin",
+              "summary",
+              "creditRequired",
+              "redistribution",
+              "automatedDownload"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "prefer": {
+          "default": {},
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "enum": [
+              "image",
+              "bgm",
+              "sfx",
+              "song"
+            ]
+          },
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "generate",
+                "site",
+                "purchased",
+                "commission"
+              ]
+            }
+          }
+        },
+        "budget": {
+          "default": {
+            "warnTotalMB": 100,
+            "maxTotalMB": 300,
+            "maxFileMB": 20
+          },
+          "type": "object",
+          "properties": {
+            "warnTotalMB": {
+              "default": 100,
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "maxTotalMB": {
+              "default": 300,
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "maxFileMB": {
+              "default": 20,
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "credits": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     }
   },
   "required": [
@@ -947,6 +1225,53 @@
           "required": [
             "type",
             "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "playSfx"
+            },
+            "sound": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "sound"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "playBgm"
+            },
+            "music": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 96,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "music"
           ],
           "additionalProperties": false
         },

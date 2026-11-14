@@ -1,8 +1,9 @@
 import type { z } from "zod";
+import { assetCategory, isSourceEnabled, sourcesFor } from "./sources";
 import {
-  AssetManifestSchema, BATTLE_TRIGGERS, DatabaseSchema, RuleBundleSchema, DialogueBundleSchema, EventBundleSchema, GameMapSchema, PROJECT_FORMAT_VERSION,
+  AssetManifestSchema, BATTLE_TRIGGERS, DatabaseSchema, IMAGE_KINDS, parseNotes, RuleBundleSchema, SongSchema, DialogueBundleSchema, EventBundleSchema, GameMapSchema, PROJECT_FORMAT_VERSION,
   ProjectManifestSchema, TilesetSchema,
-  type Condition, type Effect, type Expr, type GameContent, type GameMap, type ProjectManifest, type Rule, type StatMods, type Use,
+  type Condition, type Effect, type Expr, type Song, type GameContent, type GameMap, type ProjectManifest, type Rule, type StatMods, type Use,
 } from "./formats";
 
 export interface Diagnostic {
@@ -127,7 +128,18 @@ export function loadProjectContent(texts: ProjectFileTexts): LoadResult {
     database,
     assets,
     rules: ruleBundle.rules,
+    songs: {},
   };
+  for (const asset of assets.assets) {
+    if (asset.kind !== "song" || texts[asset.path] === undefined) continue;
+    const song = parseWith(SongSchema, asset.path, parseJson(asset.path, texts, diagnostics), diagnostics);
+    if (!song) continue;
+    song.tracks.forEach((track, i) => {
+      try { parseNotes(track.notes, track.transpose); }
+      catch (error) { diagnostics.push({ severity: "error", file: asset.path, at: `tracks[${i}].notes`, message: error instanceof Error ? error.message : String(error) }); }
+    });
+    content.songs[asset.id] = song as Song;
+  }
   duplicateIds(project.dialoguesPath, "dialogues", dialogueBundle.dialogues, diagnostics);
   duplicateIds(project.eventsPath, "events", eventBundle.events, diagnostics);
   duplicateIds(project.databasePath, "abilities", database.abilities, diagnostics);
@@ -165,6 +177,14 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   const tileByCode = new Map(tileset.tiles.map(t => [t.code, t]));
   const flagIds = new Set(Object.keys(project.flags));
   const varIds = new Set(Object.keys(project.variables));
+  const A = project.assetsPath;
+  const checkAudio = (file: string, at: string, id: string | null | undefined, kinds: string[], label: string) => {
+    if (!id) return;
+    const asset = assetById.get(id);
+    if (!asset) err(file, at, `${label}の素材 '${id}' がassets.jsonにありません`);
+    else if (!kinds.includes(asset.kind)) err(file, at, `${label}には ${kinds.join("/")} の素材を指定してください（'${id}' は ${asset.kind}）`);
+  };
+  const MUSIC = ["bgm", "song"], SOUND = ["sfx", "song", "bgm"];
 
   // IDs that `done` conditions may refer to.
   const doneIds = new Set<string>();
@@ -258,6 +278,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
           if (effect.else) checkEffects(file, `${here}.else`, effect.else, ctxAllowed);
           break;
         case "system": if (!systemIds.has(effect.system)) err(file, here, `project.jsonのsystemsにないシステム '${effect.system}'`); break;
+        case "playSfx": checkAudio(file, here, effect.sound, SOUND, "効果音"); break;
+        case "playBgm": checkAudio(file, here, effect.music, MUSIC, "BGM"); break;
         default: break;
       }
     });
@@ -305,14 +327,42 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   checkEffects(P, "intro", project.intro);
   if (project.rulesPath) checkRules(project.rulesPath, "rules", content.rules.length ? content.rules : []);
 
-  // Tileset.
+  // Audio.
+  checkAudio(P, "audio.battle", project.audio.battle, MUSIC, "戦闘BGM");
+  checkAudio(P, "audio.victory", project.audio.victory, SOUND, "勝利の音");
+  for (const [cue, id] of Object.entries(project.audio.sfx)) checkAudio(P, `audio.sfx.${cue}`, id, SOUND, "効果音");
+  for (const map of Object.values(maps)) {
+    checkAudio(mapFile(map.id), "bgm", map.bgm, MUSIC, "BGM");
+    checkAudio(mapFile(map.id), "battleBackground", map.battleBackground, ["background"], "戦闘背景");
+  }
+  for (const enemy of database.enemies) checkAudio(DB, `enemies[${enemy.id}].background`, enemy.background, ["background"], "戦闘背景");
+  for (const enemy of database.enemies) checkAudio(DB, `enemies[${enemy.id}].bgm`, enemy.bgm, MUSIC, "戦闘BGM");
+
+  // Asset provenance and the project's source policy.
+  const sources = sourcesFor(project);
+  for (const asset of assets.assets) {
+    const at = `assets[${asset.id}]`;
+    if (asset.sourceId) {
+      const source = sources.find(s => s.id === asset.sourceId);
+      if (!source) { err(A, `${at}.sourceId`, `取得元 '${asset.sourceId}' がカタログにもassetPolicy.customSourcesにもありません`); continue; }
+      if (!isSourceEnabled(project, source)) err(A, `${at}.sourceId`, `取得元「${source.name}」はこのプロジェクトで無効です（project.json の assetPolicy.sources で有効にするか、素材を差し替えてください）`);
+      if (!source.categories.includes(assetCategory(asset.kind))) warn(A, at, `取得元「${source.name}」は ${source.categories.join("/")} 用です（この素材は ${asset.kind}）`);
+      if (source.creditRequired === "yes" && !asset.creditRequired) warn(A, at, `取得元「${source.name}」はクレジット表記が必要とされています。creditRequired と credit を確認してください`);
+      if (project.assetPolicy.shareable && source.redistribution === "prohibited") err(A, at, `共有用プロジェクト(assetPolicy.shareable)に、再配布が禁止されている取得元「${source.name}」の素材は入れられません`);
+    }
+    if (project.assetPolicy.shareable && !asset.redistributable) err(A, at, "共有用プロジェクト(assetPolicy.shareable)に再配布できない素材(redistributable: false)は入れられません");
+  }
+
+  // Tileset (each tile may use its own sheet).
   const atlas = assetById.get(tileset.atlas);
   if (!atlas || atlas.kind !== "tileset") err(project.tilesetPath, "atlas", `タイルシート素材 '${tileset.atlas}' がassets.jsonにありません`);
   tileset.tiles.forEach((tile, index) => {
-    const capacity = (atlas?.columns ?? 0) * (atlas?.rows ?? 0);
+    const sheet = tile.atlas ? assetById.get(tile.atlas) : atlas;
+    if (tile.atlas && sheet?.kind !== "tileset") { err(project.tilesetPath, `tiles[${index}].atlas`, `タイルシート素材 '${tile.atlas}' がassets.jsonにありません`); return; }
+    const capacity = (sheet?.columns ?? 0) * (sheet?.rows ?? 0);
     for (const field of ["index", "openIndex"] as const) {
       const value = tile[field];
-      if (atlas && value !== undefined && value >= capacity) err(project.tilesetPath, `tiles[${index}].${field}`, `アトラスの範囲外です (${value} >= ${capacity})`);
+      if (sheet && value !== undefined && value >= capacity) err(project.tilesetPath, `tiles[${index}].${field}`, `アトラスの範囲外です (${value} >= ${capacity})`);
     }
     checkCondition(project.tilesetPath, `tiles[${index}].passableWhen`, tile.passableWhen);
   });

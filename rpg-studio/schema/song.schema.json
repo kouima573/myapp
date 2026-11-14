@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "formatVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "tempo": {
+      "type": "number",
+      "minimum": 30,
+      "maximum": 300
+    },
+    "loop": {
+      "default": true,
+      "type": "boolean"
+    },
+    "tracks": {
+      "minItems": 1,
+      "maxItems": 8,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "wave": {
+            "type": "string",
+            "enum": [
+              "square",
+              "pulse25",
+              "pulse12",
+              "triangle",
+              "sawtooth",
+              "sine",
+              "noise"
+            ]
+          },
+          "volume": {
+            "default": 0.2,
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1
+          },
+          "transpose": {
+            "default": 0,
+            "type": "integer",
+            "minimum": -24,
+            "maximum": 24
+          }
+        },
+        "required": [
+          "wave",
+          "notes"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "formatVersion",
+    "title",
+    "tempo",
+    "tracks"
+  ],
+  "additionalProperties": false
+}

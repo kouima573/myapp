@@ -1,4 +1,4 @@
-# RPGシステム工房 v0.3
+# RPGシステム工房 v0.4
 
 Codex／Claude Code が **Git管理のファイルを直接編集して** 2DトップダウンRPGを作り、人がブラウザの工房でマップを手直し・試遊・検証するためのローカル制作環境です。工房にLLMは内蔵せず、AI APIキーも不要です（エージェント自体の契約は別途必要な場合があります）。
 
@@ -33,6 +33,8 @@ pnpm rpg dev                     # 完成版ゲームだけを試遊: http://127
 | `pnpm rpg migrate --project <dir> [--write]` | 旧形式(v1)の移行。既定は差分表示のみ。`--write` で `.rpg-backup/` に退避してから保存 |
 | `pnpm rpg catalog --project <dir>` | 定義済みのフラグ・変数・特性・能力・ルール・マップ等の一覧（AIへの説明用） |
 | `pnpm rpg schema [--check]` | `schema/*.schema.json`（エディター・AI向けJSON Schema）の生成／最新確認 |
+| `pnpm rpg asset <sources\|enable\|disable\|add\|gen-sfx\|report\|credits>` | 素材の取得元・規約記録つき追加・効果音生成・容量とクレジット |
+| `pnpm rpg art <list\|prompt\|check>` | 画像の依頼一覧・生成用プロンプト・納品物の寸法チェック |
 | `pnpm test` / `pnpm check` | エンジン・スキーマ・移行・ローカルサーバー安全性のユニットテスト／型検査 |
 
 問題の行は必ず `ERROR` / `WARN` で始まり、`ファイル › 場所: 内容` の形で出ます。例:
@@ -68,6 +70,18 @@ pnpm rpg dev                     # 完成版ゲームだけを試遊: http://127
 | `packages/local-server/` | 127.0.0.1限定のファイルAPI・監視・ビルド・テスト |
 | `studio/` | 工房UI（React）：マップ編集・試遊・データ編集・検証 |
 | `docs/` | 形式・拡張API・シナリオテスト・安全性・素材依頼 |
+
+## v0.4の変更（素材・音）
+
+- 音: マップ・戦闘のBGM、場面ごとの効果音、`playSfx`/`playBgm` 効果、メニューでのBGM・効果音のオン/オフ、クレジット画面
+- **楽譜BGM**（`.song.json`）: テキストの楽譜をゲーム内で合成して鳴らす。1曲1〜3KB。サンプルはオリジナル3曲
+- **効果音ジェネレーター**（`rpg asset gen-sfx`）: 18種類のプリセットからオリジナル効果音を生成。サンプルに16個を収録
+- **取得元カタログとON/OFF**: 主な素材サイトと生成手段について、規約の要点・確認項目・クレジットの要否・再配布の可否・自動取得の可否を記録
+- **出どころの記録と検査**: 規約確認日・入手URL・クレジット・作者の注意書きを記録し、未記入・無効サイト・共有用プロジェクトへの再配布禁止素材をエラーにする。`CREDITS.md` を自動生成
+- **容量予算**: 既定は目安100MB・上限300MB・1ファイル20MB（考え方は [docs/asset-guide.md](docs/asset-guide.md)）。`rpg asset report` で内訳を表示
+- **画像の要件定義**: `art/style-guide.md` と `art/requests.json`（要望・フィードバック欄つき）、`rpg art prompt / check`。追加キャラ6体・敵3体・タイル2シート・戦闘背景の依頼をサンプルに用意
+- タイルごとに別のタイルシートを使える（`tiles.json` の `atlas`）、戦闘背景（マップ・敵ごと）
+- 工房に「素材」画面: 容量バー、素材一覧と試聴、音の割り当て、効果音ジェネレーターの試聴、取得元のON/OFF、画像依頼の要望記入とプロンプトのコピー、AIへの依頼文
 
 ## v0.3の変更
 
@@ -109,4 +123,4 @@ Linux（Node.js 22.23 / pnpm 10.18）で `pnpm check`・`pnpm test`・`pnpm rpg 
 
 ## 素材
 
-サンプル素材は既存作品を模写しないオリジナルのピクセルアートです（出典・ライセンスは `assets.json`）。敵の戦闘グラフィック等は未用意で、手続き生成の仮表示になっています。追加してほしい画像の仕様は [docs/asset-requests.md](docs/asset-requests.md) にまとめています。
+サンプルの素材はすべてオリジナルです（AI生成のピクセルアート、内蔵ジェネレーターの効果音、新規作曲の楽譜BGM）。第三者サイトの素材は再配布の問題があるため同梱していません。追加したいキャラ・タイル・敵・背景は `projects/sample-rpg/art/requests.json` に要件定義済みで、`pnpm rpg art prompt --id <依頼>` で生成用の依頼文が出ます。詳しくは [docs/asset-guide.md](docs/asset-guide.md)。

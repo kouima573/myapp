@@ -9,6 +9,7 @@
 3. `docs/extension-api.md` — データで書けないものだけ使うTypeScriptフック（`defineSystem`）
 4. `docs/scenario-tests.md` — 自動プレイテスト
 5. 対象プロジェクトの `README.md` と `pnpm rpg catalog --project projects/<id>`（定義済みIDの一覧）
+6. 素材（画像・BGM・効果音）を扱うときは `docs/asset-guide.md` と `pnpm rpg asset sources --project projects/<id>`
 
 ## 作り方の原則
 
@@ -17,7 +18,9 @@
 - 新しいフラグ・変数は必ず `project.json` の `flags`・`variables` に宣言する（未宣言は検証エラー）。
 - ID（マップ・NPC・会話・イベント・能力・アイテム・敵・素材）はセーブや参照に使う安定ID。リネームするなら参照もすべて直す。
 - エンジン（`packages/engine`）や描画（`packages/runtime`）を変えてよいが、**プロジェクト固有のIDをエンジンに書かない**。形式を変えるなら `packages/schema` と検証・移行・テストを同時に更新する。
-- 素材は `assets.json` に出典・ライセンス・寸法つきで登録。絶対パス・base64埋め込み・出典不明の素材は使わない。既存作品の模写をしない。
+- 素材は必ず `pnpm rpg asset add`（または `gen-sfx`）で登録し、出どころ・規約名・規約確認日・クレジット・作者の注意書きを記録する。絶対パス・base64埋め込み・出典不明の素材は使わない。既存作品の模写をしない。
+- 外部サイトの素材は、そのプロジェクトで有効にされた取得元だけ使う。**毎回、規約の原文と作者ごとの条件を読んでから**入れる。規約で許されない使い方（再配布禁止の素材を共有用プロジェクトに入れる、NC素材の商用利用など）はしない。`automatedDownload` が `manual` のサイトは、候補URLを提示して人にダウンロードしてもらう。
+- 容量予算（`assetPolicy.budget`）を守る。BGMは楽譜BGMかOGG 96〜128kbps、効果音は短く。
 - 変更した挙動には `tests/*.scenario.json` を追加・更新する。
 
 ## 完了条件（すべてOKになるまで直す）

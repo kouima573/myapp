@@ -1,0 +1,26 @@
+{
+  "formatVersion": 1,
+  "title": "風穴の遺跡",
+  "tempo": 84,
+  "loop": true,
+  "tracks": [
+    {
+      "name": "melody",
+      "wave": "pulse12",
+      "volume": 0.11,
+      "notes": "E4/2 D4/4 C4/4 | B3/2. R/4 | C4/4 D4/4 E4/4 G4/4 | F4/2. E4/4 | E4/2 G4/4 A4/4 | B4/2 A4/4 G4/4 | F4/4 E4/4 D4/4 B3/4 | A3/2. R/4"
+    },
+    {
+      "name": "arpeggio",
+      "wave": "triangle",
+      "volume": 0.22,
+      "notes": "A2/8 E3/8 A3/8 E3/8 A2/8 E3/8 A3/8 E3/8 | E2/8 B2/8 E3/8 B2/8 E2/8 B2/8 E3/8 B2/8 | F2/8 C3/8 F3/8 C3/8 F2/8 C3/8 F3/8 C3/8 | D2/8 A2/8 D3/8 A2/8 D2/8 A2/8 D3/8 A2/8 | A2/8 E3/8 A3/8 E3/8 A2/8 E3/8 A3/8 E3/8 | G2/8 D3/8 G3/8 D3/8 G2/8 D3/8 G3/8 D3/8 | D2/8 A2/8 D3/8 A2/8 E2/8 B2/8 E3/8 B2/8 | A2/8 E3/8 A3/8 E3/8 A2/8 E3/8 A3/8 E3/8"
+    },
+    {
+      "name": "wind",
+      "wave": "noise",
+      "volume": 0.025,
+      "notes": "x/2 R/2 | x/2 R/2 | x/2 R/2 | x/2 R/2 | x/2 R/2 | x/2 R/2 | x/2 R/2 | x/2 R/2"
+    }
+  ]
+}

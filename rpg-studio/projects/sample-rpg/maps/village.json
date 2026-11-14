@@ -4,6 +4,7 @@
   "title": "苔森の村",
   "width": 20,
   "height": 14,
+  "bgm": "song-village",
   "rows": [
     "TTTTTTTTTTTTTTTTTTTT",
     "T....*.........~~..T",

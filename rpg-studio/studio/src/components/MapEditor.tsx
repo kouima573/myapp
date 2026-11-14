@@ -219,9 +219,9 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
     return () => window.removeEventListener("keydown", onKey);
   }, [store, mapPath, selection, onSelect]);
 
-  const atlasAsset = content.assets.assets.find(a => a.id === content.tileset.atlas);
-  const atlasUrl = images[content.tileset.atlas]?.src;
-  const swatchStyle = (index: number, color: string) => {
+  const swatchStyle = (index: number, color: string, sheetId = content.tileset.atlas) => {
+    const atlasAsset = content.assets.assets.find(a => a.id === sheetId);
+    const atlasUrl = images[sheetId]?.src;
     if (!atlasUrl || !atlasAsset?.columns) return { background: color };
     const columns = atlasAsset.columns, rows = atlasAsset.rows ?? 1;
     return {
@@ -262,7 +262,7 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
     <div className="editor-body">
       <div className="tile-palette" aria-label="タイル">
         {content.tileset.tiles.map(t => <button key={t.code} className={`tile-swatch ${tile === t.code ? "is-active" : ""}`} onClick={() => { setTile(t.code); if (tool !== "fill") setTool("paint"); }} title={`${t.name} '${t.code}' — ${t.passable ? "通行可" : t.passableWhen ? "条件付きで通行可" : "通行不可"}`}>
-          <span className="swatch-img" style={swatchStyle(t.index, t.color)} />
+          <span className="swatch-img" style={swatchStyle(t.index, t.color, t.atlas)} />
           <span className="swatch-code">{t.code}</span>
           {!t.passable && <span className={`swatch-flag ${t.passableWhen ? "cond" : ""}`} />}
         </button>)}

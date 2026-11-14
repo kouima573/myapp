@@ -29,8 +29,11 @@
               "character",
               "enemy",
               "animation",
+              "portrait",
+              "background",
               "bgm",
-              "sfx"
+              "sfx",
+              "song"
             ]
           },
           "mimeType": {
@@ -49,6 +52,71 @@
           "license": {
             "default": "プロジェクト内素材",
             "type": "string"
+          },
+          "origin": {
+            "default": "original",
+            "type": "string",
+            "enum": [
+              "original",
+              "generated",
+              "site",
+              "purchased",
+              "commission"
+            ]
+          },
+          "sourceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "author": {
+            "type": "string"
+          },
+          "licenseUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "credit": {
+            "type": "string"
+          },
+          "creditRequired": {
+            "default": false,
+            "type": "boolean"
+          },
+          "redistributable": {
+            "default": true,
+            "type": "boolean"
+          },
+          "termsCheckedAt": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "request": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "generator": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ]
+            }
           },
           "tileWidth": {
             "type": "integer",

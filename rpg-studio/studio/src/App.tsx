@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Loader2, Map as MapIcon, XCircle, AlertTriangle, Save } from "lucide-react";
+import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Loader2, Map as MapIcon, XCircle, AlertTriangle, Save } from "lucide-react";
 import { GameMapSchema, TilesetSchema, type GameContent, type GameMap } from "@rpg/schema";
 import { loadImages, type ImageMap } from "../../packages/runtime/src/render";
 import MapEditor, { type Selection } from "./components/MapEditor";
@@ -7,15 +7,17 @@ import Inspector from "./components/Inspector";
 import PlayPanel from "./components/PlayPanel";
 import DataPanel from "./components/DataPanel";
 import ChecksPanel from "./components/ChecksPanel";
+import AssetsPanel from "./components/AssetsPanel";
 import ConflictDialog from "./components/ConflictDialog";
 import { useProject } from "./lib/useProject";
 import type { ProjectSource } from "./lib/source";
 
-type Section = "map" | "play" | "data" | "checks";
+type Section = "map" | "play" | "data" | "assets" | "checks";
 const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
   { id: "map", label: "マップ", icon: MapIcon },
   { id: "play", label: "試遊", icon: Gamepad2 },
   { id: "data", label: "データ", icon: Database },
+  { id: "assets", label: "素材", icon: ImageIcon },
   { id: "checks", label: "検証", icon: FlaskConical },
 ];
 
@@ -68,7 +70,7 @@ export default function App({ source }: { source: ProjectSource }) {
 
   return <main className={`studio section-${section}`}>
     <header className="topbar">
-      <div className="brand"><img src="./favicon.svg" alt="" width={26} height={26} /><div><b>RPGシステム工房</b><span>AGENT WORKBENCH 0.2</span></div></div>
+      <div className="brand"><img src="./favicon.svg" alt="" width={26} height={26} /><div><b>RPGシステム工房</b><span>AGENT WORKBENCH 0.4</span></div></div>
       <div className="project-pill" title={store.texts["project.json"] ? "project.json" : ""}>
         <span>{playContent?.project.title ?? "（検証エラー）"}</span><code>{playContent?.project.id}</code>
       </div>
@@ -113,6 +115,7 @@ export default function App({ source }: { source: ProjectSource }) {
       </div>}
       {section === "play" && playContent && <PlayPanel store={store} content={playContent} stale={!store.content} systems={store.systems} systemsVersion={store.systemsVersion} source={source} startAt={startAt} />}
       {section === "data" && <DataPanel store={store} diagnostics={store.diagnostics} file={dataFile} onFile={setDataFile} />}
+      {section === "assets" && playContent && <AssetsPanel store={store} content={playContent} images={images} />}
       {section === "checks" && <ChecksPanel store={store} diagnostics={store.diagnostics} onOpenFile={openFile} />}
       {!editContent && section !== "data" && section !== "checks" && <div className="empty">プロジェクトが一度も検証を通っていません。「検証」と「データ」で問題を直してください。</div>}
     </section>
