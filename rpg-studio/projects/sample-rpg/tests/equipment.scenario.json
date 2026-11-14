@@ -1,0 +1,108 @@
+{
+  "name": "装備: 武器と防具を付け外しすると能力が変わり、手放すと外れる",
+  "seed": 2,
+  "steps": [
+    {
+      "advance": "all"
+    },
+    {
+      "choose": "human"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "effects": [
+        {
+          "type": "giveItem",
+          "item": "bronze-sword"
+        },
+        {
+          "type": "giveItem",
+          "item": "leather-vest"
+        }
+      ]
+    },
+    {
+      "expect": {
+        "stats": {
+          "attack": 5
+        },
+        "equipped": {
+          "weapon": null
+        }
+      }
+    },
+    {
+      "equip": "bronze-sword"
+    },
+    {
+      "expect": {
+        "stats": {
+          "attack": 7
+        },
+        "equipped": {
+          "weapon": "bronze-sword"
+        }
+      }
+    },
+    {
+      "equip": "leather-vest"
+    },
+    {
+      "expect": {
+        "equipped": {
+          "armor": "leather-vest"
+        }
+      }
+    },
+    {
+      "saveAndLoad": true
+    },
+    {
+      "expect": {
+        "equipped": {
+          "weapon": "bronze-sword",
+          "armor": "leather-vest"
+        },
+        "stats": {
+          "attack": 7
+        }
+      }
+    },
+    {
+      "equip": "bronze-sword"
+    },
+    {
+      "expect": {
+        "stats": {
+          "attack": 5
+        },
+        "equipped": {
+          "weapon": null
+        }
+      }
+    },
+    {
+      "equip": "bronze-sword"
+    },
+    {
+      "effects": [
+        {
+          "type": "takeItem",
+          "item": "bronze-sword"
+        }
+      ]
+    },
+    {
+      "expect": {
+        "equipped": {
+          "weapon": null
+        },
+        "stats": {
+          "attack": 5
+        }
+      }
+    }
+  ]
+}

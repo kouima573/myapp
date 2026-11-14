@@ -154,6 +154,74 @@
               ]
             },
             {
+              "id": "buy-sword",
+              "label": "青銅の剣 — 12G（装備品）",
+              "when": {
+                "all": [
+                  {
+                    "var": "gold",
+                    "op": ">=",
+                    "value": 12
+                  },
+                  {
+                    "not": {
+                      "item": "bronze-sword"
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "type": "setVar",
+                  "var": "gold",
+                  "op": "sub",
+                  "value": 12
+                },
+                {
+                  "type": "giveItem",
+                  "item": "bronze-sword"
+                },
+                {
+                  "type": "message",
+                  "text": "青銅の剣を買った。メニューの『どうぐ』で装備できる。"
+                }
+              ]
+            },
+            {
+              "id": "buy-vest",
+              "label": "革の胴着 — 10G（装備品）",
+              "when": {
+                "all": [
+                  {
+                    "var": "gold",
+                    "op": ">=",
+                    "value": 10
+                  },
+                  {
+                    "not": {
+                      "item": "leather-vest"
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "type": "setVar",
+                  "var": "gold",
+                  "op": "sub",
+                  "value": 10
+                },
+                {
+                  "type": "giveItem",
+                  "item": "leather-vest"
+                },
+                {
+                  "type": "message",
+                  "text": "革の胴着を買った。メニューの『どうぐ』で装備できる。"
+                }
+              ]
+            },
+            {
               "id": "leave",
               "label": "やめておく",
               "effects": []

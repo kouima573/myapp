@@ -6,11 +6,11 @@
  */
 import { z } from "zod";
 import { defineSystem, type SceneDefinition, type SystemContext } from "../../engine/src/index";
-import { drawHero, enemyOf, finish, heroOf, inBattle, issues, OutcomeArgs, pressed } from "./common";
+import { assetRefErrors, drawHero, drawSprite, drawTile, enemyOf, finish, heroOf, inBattle, issues, OutcomeArgs, pressed } from "./common";
 import { asRecord } from "./ui";
 
 const FPS = 30, T = 16;
-const UnitType = z.object({ name: z.string().min(1).max(12), hp: z.number().int().min(1).max(9999), attack: z.number().int().min(0).max(999), range: z.number().min(0.8).max(12).default(1.2), speed: z.number().min(0.01).max(0.3).default(0.06), color: z.string().default("#7fa8d9") }).strict();
+const UnitType = z.object({ name: z.string().min(1).max(12), hp: z.number().int().min(1).max(9999), attack: z.number().int().min(0).max(999), range: z.number().min(0.8).max(12).default(1.2), speed: z.number().min(0.01).max(0.3).default(0.06), color: z.string().default("#7fa8d9"), sprite: z.string().optional() }).strict();
 
 export const SquadArgsSchema = z.object({
   title: z.string().default("部隊戦"),
@@ -22,11 +22,13 @@ export const SquadArgsSchema = z.object({
   goal: z.enum(["rout", "base"]).default("rout"),
   baseHp: z.number().int().min(1).max(9999).default(40),
   seconds: z.number().min(0).max(3600).default(0),
+  /** Draw with the project's tileset: map characters → tiles.json codes. */
+  tiles: z.record(z.string().length(1), z.string().length(1)).default({}),
   ...OutcomeArgs,
 }).strict();
 export type SquadArgs = z.infer<typeof SquadArgsSchema>;
 
-export interface Unit { id: number; side: 0 | 1; hero: boolean; name: string; x: number; y: number; hp: number; maxHp: number; attack: number; range: number; speed: number; color: string; cool: number; dest?: { x: number; y: number }; selected: boolean }
+export interface Unit { id: number; side: 0 | 1; hero: boolean; name: string; x: number; y: number; hp: number; maxHp: number; attack: number; range: number; speed: number; color: string; sprite?: string; cool: number; dest?: { x: number; y: number }; selected: boolean }
 export interface SquadData { args: SquadArgs; frame: number; rows: string[]; w: number; h: number; units: Unit[]; bases: Array<{ side: 0 | 1; x: number; y: number; hp: number; maxHp: number }>; cursor: { x: number; y: number }; held: string[]; message: string; lines: Array<[number, number, number, number, number]> }
 
 export function checkSquad(a: SquadArgs): string[] {
@@ -50,8 +52,8 @@ export function startSquad(ctx: SystemContext, raw: Record<string, unknown>): Sq
   const rows = args.rows.map((row, y) => Array.from(row.padEnd(w, " ")).map((ch, x) => {
     const pos = { x: x + 0.5, y: y + 0.5, cool: 0, selected: false };
     if (ch === "@") units.push({ ...pos, id: id++, side: 0, hero: true, name: hero.name, hp: hero.hp, maxHp: hero.maxHp, attack: hero.attack, range: 1.2, speed: 0.07, color: "#f0c36a" });
-    if (ch === "a") { const t = args.allies[ai++ % args.allies.length]!; units.push({ ...pos, id: id++, side: 0, hero: false, name: t.name, hp: t.hp, maxHp: t.hp, attack: t.attack, range: t.range, speed: t.speed, color: t.color }); }
-    if (ch === "e") { const t = foes[ei++ % foes.length]!; units.push({ ...pos, id: id++, side: 1, hero: false, name: t.name, hp: t.hp, maxHp: t.hp, attack: t.attack, range: t.range ?? 1.2, speed: t.speed ?? 0.05, color: t.color ?? "#d9745b" }); }
+    if (ch === "a") { const t = args.allies[ai++ % args.allies.length]!; units.push({ ...pos, id: id++, side: 0, hero: false, name: t.name, hp: t.hp, maxHp: t.hp, attack: t.attack, range: t.range, speed: t.speed, color: t.color, sprite: t.sprite }); }
+    if (ch === "e") { const t = foes[ei++ % foes.length]!; units.push({ ...pos, id: id++, side: 1, hero: false, name: t.name, hp: t.hp, maxHp: t.hp, attack: t.attack, range: t.range ?? 1.2, speed: t.speed ?? 0.05, color: t.color ?? "#d9745b", sprite: (t as { sprite?: string }).sprite }); }
     if (ch === "H" || ch === "E") bases.push({ side: ch === "H" ? 0 : 1, x: x + 0.5, y: y + 0.5, hp: args.baseHp, maxHp: args.baseHp });
     return ch === "#" ? "#" : " ";
   }).join(""));
@@ -124,7 +126,7 @@ function layout(d: SquadData, width: number, height: number) {
 const battle = (auto: boolean): SceneDefinition => ({
   title: auto ? "オートバトラー（布陣して見守る）" : "部隊戦（RTS：選んで指示する）",
   realtime: { fps: FPS },
-  checkArgs: args => { const r = SquadArgsSchema.safeParse({ ...args, auto }); return r.success ? checkSquad(r.data) : issues(r); },
+  checkArgs: (args, { content }) => { const r = SquadArgsSchema.safeParse({ ...args, auto }); return r.success ? [...checkSquad(r.data), ...assetRefErrors(content, r.data.tiles, Object.fromEntries([...r.data.allies, ...r.data.enemies].filter(u => u.sprite).map(u => [u.name, u.sprite!])))] : issues(r); },
   start: (ctx, raw) => startSquad(ctx, { ...raw, auto }),
   input(ctx, raw, input) {
     const d = raw as SquadData;
@@ -149,12 +151,17 @@ const battle = (auto: boolean): SceneDefinition => ({
     g.fillStyle = "#1a2016"; g.fillRect(0, 0, view.width, view.height);
     g.save(); g.translate(lay.ox, lay.oy); g.scale(lay.s, lay.s);
     g.fillStyle = "#3f5233"; g.fillRect(0, 0, d.w * T, d.h * T);
-    for (let y = 0; y < d.h; y++) for (let x = 0; x < d.w; x++) if (d.rows[y]![x] === "#") { g.fillStyle = "#5c5345"; g.fillRect(x * T, y * T, T, T); }
+    for (let y = 0; y < d.h; y++) for (let x = 0; x < d.w; x++) {
+      const ch = d.rows[y]![x]!;
+      if (d.args.tiles[" "] && ch !== "#") drawTile(g, view, d.args.tiles[" "], x * T, y * T, T);
+      if (ch === "#" && !(d.args.tiles["#"] && drawTile(g, view, d.args.tiles["#"], x * T, y * T, T))) { g.fillStyle = "#5c5345"; g.fillRect(x * T, y * T, T, T); }
+    }
     for (const b of d.bases) { g.fillStyle = b.side === 0 ? "#3f7fc4" : "#9b2f2f"; g.fillRect(b.x * T - 10, b.y * T - 10, 20, 20); g.fillStyle = "#222"; g.fillRect(b.x * T - 10, b.y * T - 14, 20, 2); g.fillStyle = "#7fc46b"; g.fillRect(b.x * T - 10, b.y * T - 14, 20 * (b.hp / b.maxHp), 2); }
     for (const l of d.lines) { g.strokeStyle = "rgba(255,240,200,.7)"; g.lineWidth = 0.8; g.beginPath(); g.moveTo(l[0] * T, l[1] * T); g.lineTo(l[2] * T, l[3] * T); g.stroke(); }
     for (const u of d.units) {
       if (u.hp <= 0) continue;
       if (u.hero) drawHero(g, view, u.x * T, u.y * T - 2, 16, 0, 0);
+      else if (u.sprite && drawSprite(g, view, u.sprite, u.x * T, u.y * T - 2, 16, u.side === 0 ? 2 : 1, Math.floor(d.frame / 8))) { /* drawn */ }
       else { g.fillStyle = u.color; g.beginPath(); g.arc(u.x * T, u.y * T, 5, 0, Math.PI * 2); g.fill(); g.strokeStyle = u.side === 0 ? "#cfe3ff" : "#3a1010"; g.lineWidth = 1; g.stroke(); }
       if (u.selected) { g.strokeStyle = "#f0c36a"; g.beginPath(); g.arc(u.x * T, u.y * T, 8, 0, Math.PI * 2); g.stroke(); }
       if (u.dest && !d.args.auto) { g.strokeStyle = "rgba(240,195,106,.25)"; g.beginPath(); g.moveTo(u.x * T, u.y * T); g.lineTo(u.dest.x * T, u.dest.y * T); g.stroke(); }

@@ -144,6 +144,7 @@ export function loadProjectContent(texts: ProjectFileTexts): LoadResult {
   duplicateIds(project.eventsPath, "events", eventBundle.events, diagnostics);
   duplicateIds(project.databasePath, "abilities", database.abilities, diagnostics);
   duplicateIds(project.databasePath, "items", database.items, diagnostics);
+  duplicateIds(project.databasePath, "companions", database.companions, diagnostics);
   duplicateIds(project.databasePath, "enemies", database.enemies, diagnostics);
   duplicateIds(project.databasePath, "traits", database.traits, diagnostics);
   if (project.rulesPath) duplicateIds(project.rulesPath, "rules", ruleBundle.rules, diagnostics);
@@ -257,6 +258,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         if (!entityIds.has(c.entityAt.entity)) err(file, at, `entityAt: どのマップにもないエンティティ '${c.entityAt.entity}'`);
         if (c.entityAt.map && !maps[c.entityAt.map]) err(file, at, `entityAt: 未定義のマップ '${c.entityAt.map}'`);
       }
+      if ("equipped" in c && !itemIds.has(c.equipped)) err(file, at, `equipped: 未定義のアイテム '${c.equipped}'`);
       if ("carrying" in c && !entityIds.has(c.carrying)) err(file, at, `carrying: どのマップにもないエンティティ '${c.carrying}'`);
       if ("front" in c) {
         if (c.front.tile !== undefined && !tileByCode.has(c.front.tile)) err(file, at, `front.tile: タイルセットにないコード '${c.front.tile}'`);
@@ -297,6 +299,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         case "event": if (!events[effect.event]) err(file, here, `未定義のイベント '${effect.event}'`); break;
         case "battle":
           if (!enemyIds.has(effect.enemy)) err(file, here, `未定義の敵 '${effect.enemy}'`);
+          for (const extra of effect.with ?? []) if (!enemyIds.has(extra)) err(file, here, `with: 未定義の敵 '${extra}'`);
+          if (effect.with?.length && effect.mode && effect.mode !== "builtin") warn(file, here, "with（複数の敵）は標準の戦闘だけで使われます。戦闘モードでは最初の敵だけと戦います");
           if (effect.mode && effect.mode !== "builtin" && !systemIds.has(effect.mode.slice(0, effect.mode.lastIndexOf(".")))) err(file, here, `戦闘モード '${effect.mode}' のモジュール・システムがありません`);
           if (effect.onVictory) checkEffects(file, `${here}.onVictory`, effect.onVictory);
           break;
@@ -321,6 +325,9 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
           if (!systemIds.has(effect.system)) err(file, here, `'${effect.system}' は project.json の systems にも modules にもありません`); break;
         case "ending": if (!endingIds.has(effect.ending)) err(file, here, `未宣言のエンディング '${effect.ending}'（project.json の endings）`); break;
         case "playBgm": checkAudio(file, here, effect.music, MUSIC, "BGM"); break;
+        case "joinParty": case "leaveParty": if (!content.database.companions.some(x => x.id === effect.companion)) err(file, here, `未定義の仲間 '${effect.companion}'（database.json の companions）`); break;
+        case "equip": { const it = content.database.items.find(i => i.id === effect.item); if (!it) err(file, here, `未定義のアイテム '${effect.item}'`); else if (!it.slot) err(file, here, `'${effect.item}' は装備品ではありません（slot がない）`); break; }
+        case "unequip": if (!content.project.equipmentSlots[effect.slot]) err(file, here, `未定義の装備枠 '${effect.slot}'（project.json の equipmentSlots）`); break;
         case "learnVerb": case "forgetVerb": case "useVerb": if (!verbIds.has(effect.verb)) err(file, here, `未定義の動詞 '${effect.verb}'（project.json の verbs）`); break;
         case "signal": if (!signalIds.has(effect.signal)) err(file, here, `未宣言のシグナル '${effect.signal}'（project.json の signals）`); break;
         case "setPlayer": if (effect.sprite && assetById.get(effect.sprite)?.kind !== "character") err(file, here, `キャラクター素材 '${effect.sprite}' がassets.jsonにありません`); break;
@@ -535,7 +542,9 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     t.abilities.forEach((id, i) => { if (!abilityIds.has(id)) err(DB, `${at}.abilities[${i}]`, `未定義の能力 '${id}'`); });
     checkStatMods(DB, at, t.statMods); checkRules(DB, at, t.rules); checkEffects(DB, `${at}.onGrant`, t.onGrant);
   });
-  database.items.forEach(i => { const at = `items[${i.id}]`; checkStatMods(DB, at, i.statMods); checkRules(DB, at, i.rules); checkUse(DB, at, i.use); });
+  database.companions.forEach(comp => comp.actions.forEach((a, i) => checkCondition(DB, `companions[${comp.id}].actions[${i}].when`, a.when)));
+  database.companions.forEach(comp => { if (comp.sprite && assetById.get(comp.sprite)?.kind !== "character") err(DB, `companions[${comp.id}].sprite`, `キャラクター素材 '${comp.sprite}' がありません`); });
+  database.items.forEach(i => { const at = `items[${i.id}]`; checkStatMods(DB, at, i.statMods); checkRules(DB, at, i.rules); checkUse(DB, at, i.use); if (i.slot && !project.equipmentSlots[i.slot]) err(DB, `${at}.slot`, `未定義の装備枠 '${i.slot}'（project.json の equipmentSlots）`); });
   database.enemies.forEach(enemy => {
     const at = `enemies[${enemy.id}]`;
     if (enemy.battle) for (const list of nestedEffectLists(enemy.battle.args)) checkEffects(DB, `${at}.battle.args`, list);

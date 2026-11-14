@@ -182,6 +182,25 @@
       "statMods": {
         "attack": 1
       }
+    },
+    {
+      "id": "bronze-sword",
+      "name": "青銅の剣",
+      "description": "装備すると攻撃+2。",
+      "slot": "weapon",
+      "statMods": {
+        "attack": 2
+      }
+    },
+    {
+      "id": "leather-vest",
+      "name": "革の胴着",
+      "description": "装備すると防御+1、最大HP+2。",
+      "slot": "armor",
+      "statMods": {
+        "defense": 1,
+        "maxHp": 2
+      }
     }
   ],
   "enemies": [

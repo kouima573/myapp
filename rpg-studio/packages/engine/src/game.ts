@@ -2,7 +2,7 @@ import type {
   BattleState, Direction, Effect, Enemy, Entity, EntityState, GameContent, GameEvent, GameMap, GameState, Interactable, Npc, Rule, RuleTrigger,
   Stats, TileDef, Use,
 } from "../../schema/src/formats";
-import { abilitiesOf, effectiveStats, evalExpr, evaluate, interpolate, nextRandom, regionsAt, type EvalEnv, type FrontInfo } from "./conditions";
+import { abilitiesOf, effectiveStats, evalExpr, evaluate, interpolate, itemActive, nextRandom, regionsAt, type EvalEnv, type FrontInfo } from "./conditions";
 import { sortSystems, type GameSystem, type PlayerAction, type SceneInput, type SystemActionResult } from "./systems";
 
 /** Values that survive a new cycle (meta-scoped flags, variables, sets, endings seen, cycle number). */
@@ -23,7 +23,7 @@ export interface EntityView {
 }
 
 export type BattleCommand =
-  | { command: "attack" }
+  | { command: "attack"; target?: number }
   | { command: "guard" }
   | { command: "flee" }
   | { command: "item"; item: string }
@@ -42,7 +42,9 @@ export type Action =
   | { type: "tick" }
   | { type: "sceneInput"; input: SceneInput }
   /** A self-made verb from project.json › verbs. */
-  | { type: "verb"; verb: string };
+  | { type: "verb"; verb: string }
+  /** Equip an item (or take it off if it is already equipped). Field only. */
+  | { type: "equip"; item: string };
 
 /** Presentation hints for the runtime (sound, animation). Never needed for correctness. */
 export type Cue =
@@ -129,6 +131,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   const ex = (expr: Parameters<typeof evalExpr>[0], state: GameState, extra?: EvalEnv["ctx"]) => evalExpr(expr, state, extra ? { ...env, ctx: extra } : env);
   const text = (template: string, state: GameState, extra?: EvalEnv["ctx"]) => interpolate(template, state, extra ? { ...env, ctx: extra } : env);
   const stats = (state: GameState) => effectiveStats(state, content);
+  const companionOf = (id: string) => db.companions.find(x => x.id === id);
   const enemyOf = (id: string): Enemy => {
     const enemy = db.enemies.find(e => e.id === id);
     if (!enemy) throw new Error(`敵 '${id}' がデータベースにありません`);
@@ -268,7 +271,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     add("g", "全体", content.rules);
     for (const id of abilitiesOf(state, content)) { const a = db.abilities.find(x => x.id === id); if (a) add(`a:${id}`, a.name, a.rules); }
     for (const id of state.traits ?? []) { const t = db.traits.find(x => x.id === id); if (t) add(`t:${id}`, t.name, t.rules); }
-    for (const id of Object.keys(state.items)) { const i = db.items.find(x => x.id === id); if (i) add(`i:${id}`, i.name, i.rules); }
+    for (const id of Object.keys(state.items)) { const i = db.items.find(x => x.id === id); if (i && itemActive(state, i)) add(`i:${id}`, i.name, i.rules); }
     const battle = battleOf(state);
     if (battle) { const e = db.enemies.find(x => x.id === battle.enemyId); if (e) add(`e:${e.id}`, e.name, e.rules); }
     return out.sort((a, b) => a.rule.priority - b.rule.priority || a.key.localeCompare(b.key));
@@ -440,14 +443,28 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
           const left = (s.items[effect.item] ?? 0) - (effect.count ?? 1);
           const items = { ...s.items };
           if (left > 0) items[effect.item] = left; else delete items[effect.item];
-          return { ...s, items };
+          // Giving away the last one takes it off.
+          const equipment = left > 0 ? s.equipment : Object.fromEntries(Object.entries(s.equipment ?? {}).filter(([, item]) => item !== effect.item));
+          return { ...s, items, ...(equipment ? { equipment } : {}) };
         });
       case "heal": {
         const max = stats(state).maxHp;
         const amount = effect.amount === undefined ? max : ex(effect.amount, state, ctxValues);
         if (amount > 0) c.cues.push({ kind: "heal" });
-        return { ...state, player: { ...state.player, hp: Math.max(0, Math.min(max, state.player.hp + amount)) } };
+        const target = effect.target ?? "player";
+        if (target !== "party") state = { ...state, player: { ...state.player, hp: Math.max(0, Math.min(max, state.player.hp + amount)) } };
+        if (target !== "player" && state.party) state = { ...state, party: state.party.map(m => { const cmax = companionOf(m.id)?.stats.maxHp ?? m.hp; return { ...m, hp: Math.max(0, Math.min(cmax, m.hp + (effect.amount === undefined ? cmax : amount))) }; }) };
+        return state;
       }
+      case "joinParty": {
+        const comp = companionOf(effect.companion);
+        if (!comp) throw new Error(`仲間 '${effect.companion}' がいません（database.json の companions）`);
+        if (state.party?.some(m => m.id === comp.id)) return state;
+        c.log.push(`${comp.name}が仲間に加わった`);
+        return { ...state, party: [...(state.party ?? []), { id: comp.id, hp: comp.stats.maxHp }] };
+      }
+      case "leaveParty":
+        return { ...state, party: (state.party ?? []).filter(m => m.id !== effect.companion) };
       case "damage": {
         const amount = Math.max(0, ex(effect.amount, state, ctxValues));
         if (effect.target === "enemy") {
@@ -491,6 +508,18 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         if (!immediate) return enqueue(state, collected);
         c.signalDepth = depth;
         try { return runNow(c, state, collected, ctxValues); } finally { c.signalDepth = depth - 1; }
+      }
+      case "equip": {
+        const item = db.items.find(i => i.id === effect.item);
+        if (!item?.slot) throw new Error(`アイテム '${effect.item}' は装備品ではありません（slot がない）`);
+        if ((state.items[item.id] ?? 0) <= 0) { c.log.push(`${item.name}を持っていないので装備できない`); return state; }
+        c.log.push(`${item.name}を装備した`);
+        return withHpCare(state, s => ({ ...s, equipment: { ...s.equipment, [item.slot!]: item.id } }));
+      }
+      case "unequip": {
+        if (!state.equipment?.[effect.slot]) return state;
+        const { [effect.slot]: _removed, ...rest } = state.equipment;
+        return withHpCare(state, s => ({ ...s, equipment: rest }));
       }
       case "learnVerb":
         return { ...state, verbsLearned: [...new Set([...(state.verbsLearned ?? []), effect.verb])], verbsForgotten: (state.verbsForgotten ?? []).filter(v => v !== effect.verb) };
@@ -624,10 +653,12 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   /* ---------------------------------------------------------------- battle */
   function startBattle(c: Ctx, state: GameState, effect: Extract<Effect, { type: "battle" }>): GameState {
     const enemy = enemyOf(effect.enemy);
+    const others = (effect.with ?? []).map(id => enemyOf(id));
     const battle: BattleState = {
       enemyId: enemy.id, enemyHp: enemy.stats.maxHp, turn: 0, guarding: false,
-      canFlee: effect.canFlee ?? enemy.canFlee, onDefeat: effect.onDefeat ?? "respawn", onVictory: effect.onVictory ?? [],
-      log: [`${enemy.name}が現れた！`], systemData: {}, outcome: "ongoing", fired: [], after: [],
+      canFlee: effect.canFlee ?? (enemy.canFlee && others.every(o => o.canFlee)), onDefeat: effect.onDefeat ?? "respawn", onVictory: effect.onVictory ?? [],
+      log: [others.length ? `${[enemy, ...others].map(e => e.name).join("と")}が現れた！` : `${enemy.name}が現れた！`], systemData: {}, outcome: "ongoing", fired: [], after: [],
+      ...(others.length ? { foes: others.map(o => ({ enemyId: o.id, hp: o.stats.maxHp })) } : {}),
     };
     state = setBattle(state, battle);
     for (const system of sorted) {
@@ -727,9 +758,10 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     let battle = battleOf(state);
     if (!battle || battle.outcome !== "ongoing") return state;
     const enemy = enemyOf(battle.enemyId);
-    if (battle.enemyHp <= 0) {
-      state = battleLog(state, `${enemy.name}を倒した！`);
-      for (const drop of enemy.drops) {
+    if (battle.enemyHp <= 0 && (battle.foes ?? []).every(f => f.hp <= 0)) {
+      const all = [enemy, ...(battle.foes ?? []).map(f => enemyOf(f.enemyId))];
+      state = battleLog(state, all.length > 1 ? "敵をすべて倒した！" : `${enemy.name}を倒した！`);
+      for (const drop of all.flatMap(e => e.drops)) {
         state = { ...state, items: { ...state.items, [drop.item]: (state.items[drop.item] ?? 0) + drop.count } };
         state = battleLog(state, `${itemName(drop.item)}を${drop.count}個手に入れた。`);
       }
@@ -802,20 +834,30 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     return [state, use.effects];
   }
 
-  function battleStep(c: Ctx, state: GameState, command: BattleCommand): GameState {
-    let battle = battleOf(state);
-    if (!battle || battle.outcome !== "ongoing") return state;
-    const enemy = enemyOf(battle.enemyId);
-    const name = content.project.player.name;
-    state = setBattle(state, { ...battle, guarding: false });
+  /** All enemies in the battle: index 0 is the primary (battle.enemyId), then battle.foes. */
+  const enemyCount = (b: BattleState) => 1 + (b.foes?.length ?? 0);
+  const enemyHpAt = (b: BattleState, i: number) => (i === 0 ? b.enemyHp : b.foes![i - 1]!.hp);
+  /**
+   * Makes enemy i the primary for a moment (swap with index 0) so every existing rule, system and formula
+   * ("the enemy", dealDamage, enemy conditions) sees the one being hit or acting. Swapping twice restores the order.
+   */
+  function swapEnemy(state: GameState, i: number): GameState {
+    const b = battleOf(state);
+    if (!b || i <= 0 || !b.foes?.[i - 1]) return state;
+    const foe = b.foes[i - 1]!;
+    const foes = b.foes.map((f, k) => (k === i - 1 ? { enemyId: b.enemyId, hp: b.enemyHp } : f));
+    return setBattle(state, { ...b, enemyId: foe.enemyId, enemyHp: foe.hp, foes });
+  }
+  const firstAlive = (b: BattleState) => { for (let i = 0; i < enemyCount(b); i++) if (enemyHpAt(b, i) > 0) return i; return 0; };
 
-    const allowed = content.project.battle.commands;
-    const commandKey = command.command === "skill" ? "skills" : command.command === "item" ? "items" : command.command;
-    if (!allowed[commandKey]) return battleLog(state, "そのコマンドは使えない。");
+  function playerAction(c: Ctx, state: GameState, command: BattleCommand): GameState | "done" {
+    const enemy = enemyOf(battleOf(state)!.enemyId);
+    const name = state.player.name ?? content.project.player.name;
     if (command.command === "attack") {
       const [raw, next] = rollDamage(state, stats(state).attack, 0, enemy.stats.defense);
       const [after, amount] = applyDamage(c, next, "enemy", raw);
       state = battleLog(after, `${name}の攻撃！ ${enemy.name}に${amount}のダメージ。`);
+      if (battleOf(state)!.enemyHp <= 0 && enemyCount(battleOf(state)!) > 1) state = battleLog(state, `${enemy.name}を倒した！`);
     } else if (command.command === "guard") {
       state = battleLog(setBattle(state, { ...battleOf(state)!, guarding: true }), `${name}は身を守っている。`);
     } else if (command.command === "item" || command.command === "skill") {
@@ -842,26 +884,103 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         state = battleLog(state, "逃げられなかった！");
       }
     }
-    state = checkBattleEnd(c, state);
-    if (battleOf(state)!.outcome !== "ongoing") return state;
+    return state;
+  }
 
-    // Enemy turn: actions whose `when` holds, used in order and cycling.
-    battle = battleOf(state)!;
+  /** Companions act on their own: heal someone below half HP if they can, otherwise their next attack / guard. */
+  function companionTurns(c: Ctx, state: GameState): GameState {
+    for (const member of state.party ?? []) {
+      const comp = companionOf(member.id);
+      const current = state.party?.find(m => m.id === member.id);
+      if (!comp || !current || current.hp <= 0 || battleOf(state)!.outcome !== "ongoing") continue;
+      const actions = comp.actions.filter(a => ev(a.when, state));
+      const hurt = [{ id: "player", hp: state.player.hp, max: stats(state).maxHp }, ...(state.party ?? []).filter(m => m.hp > 0).map(m => ({ id: m.id, hp: m.hp, max: companionOf(m.id)?.stats.maxHp ?? m.hp }))].filter(x => x.hp < x.max / 2).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
+      const heal = hurt && actions.find(a => a.kind === "heal");
+      if (heal && hurt) {
+        const amount = Math.max(1, heal.power || Math.ceil(comp.stats.attack * 1.5));
+        if (hurt.id === "player") state = { ...state, player: { ...state.player, hp: Math.min(stats(state).maxHp, state.player.hp + amount) } };
+        else state = { ...state, party: state.party!.map(m => (m.id === hurt.id ? { ...m, hp: Math.min(hurt.max, m.hp + amount) } : m)) };
+        state = battleLog(state, text(heal.message ?? `${comp.name}の${heal.name}！ ${hurt.id === "player" ? (state.player.name ?? content.project.player.name) : companionOf(hurt.id)?.name}のHPが${amount}回復した。`, state));
+        continue;
+      }
+      const others = actions.filter(a => a.kind !== "heal");
+      const action = others.length ? others[battleOf(state)!.turn % others.length]! : undefined;
+      if (!action || action.kind === "guard") { state = battleLog(state, `${comp.name}は身構えている。`); continue; }
+      const t = firstAlive(battleOf(state)!);
+      state = swapEnemy(state, t);
+      const enemy = enemyOf(battleOf(state)!.enemyId);
+      const [raw, next] = rollDamage(state, comp.stats.attack, action.power, enemy.stats.defense);
+      const amount = Math.max(1, raw);
+      state = setBattle(next, { ...battleOf(next)!, enemyHp: Math.max(0, battleOf(next)!.enemyHp - amount) });
+      state = battleLog(state, text(action.message ?? `${comp.name}の${action.name}！ ${enemy.name}に${amount}のダメージ。`, state));
+      if (battleOf(state)!.enemyHp <= 0 && enemyCount(battleOf(state)!) > 1) state = battleLog(state, `${enemy.name}を倒した！`);
+      state = swapEnemy(state, t);
+      state = checkBattleEnd(c, state);
+    }
+    return state;
+  }
+
+  /** One enemy's turn (it is the primary while acting). It strikes the hero or, with a party, anyone standing. */
+  function enemyTurn(c: Ctx, state: GameState): GameState {
+    const battle = battleOf(state)!;
+    const enemy = enemyOf(battle.enemyId);
     const available = enemy.actions.filter(action => ev(action.when, state));
     const action = available.length ? available[battle.turn % available.length]! : null;
-    if (action) {
-      state = battleLog(state, text(action.message ?? `${enemy.name}の${action.name}！`, state));
-      if (action.power > 0) {
+    if (!action) return state;
+    state = battleLog(state, text(action.message ?? `${enemy.name}の${action.name}！`, state));
+    if (action.power > 0) {
+      const standing = (state.party ?? []).filter(m => m.hp > 0);
+      let pick = 0;
+      if (standing.length) { let roll: number; [roll, state] = random(state); pick = Math.floor(roll * (standing.length + 1)); }
+      if (pick === 0) {
         const guarding = battleOf(state)!.guarding;
         const [rolled, next] = rollDamage(state, enemy.stats.attack, action.power, stats(state).defense, "enemy");
         // Guarding halves the damage at step ① (before rules and systems see it).
         const [after, amount] = applyDamage(c, next, "player", guarding ? Math.max(1, Math.ceil(rolled / 2)) : rolled);
         state = battleLog(after, `${amount}のダメージを受けた。`);
+      } else {
+        const member = standing[pick - 1]!;
+        const comp = companionOf(member.id)!;
+        const [rolled, next] = rollDamage(state, enemy.stats.attack, action.power, comp.stats.defense, "enemy");
+        const amount = Math.max(1, rolled);
+        state = { ...next, party: next.party!.map(m => (m.id === member.id ? { ...m, hp: Math.max(0, m.hp - amount) } : m)) };
+        state = battleLog(state, `${comp.name}に${amount}のダメージ。${state.party!.find(m => m.id === member.id)!.hp <= 0 ? `${comp.name}は倒れた……` : ""}`);
       }
-      state = runNow(c, state, action.effects);
     }
+    return runNow(c, state, action.effects);
+  }
+
+  function battleStep(c: Ctx, state: GameState, command: BattleCommand): GameState {
+    let battle = battleOf(state);
+    if (!battle || battle.outcome !== "ongoing") return state;
+    state = setBattle(state, { ...battle, guarding: false });
+
+    const allowed = content.project.battle.commands;
+    const commandKey = command.command === "skill" ? "skills" : command.command === "item" ? "items" : command.command;
+    if (!allowed[commandKey]) return battleLog(state, "そのコマンドは使えない。");
+    // Target: the chosen enemy if it still stands, otherwise the first one standing.
+    const requested = command.command === "attack" ? command.target : undefined;
+    const target = requested !== undefined && requested < enemyCount(battle) && enemyHpAt(battle, requested) > 0 ? requested : firstAlive(battle);
+    state = swapEnemy(state, target);
+    const acted = playerAction(c, state, command);
+    if (acted === "done") return state;
+    state = swapEnemy(acted, target);
+    if (battleOf(state)!.outcome !== "ongoing") return state;
     state = checkBattleEnd(c, state);
     if (battleOf(state)!.outcome !== "ongoing") return state;
+
+    state = companionTurns(c, state);
+    if (battleOf(state)!.outcome !== "ongoing") return state;
+
+    // Enemy turns: every enemy still standing, in order. Actions whose `when` holds are used in order and cycle.
+    for (let i = 0; i < enemyCount(battleOf(state)!); i++) {
+      if (enemyHpAt(battleOf(state)!, i) <= 0) continue;
+      state = swapEnemy(state, i);
+      state = enemyTurn(c, state);
+      state = swapEnemy(state, i);
+      state = checkBattleEnd(c, state);
+      if (battleOf(state)!.outcome !== "ongoing") return state;
+    }
     for (const entry of rulesFor(state, "turnEnd")) {
       const next = tryRule(c, state, entry);
       if (next) state = runNow(c, next, entry.rule.effects);
@@ -1279,6 +1398,13 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       case "verb":
         if (scene.kind === "field") next = doVerb(c, state, action.verb);
         break;
+      case "equip": {
+        if (scene.kind !== "field") break;
+        const item = db.items.find(i => i.id === action.item);
+        if (!item?.slot) break;
+        next = runQueue(c, applyEffect(c, state, state.equipment?.[item.slot] === item.id ? { type: "unequip", slot: item.slot } : { type: "equip", item: item.id }));
+        break;
+      }
       case "sceneInput":
         next = sceneInput(c, state, action.input);
         break;

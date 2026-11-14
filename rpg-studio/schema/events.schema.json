@@ -406,6 +406,21 @@
         {
           "type": "object",
           "properties": {
+            "equipped": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "equipped"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
             "carrying": {
               "type": "string",
               "minLength": 1,
@@ -1133,10 +1148,58 @@
             },
             "amount": {
               "$ref": "#/$defs/__schema1"
+            },
+            "target": {
+              "type": "string",
+              "enum": [
+                "player",
+                "party",
+                "all"
+              ]
             }
           },
           "required": [
             "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "joinParty"
+            },
+            "companion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "companion"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "leaveParty"
+            },
+            "companion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "companion"
           ],
           "additionalProperties": false
         },
@@ -1351,6 +1414,16 @@
               "minLength": 1,
               "maxLength": 96,
               "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "with": {
+              "maxItems": 7,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 96,
+                "pattern": "^[a-z0-9][a-z0-9._-]*$"
+              }
             },
             "onVictory": {
               "type": "array",
@@ -1743,6 +1816,46 @@
           "required": [
             "type",
             "signal"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "equip"
+            },
+            "item": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "unequip"
+            },
+            "slot": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "slot"
           ],
           "additionalProperties": false
         },

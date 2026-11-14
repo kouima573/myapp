@@ -34,6 +34,13 @@ const ExpectSchema = z.object({
   /** Who the player currently is (after setPlayer). */
   player: z.object({ name: z.string().optional(), sprite: z.string().nullable().optional() }).strict().optional(),
   /** Verbs usable right now (subset) / not usable. */
+  /** Companions in the party (and ones that must not be). */
+  party: z.array(IdSchema).optional(),
+  lacksParty: z.array(IdSchema).optional(),
+  /** HP of each enemy in the current battle, in order (primary first). */
+  enemiesHp: z.array(z.number().int()).optional(),
+  /** Equipment by slot (null = empty). */
+  equipped: z.record(z.string(), z.string().nullable()).optional(),
   /** Entity the player carries (null = nothing). */
   carrying: z.string().nullable().optional(),
   verbs: z.array(IdSchema).optional(),
@@ -50,10 +57,13 @@ const StepSchema = z.union([
   z.object({ interact: z.literal(true) }).strict(),
   z.object({ advance: z.enum(["once", "all"]) }).strict(),
   z.object({ choose: IdSchema }).strict(),
-  z.object({ battle: z.enum(["attack", "guard", "flee"]) }).strict(),
+  /** target: which enemy to attack (0 = the first, 1 = the next of `with`…). */
+  z.object({ battle: z.enum(["attack", "guard", "flee"]), target: z.number().int().min(0).max(7).optional() }).strict(),
   z.object({ battleItem: IdSchema }).strict(),
   z.object({ skill: IdSchema }).strict(),
   z.object({ tick: z.number().int().positive() }).strict(),
+  /** Equip (or take off) an item from the inventory. */
+  z.object({ equip: IdSchema }).strict(),
   /** Use a self-made verb (project.json › verbs). */
   z.object({ verb: IdSchema }).strict(),
   /** Realtime scenes (shooting): run up to `frames` simulation steps holding these buttons; stops when the scene ends. */
@@ -166,6 +176,14 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
     const abilities = engine.abilities(state);
     for (const id of expect.abilities ?? []) if (!abilities.includes(id)) fail(`能力 ${id} がありません`);
     for (const id of expect.lacksAbilities ?? []) if (abilities.includes(id)) fail(`能力 ${id} を持っています`);
+    for (const id of expect.party ?? []) if (!state.party?.some(m => m.id === id)) fail(`party: ${id} が仲間にいません`);
+    for (const id of expect.lacksParty ?? []) if (state.party?.some(m => m.id === id)) fail(`lacksParty: ${id} が仲間にいます`);
+    if (expect.enemiesHp) {
+      const b = state.scene.kind === "battle" ? state.scene.battle : null;
+      const hp = b ? [b.enemyHp, ...(b.foes ?? []).map(f => f.hp)] : [];
+      if (JSON.stringify(hp) !== JSON.stringify(expect.enemiesHp)) fail(`enemiesHp: 期待 [${expect.enemiesHp.join(", ")}] / 実際 [${hp.join(", ")}]`);
+    }
+    for (const [slot, item] of Object.entries(expect.equipped ?? {})) if ((state.equipment?.[slot] ?? null) !== item) fail(`equipped.${slot}: 期待 ${item} / 実際 ${state.equipment?.[slot] ?? "なし"}`);
     if (expect.carrying !== undefined && (state.carrying?.id ?? null) !== expect.carrying) fail(`carrying: 期待 ${expect.carrying} / 実際 ${state.carrying?.id ?? "なし"}`);
         if (expect.verbs || expect.lacksVerbs) {
       const usable = engine.usableVerbs(state);
@@ -220,7 +238,7 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
         const before = state;
         step({ type: "choose", choiceId: s.choose });
         if (state === before) throw new ScenarioError(`choose: 選択肢 '${s.choose}' は選べません`);
-      } else if ("battle" in s) step({ type: "battle", command: s.battle });
+      } else if ("battle" in s) step(s.battle === "attack" ? { type: "battle", command: "attack", ...(s.target !== undefined ? { target: s.target } : {}) } : { type: "battle", command: s.battle });
       else if ("battleItem" in s) step({ type: "battle", command: "item", item: s.battleItem });
       else if ("skill" in s) step({ type: "battle", command: "skill", ability: s.skill });
       else if ("sceneInputs" in s) {
@@ -247,6 +265,10 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
           const now = state.scene;
           if (now.kind !== "custom" || now.system !== opened.system || now.scene !== opened.scene) break;
         }
+      }
+      else if ("equip" in s) {
+        if (state.scene.kind !== "field") throw new ScenarioError(`equip: フィールドではありません (scene=${state.scene.kind})`);
+        step({ type: "equip", item: s.equip });
       }
       else if ("verb" in s) {
         if (!content.project.verbs[s.verb]) throw new ScenarioError(`verb: 動詞 '${s.verb}' がありません`);

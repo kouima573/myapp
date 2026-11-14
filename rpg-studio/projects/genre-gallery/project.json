@@ -23,7 +23,12 @@
     "items": {},
     "traits": []
   },
-  "flags": {},
+  "flags": {
+    "knight-joined": {
+      "initial": false,
+      "description": "エマが仲間になった"
+    }
+  },
   "variables": {
     "skill": {
       "initial": 0,
@@ -68,6 +73,7 @@
         "program": "プログラミング",
         "factory": "工場",
         "coop": "2人協力",
+        "party": "仲間と群れ",
         "rhythm-battle": "リズムバトル",
         "puzzle-battle": "パズルバトル",
         "quiz-battle": "問答バトル",

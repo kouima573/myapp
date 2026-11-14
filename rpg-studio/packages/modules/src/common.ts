@@ -97,6 +97,17 @@ type DrawView = { state: GameState; content: SystemContext["content"]; assetUrl(
  * Draws one tile of the project's tileset (tiles.json code) at x, y (top-left) in `size` pixels.
  * Returns false when the tileset image is not loaded yet (draw a fallback then).
  */
+/** Where a tileset tile is in the loaded atlas image (for textures, e.g. raycast walls). Undefined until loaded. */
+export function tileSource(view: DrawView, code: string): { img: HTMLImageElement; sx: number; sy: number; sw: number; sh: number } | undefined {
+  const tile = view.content.tileset.tiles.find(t => t.code === code);
+  const atlas = view.content.assets.assets.find(a => a.id === view.content.tileset.atlas);
+  const img = image(view.assetUrl(view.content.tileset.atlas));
+  if (!tile || !atlas || !img) return undefined;
+  const cols = atlas.columns ?? Math.max(1, Math.floor(img.naturalWidth / (atlas.tileWidth ?? 16)));
+  const sw = img.naturalWidth / cols, sh = atlas.tileHeight ?? sw;
+  return { img, sx: (tile.index % cols) * sw, sy: Math.floor(tile.index / cols) * sh, sw, sh };
+}
+
 export function drawTile(g: CanvasRenderingContext2D, view: DrawView, code: string, x: number, y: number, size: number): boolean {
   const tile = view.content.tileset.tiles.find(t => t.code === code);
   const atlas = view.content.assets.assets.find(a => a.id === view.content.tileset.atlas);

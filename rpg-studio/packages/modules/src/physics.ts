@@ -7,7 +7,7 @@
  */
 import { z } from "zod";
 import { defineSystem } from "../../engine/src/index";
-import { finish, issues, OutcomeArgs, pressed } from "./common";
+import { assetRefErrors, drawTile, finish, issues, OutcomeArgs, pressed } from "./common";
 import { asRecord } from "./ui";
 
 const FPS = 30, T = 16;
@@ -25,6 +25,8 @@ export const PhysicsArgsSchema = z.object({
   maxPower: z.number().min(1).max(30).default(9),
   players: z.number().int().min(1).max(2).default(1),
   player2: z.string().default("2P"),
+  /** Draw with the project's tileset: map characters → tiles.json codes. */
+  tiles: z.record(z.string().length(1), z.string().length(1)).default({}),
   ...OutcomeArgs,
 }).strict();
 export type PhysicsArgs = z.infer<typeof PhysicsArgsSchema>;
@@ -119,7 +121,7 @@ export default defineSystem({
     shot: {
       title: "物理ショット（ゴルフ・ビリヤード風・投てきパズル）",
       realtime: { fps: FPS },
-      checkArgs: args => { const r = PhysicsArgsSchema.safeParse(args); return r.success ? checkPhysics(r.data) : issues(r); },
+      checkArgs: (args, { content }) => { const r = PhysicsArgsSchema.safeParse(args); return r.success ? [...checkPhysics(r.data), ...assetRefErrors(content, r.data.tiles)] : issues(r); },
       start: (_ctx, raw) => startPhysics(raw),
       input(ctx, raw, input) {
         const d = raw as PhysicsData;
@@ -147,6 +149,8 @@ export default defineSystem({
         g.fillStyle = d.args.view === "top" ? "#3f6b3a" : "#26344a"; g.fillRect(0, 0, d.w * T, d.h * T);
         for (let y = 0; y < d.h; y++) for (let x = 0; x < d.w; x++) {
           const ch = d.rows[y]![x];
+          if (d.args.tiles["."] && ch !== "#") drawTile(g, view, d.args.tiles["."], x * T, y * T, T);
+          if (d.args.tiles[ch!] && ch !== "O" && drawTile(g, view, d.args.tiles[ch!]!, x * T, y * T, T)) continue;
           if (ch === "#") { g.fillStyle = d.args.view === "top" ? "#6b5a45" : "#6b5a45"; g.fillRect(x * T, y * T, T, T); }
           else if (ch === "~") { g.fillStyle = "#2f5d7e"; g.fillRect(x * T, y * T, T, T); }
           else if (ch === "O") { g.fillStyle = "#111"; g.beginPath(); g.arc(x * T + 8, y * T + 8, 5, 0, Math.PI * 2); g.fill(); g.fillStyle = "#e9dcb8"; g.fillRect(x * T + 8, y * T - 10, 1, 16); g.fillStyle = "#d9745b"; g.fillRect(x * T + 9, y * T - 10, 7, 5); }

@@ -1840,6 +1840,74 @@
         {
           "type": "teleport",
           "mapId": "start",
+          "x": 4,
+          "y": 2,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "party": [
+          "emma"
+        ]
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 16,
+          "y": 2,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "scene": "battle",
+        "enemiesHp": [
+          6,
+          6,
+          6
+        ]
+      }
+    },
+    {
+      "battle": "attack",
+      "target": 2
+    },
+    {
+      "fight": "auto"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "field",
+        "sets": {
+          "cleared": [
+            "party"
+          ]
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
           "x": 10,
           "y": 2,
           "facing": "up"

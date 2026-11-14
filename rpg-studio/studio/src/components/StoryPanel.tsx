@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { MessageSquare, Plus, Trash2, Zap } from "lucide-react";
-import { z } from "zod";
-import { ConditionSchema, EffectSchema, type Dialogue, type GameContent, type GameEvent } from "@rpg/schema";
-import { Field, JsonField, TextInput } from "./Inspector";
+import { type Dialogue, type GameContent, type GameEvent } from "@rpg/schema";
+import { Field, TextInput } from "./Inspector";
+import { ConditionEditor, EffectListEditor } from "./forms";
 import type { ProjectStore } from "../lib/useProject";
 
 interface Props { store: ProjectStore; content: GameContent }
 type DialogueFile = { formatVersion: number; dialogues: Dialogue[] };
 type EventFile = { formatVersion: number; events: GameEvent[] };
-const Effects = z.array(EffectSchema);
 
 function uniqueId(base: string, taken: Iterable<string>) {
   const set = new Set(taken);
@@ -63,13 +62,13 @@ export default function StoryPanel({ store, content }: Props) {
           {d.lines.map((line, i) => <div key={i} className="field-row">
             {typeof line === "string"
               ? <div className="field"><TextInput value={line} onCommit={v => editD(d.id, x => { if (v.trim()) x.lines[i] = v; })} /></div>
-              : <div className="field"><TextInput value={line.text} onCommit={v => editD(d.id, x => { const l = x.lines[i]; if (typeof l === "object" && v.trim()) l.text = v; })} /><JsonField value={line.when} schema={ConditionSchema} onCommit={w => editD(d.id, x => { x.lines[i] = w ? { text: line.text, when: w } : line.text; })} placeholder='条件 {"flag": "…"}' rows={1} /></div>}
+              : <div className="field"><TextInput value={line.text} onCommit={v => editD(d.id, x => { const l = x.lines[i]; if (typeof l === "object" && v.trim()) l.text = v; })} /><ConditionEditor value={line.when} content={content} onChange={w => editD(d.id, x => { x.lines[i] = w ? { text: line.text, when: w } : line.text; })} /></div>}
             <button className="button" title="条件をつける／外す" onClick={() => editD(d.id, x => { const l = x.lines[i]!; x.lines[i] = typeof l === "string" ? { text: l, when: { flag: Object.keys(content.project.flags)[0] ?? "" } } : l.text; })}>条件</button>
             <button className="button" disabled={d.lines.length <= 1} onClick={() => editD(d.id, x => { x.lines.splice(i, 1); })}><Trash2 size={12} /></button>
           </div>)}
           <button className="button" onClick={() => editD(d.id, x => { x.lines.push("……"); })}><Plus size={12} />行を足す</button>
         </div>
-        <Field label="会話の後の効果（選択肢がないとき）" hint='例: [{"type": "giveItem", "item": "herb"}]'><JsonField value={d.effects} schema={Effects} onCommit={v => editD(d.id, x => { x.effects = v ?? []; })} rows={3} /></Field>
+        <Field label="会話の後の効果（選択肢がないとき）" hint='例: [{"type": "giveItem", "item": "herb"}]'><EffectListEditor value={d.effects} content={content} onChange={v => editD(d.id, x => { x.effects = v; })} /></Field>
         <div className="field"><span className="field-label">選択肢</span>
           {d.choices.map((c, i) => <div key={c.id + i} className="card choice-card">
             <div className="field-row">
@@ -78,8 +77,8 @@ export default function StoryPanel({ store, content }: Props) {
               <label className="field"><span className="field-label">一度だけ報酬</span><input type="checkbox" checked={c.once} onChange={ev => editD(d.id, x => { x.choices[i]!.once = ev.target.checked; })} /></label>
               <button className="button" onClick={() => editD(d.id, x => { x.choices.splice(i, 1); })}><Trash2 size={12} /></button>
             </div>
-            <Field label="出す条件"><JsonField value={c.when} schema={ConditionSchema} onCommit={w => editD(d.id, x => { if (w) x.choices[i]!.when = w; else delete x.choices[i]!.when; })} rows={1} /></Field>
-            <Field label="選んだときの効果"><JsonField value={c.effects} schema={Effects} onCommit={v => editD(d.id, x => { x.choices[i]!.effects = v ?? []; })} rows={3} /></Field>
+            <Field label="出す条件"><ConditionEditor value={c.when} content={content} onChange={w => editD(d.id, x => { if (w) x.choices[i]!.when = w; else delete x.choices[i]!.when; })} /></Field>
+            <Field label="選んだときの効果"><EffectListEditor value={c.effects} content={content} onChange={v => editD(d.id, x => { x.choices[i]!.effects = v; })} /></Field>
           </div>)}
           <button className="button" onClick={() => editD(d.id, x => { x.choices.push({ id: uniqueId("choice", x.choices.map(c => c.id)), label: "はい", effects: [], once: false }); })}><Plus size={12} />選択肢を足す</button>
         </div>
@@ -92,10 +91,10 @@ export default function StoryPanel({ store, content }: Props) {
           <Field label="名前"><TextInput value={e.label} onCommit={v => editE(e.id, x => { x.label = v || x.label; })} /></Field>
           <label className="field"><span className="field-label">一度だけ</span><input type="checkbox" checked={e.once} onChange={ev => editE(e.id, x => { x.once = ev.target.checked; })} /></label>
         </div>
-        <Field label="起きる条件（空なら常に）"><JsonField value={e.when} schema={ConditionSchema} onCommit={w => editE(e.id, x => { if (w) x.when = w; else delete x.when; })} rows={1} /></Field>
-        <Field label="効果" hint="message・giveItem・setFlag・battle・startScene など（docs/project-format.md）"><JsonField value={e.effects} schema={Effects} onCommit={v => editE(e.id, x => { x.effects = v ?? []; })} rows={8} /></Field>
-        <Field label="条件を満たさないとき"><JsonField value={e.otherwise} schema={Effects} onCommit={v => editE(e.id, x => { x.otherwise = v ?? []; })} rows={3} /></Field>
-        {e.once && <Field label="2回目以降"><JsonField value={e.afterDone} schema={Effects} onCommit={v => editE(e.id, x => { x.afterDone = v ?? []; })} rows={3} /></Field>}
+        <Field label="起きる条件（空なら常に）"><ConditionEditor value={e.when} content={content} onChange={w => editE(e.id, x => { if (w) x.when = w; else delete x.when; })} /></Field>
+        <Field label="効果" hint="message・giveItem・setFlag・battle・startScene など（docs/project-format.md）"><EffectListEditor value={e.effects} content={content} onChange={v => editE(e.id, x => { x.effects = v; })} /></Field>
+        <Field label="条件を満たさないとき"><EffectListEditor value={e.otherwise} content={content} onChange={v => editE(e.id, x => { x.otherwise = v; })} /></Field>
+        {e.once && <Field label="2回目以降"><EffectListEditor value={e.afterDone} content={content} onChange={v => editE(e.id, x => { x.afterDone = v; })} /></Field>}
       </div>}
     </section>
   </div>;

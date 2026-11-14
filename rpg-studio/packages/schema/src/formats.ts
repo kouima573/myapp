@@ -101,6 +101,7 @@ export type Condition =
   | { target: string }
   | { entityAt: { entity: string; x?: number; y?: number; map?: string } }
   | { carrying: string }
+  | { equipped: string }
   | { custom: string; args?: Record<string, unknown> };
 
 /** What is in front of the player. Every given field must match. */
@@ -127,6 +128,8 @@ export const ConditionSchema: z.ZodType<Condition> = z.lazy(() => z.union([
   z.object({ target: z.string().min(1) }).strict(),
   /** Where an entity is now (after moves, pushes, carrying). Omitted fields match anything. */
   z.object({ entityAt: z.object({ entity: IdSchema, x: CoordSchema.optional(), y: CoordSchema.optional(), map: IdSchema.optional() }).strict() }).strict(),
+  /** This item is equipped. */
+  z.object({ equipped: IdSchema }).strict(),
   /** The player is carrying this entity. */
   z.object({ carrying: IdSchema }).strict(),
   z.object({ front: z.object({ tile: z.string().length(1).optional(), entity: IdSchema.optional(), npc: IdSchema.optional(), blocked: z.boolean().optional() }).strict() }).strict(),
@@ -152,15 +155,19 @@ export type Effect =
   | { type: "grantTrait"; trait: string }
   | { type: "removeTrait"; trait: string }
   | { type: "giveItem"; item: string; count?: number }
+  | { type: "equip"; item: string }
+  | { type: "unequip"; slot: string }
   | { type: "takeItem"; item: string; count?: number }
-  | { type: "heal"; amount?: Expr }
+  | { type: "heal"; amount?: Expr; target?: "player" | "party" | "all" }
+  | { type: "joinParty"; companion: string }
+  | { type: "leaveParty"; companion: string }
   | { type: "damage"; target: "player" | "enemy"; amount: Expr; text?: string }
   | { type: "teleport"; mapId: string; x: number; y: number; facing?: Direction }
   | { type: "setTile"; mapId?: string; x: number; y: number; code: string }
   | { type: "dialogue"; dialogue: string }
   | { type: "choice"; prompt?: string; speaker?: string; options: ChoiceOption[] }
   | { type: "event"; event: string }
-  | { type: "battle"; enemy: string; onVictory?: Effect[]; onDefeat?: "respawn" | "continue"; canFlee?: boolean; mode?: string; args?: Record<string, unknown> }
+  | { type: "battle"; enemy: string; with?: string[]; onVictory?: Effect[]; onDefeat?: "respawn" | "continue"; canFlee?: boolean; mode?: string; args?: Record<string, unknown> }
   | { type: "battleLog"; text: string }
   | { type: "endBattle"; outcome: "victory" | "fled" }
   | { type: "markDone"; id: string }
@@ -200,14 +207,18 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("removeTrait"), trait: IdSchema }).strict(),
   z.object({ type: z.literal("giveItem"), item: IdSchema, count: z.number().int().positive().optional() }).strict(),
   z.object({ type: z.literal("takeItem"), item: IdSchema, count: z.number().int().positive().optional() }).strict(),
-  z.object({ type: z.literal("heal"), amount: ExprSchema.optional() }).strict(),
+  /** target: "player" (default), "party" (companions, also revives the fallen) or "all". */
+  z.object({ type: z.literal("heal"), amount: ExprSchema.optional(), target: z.enum(["player", "party", "all"]).optional() }).strict(),
+  /** A companion joins / leaves the party (database › companions). */
+  z.object({ type: z.literal("joinParty"), companion: IdSchema }).strict(),
+  z.object({ type: z.literal("leaveParty"), companion: IdSchema }).strict(),
   z.object({ type: z.literal("damage"), target: z.enum(["player", "enemy"]), amount: ExprSchema, text: z.string().optional() }).strict(),
   z.object({ type: z.literal("teleport"), mapId: IdSchema, x: CoordSchema, y: CoordSchema, facing: DirectionSchema.optional() }).strict(),
   z.object({ type: z.literal("setTile"), mapId: IdSchema.optional(), x: CoordSchema, y: CoordSchema, code: z.string().length(1) }).strict(),
   z.object({ type: z.literal("dialogue"), dialogue: IdSchema }).strict(),
   z.object({ type: z.literal("choice"), prompt: z.string().optional(), speaker: z.string().optional(), options: z.array(ChoiceOptionSchema).min(1) }).strict(),
   z.object({ type: z.literal("event"), event: IdSchema }).strict(),
-  z.object({ type: z.literal("battle"), enemy: IdSchema, onVictory: z.array(EffectSchema).optional(), onDefeat: z.enum(["respawn", "continue"]).optional(), canFlee: z.boolean().optional(), mode: BattleModeSchema.optional(), args: z.record(z.string(), z.unknown()).optional() }).strict(),
+  z.object({ type: z.literal("battle"), enemy: IdSchema, /** More enemies in the same battle (built-in battles). */ with: z.array(IdSchema).max(7).optional(), onVictory: z.array(EffectSchema).optional(), onDefeat: z.enum(["respawn", "continue"]).optional(), canFlee: z.boolean().optional(), mode: BattleModeSchema.optional(), args: z.record(z.string(), z.unknown()).optional() }).strict(),
   z.object({ type: z.literal("battleLog"), text: z.string().min(1) }).strict(),
   z.object({ type: z.literal("endBattle"), outcome: z.enum(["victory", "fled"]) }).strict(),
   z.object({ type: z.literal("markDone"), id: IdSchema }).strict(),
@@ -224,6 +235,9 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("playBgm"), music: IdSchema.nullable() }).strict(),
   /** Broadcast a self-made event: every rule with on "signal" and match = this id runs right here. */
   z.object({ type: z.literal("signal"), signal: IdSchema }).strict(),
+  /** Put on an item you carry (it goes in its slot, replacing what was there) / take off a slot. */
+  z.object({ type: z.literal("equip"), item: IdSchema }).strict(),
+  z.object({ type: z.literal("unequip"), slot: IdSchema }).strict(),
   /** Teach / take away a verb (verbs with known: false start unlearned). */
   z.object({ type: z.literal("learnVerb"), verb: IdSchema }).strict(),
   z.object({ type: z.literal("forgetVerb"), verb: IdSchema }).strict(),
@@ -433,6 +447,8 @@ export const ProjectManifestSchema = z.object({
   }).strict().default({ commands: { attack: true, guard: true, skills: true, items: true, flee: true } }),
   /** Self-made player actions ("listen", "rewind", "possess", "shout"…). Usable from the menu, a key, or touch. */
   verbs: z.record(IdSchema, VerbSchema).default({}),
+  /** Equipment slots items can go in (item.slot). */
+  equipmentSlots: z.record(IdSchema, z.object({ label: z.string().min(1) }).strict()).default({ weapon: { label: "武器" }, armor: { label: "防具" }, accessory: { label: "装飾品" } }),
   /** Self-made events. Rules listen with on "signal"; effects fire them with { "type": "signal" }. */
   signals: z.record(IdSchema, z.object({ description: z.string().optional() }).strict()).default({}),
   /** Effects run when a new game starts (e.g. race selection). */
@@ -732,8 +748,10 @@ export const ItemSchema = z.object({
   heal: z.number().int().positive().optional(),
   /** General use (overrides `heal`). */
   use: UseSchema.optional(),
-  /** Passive bonus while carried (charms, equipment-like items). */
+  /** Passive bonus while carried — or, for items with a `slot`, only while equipped. */
   statMods: StatModsSchema.optional(),
+  /** Equipment slot (project.json › equipmentSlots, e.g. weapon / armor / accessory). Its statMods and rules count only while equipped. */
+  slot: IdSchema.optional(),
   rules: z.array(RuleSchema).default([]),
   key: z.boolean().default(false),
 }).strict();
@@ -771,12 +789,31 @@ export const EnemySchema = z.object({
 }).strict();
 export type Enemy = z.infer<typeof EnemySchema>;
 
+export const CompanionSchema = z.object({
+  id: IdSchema,
+  name: z.string().min(1).max(20),
+  description: z.string().default(""),
+  sprite: IdSchema.optional(),
+  stats: StatsSchema,
+  /** What it does each turn: heal is used when someone in the party is below half HP; otherwise attacks / guards in order. */
+  actions: z.array(z.object({
+    name: z.string().min(1),
+    kind: z.enum(["attack", "heal", "guard"]).default("attack"),
+    power: z.number().int().min(0).max(999).default(0),
+    when: ConditionSchema.optional(),
+    message: z.string().optional(),
+  }).strict()).min(1).default([{ name: "攻撃", kind: "attack", power: 0 }]),
+}).strict();
+export type Companion = z.infer<typeof CompanionSchema>;
+
 export const DatabaseSchema = z.object({
   formatVersion: z.literal(PROJECT_FORMAT_VERSION),
   abilities: z.array(AbilitySchema).default([]),
   traits: z.array(TraitSchema).default([]),
   items: z.array(ItemSchema).default([]),
   enemies: z.array(EnemySchema).default([]),
+  /** Party members who can join the hero (joinParty) and fight on their own in built-in battles. */
+  companions: z.array(CompanionSchema).default([]),
 }).strict();
 export type Database = z.infer<typeof DatabaseSchema>;
 
@@ -893,6 +930,8 @@ export interface GameContent {
 export const BattleStateSchema = z.object({
   enemyId: IdSchema,
   enemyHp: z.number().int().nonnegative(),
+  /** Other enemies in the same battle (with). */
+  foes: z.array(z.object({ enemyId: IdSchema, hp: z.number().int().nonnegative() }).strict()).optional(),
   turn: z.number().int().nonnegative(),
   guarding: z.boolean(),
   canFlee: z.boolean(),
@@ -947,6 +986,10 @@ export const GameStateSchema = z.object({
   sets: z.record(z.string(), z.array(z.string())).default({}),
   /** Moved entities: mapId → entityId → position. */
   entities: z.record(z.string(), z.record(z.string(), z.object({ x: CoordSchema, y: CoordSchema, facing: DirectionSchema, step: z.number().int().nonnegative().optional(), map: z.string().optional() }).strict())).default({}),
+  /** Companions with the hero and their HP. */
+  party: z.array(z.object({ id: z.string(), hp: z.number().int().nonnegative() }).strict()).optional(),
+  /** Equipped items: slot → item id. */
+  equipment: z.record(z.string(), z.string()).optional(),
   /** Entity being carried (carryable): its id and the map it was defined on. */
   carrying: z.object({ id: z.string(), home: z.string() }).strict().optional(),
   /** Pending `schedule` effects (fire when steps >= at). */

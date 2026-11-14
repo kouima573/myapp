@@ -26,6 +26,8 @@
 | `{ "useItem": "herb" }` / `{ "useAbility": "first-aid" }` | フィールドでアイテム・技を使う |
 | `{ "tick": 10 }` | 世界の時間を進める（エンティティの移動・tickルール）。フィールド以外になったら止まる |
 | `{ "sceneInput": "up" }` / `{ "sceneInput": { "custom": 値 } }` | 独自画面に入力を送る |
+| `{ "equip": "bronze-sword" }` | 装備する（装備中なら外す） |
+| `{ "battle": "attack", "target": 1 }` | 複数の敵のうち、何番目を攻撃するか（0 = 最初の敵） |
 | `{ "verb": "listen" }` | 自作の動詞を使う（project.json の verbs）。対象を選ぶ動詞は続けて `{ "choose": "対象ID" }` |
 | `{ "sceneInputs": ["confirm", "down"], "repeat": 30 }` | 入力の並びを最大 repeat 回くり返す（画面が閉じたら止まる）。カード戦闘など |
 | `{ "framesLoop": [{ "frames": 12, "hold": ["right", "up"] }, { "frames": 2, "hold": ["right"] }], "repeat": 60 }` | 押し方のパターンをくり返す（走ってジャンプ、など）。画面が閉じたら止まる。2人用の画面は `p2right` などで2人目を操作 |
@@ -33,7 +35,7 @@
 | `{ "fight": "auto" }` | 簡易AIで戦闘を最後まで行い閉じる（予告技の次は防御、HP半分以下で回復）。勝てなければ失敗 |
 | `{ "effects": [...] }` | 効果を直接実行（テストの前提づくり：テレポート、フラグ設定、戦闘開始など） |
 | `{ "saveAndLoad": true }` | 状態をJSONにして戻す（セーブ・再起動の再現） |
-| `{ "expect": {...} }` | `mapId`・`at`・`scene`（custom / ending も）・`flags`・`vars`・`sets`（含まれていること）・`lacksInSets`・`cycle`・`entities`（`{"id": {"x","y"}}`、`null` で消えていること）・`regions`・`abilities`（特性由来も含む）・`lacksAbilities`・`traits`・`lacksTraits`・`stats`（補正込み）・`items`・`done`・`notDone`・`hpAtLeast`・`passable`・`battleOutcome`・`textIncludes`・`player`（`{"name": …, "sprite": … / null}` 変身の確認）・`verbs` / `lacksVerbs`（使える動詞）・`carrying`（運んでいる物、`null` で何も） |
+| `{ "expect": {...} }` | `mapId`・`at`・`scene`（custom / ending も）・`flags`・`vars`・`sets`（含まれていること）・`lacksInSets`・`cycle`・`entities`（`{"id": {"x","y"}}`、`null` で消えていること）・`regions`・`abilities`（特性由来も含む）・`lacksAbilities`・`traits`・`lacksTraits`・`stats`（補正込み）・`items`・`done`・`notDone`・`hpAtLeast`・`passable`・`battleOutcome`・`textIncludes`・`player`（`{"name": …, "sprite": … / null}` 変身の確認）・`verbs` / `lacksVerbs`（使える動詞）・`carrying`（運んでいる物、`null` で何も）・`equipped`（`{"weapon": "…" / null}`）・`party` / `lacksParty`（仲間）・`enemiesHp`（戦闘中の敵のHPを順に） |
 
 - 既定ではランダムエンカウントを無効にして実行します（`"encounters": true` で有効）。乱数は `seed` で固定され、毎回同じ結果になります。
 - 失敗すると `ERROR tests/xxx.scenario.json › steps[12]: flags.sentinelCalmed: 期待 true / 実際 false` のように、何番目の手順で何が違ったかを表示します。

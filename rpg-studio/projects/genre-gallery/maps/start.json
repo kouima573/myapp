@@ -953,6 +953,13 @@
               "scene": "siege",
               "args": {
                 "title": "村の防衛",
+                "tiles": {
+                  ".": ".",
+                  "=": ":",
+                  "#": "T",
+                  "H": "h",
+                  "S": "R"
+                },
                 "rows": [
                   "..............",
                   "S=====....====",
@@ -1073,6 +1080,11 @@
                 "title": "小さな芝",
                 "view": "top",
                 "shots": 4,
+                "tiles": {
+                  ".": ".",
+                  "#": "f",
+                  "~": "~"
+                },
                 "rows": [
                   "##############",
                   "#o     ~~    #",
@@ -1151,6 +1163,8 @@
               "args": {
                 "title": "地下迷宮",
                 "facing": "right",
+                "wallTile": "w",
+                "exitTile": "d",
                 "goal": "exit",
                 "rows": [
                   "#########",
@@ -1193,6 +1207,10 @@
               "scene": "command",
               "args": {
                 "title": "丘の合戦",
+                "tiles": {
+                  " ": ".",
+                  "#": "w"
+                },
                 "rows": [
                   "################",
                   "#H a           #",
@@ -1479,6 +1497,88 @@
                   }
                 ]
               }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "guild-board",
+      "name": "仲間募集の掲示板",
+      "x": 4,
+      "y": 1,
+      "states": [
+        {
+          "when": {
+            "not": {
+              "flag": "knight-joined"
+            }
+          },
+          "marker": "sign",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "掲示板の前に、見習い騎士のエマが立っている。「一緒に行こう！」"
+            },
+            {
+              "type": "joinParty",
+              "companion": "emma"
+            },
+            {
+              "type": "setFlag",
+              "flag": "knight-joined"
+            },
+            {
+              "type": "message",
+              "text": "エマが仲間になった。戦闘では自分で戦い、傷ついた仲間を手当てする。"
+            }
+          ]
+        },
+        {
+          "marker": "sign",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "「準備はいい？」とエマ。"
+            },
+            {
+              "type": "heal",
+              "target": "all"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "slime-herd",
+      "name": "スライムの群れ",
+      "x": 16,
+      "y": 1,
+      "states": [
+        {
+          "marker": "sparkle",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "battle",
+              "enemy": "gallery-slime",
+              "with": [
+                "gallery-slime",
+                "gallery-slime"
+              ],
+              "onDefeat": "continue",
+              "onVictory": [
+                {
+                  "type": "addToSet",
+                  "set": "cleared",
+                  "value": "party"
+                }
+              ]
             }
           ]
         }

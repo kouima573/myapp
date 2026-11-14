@@ -7,7 +7,7 @@
 import { z } from "zod";
 import { IdSchema } from "../../schema/src/formats";
 import { defineSystem, type SystemContext } from "../../engine/src/index";
-import { enemyOf, finish, heroOf, inBattle, issues, OutcomeArgs, pressed } from "./common";
+import { assetRefErrors, drawSprite, drawTile, enemyOf, finish, heroOf, inBattle, issues, OutcomeArgs, pressed } from "./common";
 import { asRecord } from "./ui";
 
 const FPS = 30, T = 16;
@@ -37,6 +37,10 @@ export const DefenseArgsSchema = z.object({
   lives: z.number().int().min(0).max(999).default(10),
   /** Seconds before the first wave and between waves. */
   pause: z.number().min(0).max(120).default(5),
+  /** Draw with the project's tileset: map characters → tiles.json codes. */
+  tiles: z.record(z.string().length(1), z.string().length(1)).default({}),
+  /** Character asset for the attackers. */
+  foeSprite: z.string().optional(),
   ...OutcomeArgs,
 }).strict();
 export type DefenseArgs = z.infer<typeof DefenseArgsSchema>;
@@ -159,7 +163,7 @@ export default defineSystem({
     siege: {
       title: "タワーディフェンス（道・波状攻撃・塔の建設と強化）",
       realtime: { fps: FPS },
-      checkArgs: args => { const r = DefenseArgsSchema.safeParse(args); return r.success ? checkDefense(r.data) : issues(r); },
+      checkArgs: (args, { content }) => { const r = DefenseArgsSchema.safeParse(args); return r.success ? [...checkDefense(r.data), ...assetRefErrors(content, r.data.tiles, r.data.foeSprite ? { foe: r.data.foeSprite } : {})] : issues(r); },
       start: (ctx, raw) => startDefense(ctx, raw),
       input(ctx, raw, input) {
         const d = raw as DefenseData;
@@ -187,6 +191,7 @@ export default defineSystem({
         g.save(); g.translate(lay.ox, lay.oy); g.scale(lay.s, lay.s);
         for (let y = 0; y < d.h; y++) for (let x = 0; x < d.w; x++) {
           const ch = d.rows[y]![x];
+          if (d.args.tiles[ch!] && drawTile(g, view, d.args.tiles[ch!]!, x * T, y * T, T)) continue;
           g.fillStyle = ch === "#" ? "#2c3a26" : ch === "." ? "#4a5e3a" : ch === "H" ? "#7a5c3a" : ch === "S" ? "#5a2f2f" : "#8a7a5a";
           g.fillRect(x * T, y * T, T - 0.5, T - 0.5);
         }
@@ -195,7 +200,7 @@ export default defineSystem({
           g.fillStyle = spec.color; g.fillRect(t.x * T + 3, t.y * T + 3, T - 6, T - 6);
           g.fillStyle = "#111"; g.font = "7px system-ui"; g.textAlign = "center"; g.fillText(`${spec.label}${t.level > 1 ? t.level : ""}`, t.x * T + T / 2, t.y * T + 11);
         }
-        for (const f of d.foes) { const p = foePos(d, f); g.fillStyle = f.slow ? "#9fd6e8" : "#d9745b"; g.beginPath(); g.arc(p.x, p.y, 4.5, 0, Math.PI * 2); g.fill(); g.fillStyle = "#222"; g.fillRect(p.x - 5, p.y - 8, 10, 1.5); g.fillStyle = "#7fc46b"; g.fillRect(p.x - 5, p.y - 8, 10 * (f.hp / f.maxHp), 1.5); }
+        for (const f of d.foes) { const p = foePos(d, f); if (d.args.foeSprite && drawSprite(g, view, d.args.foeSprite, p.x, p.y - 2, 14, 0, Math.floor(d.frame / 6))) { g.fillStyle = "#222"; g.fillRect(p.x - 5, p.y - 10, 10, 1.5); g.fillStyle = "#7fc46b"; g.fillRect(p.x - 5, p.y - 10, 10 * (f.hp / f.maxHp), 1.5); continue; } g.fillStyle = f.slow ? "#9fd6e8" : "#d9745b"; g.beginPath(); g.arc(p.x, p.y, 4.5, 0, Math.PI * 2); g.fill(); g.fillStyle = "#222"; g.fillRect(p.x - 5, p.y - 8, 10, 1.5); g.fillStyle = "#7fc46b"; g.fillRect(p.x - 5, p.y - 8, 10 * (f.hp / f.maxHp), 1.5); }
         for (const s of d.shots) { g.strokeStyle = s.color; g.lineWidth = 1; g.beginPath(); g.moveTo(s.x1, s.y1); g.lineTo(s.x2, s.y2); g.stroke(); }
         const spec = d.args.towers[d.kind]!;
         g.strokeStyle = "#f0c36a"; g.lineWidth = 1; g.strokeRect(d.cursor.x * T + 0.5, d.cursor.y * T + 0.5, T - 1, T - 1);

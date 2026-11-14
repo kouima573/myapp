@@ -152,7 +152,51 @@
           ]
         }
       }
+    },
+    {
+      "id": "gallery-slime",
+      "name": "群れスライム",
+      "stats": {
+        "maxHp": 6,
+        "attack": 3,
+        "defense": 0
+      },
+      "actions": [
+        {
+          "name": "体当たり",
+          "power": 1
+        }
+      ],
+      "drops": [],
+      "canFlee": true,
+      "tags": [
+        "gallery"
+      ]
     }
   ],
-  "traits": []
+  "traits": [],
+  "companions": [
+    {
+      "id": "emma",
+      "name": "エマ",
+      "description": "見習い騎士",
+      "stats": {
+        "maxHp": 16,
+        "attack": 4,
+        "defense": 1
+      },
+      "actions": [
+        {
+          "name": "斬りかかる",
+          "kind": "attack",
+          "power": 1
+        },
+        {
+          "name": "手当て",
+          "kind": "heal",
+          "power": 6
+        }
+      ]
+    }
+  ]
 }

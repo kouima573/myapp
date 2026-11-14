@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import { defineSystem, type SystemContext } from "../../engine/src/index";
-import { enemyOf, finish, heroOf, inBattle, issues, OutcomeArgs, pressed } from "./common";
+import { assetRefErrors, drawSprite, enemyOf, finish, heroOf, inBattle, issues, OutcomeArgs, pressed, tileSource } from "./common";
 
 const FPS = 30;
 
@@ -21,6 +21,11 @@ export const Dungeon3dArgsSchema = z.object({
   /** Monster damage; 0 = from the RPG enemy (or 4) minus the hero's defense. */
   enemyDamage: z.number().int().min(0).max(999).default(0),
   wallColor: z.string().default("#8a7a62"),
+  /** Texture the walls (and the exit) with tiles of the project's tileset. */
+  wallTile: z.string().length(1).optional(),
+  exitTile: z.string().length(1).optional(),
+  /** Character assets for monsters: { "e": "…", "B": "…" }. */
+  sprites: z.record(z.string().length(1), z.string()).default({}),
   ...OutcomeArgs,
 }).strict();
 export type Dungeon3dArgs = z.infer<typeof Dungeon3dArgsSchema>;
@@ -121,7 +126,7 @@ export default defineSystem({
     explore: {
       title: "疑似3Dダンジョン（一人称の迷宮探索・一人称の戦闘）",
       realtime: { fps: FPS },
-      checkArgs: args => { const r = Dungeon3dArgsSchema.safeParse(args); return r.success ? checkDungeon(r.data) : issues(r); },
+      checkArgs: (args, { content }) => { const r = Dungeon3dArgsSchema.safeParse(args); return r.success ? [...checkDungeon(r.data), ...assetRefErrors(content, Object.fromEntries([["#", r.data.wallTile], ["G", r.data.exitTile]].filter((x): x is [string, string] => Boolean(x[1]))), r.data.sprites)] : issues(r); },
       start: (ctx, raw) => startDungeon(ctx, raw),
       input(ctx, raw, input) {
         const d = raw as Dungeon3dData;
@@ -153,16 +158,26 @@ export default defineSystem({
             cell = d.rows[my]?.[mx] ?? "#";
             if (cell === "#" || cell === "G") break;
           }
-          const dist = (side === 0 ? sdx - ddx : sdy - ddy) * Math.cos(ang - d.a);
+          const raw = side === 0 ? sdx - ddx : sdy - ddy;
+          const dist = raw * Math.cos(ang - d.a);
           depth.push(dist);
           const hgt = Math.min(H * 2, H / Math.max(0.1, dist));
           const shade = Math.max(0.15, 1 - dist / 9) * (side ? 0.8 : 1);
-          g.fillStyle = cell === "G" ? `rgba(127,196,107,${shade})` : base; g.globalAlpha = cell === "G" ? 1 : shade;
-          g.fillRect(i * colW, H / 2 - hgt / 2, colW + 1, hgt);
-          g.globalAlpha = 1;
+          const texCode = cell === "G" ? d.args.exitTile : d.args.wallTile;
+          const tex = texCode ? tileSource(view, texCode) : undefined;
+          if (tex) {
+            const wallX = ((side === 0 ? d.y + raw * dy : d.x + raw * dx) % 1 + 1) % 1;
+            g.imageSmoothingEnabled = false;
+            g.drawImage(tex.img, tex.sx + Math.min(tex.sw - 1, Math.floor(wallX * tex.sw)), tex.sy, 1, tex.sh, i * colW, H / 2 - hgt / 2, colW + 1, hgt);
+            g.fillStyle = `rgba(0,0,0,${1 - shade})`; g.fillRect(i * colW, H / 2 - hgt / 2, colW + 1, hgt);
+          } else {
+            g.fillStyle = cell === "G" ? `rgba(127,196,107,${shade})` : base; g.globalAlpha = cell === "G" ? 1 : shade;
+            g.fillRect(i * colW, H / 2 - hgt / 2, colW + 1, hgt);
+            g.globalAlpha = 1;
+          }
         }
         // Sprites (far to near).
-        const sprites = [...d.mobs.filter(m => !m.dead).map(m => ({ x: m.x, y: m.y, color: m.boss ? "#9b2f2f" : "#c0563f", size: m.boss ? 0.9 : 0.6, hp: m.hp / m.maxHp })), ...d.treasure.filter(t => !t.got).map(t => ({ x: t.x, y: t.y, color: "#f0c36a", size: 0.3, hp: -1 }))]
+        const sprites = [...d.mobs.filter(m => !m.dead).map(m => ({ x: m.x, y: m.y, color: m.boss ? "#9b2f2f" : "#c0563f", size: m.boss ? 0.9 : 0.6, hp: m.hp / m.maxHp, sprite: d.args.sprites[m.boss ? "B" : "e"] })), ...d.treasure.filter(t => !t.got).map(t => ({ x: t.x, y: t.y, color: "#f0c36a", size: 0.3, hp: -1, sprite: undefined as string | undefined }))]
           .map(s => ({ ...s, dist: Math.hypot(s.x - d.x, s.y - d.y) })).sort((a, b) => b.dist - a.dist);
         for (const s of sprites) {
           let ang = Math.atan2(s.y - d.y, s.x - d.x) - d.a; ang = Math.atan2(Math.sin(ang), Math.cos(ang));
@@ -171,8 +186,8 @@ export default defineSystem({
           const col = Math.floor(sxp / colW);
           if (depth[Math.max(0, Math.min(cols - 1, col))]! < s.dist - 0.3) continue;
           const top = H / 2 + (H / Math.max(0.2, s.dist)) * 0.5 - size;
-          g.fillStyle = s.color; g.beginPath(); g.ellipse(sxp, top + size / 2, size / 2.4, size / 2, 0, 0, Math.PI * 2); g.fill();
-          if (s.hp >= 0) { g.fillStyle = "#fff"; g.fillRect(sxp - size / 6, top + size * 0.3, size / 10, size / 10); g.fillRect(sxp + size / 12, top + size * 0.3, size / 10, size / 10); g.fillStyle = "#222"; g.fillRect(sxp - size / 3, top - 8, (size * 2) / 3, 4); g.fillStyle = "#d9745b"; g.fillRect(sxp - size / 3, top - 8, ((size * 2) / 3) * s.hp, 4); }
+          if (!(s.sprite && drawSprite(g, view, s.sprite, sxp, top + size / 2, size, 0, Math.floor(d.frame / 8)))) { g.fillStyle = s.color; g.beginPath(); g.ellipse(sxp, top + size / 2, size / 2.4, size / 2, 0, 0, Math.PI * 2); g.fill(); }
+          if (s.hp >= 0 && !s.sprite) { g.fillStyle = "#fff"; g.fillRect(sxp - size / 6, top + size * 0.3, size / 10, size / 10); g.fillRect(sxp + size / 12, top + size * 0.3, size / 10, size / 10); g.fillStyle = "#222"; g.fillRect(sxp - size / 3, top - 8, (size * 2) / 3, 4); g.fillStyle = "#d9745b"; g.fillRect(sxp - size / 3, top - 8, ((size * 2) / 3) * s.hp, 4); }
         }
         if (d.swing) { g.strokeStyle = "rgba(255,240,200,.8)"; g.lineWidth = 4; g.beginPath(); g.arc(W / 2, H, H * 0.45, -Math.PI / 2 - 0.6 + (8 - d.swing) * 0.15, -Math.PI / 2 - 0.2 + (8 - d.swing) * 0.15); g.stroke(); }
         if (d.hurt) { g.fillStyle = "rgba(200,40,40,.25)"; g.fillRect(0, 0, W, H); }

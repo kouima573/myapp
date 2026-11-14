@@ -285,3 +285,20 @@ textarea { resize: vertical; }
 .new-map { width: 100%; justify-content: center; margin-top: 6px; }
 .new-map-form { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; }
 @media (max-width: 900px) { .story-panel { grid-template-columns: minmax(0, 1fr); overflow: auto; } }
+
+/* Forms (conditions / effects) */
+.form-row { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.form-row.wrap { flex-wrap: wrap; align-items: flex-start; }
+.form-row select, .form-row input { min-width: 0; }
+.form-row .grow { flex: 1; min-width: 8em; }
+.form-nested { display: flex; flex-direction: column; gap: 6px; padding: 6px 8px; border-left: 2px solid var(--line); width: 100%; }
+.form-raw { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.effect-list { display: flex; flex-direction: column; gap: 6px; }
+.effect-item { display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); }
+.icon-button { display: inline-grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--line); border-radius: 5px; background: transparent; color: var(--muted); }
+.icon-button:disabled { opacity: .35; }
+.link-button { border: 0; background: none; color: var(--amber); font-size: 11px; text-align: left; padding: 0; }
+textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em; }
+.story-editor .form-row > input, .story-editor .form-row > select { width: auto; max-width: 100%; }
+.story-editor .form-row > .grow, .story-editor .form-row > textarea { flex: 1; width: auto; }
+.story-editor .form-nested, .story-editor .form-raw { width: 100%; }

@@ -479,6 +479,12 @@
             },
             "additionalProperties": false
           },
+          "slot": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
           "rules": {
             "default": [],
             "type": "array",
@@ -837,6 +843,113 @@
           "name",
           "stats",
           "actions"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "companions": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 20
+          },
+          "description": {
+            "default": "",
+            "type": "string"
+          },
+          "sprite": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "stats": {
+            "type": "object",
+            "properties": {
+              "maxHp": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9999
+              },
+              "attack": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 999
+              },
+              "defense": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 999
+              }
+            },
+            "required": [
+              "maxHp",
+              "attack",
+              "defense"
+            ],
+            "additionalProperties": false
+          },
+          "actions": {
+            "default": [
+              {
+                "name": "攻撃",
+                "kind": "attack",
+                "power": 0
+              }
+            ],
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "kind": {
+                  "default": "attack",
+                  "type": "string",
+                  "enum": [
+                    "attack",
+                    "heal",
+                    "guard"
+                  ]
+                },
+                "power": {
+                  "default": 0,
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 999
+                },
+                "when": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "stats"
         ],
         "additionalProperties": false
       }
@@ -1529,6 +1642,21 @@
         {
           "type": "object",
           "properties": {
+            "equipped": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "equipped"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
             "carrying": {
               "type": "string",
               "minLength": 1,
@@ -1916,10 +2044,58 @@
             },
             "amount": {
               "$ref": "#/$defs/__schema0"
+            },
+            "target": {
+              "type": "string",
+              "enum": [
+                "player",
+                "party",
+                "all"
+              ]
             }
           },
           "required": [
             "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "joinParty"
+            },
+            "companion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "companion"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "leaveParty"
+            },
+            "companion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "companion"
           ],
           "additionalProperties": false
         },
@@ -2134,6 +2310,16 @@
               "minLength": 1,
               "maxLength": 96,
               "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "with": {
+              "maxItems": 7,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 96,
+                "pattern": "^[a-z0-9][a-z0-9._-]*$"
+              }
             },
             "onVictory": {
               "type": "array",
@@ -2526,6 +2712,46 @@
           "required": [
             "type",
             "signal"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "equip"
+            },
+            "item": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "unequip"
+            },
+            "slot": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "slot"
           ],
           "additionalProperties": false
         },

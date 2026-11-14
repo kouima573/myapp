@@ -14,6 +14,8 @@ export const RUNTIME_CSS = String.raw`
 .rpg-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 .rpg-hud { position:absolute; left:2%; top:2.5%; right:2%; display:flex; justify-content:space-between; align-items:flex-start; gap:2%; pointer-events:none; }
 .rpg-hud[hidden] { display:none; }
+.rpg-enemy-row { display:flex; flex-direction:column; gap:.2em; margin-bottom:.35em; }
+.rpg-enemy-row.is-down { opacity:.4; }
 .rpg-verbs { display:flex; flex-wrap:wrap; gap:.3em; pointer-events:auto; max-width:60vw; }
 .rpg-root .rpg-verb { padding:.2em .6em; background:var(--rpg-win); border:2px solid var(--rpg-edge); border-radius:6px; color:var(--rpg-ink); font:inherit; font-size:.72em; cursor:pointer; }
 .rpg-root .rpg-verb:hover, .rpg-root .rpg-verb:focus-visible { border-color:var(--rpg-accent); color:var(--rpg-accent); }

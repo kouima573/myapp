@@ -223,3 +223,48 @@ describe("pushing, carrying and cross-map entities", () => {
     expect(engine.visibleEntities(s).find(e => e.entity.id === "crate")).toMatchObject({ x: 5, y: 11 });
   });
 });
+
+describe("several enemies and companions", () => {
+  const rio = { id: "rio", name: "リオ", description: "", stats: { maxHp: 12, attack: 4, defense: 1 }, actions: [{ name: "斬る", kind: "attack" as const, power: 0 }, { name: "手当て", kind: "heal" as const, power: 5 }] };
+  const withCompanion = () => createEngine({ ...content, database: { ...content.database, companions: [rio] } }, systems);
+
+  it("fights several enemies: choose a target, every enemy acts, all must fall", () => {
+    const engine = createEngine(content, systems);
+    let s = begin(engine, { mapId: "village", x: 3, y: 9 });
+    s = engine.run(s, [{ type: "battle", enemy: "moss-slime", with: ["moss-slime", "moss-slime"] }]).state;
+    expect(s.scene.kind).toBe("battle");
+    const b0 = (s.scene as { battle: { foes?: unknown[]; log: string[] } }).battle;
+    expect(b0.foes).toHaveLength(2);
+    expect(b0.log[0]).toContain("コケスライムとコケスライムとコケスライムが現れた");
+    s = engine.step(s, { type: "battle", command: "attack", target: 2 }).state;
+    const b1 = (s.scene as { battle: { enemyHp: number; foes: Array<{ hp: number }>; log: string[] } }).battle;
+    expect(b1.enemyHp).toBe(7);
+    expect(b1.foes[1]!.hp).toBeLessThan(7);
+    expect(b1.log.filter(l => l.includes("体当たり")).length).toBe(3);
+    for (let i = 0; i < 40 && (s.scene as { battle: { outcome: string } }).battle.outcome === "ongoing"; i++) s = engine.step(s, { type: "battle", command: "attack" }).state;
+    const end = (s.scene as { battle: { outcome: string; enemyHp: number; foes: Array<{ hp: number }> } }).battle;
+    expect(end.outcome).toBe("victory");
+    expect([end.enemyHp, ...end.foes.map(f => f.hp)]).toEqual([0, 0, 0]);
+  });
+
+  it("companions join, fight on their own, can be hit, and are healed with target party", () => {
+    const engine = withCompanion();
+    let s = begin(engine, { mapId: "village", x: 3, y: 9 });
+    s = engine.run(s, [{ type: "joinParty", companion: "rio" }]).state;
+    expect(s.party).toEqual([{ id: "rio", hp: 12 }]);
+    s = engine.run(s, [{ type: "battle", enemy: "moss-slime", with: ["moss-slime"] }]).state;
+    s = engine.step(s, { type: "battle", command: "guard" }).state;
+    const b = (s.scene as { battle: { enemyHp: number; log: string[] } }).battle;
+    expect(b.log.some(l => l.includes("リオの斬る"))).toBe(true);
+    expect(b.enemyHp).toBeLessThan(7);
+    for (let i = 0; i < 40 && (s.scene as { battle: { outcome: string } }).battle.outcome === "ongoing"; i++) s = engine.step(s, { type: "battle", command: "attack" }).state;
+    expect((s.scene as { battle: { outcome: string } }).battle.outcome).toBe("victory");
+    s = { ...s, party: [{ id: "rio", hp: 0 }] };
+    s = engine.step(s, { type: "advance" }).state;
+    while (s.scene.kind === "message") s = engine.step(s, { type: "advance" }).state;
+    s = engine.run(s, [{ type: "heal", target: "all" }]).state;
+    expect(s.party).toEqual([{ id: "rio", hp: 12 }]);
+    s = engine.run(s, [{ type: "leaveParty", companion: "rio" }]).state;
+    expect(s.party).toEqual([]);
+  });
+});

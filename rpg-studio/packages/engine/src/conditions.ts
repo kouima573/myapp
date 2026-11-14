@@ -41,12 +41,17 @@ export function abilitiesOf(state: GameState, content?: GameContent): string[] {
   return [...set];
 }
 
+/** Items without a slot work while carried; items with a slot only while equipped. */
+export function itemActive(state: GameState, item: { id: string; slot?: string }): boolean {
+  return !item.slot || state.equipment?.[item.slot] === item.id;
+}
+
 /** Every stat-modifying source the player currently has: abilities, traits and carried items. */
 export function modSources(state: GameState, content: GameContent): StatMods[] {
   const out: StatMods[] = [];
   for (const id of abilitiesOf(state, content)) { const a = content.database.abilities.find(x => x.id === id); if (a?.statMods) out.push(a.statMods); }
   for (const id of state.traits ?? []) { const t = content.database.traits.find(x => x.id === id); if (t?.statMods) out.push(t.statMods); }
-  for (const id of Object.keys(state.items)) { const i = content.database.items.find(x => x.id === id); if (i?.statMods) out.push(i.statMods); }
+  for (const id of Object.keys(state.items)) { const i = content.database.items.find(x => x.id === id); if (i?.statMods && itemActive(state, i)) out.push(i.statMods); }
   return out;
 }
 
@@ -145,6 +150,7 @@ export function evaluate(condition: Condition | undefined, state: GameState, env
   if ("set" in condition) return (state.sets?.[condition.set] ?? []).includes(condition.has);
   if ("inRegion" in condition) return regionsAt(state, env.content, env).includes(condition.inRegion);
   if ("target" in condition) return state.target === condition.target;
+  if ("equipped" in condition) return Object.values(state.equipment ?? {}).includes(condition.equipped);
   if ("carrying" in condition) return state.carrying?.id === condition.carrying;
   if ("entityAt" in condition) {
     const want = condition.entityAt;
