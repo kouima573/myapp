@@ -74,7 +74,7 @@ export default defineSystem({
         const right = h("div", "padding:.8em 1em;display:flex;flex-direction:column;gap:.3em;font-size:.85em;overflow:auto", undefined, "rpg-window");
         if (data.args.showStats) {
           const s = effectiveStats(state, content);
-          right.appendChild(h("div", "", `${content.project.player.name}　HP ${state.player.hp}/${s.maxHp}　攻 ${s.attack}　防 ${s.defense}`));
+          right.appendChild(h("div", "", `${state.player.name ?? content.project.player.name}　HP ${state.player.hp}/${s.maxHp}　攻 ${s.attack}　防 ${s.defense}`));
         }
         for (const id of data.args.show) right.appendChild(h("div", "", `${content.project.variables[id]?.label ?? id}: ${state.vars[id] ?? content.project.variables[id]?.initial ?? 0}`));
         right.appendChild(h("div", "margin-top:.4em;color:var(--rpg-accent);font-size:.85em", "記録"));

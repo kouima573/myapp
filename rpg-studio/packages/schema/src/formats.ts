@@ -8,7 +8,7 @@ import { z } from "zod";
 
 export const PROJECT_FORMAT_VERSION = 2;
 export const SAVE_FORMAT_VERSION = 2;
-export const ENGINE_VERSION = "0.6.0";
+export const ENGINE_VERSION = "0.7.0";
 
 export const IdSchema = z.string().min(1).max(96).regex(/^[a-z0-9][a-z0-9._-]*$/i, "IDは英数字で始まり、英数字・._-のみ使えます");
 /** "builtin" (command battle) or "<module or system id>.<scene>" e.g. "shooter.battle", "cards.battle". */
@@ -97,7 +97,11 @@ export type Condition =
   | { not: Condition }
   | { set: string; has: string }
   | { inRegion: string }
+  | { front: FrontCheck }
   | { custom: string; args?: Record<string, unknown> };
+
+/** What is in front of the player. Every given field must match. */
+export interface FrontCheck { tile?: string; entity?: string; npc?: string; blocked?: boolean }
 
 export const ConditionSchema: z.ZodType<Condition> = z.lazy(() => z.union([
   z.object({ flag: IdSchema, is: z.boolean().optional() }).strict(),
@@ -116,6 +120,7 @@ export const ConditionSchema: z.ZodType<Condition> = z.lazy(() => z.union([
   z.object({ not: ConditionSchema }).strict(),
   z.object({ set: IdSchema, has: z.string().min(1) }).strict(),
   z.object({ inRegion: IdSchema }).strict(),
+  z.object({ front: z.object({ tile: z.string().length(1).optional(), entity: IdSchema.optional(), npc: IdSchema.optional(), blocked: z.boolean().optional() }).strict() }).strict(),
   z.object({ custom: z.string().regex(/^[a-z0-9][a-z0-9._-]*\.[a-z0-9][a-z0-9_-]*$/i, "customは 'システムID.条件名' の形です"), args: z.record(z.string(), z.unknown()).optional() }).strict(),
 ]));
 
@@ -161,6 +166,8 @@ export type Effect =
   | { type: "ending"; ending: string }
   | { type: "newCycle" }
   | { type: "playBgm"; music: string | null }
+  | { type: "signal"; signal: string }
+  | { type: "setPlayer"; name?: string | null; sprite?: string | null }
   | { type: "if"; when: Condition; then: Effect[]; else?: Effect[] }
   | { type: "system"; system: string; action: string; args?: Record<string, unknown> };
 
@@ -203,13 +210,19 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("ending"), ending: IdSchema }).strict(),
   z.object({ type: z.literal("newCycle") }).strict(),
   z.object({ type: z.literal("playBgm"), music: IdSchema.nullable() }).strict(),
+  /** Broadcast a self-made event: every rule with on "signal" and match = this id runs right here. */
+  z.object({ type: z.literal("signal"), signal: IdSchema }).strict(),
+  /** Change who the player is (transformation, possession, playing as the monster). null restores project.player. */
+  z.object({ type: z.literal("setPlayer"), name: z.string().min(1).max(40).nullable().optional(), sprite: IdSchema.nullable().optional() }).strict(),
   z.object({ type: z.literal("if"), when: ConditionSchema, then: z.array(EffectSchema), else: z.array(EffectSchema).optional() }).strict(),
   z.object({ type: z.literal("system"), system: IdSchema, action: IdSchema, args: z.record(z.string(), z.unknown()).optional() }).strict(),
 ]));
 
 /* ------------------------------------------------------------------ Rules (data-driven triggers) */
 
-export const RULE_TRIGGERS = ["auto", "step", "tick", "mapEnter", "battleStart", "turnEnd", "dealDamage", "takeDamage", "lethalDamage", "victory", "defeat"] as const;
+export const RULE_TRIGGERS = ["auto", "step", "tick", "mapEnter", "battleStart", "turnEnd", "dealDamage", "takeDamage", "lethalDamage", "victory", "defeat", "bump", "examine", "verb", "signal"] as const;
+/** Triggers whose rules can be narrowed with `match` (verb id / signal id). */
+export const MATCH_TRIGGERS: readonly RuleTrigger[] = ["verb", "signal"];
 export type RuleTrigger = (typeof RULE_TRIGGERS)[number];
 export const BATTLE_TRIGGERS: readonly RuleTrigger[] = ["battleStart", "turnEnd", "dealDamage", "takeDamage", "lethalDamage"];
 
@@ -217,6 +230,8 @@ export const RuleSchema = z.object({
   id: IdSchema,
   /** When this rule is checked. See docs/rules.md. */
   on: z.enum(RULE_TRIGGERS),
+  /** on "verb": the verb id. on "signal": the signal id (required). */
+  match: IdSchema.optional(),
   when: ConditionSchema.optional(),
   /** Percent chance (0-100) to fire when `when` holds. */
   chance: ExprSchema.optional(),
@@ -250,6 +265,17 @@ export const UseSchema = z.object({
 export type Use = z.infer<typeof UseSchema>;
 
 /* ------------------------------------------------------------------ Project manifest */
+
+export const VerbSchema = z.object({
+  label: z.string().min(1).max(20),
+  description: z.string().optional(),
+  /** Keyboard key (a-z / 0-9) that performs it on the field. Avoid the movement / menu keys (w a s d z x). */
+  key: z.string().regex(/^[a-z0-9]$/).refine(k => !"wasdzx".includes(k), "w a s d z x は移動・決定・メニューに使われています").optional(),
+  /** Only shown and usable while this holds. */
+  when: ConditionSchema.optional(),
+  effects: z.array(EffectSchema).default([]),
+}).strict();
+export type Verb = z.infer<typeof VerbSchema>;
 
 const FileRefSchema = z.object({ id: IdSchema, path: RelPathSchema, title: z.string().min(1) }).strict();
 /** "run" values reset on a new game / new cycle; "meta" values survive them (memories, endings seen, unlocks). */
@@ -374,6 +400,10 @@ export const ProjectManifestSchema = z.object({
     /** Which built-in commands exist. */
     commands: z.object({ attack: z.boolean().default(true), guard: z.boolean().default(true), skills: z.boolean().default(true), items: z.boolean().default(true), flee: z.boolean().default(true) }).strict().default({ attack: true, guard: true, skills: true, items: true, flee: true }),
   }).strict().default({ commands: { attack: true, guard: true, skills: true, items: true, flee: true } }),
+  /** Self-made player actions ("listen", "rewind", "possess", "shout"…). Usable from the menu, a key, or touch. */
+  verbs: z.record(IdSchema, VerbSchema).default({}),
+  /** Self-made events. Rules listen with on "signal"; effects fire them with { "type": "signal" }. */
+  signals: z.record(IdSchema, z.object({ description: z.string().optional() }).strict()).default({}),
   /** Effects run when a new game starts (e.g. race selection). */
   intro: z.array(EffectSchema).default([]),
   maps: z.array(FileRefSchema).min(1),
@@ -863,6 +893,9 @@ export const GameStateSchema = z.object({
     facing: DirectionSchema,
     hp: z.number().int().nonnegative(),
     stats: StatsSchema,
+    /** Set by setPlayer (transformation). Missing = project.player. */
+    name: z.string().optional(),
+    sprite: z.string().optional(),
   }).strict(),
   /** Abilities learned directly (trait abilities are added on top while the trait is held). */
   abilities: z.array(IdSchema),

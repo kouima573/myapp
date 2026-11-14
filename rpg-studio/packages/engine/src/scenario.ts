@@ -31,6 +31,8 @@ const ExpectSchema = z.object({
   passable: z.array(z.object({ x: z.number().int(), y: z.number().int(), is: z.boolean() }).strict()).optional(),
   battleOutcome: z.enum(["ongoing", "victory", "defeat", "fled"]).optional(),
   textIncludes: z.string().optional(),
+  /** Who the player currently is (after setPlayer). */
+  player: z.object({ name: z.string().optional(), sprite: z.string().nullable().optional() }).strict().optional(),
 }).strict();
 
 const StepSchema = z.union([
@@ -44,6 +46,8 @@ const StepSchema = z.union([
   z.object({ battleItem: IdSchema }).strict(),
   z.object({ skill: IdSchema }).strict(),
   z.object({ tick: z.number().int().positive() }).strict(),
+  /** Use a self-made verb (project.json › verbs). */
+  z.object({ verb: IdSchema }).strict(),
   /** Realtime scenes (shooting): run up to `frames` simulation steps holding these buttons; stops when the scene ends. */
   z.object({ frames: z.number().int().positive().max(100000), hold: z.array(z.enum(["up", "down", "left", "right", "fire", "focus"])).default([]) }).strict(),
   /** Send a sequence of inputs, repeated up to `repeat` times, until the custom scene closes. */
@@ -152,6 +156,8 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
     const abilities = engine.abilities(state);
     for (const id of expect.abilities ?? []) if (!abilities.includes(id)) fail(`能力 ${id} がありません`);
     for (const id of expect.lacksAbilities ?? []) if (abilities.includes(id)) fail(`能力 ${id} を持っています`);
+    if (expect.player?.name !== undefined) { const name = state.player.name ?? content.project.player.name; if (name !== expect.player.name) fail(`player.name: 期待 ${expect.player.name} / 実際 ${name}`); }
+    if (expect.player?.sprite !== undefined) { const sprite = state.player.sprite ?? null; if (sprite !== expect.player.sprite) fail(`player.sprite: 期待 ${expect.player.sprite} / 実際 ${sprite}`); }
     for (const [id, count] of Object.entries(expect.items ?? {})) if ((state.items[id] ?? 0) !== count) fail(`items.${id}: 期待 ${count} / 実際 ${state.items[id] ?? 0}`);
     for (const id of expect.done ?? []) if (!state.done.includes(id)) fail(`done に ${id} がありません`);
     for (const id of expect.notDone ?? []) if (state.done.includes(id)) fail(`done に ${id} があります`);
@@ -216,6 +222,11 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
           const now = state.scene;
           if (now.kind !== "custom" || now.system !== opened.system || now.scene !== opened.scene) break;
         }
+      }
+      else if ("verb" in s) {
+        if (!content.project.verbs[s.verb]) throw new ScenarioError(`verb: 動詞 '${s.verb}' がありません`);
+        if (state.scene.kind !== "field") throw new ScenarioError(`verb: フィールドではありません (scene=${state.scene.kind})`);
+        step({ type: "verb", verb: s.verb });
       }
       else if ("tick" in s) for (let i = 0; i < s.tick && state.scene.kind === "field"; i++) step({ type: "tick" });
       else if ("sceneInput" in s) {

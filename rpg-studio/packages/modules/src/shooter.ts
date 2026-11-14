@@ -166,7 +166,7 @@ export default defineSystem({
           g.fillStyle = "#ffe6d8"; g.beginPath(); g.arc(b.x, b.y, Math.max(1, b.r - 1.6), 0, Math.PI * 2); g.fill();
         }
         // Player: the hero's own sprite, seen from behind.
-        const heroId = view.content.project.player.sprite;
+        const heroId = view.state.player.sprite ?? view.content.project.player.sprite;
         const heroAsset = heroId ? view.content.assets.assets.find(a => a.id === heroId) : undefined;
         const hero = image(heroId ? view.assetUrl(heroId) : undefined);
         const blink = d.inv > 0 && Math.floor(d.frame / 3) % 2 === 0;
@@ -185,7 +185,7 @@ export default defineSystem({
         g.fillStyle = "#e9dcb8"; g.font = "12px system-ui"; g.textAlign = "right";
         g.fillText(enemy.name, left, 30);
         g.fillRect(left - 120, 38, 120 * (d.enemyHp / d.enemyMaxHp), 6);
-        g.fillText(`${view.content.project.player.name}  HP ${d.hp}/${d.maxHp}`, left, view.height - 50);
+        g.fillText(`${(view.state.player.name ?? view.content.project.player.name)}  HP ${d.hp}/${d.maxHp}`, left, view.height - 50);
         g.fillStyle = "#7fc46b"; g.fillRect(left - 120, view.height - 42, 120 * (d.hp / d.maxHp), 6);
         g.textAlign = "left"; g.fillStyle = "#a9b09d";
         const right = ox + FIELD.w * scale + 12;

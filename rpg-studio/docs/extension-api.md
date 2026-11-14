@@ -33,6 +33,7 @@ export default defineSystem({
 | `drawOverlay(ctx2d, info)` | （自動） | 暗闇と灯り、天候、霧 |
 | `hud(ctx) => string[]` | （自動） | 体温、時刻、残り時間 |
 | `onStep(ctx)` / `onTick(ctx)` | （自動） | 空腹、昼夜、匂い |
+| `onAction(ctx, action)` | （自動。プレイヤーの全行動の直前） | 鏡写しの操作、止まれない主人公、二人同時に動く、一手ごとに世界が進む |
 
 ### 独自画面（scene）
 
@@ -69,6 +70,7 @@ scenes: {
 | `onLethalDamage(ctx)` | プレイヤーのHPが0になる時だけ（処理順③）。最初に結果を返したシステムが優先 | `{ hp, message?, battleData? }` |
 | `onBattleStart(ctx)` | 戦闘開始時 | このシステム用の戦闘内データ（`battle.systemData[id]`）の初期値 |
 | `canPass(ctx)` | 移動判定のたび。`ctx.passable` はデータ上の結果 | `true`/`false` で上書き、`undefined` で変更なし |
+| `onAction(ctx, action)` | プレイヤーの行動（`move` / `interact` / `verb` / `advance` / `sceneInput` …）をエンジンが処理する直前 | `{ action? }` で別の行動に書き換え、`{ cancel: true }` で打ち消し。`state` / `effects` / `log` も返せる。何も返さなければそのまま |
 | `actions.<name>(ctx, args)` | データの `{ "type": "system", "system": id, "action": name, "args": {...} }` | `{ state?, effects?, log? }`。`effects` は次に実行される |
 
 ### 状態の置き場所

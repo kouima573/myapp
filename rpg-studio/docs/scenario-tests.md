@@ -26,12 +26,13 @@
 | `{ "useItem": "herb" }` / `{ "useAbility": "first-aid" }` | フィールドでアイテム・技を使う |
 | `{ "tick": 10 }` | 世界の時間を進める（エンティティの移動・tickルール）。フィールド以外になったら止まる |
 | `{ "sceneInput": "up" }` / `{ "sceneInput": { "custom": 値 } }` | 独自画面に入力を送る |
+| `{ "verb": "listen" }` | 自作の動詞を使う（project.json の verbs） |
 | `{ "sceneInputs": ["confirm", "down"], "repeat": 30 }` | 入力の並びを最大 repeat 回くり返す（画面が閉じたら止まる）。カード戦闘など |
 | `{ "frames": 3000, "hold": ["fire"] }` | リアルタイム画面をボタンを押したまま進める（画面が変わったら止まる）。弾幕戦闘など |
 | `{ "fight": "auto" }` | 簡易AIで戦闘を最後まで行い閉じる（予告技の次は防御、HP半分以下で回復）。勝てなければ失敗 |
 | `{ "effects": [...] }` | 効果を直接実行（テストの前提づくり：テレポート、フラグ設定、戦闘開始など） |
 | `{ "saveAndLoad": true }` | 状態をJSONにして戻す（セーブ・再起動の再現） |
-| `{ "expect": {...} }` | `mapId`・`at`・`scene`（custom / ending も）・`flags`・`vars`・`sets`（含まれていること）・`lacksInSets`・`cycle`・`entities`（`{"id": {"x","y"}}`、`null` で消えていること）・`regions`・`abilities`（特性由来も含む）・`lacksAbilities`・`traits`・`lacksTraits`・`stats`（補正込み）・`items`・`done`・`notDone`・`hpAtLeast`・`passable`・`battleOutcome`・`textIncludes` |
+| `{ "expect": {...} }` | `mapId`・`at`・`scene`（custom / ending も）・`flags`・`vars`・`sets`（含まれていること）・`lacksInSets`・`cycle`・`entities`（`{"id": {"x","y"}}`、`null` で消えていること）・`regions`・`abilities`（特性由来も含む）・`lacksAbilities`・`traits`・`lacksTraits`・`stats`（補正込み）・`items`・`done`・`notDone`・`hpAtLeast`・`passable`・`battleOutcome`・`textIncludes`・`player`（`{"name": …, "sprite": … / null}` 変身の確認） |
 
 - 既定ではランダムエンカウントを無効にして実行します（`"encounters": true` で有効）。乱数は `seed` で固定され、毎回同じ結果になります。
 - 失敗すると `ERROR tests/xxx.scenario.json › steps[12]: flags.sentinelCalmed: 期待 true / 実際 false` のように、何番目の手順で何が違ったかを表示します。

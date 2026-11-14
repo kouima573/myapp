@@ -143,7 +143,7 @@ export default defineSystem({
         const foe = h("div", "flex:1;padding:.6em .9em", undefined, "rpg-window");
         foe.append(h("div", "", `${enemy.name}　${d.enemyHp}/${d.enemyMaxHp}`), bar(d.enemyHp, d.enemyMaxHp, "#d9745b"), h("div", "font-size:.8em;color:var(--rpg-accent);margin-top:.3em", `次の行動: ${intentOf(ctx, d)}`));
         const me = h("div", "flex:1;padding:.6em .9em", undefined, "rpg-window");
-        me.append(h("div", "", `${view.content.project.player.name}　HP ${d.hp}/${d.maxHp}　ブロック ${d.block}`), bar(d.hp, d.maxHp, "#7fc46b"), h("div", "font-size:.8em;margin-top:.3em", `エネルギー ${"◆".repeat(d.energy)}${"◇".repeat(Math.max(0, d.args.energy - d.energy))}　山札 ${d.draw.length}　捨て札 ${d.discard.length}　ターン ${d.turn}`));
+        me.append(h("div", "", `${(view.state.player.name ?? view.content.project.player.name)}　HP ${d.hp}/${d.maxHp}　ブロック ${d.block}`), bar(d.hp, d.maxHp, "#7fc46b"), h("div", "font-size:.8em;margin-top:.3em", `エネルギー ${"◆".repeat(d.energy)}${"◇".repeat(Math.max(0, d.args.energy - d.energy))}　山札 ${d.draw.length}　捨て札 ${d.discard.length}　ターン ${d.turn}`));
         top.append(foe, me);
         const log = h("div", "flex:1;padding:.5em .9em;font-size:.8em;color:var(--rpg-dim);overflow:hidden", undefined, "rpg-window");
         for (const line of d.log.slice(-4)) log.appendChild(h("div", "", line));

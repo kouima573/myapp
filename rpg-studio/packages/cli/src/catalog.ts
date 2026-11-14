@@ -60,6 +60,12 @@ export function catalog(content: GameContent): string {
   for (const d of Object.values(content.dialogues)) out.push(`- \`${d.id}\` ${d.speaker}${d.choices.length ? ` 選択肢: ${d.choices.map(c => c.id).join(", ")}` : ""}`);
   h("タイル (tiles)");
   out.push(content.tileset.tiles.map(t => `\`${t.code}\`${t.name}${t.passable ? "" : t.passableWhen ? "(条件)" : "(×)"}`).join(" "));
+  h("動詞（プレイヤーがメニュー・キーで使う自作の行動。on: verb のルールで受ける）");
+  for (const [id, v] of Object.entries(project.verbs)) out.push(`- \`${id}\` ${v.label}${v.key ? ` [${v.key}]` : ""}${v.when ? "（条件つき）" : ""}${v.description ? ` — ${v.description}` : ""}`);
+  h("シグナル（自作のイベント。{ \"type\": \"signal\" } で発信、on: signal のルールで受ける）");
+  for (const [id, d] of Object.entries(project.signals)) out.push(`- \`${id}\`${d.description ? ` — ${d.description}` : ""}`);
+  h("ジャンルモジュール");
+  out.push(Object.keys(project.modules).map(id => `\`${id}\``).join(" ") || "なし");
   h("独自システム (systems)");
   for (const s of project.systems) out.push(`- \`${s.id}\` ${s.path} — ${s.title}`);
   return `${out.join("\n")}\n`;

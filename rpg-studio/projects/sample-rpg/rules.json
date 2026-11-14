@@ -109,6 +109,77 @@
           "text": "村に風が戻ってきた。木々がざわめいている。"
         }
       ]
+    },
+    {
+      "id": "whistle-tet",
+      "on": "signal",
+      "match": "whistle",
+      "when": {
+        "map": "village"
+      },
+      "description": "村で口笛を吹くとテトが反応する",
+      "effects": [
+        {
+          "type": "message",
+          "speaker": "見習いのテト",
+          "text": "呼んだ？　……なんだ、口笛か。"
+        }
+      ]
+    },
+    {
+      "id": "whistle-wind",
+      "on": "signal",
+      "match": "whistle",
+      "when": {
+        "flag": "wind-form"
+      },
+      "description": "風の姿だと口笛が遠くまで届く",
+      "effects": [
+        {
+          "type": "message",
+          "text": "口笛は風に乗って、森の向こうまで届いた。"
+        }
+      ]
+    },
+    {
+      "id": "examine-tree",
+      "on": "examine",
+      "when": {
+        "front": {
+          "tile": "T"
+        }
+      },
+      "description": "何もない所を調べた時: 木の前なら",
+      "effects": [
+        {
+          "type": "message",
+          "text": "木の幹に、子どもが刻んだような小さな印がある。"
+        }
+      ]
+    },
+    {
+      "id": "wind-water",
+      "on": "bump",
+      "when": {
+        "all": [
+          {
+            "flag": "wind-form"
+          },
+          {
+            "front": {
+              "tile": "~"
+            }
+          }
+        ]
+      },
+      "once": "map",
+      "description": "風の姿で水辺にぶつかった時",
+      "effects": [
+        {
+          "type": "message",
+          "text": "風の身でも、水の上は渡れないらしい。"
+        }
+      ]
     }
   ]
 }

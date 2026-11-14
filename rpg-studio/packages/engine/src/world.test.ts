@@ -138,3 +138,47 @@ describe("memory across cycles", () => {
     expect(engine.text(restarted, "{{set.memories}}")).toContain("風 → 星 → 岩");
   });
 });
+
+describe("v0.7: verbs, signals, onAction", () => {
+  it("onAction can mirror the controls and swallow actions", () => {
+    const mirror = defineSystem({
+      id: "mirror",
+      onAction(_ctx, action) {
+        if (action.type === "move") return { action: { type: "move", direction: action.direction === "left" ? "right" : action.direction === "right" ? "left" : action.direction } };
+        if (action.type === "interact") return { cancel: true, effects: [{ type: "message", text: "鏡の世界では調べられない" }] };
+      },
+    });
+    const engine = createEngine(content, [...systems, mirror]);
+    let s = begin(engine, { mapId: "village", x: 3, y: 12 });
+    s = engine.step(s, { type: "move", direction: "left" }).state;
+    expect(s.player.x).toBe(4);
+    s = engine.step(s, { type: "interact" }).state;
+    expect(s.scene).toMatchObject({ kind: "message", text: "鏡の世界では調べられない" });
+  });
+
+  it("signals reach every listening rule and stop endless chains", () => {
+    const project = { ...content.project, signals: { ping: {}, pong: {} } };
+    const loop = [
+      { id: "a", on: "signal" as const, match: "ping", repeat: false, priority: 0, effects: [{ type: "signal" as const, signal: "pong" }] },
+      { id: "b", on: "signal" as const, match: "pong", repeat: false, priority: 0, effects: [{ type: "signal" as const, signal: "ping" }] },
+    ];
+    const engine = createEngine({ ...content, project, rules: [...content.rules, ...loop] }, systems);
+    const s = begin(engine, { mapId: "village", x: 3, y: 12 });
+    expect(() => engine.run(s, [{ type: "startScene", system: "planner", scene: "schedule", args: { turns: 1, activities: [{ id: "x", label: "x", effects: [{ type: "signal", signal: "ping" }] }] } }])).not.toThrow();
+    const opened = engine.run(s, [{ type: "startScene", system: "planner", scene: "schedule", args: { turns: 1, activities: [{ id: "x", label: "x", effects: [{ type: "signal", signal: "ping" }] }] } }]).state;
+    expect(() => engine.step(opened, { type: "sceneInput", input: { type: "confirm" } })).toThrow(/32段/);
+  });
+
+  it("front condition and setPlayer survive save/load", () => {
+    const engine = createEngine(content, systems);
+    let s = begin(engine, { mapId: "village", x: 14, y: 6 });
+    s = { ...s, player: { ...s.player, facing: "right" } };
+    expect(engine.evaluate({ front: { tile: "~", blocked: true } }, s)).toBe(true);
+    expect(engine.evaluate({ front: { tile: "." } }, s)).toBe(false);
+    s = engine.run(s, [{ type: "setPlayer", name: "影", sprite: "village-guard" }]).state;
+    expect(s.player).toMatchObject({ name: "影", sprite: "village-guard" });
+    s = engine.run(s, [{ type: "setPlayer", name: null }]).state;
+    expect(s.player.name).toBeUndefined();
+    expect(s.player.sprite).toBe("village-guard");
+  });
+});

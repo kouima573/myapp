@@ -47,6 +47,10 @@
     "runeDoorOpen": {
       "initial": false,
       "description": "封印の暗号錠を開けた"
+    },
+    "wind-form": {
+      "initial": false,
+      "description": "風の祠を解いたあと『風になる』で風の姿になっている"
     }
   },
   "variables": {
@@ -114,6 +118,139 @@
     "secret": {
       "title": "風の源へ",
       "text": "封印の奥で、風は生まれていた。\n{{name}}は誰も知らない森の奥へと歩き出した。"
+    }
+  },
+  "verbs": {
+    "listen": {
+      "label": "耳を澄ます",
+      "key": "l",
+      "description": "周りの音を聞く",
+      "effects": [
+        {
+          "type": "if",
+          "when": {
+            "inRegion": "sanctum"
+          },
+          "then": [
+            {
+              "type": "addToSet",
+              "set": "clues",
+              "value": "rune-order"
+            },
+            {
+              "type": "message",
+              "text": "壁の奥から、かすかな囁きが聞こえる。「星……月……太陽……」"
+            }
+          ],
+          "else": [
+            {
+              "type": "if",
+              "when": {
+                "front": {
+                  "tile": "~"
+                }
+              },
+              "then": [
+                {
+                  "type": "message",
+                  "text": "水のせせらぎが聞こえる。"
+                }
+              ],
+              "else": [
+                {
+                  "type": "if",
+                  "when": {
+                    "flag": "wind-form"
+                  },
+                  "then": [
+                    {
+                      "type": "message",
+                      "text": "風の身には、遠くの話し声まで聞こえる。誰かが遺跡の石板の話をしている……"
+                    }
+                  ],
+                  "else": [
+                    {
+                      "type": "message",
+                      "text": "風が草を揺らす音しか聞こえない。"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "whistle": {
+      "label": "口笛",
+      "key": "k",
+      "description": "口笛を吹く。聞こえた誰かが反応するかもしれない",
+      "effects": [
+        {
+          "type": "signal",
+          "signal": "whistle"
+        }
+      ]
+    },
+    "become-wind": {
+      "label": "風になる",
+      "key": "f",
+      "description": "祠の風を身にまとう",
+      "when": {
+        "all": [
+          {
+            "done": "shrine-solved"
+          },
+          {
+            "not": {
+              "flag": "wind-form"
+            }
+          }
+        ]
+      },
+      "effects": [
+        {
+          "type": "setPlayer",
+          "name": "風のアオ",
+          "sprite": "village-courier"
+        },
+        {
+          "type": "setFlag",
+          "flag": "wind-form"
+        },
+        {
+          "type": "message",
+          "text": "祠の風が体を包んだ。足取りが軽い。"
+        }
+      ]
+    },
+    "return": {
+      "label": "人に戻る",
+      "key": "r",
+      "when": {
+        "flag": "wind-form"
+      },
+      "effects": [
+        {
+          "type": "setPlayer",
+          "name": null,
+          "sprite": null
+        },
+        {
+          "type": "setFlag",
+          "flag": "wind-form",
+          "value": false
+        },
+        {
+          "type": "message",
+          "text": "風がほどけ、いつもの姿に戻った。"
+        }
+      ]
+    }
+  },
+  "signals": {
+    "whistle": {
+      "description": "口笛が響いた。聞こえた者（ルール）がそれぞれ反応する"
     }
   },
   "intro": [

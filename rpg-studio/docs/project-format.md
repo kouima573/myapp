@@ -87,7 +87,7 @@
 - **特性**（`database.json` › `traits`）: `category`（種族・職業など自由）、`statMods`、`abilities`（特性がある間だけ持つ能力）、`rules`、`onGrant`、`tags`。
 - **能力**（`abilities`）: `statMods`、`rules`、`use`（技：`where` battle/field/both、`cost` 変数コスト、`hpCost`、`when`、`effects`）。
 - **アイテム**（`items`）: `heal`（簡易）、`use`（汎用、`consume`）、`statMods`・`rules`（持っているだけで効く）。
-- **ルール**（能力・特性・アイテム・敵、または `rulesPath` の `rules.json`）: `on`（auto / step / mapEnter / battleStart / turnEnd / dealDamage / takeDamage / lethalDamage / victory / defeat）、`when`、`chance`、`once`（battle / map / game）、`repeat`、`priority`、`modify`（damage / hp）、`effects`。詳しい使い方とレシピは [customization-guide.md](customization-guide.md) を参照。
+- **ルール**（能力・特性・アイテム・敵、または `rulesPath` の `rules.json`）: `on`（auto / step / tick / mapEnter / battleStart / turnEnd / dealDamage / takeDamage / lethalDamage / victory / defeat / **bump**（壁などにぶつかった）/ **examine**（調べたが何もなかった）/ **verb**（動詞を使った。`match` で動詞を指定）/ **signal**（シグナルを受けた。`match` 必須））、`when`、`chance`、`once`（battle / map / game）、`repeat`、`priority`、`modify`（damage / hp）、`effects`。詳しい使い方とレシピは [customization-guide.md](customization-guide.md) を参照。
 - **敵**: `tags`（条件 `enemyTag` 用）、`actions[].when`（条件付き行動）、`actions[].effects`、`rules`（その敵との戦闘中だけ有効）。
 - **開始時**: `project.json` の `player.traits`（初期特性）と `intro`（新規ゲーム開始時の効果。種族選択など）。
 
@@ -99,7 +99,10 @@
 - **集合** `project.json › sets`: `{ label, description, show, persist, entries }`。効果 `addToSet` / `removeFromSet` / `clearSet`、条件 `{"set", "has"}`、式 `{"size"}`、文中の `{{set.<id>}}`。組み込みの集合 `endings`（到達したエンディング、meta）。
 - **周回** フラグ・変数・集合の `persist: "meta"` は、`newCycle` やゲームの再開をまたいで残る。式 `{"cycle": true}`、文中の `{{cycle}}`。`project.json › endings` と効果 `ending`（エンディング画面 → 閉じると次の周回）。
 - **時間** `schedule {id?, after: 式(歩数), effects}` / `cancelSchedule {id}`。ルールの `on: "tick"`。式 `{"ticks": true}`。
-- **その他の効果** `moveEntity {entity, mapId?, x, y, facing?}`、`startScene {system, scene, args}`（独自画面）。
+- **その他の効果** `moveEntity {entity, mapId?, x, y, facing?}`、`startScene {system, scene, args}`（独自画面）、`signal {signal}`（シグナルを発信。`on: "signal"` で `match` が一致するルールがその場で動く）、`setPlayer {name?, sprite?}`（変身。`null` で元に戻す）。
+- **動詞** `project.json › verbs`: `{ "listen": { "label": "耳を澄ます", "key": "l", "description": "…", "when": 条件, "effects": [...] } }`。フィールドのメニュー「こうどう」・画面のボタン・キーで使える。`on: "verb"` のルールも反応する。
+- **シグナル** `project.json › signals`: `{ "whistle": { "description": "…" } }`。未宣言のシグナルは検証エラー。
+- **条件** `{ "front": { "tile": "~", "entity": "…", "npc": "…", "blocked": true } }`: プレイヤーの目の前（書いた項目がすべて一致）。
 - **拡張の呼び出し** 条件 `{"custom": "system.name", "args"}`、式 `{"fn": "system.name", "args": [...]}`。
 - **ジャンルモジュール** `project.json › modules`（例 `{ "novel": {}, "shooter": {} }`）で有効にする。戦闘効果の `mode` / `args`、敵の `battle: { mode: "builtin" | "id.scene", args }` で戦い方を差し替える。詳しくは [genre-modules.md](genre-modules.md)。
 - **戦闘** `project.json › battle`: `playerDamage` / `enemyDamage` / `fleeChance`（式。ctx: attack, defense, power, variance）、`commands`（各コマンドのON/OFF）。

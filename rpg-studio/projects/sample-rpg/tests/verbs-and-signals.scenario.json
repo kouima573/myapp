@@ -1,0 +1,229 @@
+{
+  "name": "自作の動詞・シグナル・変身・何もない所を調べる・ぶつかる（v0.7）",
+  "seed": 5,
+  "steps": [
+    {
+      "advance": "all"
+    },
+    {
+      "choose": "dwarf"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "village",
+          "x": 3,
+          "y": 12,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "verb": "listen"
+    },
+    {
+      "expect": {
+        "textIncludes": "草を揺らす音"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "verb": "whistle"
+    },
+    {
+      "expect": {
+        "textIncludes": "口笛か"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "village",
+          "x": 5,
+          "y": 10,
+          "facing": "down"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "textIncludes": "小さな印"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "verb": "become-wind"
+    },
+    {
+      "expect": {
+        "scene": "field",
+        "player": {
+          "name": "アオ",
+          "sprite": null
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "markDone",
+          "id": "shrine-solved"
+        }
+      ]
+    },
+    {
+      "verb": "become-wind"
+    },
+    {
+      "expect": {
+        "flags": {
+          "wind-form": true
+        },
+        "player": {
+          "name": "風のアオ",
+          "sprite": "village-courier"
+        }
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "verb": "whistle"
+    },
+    {
+      "expect": {
+        "textIncludes": "口笛か"
+      }
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "textIncludes": "森の向こうまで"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "village",
+          "x": 14,
+          "y": 6,
+          "facing": "right"
+        }
+      ]
+    },
+    {
+      "move": "right"
+    },
+    {
+      "expect": {
+        "textIncludes": "水の上は渡れない",
+        "at": {
+          "x": 14,
+          "y": 6
+        }
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "move": "right"
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    },
+    {
+      "verb": "listen"
+    },
+    {
+      "expect": {
+        "textIncludes": "せせらぎ"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "ruins",
+          "x": 5,
+          "y": 5,
+          "facing": "down"
+        }
+      ]
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "verb": "listen"
+    },
+    {
+      "expect": {
+        "textIncludes": "星……月……太陽",
+        "sets": {
+          "clues": [
+            "rune-order"
+          ]
+        }
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "verb": "return"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "flags": {
+          "wind-form": false
+        },
+        "player": {
+          "name": "アオ",
+          "sprite": null
+        }
+      }
+    },
+    {
+      "saveAndLoad": true
+    }
+  ]
+}

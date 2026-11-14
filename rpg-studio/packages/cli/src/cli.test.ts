@@ -42,3 +42,19 @@ describe("agent tooling", () => {
     ]));
   });
 });
+
+describe("rpg new", () => {
+  it("creates a blank project that validates, with an idea sheet", async () => {
+    const { newProject } = await import("./scaffold");
+    const os = await import("node:os");
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "rpg-new-"));
+    try {
+      const dir = await newProject("idea-lab", "発想の実験場", root);
+      const loaded = loadProjectContent((await readProjectTexts(dir)).texts);
+      expect(loaded.diagnostics.filter(d => d.severity === "error")).toEqual([]);
+      expect(loaded.content?.project.title).toBe("発想の実験場");
+      expect(await fs.readFile(path.join(dir, "IDEA.md"), "utf8")).toContain("常識から外れているところ");
+      await expect(newProject("idea-lab", "x", root)).rejects.toThrow(/すでに/);
+    } finally { await fs.rm(root, { recursive: true, force: true }); }
+  }, 30000);
+});

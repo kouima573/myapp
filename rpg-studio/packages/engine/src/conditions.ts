@@ -12,7 +12,11 @@ export interface EvalEnv {
   baseStats?: boolean;
   /** Project systems, for {"custom"} conditions and {"fn"} functions. */
   systems?: readonly GameSystem[];
+  /** Supplied by the engine: what is in front of the player (for {"front"}). */
+  front?: (state: GameState) => FrontInfo | undefined;
 }
+
+export interface FrontInfo { tile: string; entities: string[]; npcs: string[]; blocked: boolean }
 
 function splitRef(ref: string): [string, string] {
   const dot = ref.lastIndexOf(".");
@@ -140,6 +144,15 @@ export function evaluate(condition: Condition | undefined, state: GameState, env
   if ("enemy" in condition) return battleOf(state)?.enemyId === condition.enemy;
   if ("set" in condition) return (state.sets?.[condition.set] ?? []).includes(condition.has);
   if ("inRegion" in condition) return regionsAt(state, env.content, env).includes(condition.inRegion);
+  if ("front" in condition) {
+    const f = env.front?.(state);
+    if (!f) return false;
+    const want = condition.front;
+    return (want.tile === undefined || f.tile === want.tile)
+      && (want.entity === undefined || f.entities.includes(want.entity))
+      && (want.npc === undefined || f.npcs.includes(want.npc))
+      && (want.blocked === undefined || f.blocked === want.blocked);
+  }
   if ("custom" in condition) {
     const [systemId, name] = splitRef(condition.custom);
     const check = env.systems?.find(s => s.id === systemId)?.conditions?.[name];

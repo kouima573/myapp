@@ -14,9 +14,11 @@ import { buildProject, importSystemModule, REPO_ROOT } from "./build";
 import { catalog, jsonSchemas } from "./catalog";
 import { cmdArt, cmdAsset } from "./assets";
 import { loadProjectFromDisk, readProjectTexts, resolveInside } from "./load";
+import { newProject } from "./scaffold";
 
 const USAGE = `RPG Studio CLI
 
+  rpg new      <id> [--title <名前>] [--dir projects]  発想を育てる空のプロジェクト（IDEA.md つき）を作る
   rpg validate --project <dir>          形式・参照・素材を検証
   rpg test     --project <dir>          検証 + システム読込 + tests/*.scenario.json の自動プレイ
   rpg build    --project <dir> [--out <dir>]  型検査・bundleして dist/game/<id>/ に静的ゲームを出力
@@ -281,6 +283,15 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
   let parsed: ReturnType<typeof parseArgs>;
   try { parsed = parseArgs(argv); } catch (error) { console.error(String(error)); console.error(USAGE); return 2; }
   switch (parsed.command) {
+    case "new": {
+      if (!parsed.sub) { console.error("ERROR rpg new <id> の形で、プロジェクトIDを指定してください"); return 2; }
+      try {
+        const dir = await newProject(parsed.sub, typeof parsed.flags.title === "string" ? parsed.flags.title : parsed.sub, typeof parsed.flags.dir === "string" ? path.resolve(process.cwd(), parsed.flags.dir) : undefined);
+        const rel = path.relative(process.cwd(), dir);
+        console.log(`OK new: ${rel}\n次に ${rel}/IDEA.md に発想を書き、AIに「IDEA.md の発想を形にして」と頼んでください。\n  pnpm rpg test --project ${rel}`);
+        return 0;
+      } catch (error) { console.error(`ERROR ${error instanceof Error ? error.message : String(error)}`); return 1; }
+    }
     case "validate": return cmdValidate(parsed.flags);
     case "test": return cmdTest(parsed.flags);
     case "build": return cmdBuild(parsed.flags);

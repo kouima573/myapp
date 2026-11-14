@@ -54,6 +54,17 @@ export interface SystemActionResult {
   log?: string[];
 }
 
+/** A player action as the engine receives it ({ type: "move", direction }, { type: "verb", verb }, { type: "interact" }…). */
+export interface PlayerAction { type: string; [key: string]: unknown }
+
+/** onAction may rewrite or swallow the player's action before the engine handles it. */
+export interface ActionHookResult extends SystemActionResult {
+  /** Handle this action instead (e.g. mirrored controls: move left → move right). */
+  action?: PlayerAction;
+  /** Swallow the action (state / effects / log still apply). */
+  cancel?: boolean;
+}
+
 /** Input delivered to a custom scene. Keys are mapped to the first six; buttons rendered by the scene can send anything. */
 export type SceneInput =
   | { type: "up" | "down" | "left" | "right" | "confirm" | "cancel" }
@@ -139,6 +150,12 @@ export interface GameSystem {
   functions?: Record<string, (ctx: SystemContext, args: number[]) => number>;
   /** Custom screens: data `{ "type": "startScene", "system": id, "scene": name, "args": {...} }`. */
   scenes?: Record<string, SceneDefinition>;
+  /**
+   * Before the engine handles any player action. Rewrite it (`action`), swallow it (`cancel`), or add effects.
+   * Use it to change the rules of control itself: mirrored worlds, ice floors, moving two characters at once,
+   * turn-based time where every action costs something, a hero who cannot stop walking…
+   */
+  onAction?(ctx: SystemContext, action: PlayerAction): ActionHookResult | void;
   /** After every successful player step (field). */
   onStep?(ctx: SystemContext): SystemActionResult | void;
   /** Every world tick (entities move on ticks; the runtime ticks ~3 times per second in the field). */

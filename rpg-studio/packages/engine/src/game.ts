@@ -2,8 +2,8 @@ import type {
   BattleState, Direction, Effect, Enemy, Entity, EntityState, GameContent, GameEvent, GameMap, GameState, Interactable, Npc, Rule, RuleTrigger,
   Stats, TileDef, Use,
 } from "../../schema/src/formats";
-import { abilitiesOf, effectiveStats, evalExpr, evaluate, interpolate, nextRandom, regionsAt, type EvalEnv } from "./conditions";
-import { sortSystems, type GameSystem, type SceneInput, type SystemActionResult } from "./systems";
+import { abilitiesOf, effectiveStats, evalExpr, evaluate, interpolate, nextRandom, regionsAt, type EvalEnv, type FrontInfo } from "./conditions";
+import { sortSystems, type GameSystem, type PlayerAction, type SceneInput, type SystemActionResult } from "./systems";
 
 /** Values that survive a new cycle (meta-scoped flags, variables, sets, endings seen, cycle number). */
 export interface MetaState {
@@ -40,7 +40,9 @@ export type Action =
   | { type: "useAbility"; ability: string }
   /** Advance the world clock: entities move, tick rules and systems run. */
   | { type: "tick" }
-  | { type: "sceneInput"; input: SceneInput };
+  | { type: "sceneInput"; input: SceneInput }
+  /** A self-made verb from project.json › verbs. */
+  | { type: "verb"; verb: string };
 
 /** Presentation hints for the runtime (sound, animation). Never needed for correctness. */
 export type Cue =
@@ -77,6 +79,8 @@ export const DELTAS: Record<Direction, { x: number; y: number }> = {
 interface Ctx {
   log: string[];
   cues: Cue[];
+  /** Nesting of signal effects (guards against signals that fire each other forever). */
+  signalDepth?: number;
 }
 
 export interface Engine {
@@ -117,7 +121,7 @@ const DEFAULT_SEED = 20261114;
 export function createEngine(content: GameContent, systems: readonly GameSystem[] = []): Engine {
   const sorted = sortSystems(systems);
   const tiles = new Map(content.tileset.tiles.map(tile => [tile.code, tile]));
-  const env: EvalEnv = { content, systems: sorted };
+  const env: EvalEnv = { content, systems: sorted, front: state => frontInfo(state) };
   const db = content.database;
   const ev = (cond: Parameters<typeof evaluate>[0], state: GameState, extra?: EvalEnv["ctx"]) => evaluate(cond, state, extra ? { ...env, ctx: extra } : env);
   const ex = (expr: Parameters<typeof evalExpr>[0], state: GameState, extra?: EvalEnv["ctx"]) => evalExpr(expr, state, extra ? { ...env, ctx: extra } : env);
@@ -279,9 +283,10 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   }
 
   /** Field triggers (step, mapEnter): queue the effects of every rule that fires. */
-  function fireFieldRules(c: Ctx, state: GameState, trigger: RuleTrigger): GameState {
+  function fireFieldRules(c: Ctx, state: GameState, trigger: RuleTrigger, match?: string): GameState {
     const collected: Effect[] = [];
     for (const entry of rulesFor(state, trigger)) {
+      if (entry.rule.match !== undefined && entry.rule.match !== match) continue;
       const next = tryRule(c, state, entry);
       if (!next) continue;
       state = next;
@@ -453,6 +458,29 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         return state;
       case "playBgm":
         return { ...state, music: effect.music };
+      case "signal": {
+        const depth = (c.signalDepth ?? 0) + 1;
+        if (depth > 32) throw new Error(`シグナル '${effect.signal}' が32段以上連鎖しました。シグナルどうしが無限に呼び合っていないか確認してください`);
+        c.log.push(`シグナル: ${effect.signal}`);
+        const collected: Effect[] = [];
+        for (const entry of rulesFor(state, "signal")) {
+          if (entry.rule.match !== effect.signal) continue;
+          const next = tryRule(c, state, entry, ctxValues);
+          if (!next) continue;
+          state = next;
+          collected.push(...entry.rule.effects);
+        }
+        if (!immediate) return enqueue(state, collected);
+        c.signalDepth = depth;
+        try { return runNow(c, state, collected, ctxValues); } finally { c.signalDepth = depth - 1; }
+      }
+      case "setPlayer": {
+        const player = { ...state.player };
+        if (effect.name === null) delete player.name; else if (effect.name !== undefined) player.name = effect.name;
+        if (effect.sprite === null) delete player.sprite; else if (effect.sprite !== undefined) player.sprite = effect.sprite;
+        c.log.push(`主人公: ${player.name ?? content.project.player.name}${player.sprite ? `（${player.sprite}）` : ""}`);
+        return { ...state, player };
+      }
       case "event": {
         const event = content.events[effect.event];
         if (!event) throw new Error(`イベント '${effect.event}' がありません`);
@@ -888,7 +916,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       const bumped = visibleEntities(state, map).find(e => e.x === to.x && e.y === to.y && e.state.trigger === "touch");
       if (bumped) return touchEntity(c, state, bumped);
       c.cues.push({ kind: "bump" });
-      return state;
+      return runQueue(c, fireFieldRules(c, state, "bump"));
     }
     const from = { x: state.player.x, y: state.player.y };
     state = { ...state, steps: state.steps + 1, player: { ...state.player, ...to } };
@@ -962,7 +990,35 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       const region = map.regions.find(r => r.id === id);
       if (region?.inspect.length) return runQueue(c, enqueue(state, region.inspect));
     }
-    return state;
+    // Nothing answered: "examine" rules decide what examining empty space means.
+    return runQueue(c, fireFieldRules(c, state, "examine"));
+  }
+
+  /** What is in front of the player (for the {"front"} condition). Guarded against conditions that look at themselves. */
+  let lookingFront = false;
+  function frontInfo(state: GameState): FrontInfo | undefined {
+    const map = content.maps[state.mapId];
+    if (!map || lookingFront) return undefined;
+    lookingFront = true;
+    try {
+      const x = state.player.x + DELTAS[state.player.facing].x, y = state.player.y + DELTAS[state.player.facing].y;
+      return {
+        tile: codeAt(state, map, x, y),
+        entities: visibleEntities(state, map).filter(e => e.x === x && e.y === y).map(e => e.entity.id),
+        npcs: visibleNpcs(state, map).filter(n => n.x === x && n.y === y).map(n => n.id),
+        blocked: !isPassable(state, x, y, map),
+      };
+    } finally { lookingFront = false; }
+  }
+
+  /** A self-made verb: its own effects, then every rule listening with on "verb". */
+  function doVerb(c: Ctx, state: GameState, id: string): GameState {
+    const verb = content.project.verbs[id];
+    if (!verb) throw new Error(`動詞 '${id}' がありません（project.json の verbs）`);
+    if (!ev(verb.when, state)) { c.log.push(`動詞 ${id}: 今は使えない`); return state; }
+    c.log.push(`動詞: ${verb.label}`);
+    state = fireFieldRules(c, state, "verb", id);
+    return runQueue(c, enqueue(state, verb.effects));
   }
 
   /** One world tick: entity behaviours, tick rules, systems' onTick. */
@@ -1101,6 +1157,19 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
 
   function step(state: GameState, action: Action): StepResult {
     const c: Ctx = { log: [], cues: [] };
+    // Systems may rewrite or swallow the action first (changing the rules of control itself).
+    for (const system of sorted) {
+      if (!system.onAction) continue;
+      const result = system.onAction({ content, state }, action as unknown as PlayerAction);
+      if (!result) continue;
+      const changed = applySystemResult(c, state, result);
+      if (result.cancel) {
+        const settled = changed.scene.kind === "field" ? runAuto(c, runEntityAutos(c, runQueue(c, changed))) : changed;
+        return { state: settled, log: c.log, cues: c.cues };
+      }
+      state = changed;
+      if (result.action) action = result.action as unknown as Action;
+    }
     let next = state;
     const scene = state.scene;
     switch (action.type) {
@@ -1122,6 +1191,9 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         break;
       case "tick":
         if (scene.kind === "field") next = tick(c, state);
+        break;
+      case "verb":
+        if (scene.kind === "field") next = doVerb(c, state, action.verb);
         break;
       case "sceneInput":
         next = sceneInput(c, state, action.input);

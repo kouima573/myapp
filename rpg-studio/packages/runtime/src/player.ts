@@ -284,6 +284,14 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (down && (key === "escape" || key === "x")) { event.preventDefault(); if (!event.repeat) dispatch({ type: "sceneInput", input: { type: "cancel" } }); return true; }
     return false;
   }
+  /** Who the player is right now (setPlayer can transform the hero). */
+  function heroName() { return state.player.name ?? content.project.player.name; }
+  /** Self-made verbs usable right now. */
+  function availableVerbs(): Array<[string, { label: string; key?: string; description?: string }]> {
+    return Object.entries(content.project.verbs).filter(([, verb]) => { try { return engine.evaluate(verb.when, state); } catch { return false; } });
+  }
+  function useVerb(id: string) { menuOpen = false; audio.cue("confirm"); dispatch({ type: "verb", verb: id }); }
+
   function onKeyDown(event: KeyboardEvent) {
     if (!accepts(event) || event.metaKey || event.ctrlKey || event.altKey) return;
     audio.unlock();
@@ -294,6 +302,10 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (key === "enter" || key === " " || key === "z") { event.preventDefault(); if (!event.repeat) confirm(); }
     else if (key === "escape" || key === "x" || key === "m") { event.preventDefault(); if (!event.repeat) cancel(); }
     else if (state.scene.kind === "battle" && /^[1-4]$/.test(key)) { selection = Number(key) - 1; confirm(); }
+    else if (state.scene.kind === "field" && !menuOpen && !event.repeat) {
+      const verb = availableVerbs().find(([, v]) => v.key === key);
+      if (verb) { event.preventDefault(); useVerb(verb[0]); }
+    }
   }
   function onKeyUp(event: KeyboardEvent) {
     if (realtimeKey(event, false)) return;
@@ -376,9 +388,21 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       left.append(vars);
     }
     const hp = el("div", "rpg-hud-hp");
-    hp.append(el("span", "rpg-hud-label", `${content.project.player.name}  HP ${state.player.hp}/${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
+    hp.append(el("span", "rpg-hud-label", `${heroName()}  HP ${state.player.hp}/${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
     const extra = (() => { try { return engine.hudLines(state); } catch { return []; } })();
     if (extra.length) { const box = el("div", "rpg-hud-vars"); for (const line of extra) box.appendChild(el("span", undefined, line)); left.append(box); }
+    const verbs = state.scene.kind === "field" ? availableVerbs() : [];
+    if (verbs.length) {
+      const bar = el("div", "rpg-verbs");
+      for (const [id, verb] of verbs) {
+        const b = el("button", "rpg-verb", verb.key ? `${verb.label} [${verb.key.toUpperCase()}]` : verb.label) as HTMLButtonElement;
+        b.type = "button";
+        if (verb.description) b.title = verb.description;
+        b.addEventListener("click", event => { event.stopPropagation(); useVerb(id); root.focus({ preventScroll: true }); });
+        bar.appendChild(b);
+      }
+      left.append(bar);
+    }
     hud.append(left, hp);
     hud.hidden = state.scene.kind === "battle" || state.scene.kind === "ending" || state.scene.kind === "custom";
     root.dataset.scene = menuOpen ? "menu" : state.scene.kind;
@@ -462,7 +486,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     enemyInfo.append(el("div", "rpg-enemy-name", enemy.name), hpBar(battle.enemyHp, enemy.stats.maxHp, "is-enemy"));
     stage.append(enemyInfo, portraitCanvas);
     const status = el("div", "rpg-window rpg-battle-status");
-    status.append(el("div", "rpg-speaker", `${content.project.player.name}`), el("div", "rpg-battle-hp", `HP ${state.player.hp} / ${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
+    status.append(el("div", "rpg-speaker", `${heroName()}`), el("div", "rpg-battle-hp", `HP ${state.player.hp} / ${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
     for (const [id, decl] of Object.entries(content.project.variables)) if (decl.hud) status.appendChild(el("div", "rpg-battle-var", `${decl.label ?? id} ${state.vars[id] ?? decl.initial}`));
     const log = el("div", "rpg-window rpg-battle-log");
     for (const line of battle.log.slice(-4)) log.appendChild(el("div", "rpg-log-line", line));
@@ -532,7 +556,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     menu.appendChild(el("div", "rpg-menu-title", "メニュー"));
     const stats = el("div", "rpg-menu-stats");
     const s = engine.stats(state);
-    stats.textContent = `${content.project.player.name}　HP ${state.player.hp}/${s.maxHp}　攻撃 ${s.attack}　防御 ${s.defense}`;
+    stats.textContent = `${heroName()}　HP ${state.player.hp}/${s.maxHp}　攻撃 ${s.attack}　防御 ${s.defense}`;
     menu.appendChild(stats);
     const section = (title: string) => menu.appendChild(el("div", "rpg-menu-section", title));
     const labeled = Object.entries(content.project.variables).filter(([, decl]) => decl.label);
@@ -580,6 +604,11 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       const row = el("div", "rpg-menu-ability");
       row.append(el("strong", undefined, ability?.name ?? id), el("span", undefined, ability?.description ?? ""));
       menu.appendChild(row);
+    }
+    const verbList = availableVerbs();
+    if (verbList.length) {
+      section("こうどう");
+      for (const [id, verb] of verbList) menu.appendChild(navButton(verb.label, () => useVerb(id), { hint: `${verb.description ?? ""}${verb.key ? `［${verb.key.toUpperCase()}］` : ""}` }));
     }
     section("きろく");
     const row = el("div", "rpg-menu-row");
@@ -701,7 +730,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         actors: [
           ...npcActors(content, map, npcs, { facingOverride: talkFacing }),
           ...entityActors,
-          { id: "player", kind: "player", x: renderPos.x, y: renderPos.y, facing: state.player.facing, sprite: content.project.player.sprite, frame: walkFrame },
+          { id: "player", kind: "player", x: renderPos.x, y: renderPos.y, facing: state.player.facing, sprite: state.player.sprite ?? content.project.player.sprite, frame: walkFrame },
         ],
       });
       for (const system of engine.systems) {

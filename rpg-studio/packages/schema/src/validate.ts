@@ -180,6 +180,9 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   const setIds = new Set([...Object.keys(project.sets), "endings"]);
   const regionIds = new Set(Object.values(maps).flatMap(m => m.regions.map(r => r.id)));
   const entityIds = new Set(Object.values(maps).flatMap(m => m.entities.map(e => e.id)));
+  const npcIds = new Set(Object.values(maps).flatMap(m => m.npcs.map(n => n.id)));
+  const verbIds = new Set(Object.keys(content.project.verbs));
+  const signalIds = new Set(Object.keys(content.project.signals));
   const endingIds = new Set(Object.keys(project.endings));
   const systemRef = (file: string, at: string, ref: string, what: string) => {
     const systemId = ref.slice(0, ref.lastIndexOf("."));
@@ -250,6 +253,11 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       if ("set" in c && !setIds.has(c.set)) err(file, at, `未宣言の集合 '${c.set}'（project.json の sets）`);
       if ("set" in c && c.set === "endings" && !endingIds.has(c.has)) err(file, at, `未宣言のエンディング '${c.has}'`);
       if ("inRegion" in c && !regionIds.has(c.inRegion)) err(file, at, `どのマップにもない領域 '${c.inRegion}'`);
+      if ("front" in c) {
+        if (c.front.tile !== undefined && !tileByCode.has(c.front.tile)) err(file, at, `front.tile: タイルセットにないコード '${c.front.tile}'`);
+        if (c.front.entity !== undefined && !entityIds.has(c.front.entity)) err(file, at, `front.entity: どのマップにもないエンティティ '${c.front.entity}'`);
+        if (c.front.npc !== undefined && !npcIds.has(c.front.npc)) err(file, at, `front.npc: どのマップにもないNPC '${c.front.npc}'`);
+      }
       if ("custom" in c) systemRef(file, at, c.custom, "条件");
     });
   }
@@ -308,6 +316,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
           if (!systemIds.has(effect.system)) err(file, here, `'${effect.system}' は project.json の systems にも modules にもありません`); break;
         case "ending": if (!endingIds.has(effect.ending)) err(file, here, `未宣言のエンディング '${effect.ending}'（project.json の endings）`); break;
         case "playBgm": checkAudio(file, here, effect.music, MUSIC, "BGM"); break;
+        case "signal": if (!signalIds.has(effect.signal)) err(file, here, `未宣言のシグナル '${effect.signal}'（project.json の signals）`); break;
+        case "setPlayer": if (effect.sprite && assetById.get(effect.sprite)?.kind !== "character") err(file, here, `キャラクター素材 '${effect.sprite}' がassets.jsonにありません`); break;
         default: break;
       }
     });
@@ -327,6 +337,10 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       if (rule.once === "battle" && !battleTrigger) warn(file, here, `once:"battle" は戦闘中のトリガー以外では効きません（on=${rule.on}）`);
       if (rule.repeat && rule.on !== "auto") warn(file, here, "repeat は on が auto のときだけ使われます");
       if (rule.on === "auto" && !rule.when) warn(file, here, "条件(when)のないautoルールは開始直後に1回だけ発動します");
+      if (rule.on === "signal" && !rule.match) err(file, here, "on が signal のルールには match（シグナルID）が必要です");
+      if (rule.on === "signal" && rule.match && !signalIds.has(rule.match)) err(file, here, `未宣言のシグナル '${rule.match}'（project.json の signals）`);
+      if (rule.on === "verb" && rule.match && !verbIds.has(rule.match)) err(file, here, `未定義の動詞 '${rule.match}'（project.json の verbs）`);
+      if (rule.match && rule.on !== "verb" && rule.on !== "signal") warn(file, here, `match は on が verb / signal のときだけ使われます（on=${rule.on}）`);
     });
   };
   const checkStatMods = (file: string, at: string, mods: StatMods | undefined) => {
@@ -353,6 +367,12 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     if (flagIds.has(id)) warn(P, `variables.${id}`, "同じ名前のフラグがあります。紛らわしいので別名にしてください");
   }
   checkEffects(P, "intro", project.intro);
+  const verbKeys = new Map<string, string>();
+  for (const [id, verb] of Object.entries(project.verbs)) {
+    checkCondition(P, `verbs.${id}.when`, verb.when);
+    checkEffects(P, `verbs.${id}.effects`, verb.effects);
+    if (verb.key) { const other = verbKeys.get(verb.key); if (other) err(P, `verbs.${id}.key`, `キー '${verb.key}' は動詞 '${other}' と重複しています`); verbKeys.set(verb.key, id); }
+  }
   for (const [key, expr] of Object.entries({ playerDamage: project.battle.playerDamage, enemyDamage: project.battle.enemyDamage, fleeChance: project.battle.fleeChance })) checkExpr(P, `battle.${key}`, expr, true);
   for (const [id, decl] of Object.entries(project.sets)) {
     if (flagIds.has(id) || varIds.has(id)) warn(P, `sets.${id}`, "同じ名前のフラグ・変数があります。紛らわしいので別名にしてください");
@@ -540,6 +560,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
 export function forEachEffectList(content: GameContent, visit: (effects: Effect[]) => void): void {
   const rules = (list: Rule[]) => list.forEach(r => visit(r.effects));
   visit(content.project.intro);
+  for (const verb of Object.values(content.project.verbs)) visit(verb.effects);
   rules(content.rules);
   for (const event of Object.values(content.events)) { visit(event.effects); visit(event.otherwise); visit(event.afterDone); }
   for (const dialogue of Object.values(content.dialogues)) { visit(dialogue.effects); dialogue.choices.forEach(c => visit(c.effects)); }

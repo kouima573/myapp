@@ -30,8 +30,18 @@
               "takeDamage",
               "lethalDamage",
               "victory",
-              "defeat"
+              "defeat",
+              "bump",
+              "examine",
+              "verb",
+              "signal"
             ]
+          },
+          "match": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
           },
           "when": {
             "$ref": "#/$defs/__schema0"
@@ -377,6 +387,41 @@
           },
           "required": [
             "inRegion"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "front": {
+              "type": "object",
+              "properties": {
+                "tile": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1
+                },
+                "entity": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 96,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "npc": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 96,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "blocked": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "front"
           ],
           "additionalProperties": false
         },
@@ -1650,6 +1695,64 @@
           "required": [
             "type",
             "music"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "signal"
+            },
+            "signal": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "signal"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "setPlayer"
+            },
+            "name": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 40
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "sprite": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 96,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "type"
           ],
           "additionalProperties": false
         },
