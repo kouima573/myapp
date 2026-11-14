@@ -145,6 +145,16 @@ export function evaluate(condition: Condition | undefined, state: GameState, env
   if ("set" in condition) return (state.sets?.[condition.set] ?? []).includes(condition.has);
   if ("inRegion" in condition) return regionsAt(state, env.content, env).includes(condition.inRegion);
   if ("target" in condition) return state.target === condition.target;
+  if ("carrying" in condition) return state.carrying?.id === condition.carrying;
+  if ("entityAt" in condition) {
+    const want = condition.entityAt;
+    const home = Object.values(env.content?.maps ?? {}).find(m => m.entities.some(e => e.id === want.entity));
+    const def = home?.entities.find(e => e.id === want.entity);
+    if (!home || !def || state.carrying?.id === want.entity) return false;
+    const pos = state.entities?.[home.id]?.[want.entity];
+    const now = { x: pos?.x ?? def.x, y: pos?.y ?? def.y, map: pos?.map ?? home.id };
+    return (want.x === undefined || now.x === want.x) && (want.y === undefined || now.y === want.y) && (want.map === undefined || now.map === want.map);
+  }
   if ("front" in condition) {
     const f = env.front?.(state);
     if (!f) return false;

@@ -13,7 +13,8 @@
 3. `docs/extension-api.md` — データで書けないものだけ使うTypeScriptフック（`defineSystem`）
 4. `docs/scenario-tests.md` — 自動プレイテスト
 5. 対象プロジェクトの `README.md` と `pnpm rpg catalog --project projects/<id>`（定義済みIDの一覧）
-6. 素材（画像・BGM・効果音）を扱うときは `docs/asset-guide.md` と `pnpm rpg asset sources --project projects/<id>`
+6. ほかのプロジェクトや作り手が作った仕組みを使うときは `pnpm rpg mod list` / `pnpm rpg mod add <id> --project …`（出どころは mods.json に残る）。自分の仕組みを共有するときは `pnpm rpg mod export <systemId> --project … --author … --license …`
+7. 素材（画像・BGM・効果音）を扱うときは `docs/asset-guide.md` と `pnpm rpg asset sources --project projects/<id>`
 
 ## 作り方の原則
 

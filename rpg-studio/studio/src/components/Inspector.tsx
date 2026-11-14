@@ -14,12 +14,12 @@ interface Props {
   onPlayFrom: (x: number, y: number) => void;
 }
 
-function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
+export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return <label className="field"><span className="field-label">{label}</span>{children}{hint && <span className="field-hint">{hint}</span>}</label>;
 }
 
 /** Text input that commits on blur / Enter, so typing does not save a half-written value. */
-function TextInput({ value, onCommit, mono, type = "text", min, max }: { value: string | number; onCommit: (value: string) => void; mono?: boolean; type?: string; min?: number; max?: number }) {
+export function TextInput({ value, onCommit, mono, type = "text", min, max }: { value: string | number; onCommit: (value: string) => void; mono?: boolean; type?: string; min?: number; max?: number }) {
   const [draft, setDraft] = useState(String(value));
   useEffect(() => setDraft(String(value)), [value]);
   const commit = () => { if (draft !== String(value)) onCommit(draft); };
@@ -27,7 +27,7 @@ function TextInput({ value, onCommit, mono, type = "text", min, max }: { value: 
 }
 
 /** JSON editor for nested data (conditions, dialogue rules). Only valid values are committed. */
-function JsonField<T>({ value, schema, onCommit, placeholder, rows = 3 }: { value: T | undefined; schema: z.ZodType<T>; onCommit: (value: T | undefined) => void; placeholder?: string; rows?: number }) {
+export function JsonField<T>({ value, schema, onCommit, placeholder, rows = 3 }: { value: T | undefined; schema: z.ZodType<T>; onCommit: (value: T | undefined) => void; placeholder?: string; rows?: number }) {
   const text = value === undefined ? "" : rows > 6 ? JSON.stringify(value, null, 2) : JSON.stringify(value);
   const [draft, setDraft] = useState(text);
   const [error, setError] = useState<string | null>(null);

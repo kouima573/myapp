@@ -171,17 +171,33 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   const visibleNpcs = (state: GameState, map = content.maps[state.mapId]) => (map?.npcs ?? []).filter(npc => ev(npc.visibleWhen, state));
   const visibleInteractables = (state: GameState, map = content.maps[state.mapId]) => (map?.interactables ?? []).filter(item => ev(item.visibleWhen, state));
 
+  /** Which map each entity is defined on (entities can later move to other maps). */
+  const entityHome = new Map<string, string>();
+  for (const m of Object.values(content.maps)) for (const e of m.entities) if (!entityHome.has(e.id)) entityHome.set(e.id, m.id);
+
   function visibleEntities(state: GameState, map = content.maps[state.mapId]): EntityView[] {
     if (!map) return [];
     const out: EntityView[] = [];
-    for (const entity of map.entities) {
+    const add = (entity: Entity, home: string) => {
+      if (state.carrying?.id === entity.id && state.carrying.home === home) return;
       const index = entity.states.findIndex(st => ev(st.when, state));
-      if (index < 0) continue;
+      if (index < 0) return;
       const st = entity.states[index]!;
-      const pos = state.entities?.[map.id]?.[entity.id];
+      const pos = state.entities?.[home]?.[entity.id];
       out.push({ entity, state: st, index, x: pos?.x ?? entity.x, y: pos?.y ?? entity.y, facing: pos?.facing ?? st.facing ?? "down" });
+    };
+    for (const entity of map.entities) { const away = state.entities?.[map.id]?.[entity.id]?.map; if (!away || away === map.id) add(entity, map.id); }
+    // Entities from other maps that were moved / carried here.
+    for (const [home, moved] of Object.entries(state.entities ?? {})) {
+      if (home === map.id) continue;
+      for (const [id, pos] of Object.entries(moved)) if (pos.map === map.id) { const e = content.maps[home]?.entities.find(x => x.id === id); if (e) add(e, home); }
     }
     return out;
+  }
+  /** Writes an entity's position (home = the map that defines it, map = where it is now). */
+  function placeEntity(state: GameState, id: string, home: string, x: number, y: number, facing: Direction, map: string): GameState {
+    const pos = { x, y, facing, ...(map !== home ? { map } : {}) };
+    return { ...state, entities: { ...state.entities, [home]: { ...state.entities[home], [id]: pos } } };
   }
 
   /** Tile-only passability (no actors). */
@@ -530,11 +546,13 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       case "clearSet":
         return { ...state, sets: { ...state.sets, [effect.set]: [] } };
       case "moveEntity": {
-        const mapId = effect.mapId ?? state.mapId;
-        const entity = content.maps[mapId]?.entities.find(e => e.id === effect.entity);
-        const facing = effect.facing ?? state.entities[mapId]?.[effect.entity]?.facing ?? "down";
-        if (!entity) throw new Error(`エンティティ '${effect.entity}' がマップ '${mapId}' にありません`);
-        return { ...state, entities: { ...state.entities, [mapId]: { ...state.entities[mapId], [effect.entity]: { x: effect.x, y: effect.y, facing } } } };
+        // mapId = the destination map. An entity defined on another map moves there (cross-map).
+        const dest = effect.mapId ?? state.mapId;
+        const home = content.maps[dest]?.entities.some(e => e.id === effect.entity) ? dest : entityHome.get(effect.entity);
+        if (!home) throw new Error(`エンティティ '${effect.entity}' がどのマップにもありません`);
+        const facing = effect.facing ?? state.entities[home]?.[effect.entity]?.facing ?? "down";
+        const next = placeEntity(state, effect.entity, home, effect.x, effect.y, facing, dest);
+        return state.carrying?.id === effect.entity ? { ...next, carrying: undefined } : next;
       }
       case "schedule":
         return { ...state, timers: [...state.timers, { ...(effect.id ? { id: effect.id } : {}), at: state.steps + Math.max(0, ex(effect.after, state, ctxValues)), effects: effect.effects }] };
@@ -930,6 +948,19 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     state = { ...state, player: { ...state.player, facing: direction } };
     const to = { x: state.player.x + DELTAS[direction].x, y: state.player.y + DELTAS[direction].y };
     if (!isPassable(state, to.x, to.y, map)) {
+      // Push a pushable entity one tile if the tile beyond is free.
+      const pushed = visibleEntities(state, map).find(e => e.x === to.x && e.y === to.y && e.state.pushable);
+      if (pushed) {
+        const beyond = { x: to.x + DELTAS[direction].x, y: to.y + DELTAS[direction].y };
+        if (isPassable(state, beyond.x, beyond.y, map) && !visibleEntities(state, map).some(e => e.x === beyond.x && e.y === beyond.y)) {
+          const home = map.entities.some(e => e.id === pushed.entity.id) ? map.id : entityHome.get(pushed.entity.id)!;
+          state = placeEntity(state, pushed.entity.id, home, beyond.x, beyond.y, pushed.facing, map.id);
+          c.log.push(`${pushed.state.name ?? pushed.entity.name}を押した`);
+          c.cues.push({ kind: "bump" });
+          state = enqueue(state, pushed.state.onMoved ?? []);
+          return move(c, state, direction);
+        }
+      }
       const bumped = visibleEntities(state, map).find(e => e.x === to.x && e.y === to.y && e.state.trigger === "touch");
       if (bumped) return touchEntity(c, state, bumped);
       c.cues.push({ kind: "bump" });
@@ -976,12 +1007,27 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const map = content.maps[state.mapId];
     if (!map) return state;
     const front = { x: state.player.x + DELTAS[state.player.facing].x, y: state.player.y + DELTAS[state.player.facing].y };
+    // Put down what you carry on a free tile in front.
+    if (state.carrying && isPassable(state, front.x, front.y, map) && !visibleEntities(state, map).some(e => e.x === front.x && e.y === front.y)) {
+      const { id, home } = state.carrying;
+      const entity = content.maps[home]?.entities.find(e => e.id === id);
+      state = { ...placeEntity(state, id, home, front.x, front.y, state.player.facing, map.id), carrying: undefined };
+      const st = entity?.states.find(s => ev(s.when, state));
+      c.log.push(`${st?.name ?? entity?.name ?? id}を置いた`);
+      return runQueue(c, enqueue(state, st?.onMoved ?? []));
+    }
     const npc = visibleNpcs(state, map).find(n => n.x === front.x && n.y === front.y);
     if (npc) {
       const entry = npc.dialogues.find(d => ev(d.when, state));
       if (!entry) return state;
       c.log.push(`${npc.name}に話しかけた`);
       return runQueue(c, enqueue(state, [{ type: "dialogue", dialogue: entry.dialogue }]));
+    }
+    const carryable = !state.carrying && visibleEntities(state, map).find(e => e.x === front.x && e.y === front.y && e.state.carryable);
+    if (carryable) {
+      const home = map.entities.some(e => e.id === carryable.entity.id) ? map.id : entityHome.get(carryable.entity.id)!;
+      c.log.push(`${carryable.state.name ?? carryable.entity.name}を持ち上げた`);
+      return { ...state, carrying: { id: carryable.entity.id, home } };
     }
     const entity = visibleEntities(state, map).find(e => e.x === front.x && e.y === front.y && (e.state.trigger === "action" || e.state.trigger === "touch"));
     if (entity) {

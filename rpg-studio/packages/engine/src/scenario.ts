@@ -34,6 +34,8 @@ const ExpectSchema = z.object({
   /** Who the player currently is (after setPlayer). */
   player: z.object({ name: z.string().optional(), sprite: z.string().nullable().optional() }).strict().optional(),
   /** Verbs usable right now (subset) / not usable. */
+  /** Entity the player carries (null = nothing). */
+  carrying: z.string().nullable().optional(),
   verbs: z.array(IdSchema).optional(),
   lacksVerbs: z.array(IdSchema).optional(),
 }).strict();
@@ -164,7 +166,8 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
     const abilities = engine.abilities(state);
     for (const id of expect.abilities ?? []) if (!abilities.includes(id)) fail(`能力 ${id} がありません`);
     for (const id of expect.lacksAbilities ?? []) if (abilities.includes(id)) fail(`能力 ${id} を持っています`);
-    if (expect.verbs || expect.lacksVerbs) {
+    if (expect.carrying !== undefined && (state.carrying?.id ?? null) !== expect.carrying) fail(`carrying: 期待 ${expect.carrying} / 実際 ${state.carrying?.id ?? "なし"}`);
+        if (expect.verbs || expect.lacksVerbs) {
       const usable = engine.usableVerbs(state);
       for (const v of expect.verbs ?? []) if (!usable.includes(v)) fail(`verbs: 「${v}」が使えません（使える: ${usable.join(", ") || "なし"}）`);
       for (const v of expect.lacksVerbs ?? []) if (usable.includes(v)) fail(`lacksVerbs: 「${v}」が使えてしまいます`);

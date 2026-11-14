@@ -191,8 +191,29 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     if (!TEXT_EXT.has(ext)) throw new HttpError(415, "工房から保存できるのはテキスト(.json/.ts/.md)のみです");
     if (Buffer.byteLength(body.content, "utf8") > MAX_TEXT) throw new HttpError(413, "内容が大きすぎます");
     if (ext === ".json") { try { JSON.parse(body.content); } catch { throw new HttpError(422, "JSONとして正しくない内容は保存しません"); } }
-    const target = await securePath(root, body.path);
+    // expectedHash "" = create a new file (only inside an existing folder, never over an existing file).
+    const creating = body.expectedHash === "";
+    const target = await securePath(root, body.path, { allowMissing: creating });
+    if (creating) {
+      const parent = await fs.lstat(path.dirname(target)).catch(() => null);
+      if (!parent?.isDirectory() || parent.isSymbolicLink()) throw new HttpError(400, "新しいファイルは既存のフォルダの中にだけ作れます");
+    }
     return withLock(target, async () => {
+      if (creating) {
+        const exists = await fs.lstat(target).then(() => true, () => false);
+        if (exists) {
+          const current = await readNoFollow(await securePath(root, body.path), MAX_TEXT);
+          return { status: 409, json: { error: "conflict", path: body.path, latestContent: current.toString("utf8"), latestHash: sha256(current) } };
+        }
+        const bytes = Buffer.from(body.content, "utf8");
+        const handle = await fs.open(target, "wx", 0o644);
+        try { await handle.writeFile(bytes); await handle.sync(); } finally { await handle.close(); }
+        const hash = sha256(bytes);
+        revision++;
+        pushChange(body.path, "add", hash);
+        requestBuild();
+        return { status: 200, json: { path: body.path, hash } };
+      }
       const current = await readNoFollow(await securePath(root, body.path), MAX_TEXT);
       const currentHash = sha256(current);
       if (currentHash !== body.expectedHash) return { status: 409, json: { error: "conflict", path: body.path, latestContent: current.toString("utf8"), latestHash: currentHash } };

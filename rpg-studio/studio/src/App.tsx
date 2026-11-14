@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Loader2, Map as MapIcon, XCircle, AlertTriangle, Save } from "lucide-react";
+import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, XCircle, AlertTriangle, Save } from "lucide-react";
 import { GameMapSchema, TilesetSchema, type GameContent, type GameMap } from "@rpg/schema";
 import { loadImages, type ImageMap } from "../../packages/runtime/src/render";
 import MapEditor, { type Selection } from "./components/MapEditor";
@@ -8,13 +8,17 @@ import PlayPanel from "./components/PlayPanel";
 import DataPanel from "./components/DataPanel";
 import ChecksPanel from "./components/ChecksPanel";
 import AssetsPanel from "./components/AssetsPanel";
+import IdeaPanel from "./components/IdeaPanel";
+import StoryPanel from "./components/StoryPanel";
 import ConflictDialog from "./components/ConflictDialog";
 import { useProject } from "./lib/useProject";
 import type { ProjectSource } from "./lib/source";
 
-type Section = "map" | "play" | "data" | "assets" | "checks";
+type Section = "idea" | "map" | "story" | "play" | "data" | "assets" | "checks";
 const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
+  { id: "idea", label: "発想", icon: Lightbulb },
   { id: "map", label: "マップ", icon: MapIcon },
+  { id: "story", label: "会話・イベント", icon: MessageSquare },
   { id: "play", label: "試遊", icon: Gamepad2 },
   { id: "data", label: "データ", icon: Database },
   { id: "assets", label: "素材", icon: ImageIcon },
@@ -70,7 +74,7 @@ export default function App({ source }: { source: ProjectSource }) {
 
   return <main className={`studio section-${section}`}>
     <header className="topbar">
-      <div className="brand"><img src="./favicon.svg" alt="" width={26} height={26} /><div><b>RPGシステム工房</b><span>AGENT WORKBENCH 0.4</span></div></div>
+      <div className="brand"><img src="./favicon.svg" alt="" width={26} height={26} /><div><b>RPGシステム工房</b><span>AGENT WORKBENCH 1.0</span></div></div>
       <div className="project-pill" title={store.texts["project.json"] ? "project.json" : ""}>
         <span>{playContent?.project.title ?? "（検証エラー）"}</span><code>{playContent?.project.id}</code>
       </div>
@@ -100,7 +104,14 @@ export default function App({ source }: { source: ProjectSource }) {
         {editContent.project.maps.map(ref => <button key={ref.id} className={`map-item ${activeMapId === ref.id ? "is-active" : ""}`} onClick={() => { setMapId(ref.id); setSelection(null); if (section === "play") { const m = editContent.maps[ref.id]; if (m) setStartAt({ mapId: ref.id, x: editContent.project.start.mapId === ref.id ? editContent.project.start.x : Math.floor(m.width / 2), y: editContent.project.start.mapId === ref.id ? editContent.project.start.y : Math.floor(m.height / 2), nonce: Date.now() }); } }}>
           <MapIcon size={13} /><span>{ref.title}</span>{editContent.project.start.mapId === ref.id && <span className="tag">開始</span>}{store.dirty.has(ref.path) && <span className="dot amber" />}
         </button>)}
-        <p className="muted small side-note">マップの追加は、JSONファイルを作って project.json の maps に登録します（エージェントに依頼するのが簡単です）。</p>
+        {section === "map" && <NewMapForm content={editContent} onCreate={(id, title, width, height, fill) => {
+          const rows = Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x) => (x === 0 || y === 0 || x === width - 1 || y === height - 1) && editContent.tileset.tiles.some(t => t.code === "T") ? "T" : fill).join(""));
+          const path = `maps/${id}.json`;
+          store.setFileText(path, `${JSON.stringify({ formatVersion: 2, id, title, width, height, rows, npcs: [], portals: [], interactables: [], entities: [] }, null, 2)}\n`);
+          store.updateJson<{ maps: Array<{ id: string; path: string; title: string }> }>("project.json", p => { p.maps.push({ id, path, title }); });
+          setMapId(id);
+          store.log("info", `マップ ${id} を作りました。出入口（portals）でほかのマップとつなげます`);
+        }} />}
       </div>}
       {source.kind === "preview" && <div className="side-callout">
         <b>Previewモード</b>
@@ -109,6 +120,8 @@ export default function App({ source }: { source: ProjectSource }) {
     </nav>
 
     <section className="workspace">
+      {section === "idea" && <IdeaPanel store={store} content={playContent} />}
+      {section === "story" && playContent && <StoryPanel store={store} content={playContent} />}
       {section === "map" && editContent && activeMapId && <div className="map-workspace">
         <MapEditor store={store} content={editContent} mapId={activeMapId} images={images} imageRevision={imageRevision} selection={selection} onSelect={setSelection} onPlayFrom={playFrom} />
         <aside className="inspector-pane"><Inspector store={store} content={editContent} mapId={activeMapId} selection={selection} onSelect={setSelection} onPlayFrom={playFrom} /></aside>
@@ -130,4 +143,24 @@ export default function App({ source }: { source: ProjectSource }) {
 
     {store.conflicts[0] && <ConflictDialog key={store.conflicts[0].path} conflict={store.conflicts[0]} onResolve={choice => void store.resolveConflict(store.conflicts[0]!.path, choice)} />}
   </main>;
+}
+
+function NewMapForm({ content, onCreate }: { content: GameContent; onCreate: (id: string, title: string, width: number, height: number, fill: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [id, setId] = useState("");
+  const [title, setTitle] = useState("");
+  const [size, setSize] = useState({ w: 20, h: 14 });
+  const passable = content.tileset.tiles.filter(t => t.passable);
+  const [fill, setFill] = useState(passable[0]?.code ?? ".");
+  const taken = new Set(content.project.maps.map(m => m.id));
+  const valid = /^[a-z0-9][a-z0-9-]{0,40}$/.test(id) && !taken.has(id) && title.trim() && size.w >= 5 && size.h >= 5 && size.w <= 200 && size.h <= 200;
+  if (!open) return <button className="button new-map" onClick={() => setOpen(true)}><Plus size={13} />新しいマップ</button>;
+  return <div className="new-map-form">
+    <input placeholder="ID（例: east-lake）" value={id} onChange={e => setId(e.target.value.toLowerCase())} />
+    {taken.has(id) && <span className="field-error">そのIDは使われています</span>}
+    <input placeholder="名前（例: 東の湖）" value={title} onChange={e => setTitle(e.target.value)} />
+    <div className="field-row"><input type="number" min={5} max={200} value={size.w} onChange={e => setSize({ ...size, w: Number(e.target.value) })} /><span>×</span><input type="number" min={5} max={200} value={size.h} onChange={e => setSize({ ...size, h: Number(e.target.value) })} /></div>
+    <select value={fill} onChange={e => setFill(e.target.value)}>{passable.map(t => <option key={t.code} value={t.code}>{t.code} {t.name}</option>)}</select>
+    <div className="field-row"><button className="button primary" disabled={!valid} onClick={() => { onCreate(id, title.trim(), size.w, size.h, fill); setOpen(false); setId(""); setTitle(""); }}>作る</button><button className="button" onClick={() => setOpen(false)}>やめる</button></div>
+  </div>;
 }

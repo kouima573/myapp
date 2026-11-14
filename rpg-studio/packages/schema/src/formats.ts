@@ -99,6 +99,8 @@ export type Condition =
   | { inRegion: string }
   | { front: FrontCheck }
   | { target: string }
+  | { entityAt: { entity: string; x?: number; y?: number; map?: string } }
+  | { carrying: string }
   | { custom: string; args?: Record<string, unknown> };
 
 /** What is in front of the player. Every given field must match. */
@@ -123,6 +125,10 @@ export const ConditionSchema: z.ZodType<Condition> = z.lazy(() => z.union([
   z.object({ inRegion: IdSchema }).strict(),
   /** The target chosen for the verb being used (verb.target). */
   z.object({ target: z.string().min(1) }).strict(),
+  /** Where an entity is now (after moves, pushes, carrying). Omitted fields match anything. */
+  z.object({ entityAt: z.object({ entity: IdSchema, x: CoordSchema.optional(), y: CoordSchema.optional(), map: IdSchema.optional() }).strict() }).strict(),
+  /** The player is carrying this entity. */
+  z.object({ carrying: IdSchema }).strict(),
   z.object({ front: z.object({ tile: z.string().length(1).optional(), entity: IdSchema.optional(), npc: IdSchema.optional(), blocked: z.boolean().optional() }).strict() }).strict(),
   z.object({ custom: z.string().regex(/^[a-z0-9][a-z0-9._-]*\.[a-z0-9][a-z0-9_-]*$/i, "customは 'システムID.条件名' の形です"), args: z.record(z.string(), z.unknown()).optional() }).strict(),
 ]));
@@ -553,6 +559,12 @@ export const EntityStateSchema = z.object({
   event: IdSchema.optional(),
   effects: z.array(EffectSchema).default([]),
   behavior: BehaviorSchema.default({ type: "still" }),
+  /** Walking into it pushes it one tile (if the tile beyond is free): boulders, crates, statues. */
+  pushable: z.boolean().optional(),
+  /** The action key picks it up; pressing it again in front of a free tile puts it down (also on another map). */
+  carryable: z.boolean().optional(),
+  /** Effects after it was pushed or put down (check { "entityAt": … } here for switches). */
+  onMoved: z.array(EffectSchema).optional(),
 }).strict();
 export type EntityState = z.infer<typeof EntityStateSchema>;
 
@@ -934,7 +946,9 @@ export const GameStateSchema = z.object({
   fired: z.array(z.string()).default([]),
   sets: z.record(z.string(), z.array(z.string())).default({}),
   /** Moved entities: mapId → entityId → position. */
-  entities: z.record(z.string(), z.record(z.string(), z.object({ x: CoordSchema, y: CoordSchema, facing: DirectionSchema, step: z.number().int().nonnegative().optional() }).strict())).default({}),
+  entities: z.record(z.string(), z.record(z.string(), z.object({ x: CoordSchema, y: CoordSchema, facing: DirectionSchema, step: z.number().int().nonnegative().optional(), map: z.string().optional() }).strict())).default({}),
+  /** Entity being carried (carryable): its id and the map it was defined on. */
+  carrying: z.object({ id: z.string(), home: z.string() }).strict().optional(),
   /** Pending `schedule` effects (fire when steps >= at). */
   timers: z.array(z.object({ id: z.string().optional(), at: z.number().int(), effects: z.array(EffectSchema) }).strict()).default([]),
   /** Playthrough number (1 = first). Survives newCycle. */

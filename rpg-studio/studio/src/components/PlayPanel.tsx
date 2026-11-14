@@ -1,3 +1,4 @@
+import { withModules } from "../../../packages/modules/src/index";
 import { useEffect, useRef, useState } from "react";
 import { RotateCcw, AlertTriangle, Bug } from "lucide-react";
 import type { GameContent, GameState } from "@rpg/schema";
@@ -39,7 +40,7 @@ export default function PlayPanel({ store, content, stale, systems, systemsVersi
     try {
       const handle = mountGame(host, {
         content,
-        systems,
+        systems: withModules(content, systems),
         resolveAsset: asset => source.assetUrl(asset),
         storage: studioStorage,
         keyboard: "focus",

@@ -9,7 +9,6 @@ import { drawEnemyPortrait, drawMap, loadImages, npcActors, TILE, type ImageMap 
 import { RUNTIME_CSS } from "./styles";
 import { AudioManager, type AudioSettings } from "./audio";
 import { creditLines } from "./credits";
-import { withModules } from "../../modules/src/index";
 
 export interface SaveStorage {
   read(key: string): string | null;
@@ -72,7 +71,8 @@ function injectStyles() {
 export function mountGame(host: HTMLElement, options: MountOptions): GameHandle {
   injectStyles();
   const { content } = options;
-  const engine = createEngine(content, withModules(content, options.systems ?? []));
+  // Callers pass the project's systems plus the genre modules it enables (the static build bundles only those).
+  const engine = createEngine(content, options.systems ?? []);
   const storage = options.storage ?? browserStorage();
   const saveKey = `rpg-save:${content.project.id}`;
   const settingsKey = `rpg-settings:${content.project.id}`;
@@ -398,6 +398,10 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     hp.append(el("span", "rpg-hud-label", `${heroName()}  HP ${state.player.hp}/${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
     const extra = (() => { try { return engine.hudLines(state); } catch { return []; } })();
     if (extra.length) { const box = el("div", "rpg-hud-vars"); for (const line of extra) box.appendChild(el("span", undefined, line)); left.append(box); }
+    if (state.carrying) {
+      const carried = content.maps[state.carrying.home]?.entities.find(e => e.id === state.carrying!.id);
+      left.append(el("div", "rpg-hud-vars", `運んでいる: ${carried?.states.find(st => st.name)?.name ?? carried?.name ?? state.carrying.id}（向いた先の空きマスで決定すると置く）`));
+    }
     const verbs = state.scene.kind === "field" ? availableVerbs() : [];
     if (verbs.length) {
       const bar = el("div", "rpg-verbs");

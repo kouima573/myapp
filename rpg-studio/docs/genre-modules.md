@@ -220,6 +220,13 @@ RPGの土台（マップ・会話・能力値・アイテム・フラグ・周�
 
 `items`（id → 名前）、`sources`（毎秒入ってくる原料）、`recipes`（inputs → outputs、seconds）、`slots`、`goal`（item・amount）、`seconds`、`capacity`。機械の枠にレシピを入れ、出来た物を次の機械の材料にする。
 
+### v1.0 の追加
+
+- `rhythm.play` の `song`: 楽譜BGM（assets.json の song）を指定すると、その曲から譜面を作り（高い音ほど右のレーン）、曲を鳴らしながら同期して叩く。`track`（使うトラック）、`every`（何音ごとに拾うか）。
+- `action.stage` の `tiles`（例 `{ "#": "w" }`：レベルの文字をプロジェクトのタイルセットのコードで描く）と `sprites`（例 `{ "w": "village-guard" }`：敵をキャラクター素材で描く）。`runner.race` の `tiles`（`.` 道・`#` 障害物・`side` 道の外）。
+- `action.coop`: 2人協力。2人目の開始位置は `2`。どちらかがゴールで成功、2人とも倒れると失敗。1P は WASD + F/G、2P は 矢印 + Enter・/、ゲームパッドは1台目が1P・2台目が2P。
+- **自作モジュールの部品** `@rpg/modules`: `systems/*.ts` から `import { OutcomeArgs, finish, pressed, drawTile, drawSprite, drawHero, backdrop, button, h } from "@rpg/modules";` で組み込みモジュールと同じ部品を使える（場面／戦闘の両用の終わらせ方、押した瞬間の判定、タイルや立ち絵の描画、DOMの部品）。
+
 ### リアルタイム画面の入力（v0.9）
 
 - `realtime: { fps, players: 2 }` で2人用のキー割り当て（held に `p2left`・`p2fire` などが入る）。

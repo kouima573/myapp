@@ -182,3 +182,44 @@ describe("v0.7: verbs, signals, onAction", () => {
     expect(s.player.sprite).toBe("village-guard");
   });
 });
+
+describe("pushing, carrying and cross-map entities", () => {
+  const boulder = { id: "boulder", name: "岩", x: 4, y: 12, states: [{ marker: "statue" as const, solid: true, trigger: "none" as const, effects: [], behavior: { type: "still" as const }, pushable: true, onMoved: [{ type: "if" as const, when: { entityAt: { entity: "boulder", x: 6, y: 12 } }, then: [{ type: "message" as const, text: "カチリ" }] }] }] };
+  const crate = { id: "crate", name: "箱", x: 3, y: 10, states: [{ marker: "chest" as const, solid: true, trigger: "none" as const, effects: [], behavior: { type: "still" as const }, carryable: true }] };
+
+  it("walking into a pushable entity pushes it; onMoved sees where it went", () => {
+    const engine = withMap("village", m => ({ ...m, entities: [...m.entities, boulder] }));
+    let s = begin(engine, { mapId: "village", x: 3, y: 12 });
+    s = engine.step(s, { type: "move", direction: "right" }).state;
+    expect(engine.visibleEntities(s).find(e => e.entity.id === "boulder")).toMatchObject({ x: 5, y: 12 });
+    expect(s.player.x).toBe(4);
+    s = engine.step(s, { type: "move", direction: "right" }).state;
+    expect(s.scene).toMatchObject({ kind: "message", text: "カチリ" });
+    expect(engine.evaluate({ entityAt: { entity: "boulder", x: 6, y: 12 } }, s)).toBe(true);
+  });
+
+  it("carries an entity to another map and puts it down there", () => {
+    const engine = withMap("village", m => ({ ...m, entities: [...m.entities, crate] }));
+    let s = begin(engine, { mapId: "village", x: 3, y: 11 });
+    s = { ...s, player: { ...s.player, facing: "up" } };
+    s = engine.step(s, { type: "interact" }).state;
+    expect(s.carrying).toEqual({ id: "crate", home: "village" });
+    expect(engine.visibleEntities(s).some(e => e.entity.id === "crate")).toBe(false);
+    expect(engine.evaluate({ carrying: "crate" }, s)).toBe(true);
+    s = engine.run(s, [{ type: "teleport", mapId: "ruins", x: 2, y: 11, facing: "right" }]).state;
+    while (s.scene.kind === "message") s = engine.step(s, { type: "advance" }).state;
+    s = engine.step(s, { type: "interact" }).state;
+    expect(s.carrying).toBeUndefined();
+    expect(engine.visibleEntities(s).find(e => e.entity.id === "crate")).toMatchObject({ x: 3, y: 11 });
+    expect(engine.evaluate({ entityAt: { entity: "crate", map: "ruins", x: 3, y: 11 } }, s)).toBe(true);
+    const back = engine.run(s, [{ type: "teleport", mapId: "village", x: 3, y: 11 }]).state;
+    expect(engine.visibleEntities(back).some(e => e.entity.id === "crate")).toBe(false);
+  });
+
+  it("moveEntity can send an entity to another map", () => {
+    const engine = withMap("village", m => ({ ...m, entities: [...m.entities, crate] }));
+    let s = begin(engine, { mapId: "ruins", x: 2, y: 11 });
+    s = engine.run(s, [{ type: "moveEntity", entity: "crate", mapId: "ruins", x: 5, y: 11 }]).state;
+    expect(engine.visibleEntities(s).find(e => e.entity.id === "crate")).toMatchObject({ x: 5, y: 11 });
+  });
+});

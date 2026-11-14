@@ -253,6 +253,11 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       if ("set" in c && !setIds.has(c.set)) err(file, at, `未宣言の集合 '${c.set}'（project.json の sets）`);
       if ("set" in c && c.set === "endings" && !endingIds.has(c.has)) err(file, at, `未宣言のエンディング '${c.has}'`);
       if ("inRegion" in c && !regionIds.has(c.inRegion)) err(file, at, `どのマップにもない領域 '${c.inRegion}'`);
+      if ("entityAt" in c) {
+        if (!entityIds.has(c.entityAt.entity)) err(file, at, `entityAt: どのマップにもないエンティティ '${c.entityAt.entity}'`);
+        if (c.entityAt.map && !maps[c.entityAt.map]) err(file, at, `entityAt: 未定義のマップ '${c.entityAt.map}'`);
+      }
+      if ("carrying" in c && !entityIds.has(c.carrying)) err(file, at, `carrying: どのマップにもないエンティティ '${c.carrying}'`);
       if ("front" in c) {
         if (c.front.tile !== undefined && !tileByCode.has(c.front.tile)) err(file, at, `front.tile: タイルセットにないコード '${c.front.tile}'`);
         if (c.front.entity !== undefined && !entityIds.has(c.front.entity)) err(file, at, `front.entity: どのマップにもないエンティティ '${c.front.entity}'`);
@@ -482,7 +487,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         if (st.dialogue && !dialogues[st.dialogue]) err(file, `${here}.dialogue`, `未定義の会話 '${st.dialogue}'`);
         if (st.event && !events[st.event]) err(file, `${here}.event`, `未定義のイベント '${st.event}'`);
         checkEffects(file, `${here}.effects`, st.effects);
-        if (st.trigger !== "none" && !st.dialogue && !st.event && !st.effects.length) warn(file, here, `trigger=${st.trigger} ですが、会話・イベント・効果がありません`);
+        if (st.onMoved) checkEffects(file, `${here}.onMoved`, st.onMoved);
+        if (st.trigger !== "none" && !st.dialogue && !st.event && !st.effects.length && !st.pushable && !st.carryable) warn(file, here, `trigger=${st.trigger} ですが、会話・イベント・効果がありません`);
         if (st.behavior.type === "patrol") st.behavior.path.forEach((pt, j) => { if (pt.x >= map.width || pt.y >= map.height) err(file, `${here}.behavior.path[${j}]`, "マップ範囲外です"); });
         if (!st.sprite && st.marker === "none" && st.trigger !== "auto" && st.trigger !== "none") warn(file, here, "見た目(sprite / marker)がないので、プレイヤーから見えません");
       });
@@ -573,7 +579,7 @@ export function forEachEffectList(content: GameContent, visit: (effects: Effect[
   for (const e of content.database.enemies) { rules(e.rules); e.actions.forEach(a => visit(a.effects)); if (e.battle) nestedEffectLists(e.battle.args).forEach(visit); }
   for (const t of content.tileset.tiles) if (t.inspect) { visit(t.inspect.effects); visit(t.inspect.otherwise); }
   for (const m of Object.values(content.maps)) {
-    m.entities.forEach(e => e.states.forEach(st => visit(st.effects)));
+    m.entities.forEach(e => e.states.forEach(st => { visit(st.effects); if (st.onMoved) visit(st.onMoved); }));
     m.regions.forEach(r => { visit(r.onEnter); visit(r.onLeave); visit(r.onStep); visit(r.inspect); });
   }
 }

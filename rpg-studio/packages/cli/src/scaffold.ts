@@ -6,52 +6,13 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { REPO_ROOT } from "./build";
 import { MODULES } from "../../modules/src/index";
+import { IDEA_TEMPLATE } from "./idea-template";
+export { IDEA_TEMPLATE };
 
 const SAMPLE = path.join(REPO_ROOT, "projects", "sample-rpg");
 const BORROWED_ASSETS = new Set(["village-tiles", "adventurer", "sfx-cursor", "sfx-confirm", "sfx-cancel", "sfx-bump", "sfx-hit", "sfx-hurt", "sfx-heal", "sfx-encounter", "sfx-victory", "sfx-defeat", "sfx-door", "sfx-item", "sfx-save", "sfx-menu", "song-battle"]);
 
 const json = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
-
-export const IDEA_TEMPLATE = (title: string) => `# 発想シート — ${title}
-
-> このファイルが、このゲームの「正本の発想」です。AI（Codex / Claude Code）は作業の前に必ず読み、
-> 発想を削ったり、ありがちな形に置き換えたりせずに形にします。足りない仕組みは作ります。
-> 書けるところだけで構いません。空欄はAIが質問するか、案を出して確認します。
-
-## ひとことで
-
-（例: 「言葉を覚えるほど世界の地図が書き換わるRPG」「主人公は魔王の城そのもの」）
-
-## 遊んだ人に残したい体験・感情
-
-## 常識から外れているところ（ここが核。守ってほしい）
-
-## 借りてきたいもの（他のゲーム・映画・遊び・現実の仕組みのコンセプト）
-
-※ 名前・キャラクター・絵・音楽・ステージなど、既存作品そのものは持ち込まず、仕組みや感覚だけを借ります。
-
-## ありえない組み合わせ
-
-## 最初に遊べる最小の形（10分で遊べるもの）
-
-## プレイヤーができること（動詞）
-
-（例: 耳を澄ます、名前を呼ぶ、時間を巻き戻す、記憶を手放す、敵に憑依する）
-
-## 世界のルール（いつ・何が起きるか）
-
-## 勝ち・負け・終わり方
-
-## 迷ったときの優先順位
-
-1. この発想の核
-2. 遊んで面白いこと
-3. 作りやすさ
-
-## AIへのメモ・決めたこと（AIが追記）
-
--
-`;
 
 export async function newProject(id: string, title: string, root = path.join(REPO_ROOT, "projects")): Promise<string> {
   if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(id)) throw new Error(`プロジェクトID '${id}' は英小文字・数字・ハイフン（2〜41文字）にしてください`);

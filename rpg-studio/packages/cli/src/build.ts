@@ -8,6 +8,7 @@ import type { Diagnostic } from "../../schema/src/index";
 import { loadProjectFromDisk, resolveInside } from "./load";
 import { creditLines } from "../../runtime/src/credits";
 import type { GameContent } from "../../schema/src/index";
+import { MODULES } from "../../modules/src/index";
 
 /** Credits plus the provenance of every bundled asset, shipped next to the game. */
 function creditsMarkdown(content: GameContent): string {
@@ -39,13 +40,16 @@ export interface BuildResult {
 const posix = (p: string) => p.split(path.sep).join("/");
 
 /** Generated entry: imports the runtime and each project system, then boots the game. */
-function entrySource(systemFiles: string[], mode: "game" | "systems"): string {
+function entrySource(systemFiles: string[], mode: "game" | "systems", moduleIds: string[] = []): string {
   const imports = systemFiles.map((file, i) => `import system${i} from ${JSON.stringify(posix(file))};`).join("\n");
   const list = `[${systemFiles.map((_, i) => `system${i}`).join(", ")}]`;
+  // Only the genre modules the project enables are bundled into the game.
+  const moduleImports = moduleIds.map((id, i) => `import module${i} from ${JSON.stringify(posix(path.join(REPO_ROOT, "packages/modules/src", `${id}.ts`)))};`).join("\n");
+  const moduleList = `[${moduleIds.map((_, i) => `module${i}`).join(", ")}]`;
   if (mode === "systems") {
     return `import type { GameSystem } from ${JSON.stringify(posix(ENGINE_INDEX))};\n${imports}\nexport const systems: GameSystem[] = ${list};\n`;
   }
-  return `import { bootStandalone } from ${JSON.stringify(posix(RUNTIME_ENTRY))};\nimport type { GameSystem } from ${JSON.stringify(posix(ENGINE_INDEX))};\n${imports}\nconst systems: GameSystem[] = ${list};\nvoid bootStandalone({ systems });\n`;
+  return `import { bootStandalone } from ${JSON.stringify(posix(RUNTIME_ENTRY))};\nimport type { GameSystem } from ${JSON.stringify(posix(ENGINE_INDEX))};\n${imports}\n${moduleImports}\nconst projectSystems: GameSystem[] = ${list};\nconst ids = new Set(projectSystems.map(s => s.id));\nconst systems: GameSystem[] = [...(${moduleList} as GameSystem[]).filter(m => !ids.has(m.id)), ...projectSystems];\nvoid bootStandalone({ systems });\n`;
 }
 
 /** Type-checks the generated entry (and so every system file, the engine and the runtime). */
@@ -140,7 +144,8 @@ export async function buildProject(projectRoot: string, options: BuildOptions = 
     const systemFiles = content.project.systems.map(system => resolveInside(projectRoot, system.path));
     const gameEntry = path.join(work, "entry.ts");
     const systemsEntry = path.join(work, "systems-entry.ts");
-    await fs.writeFile(gameEntry, entrySource(systemFiles, "game"));
+    const moduleIds = Object.keys(content.project.modules).filter(id => /^[a-z0-9]+$/.test(id) && MODULES[id]);
+    await fs.writeFile(gameEntry, entrySource(systemFiles, "game", moduleIds));
     await fs.writeFile(systemsEntry, entrySource(systemFiles, "systems"));
     const typeErrors = typecheck(gameEntry, projectRoot);
     if (typeErrors.length) return { ok: false, diagnostics: [...diagnostics, ...typeErrors] };

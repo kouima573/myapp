@@ -101,7 +101,10 @@
 - **時間** `schedule {id?, after: 式(歩数), effects}` / `cancelSchedule {id}`。ルールの `on: "tick"`。式 `{"ticks": true}`。
 - **その他の効果** `moveEntity {entity, mapId?, x, y, facing?}`、`startScene {system, scene, args}`（独自画面）、`signal {signal}`（シグナルを発信。`on: "signal"` で `match` が一致するルールがその場で動く）、`setPlayer {name?, sprite?}`（変身。`null` で元に戻す）。
 - **動詞** `project.json › verbs`: `{ "listen": { "label": "耳を澄ます", "key": "l", "description": "…", "when": 条件, "effects": [...] } }`。フィールドのメニュー「こうどう」・画面のボタン・キーで使える。`on: "verb"` のルールも反応する。
+  - `known: false` の動詞は効果 `learnVerb {verb}` で覚えるまで出てこない。`forgetVerb {verb}` で忘れる。`useVerb {verb, target?}` でデータから使わせる。
+  - `target: { "from": "items" | "set" | "list", "set": "clues", "options": [{id,label}], "prompt": "何に？", "none": "使えるものがない。" }` を付けると、使う前に対象を選ぶ。選んだものは条件 `{ "target": "rune-order" }` と文中の `{{target}}`（ID）・`{{targetLabel}}`（名前）で使える。
 - **シグナル** `project.json › signals`: `{ "whistle": { "description": "…" } }`。未宣言のシグナルは検証エラー。
+- **押す・運ぶ** エンティティの状態に `pushable: true`（歩いてぶつかると1マス押せる）、`carryable: true`（決定で持ち上げ、向いた先の空きマスで決定すると置く。別のマップへ運べる）、`onMoved`（押された・置かれた後の効果）。条件 `{ "entityAt": { "entity": "boulder", "x": 6, "y": 12, "map": "ruins" } }`（今どこにあるか。書いた項目だけ比べる）、`{ "carrying": "crate" }`。`moveEntity` の `mapId` は行き先のマップで、別のマップに定義されたエンティティも移せる。
 - **条件** `{ "front": { "tile": "~", "entity": "…", "npc": "…", "blocked": true } }`: プレイヤーの目の前（書いた項目がすべて一致）。
 - **拡張の呼び出し** 条件 `{"custom": "system.name", "args"}`、式 `{"fn": "system.name", "args": [...]}`。
 - **ジャンルモジュール** `project.json › modules`（例 `{ "novel": {}, "shooter": {} }`）で有効にする。戦闘効果の `mode` / `args`、敵の `battle: { mode: "builtin" | "id.scene", args }` で戦い方を差し替える。詳しくは [genre-modules.md](genre-modules.md)。

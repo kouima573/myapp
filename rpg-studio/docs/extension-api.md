@@ -55,6 +55,8 @@ scenes: {
 - 結果（続き）: `apply`（画面を開いたまま今すぐ適用する効果。育成の能力値上昇など）、`log`、戦闘モードでは `outcome`（`victory` / `defeat` / `fled`）と `battleLog`。
 - `checkArgs(args, { content })` を書くと、引数の誤りを `rpg validate` と工房の検証に表示できる（エラー文の配列を返す）。
 - **リアルタイム画面**: `realtime: { fps: 30 }` を付けると、毎フレーム `input(ctx, data, { type: "frame", held: ["left", "fire", ...] })` が呼ばれ、`draw(ctx2d, view)` でCanvasに描く（`view.width` / `height` / `time`）。`held` は `up/down/left/right/fire/focus`。シミュレーションは `data` に入れた種で乱数を回し、決定的にする。
+- **部品** `@rpg/modules`（組み込みジャンルモジュールと同じ部品）: `finish(ctx, args, "win" | "lose" | "quit", 文, hp?)` は場面なら閉じて onWin / onLose、戦闘モードなら勝敗を返す。`OutcomeArgs`（onWin・onLose・enemyId・canFlee）、`pressed(held, before)`、`heroOf(ctx)`、`drawTile(g, view, タイルコード, x, y, 大きさ)`、`drawSprite(g, view, 素材ID, x, y, 大きさ, 向きの行, コマ)`、`drawHero`、`backdrop`・`button`・`h`（DOM）。
+- **ゲームパッド**: 標準配置のゲームパッドは自動で使える（十字キー/左スティック、A 決定・発射、B キャンセル、X focus、Start メニュー。2台目は2人用画面の2P）。
 - **2人用・クリック**: `realtime: { fps, players: 2 }` で held に2人目のボタン（`p2up`・`p2fire` など）が入る。キャンバスのクリックは `{ type: "custom", value: { click: { x, y, width, height } } }`。
 - **戦闘モード**: 敵の `"battle": { "mode": "id.scene", "args": {...} }` か戦闘効果の `mode` で、その画面が戦闘になる。`start` の `args.enemyId` に敵ID、`ctx.state.scene.battle` にRPG側の戦闘情報。決着は `outcome` で返す。
 - 組み込みのジャンルモジュール（25種）は `packages/modules/src/` にあり、そのまま見本になる。[genre-modules.md](genre-modules.md)

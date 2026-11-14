@@ -86,6 +86,15 @@ describe("local server security", () => {
     expect((await request("PUT", "/api/file", { headers: write, body: JSON.stringify({ path: "maps/new.json", content: "{}", expectedHash: "x" }) })).status).toBe(404);
   });
 
+  it("creates new files only with an empty expected hash, inside existing folders, never over existing files", async () => {
+    const created = await request("PUT", "/api/file", { headers: write, body: JSON.stringify({ path: "maps/brand-new.json", content: "{}", expectedHash: "" }) });
+    expect(created.status).toBe(200);
+    const again = await request("PUT", "/api/file", { headers: write, body: JSON.stringify({ path: "maps/brand-new.json", content: "{\"x\":1}", expectedHash: "" }) });
+    expect(again.status).toBe(409);
+    expect((await request("PUT", "/api/file", { headers: write, body: JSON.stringify({ path: "nowhere/new.json", content: "{}", expectedHash: "" }) })).status).toBe(400);
+    expect((await request("PUT", "/api/file", { headers: write, body: JSON.stringify({ path: "IDEA.md", content: "# idea", expectedHash: "" }) })).status).toBe(200);
+  });
+
   it("exposes no command execution endpoints", async () => {
     for (const route of ["/api/exec", "/api/run", "/api/shell"]) expect((await request("POST", route, { headers: write, body: "{}" })).status).toBe(404);
   });
