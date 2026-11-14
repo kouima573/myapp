@@ -8,7 +8,7 @@ import { z } from "zod";
 
 export const PROJECT_FORMAT_VERSION = 2;
 export const SAVE_FORMAT_VERSION = 2;
-export const ENGINE_VERSION = "0.2.0";
+export const ENGINE_VERSION = "0.3.0";
 
 export const IdSchema = z.string().min(1).max(96).regex(/^[a-z0-9][a-z0-9._-]*$/i, "IDは英数字で始まり、英数字・._-のみ使えます");
 const RelPathSchema = z.string().min(1).max(240).refine(value => !value.includes("\\") && !value.startsWith("/") && !value.split("/").some(part => part === "" || part === "." || part === ".."), "プロジェクト相対のPOSIXパスを指定してください");
@@ -16,22 +16,88 @@ const CoordSchema = z.number().int().nonnegative();
 export const DirectionSchema = z.enum(["up", "down", "left", "right"]);
 export type Direction = z.infer<typeof DirectionSchema>;
 
+/* ------------------------------------------------------------------ Expressions */
+
+export const STAT_NAMES = ["maxHp", "attack", "defense"] as const;
+export type StatName = (typeof STAT_NAMES)[number];
+export const CTX_NAMES = ["damage", "turn", "enemyHp", "enemyMaxHp", "enemyAttack", "enemyDefense"] as const;
+export type CtxName = (typeof CTX_NAMES)[number];
+export const COMPARE_OPS = ["==", "!=", ">", ">=", "<", "<="] as const;
+export type CompareOp = (typeof COMPARE_OPS)[number];
+
+/**
+ * Numeric expression (JSON, never eval'd). Integers result; division floors.
+ *   12 | {"var":"gold"} | {"count":"herb"} | {"stat":"attack"} | {"hp":true} | {"steps":true} | {"ctx":"damage"}
+ *   {"add":[..]} {"sub":[a,b]} {"mul":[..]} {"div":[a,b]} {"mod":[a,b]} {"min":[..]} {"max":[..]} {"if":cond,"then":e,"else":e}
+ *   {"percent":[value, pct]}  = floor(value * pct / 100)
+ */
+export type Expr =
+  | number
+  | { var: string }
+  | { count: string }
+  | { stat: StatName }
+  | { hp: true }
+  | { steps: true }
+  | { ctx: CtxName }
+  | { add: Expr[] }
+  | { sub: [Expr, Expr] }
+  | { mul: Expr[] }
+  | { div: [Expr, Expr] }
+  | { mod: [Expr, Expr] }
+  | { min: Expr[] }
+  | { max: Expr[] }
+  | { percent: [Expr, Expr] }
+  | { if: Condition; then: Expr; else: Expr };
+
+export const ExprSchema: z.ZodType<Expr> = z.lazy(() => z.union([
+  z.number().finite(),
+  z.object({ var: IdSchema }).strict(),
+  z.object({ count: IdSchema }).strict(),
+  z.object({ stat: z.enum(STAT_NAMES) }).strict(),
+  z.object({ hp: z.literal(true) }).strict(),
+  z.object({ steps: z.literal(true) }).strict(),
+  z.object({ ctx: z.enum(CTX_NAMES) }).strict(),
+  z.object({ add: z.array(ExprSchema).min(1) }).strict(),
+  z.object({ sub: z.tuple([ExprSchema, ExprSchema]) }).strict(),
+  z.object({ mul: z.array(ExprSchema).min(1) }).strict(),
+  z.object({ div: z.tuple([ExprSchema, ExprSchema]) }).strict(),
+  z.object({ mod: z.tuple([ExprSchema, ExprSchema]) }).strict(),
+  z.object({ min: z.array(ExprSchema).min(1) }).strict(),
+  z.object({ max: z.array(ExprSchema).min(1) }).strict(),
+  z.object({ percent: z.tuple([ExprSchema, ExprSchema]) }).strict(),
+  z.object({ if: ConditionSchema, then: ExprSchema, else: ExprSchema }).strict(),
+]));
+
 /* ------------------------------------------------------------------ Conditions */
 
 export type Condition =
   | { flag: string; is?: boolean }
+  | { var: string; op: CompareOp; value: Expr }
+  | { compare: [Expr, CompareOp, Expr] }
   | { ability: string }
+  | { trait: string }
   | { item: string; atLeast?: number }
   | { done: string }
+  | { map: string }
+  | { inBattle: boolean }
+  | { enemy: string }
+  | { enemyTag: string }
   | { all: Condition[] }
   | { any: Condition[] }
   | { not: Condition };
 
 export const ConditionSchema: z.ZodType<Condition> = z.lazy(() => z.union([
   z.object({ flag: IdSchema, is: z.boolean().optional() }).strict(),
+  z.object({ var: IdSchema, op: z.enum(COMPARE_OPS), value: ExprSchema }).strict(),
+  z.object({ compare: z.tuple([ExprSchema, z.enum(COMPARE_OPS), ExprSchema]) }).strict(),
   z.object({ ability: IdSchema }).strict(),
+  z.object({ trait: IdSchema }).strict(),
   z.object({ item: IdSchema, atLeast: z.number().int().positive().optional() }).strict(),
   z.object({ done: IdSchema }).strict(),
+  z.object({ map: IdSchema }).strict(),
+  z.object({ inBattle: z.boolean() }).strict(),
+  z.object({ enemy: IdSchema }).strict(),
+  z.object({ enemyTag: IdSchema }).strict(),
   z.object({ all: z.array(ConditionSchema).min(1) }).strict(),
   z.object({ any: z.array(ConditionSchema).min(1) }).strict(),
   z.object({ not: ConditionSchema }).strict(),
@@ -39,39 +105,126 @@ export const ConditionSchema: z.ZodType<Condition> = z.lazy(() => z.union([
 
 /* ------------------------------------------------------------------ Effects */
 
+export const VAR_OPS = ["set", "add", "sub", "mul", "div", "min", "max"] as const;
+export type VarOp = (typeof VAR_OPS)[number];
+
+export interface ChoiceOption { id?: string; label: string; when?: Condition; effects: Effect[] }
+
 export type Effect =
   | { type: "message"; text: string; speaker?: string }
   | { type: "setFlag"; flag: string; value?: boolean }
+  | { type: "setVar"; var: string; value: Expr; op?: VarOp }
+  | { type: "random"; var: string; min: Expr; max: Expr }
+  | { type: "chance"; percent: Expr; then: Effect[]; else?: Effect[] }
+  | { type: "setStat"; stat: StatName; value: Expr; op?: VarOp }
   | { type: "unlockAbility"; ability: string }
+  | { type: "removeAbility"; ability: string }
+  | { type: "grantTrait"; trait: string }
+  | { type: "removeTrait"; trait: string }
   | { type: "giveItem"; item: string; count?: number }
   | { type: "takeItem"; item: string; count?: number }
-  | { type: "heal"; amount?: number }
+  | { type: "heal"; amount?: Expr }
+  | { type: "damage"; target: "player" | "enemy"; amount: Expr; text?: string }
   | { type: "teleport"; mapId: string; x: number; y: number; facing?: Direction }
+  | { type: "setTile"; mapId?: string; x: number; y: number; code: string }
   | { type: "dialogue"; dialogue: string }
+  | { type: "choice"; prompt?: string; speaker?: string; options: ChoiceOption[] }
+  | { type: "event"; event: string }
   | { type: "battle"; enemy: string; onVictory?: Effect[]; onDefeat?: "respawn" | "continue"; canFlee?: boolean }
+  | { type: "battleLog"; text: string }
+  | { type: "endBattle"; outcome: "victory" | "fled" }
   | { type: "markDone"; id: string }
   | { type: "if"; when: Condition; then: Effect[]; else?: Effect[] }
   | { type: "system"; system: string; action: string; args?: Record<string, unknown> };
 
+const ChoiceOptionSchema: z.ZodType<ChoiceOption> = z.lazy(() => z.object({
+  id: IdSchema.optional(), label: z.string().min(1), when: ConditionSchema.optional(), effects: z.array(EffectSchema),
+}).strict());
+
 export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion("type", [
   z.object({ type: z.literal("message"), text: z.string().min(1), speaker: z.string().min(1).optional() }).strict(),
   z.object({ type: z.literal("setFlag"), flag: IdSchema, value: z.boolean().optional() }).strict(),
+  z.object({ type: z.literal("setVar"), var: IdSchema, value: ExprSchema, op: z.enum(VAR_OPS).optional() }).strict(),
+  z.object({ type: z.literal("random"), var: IdSchema, min: ExprSchema, max: ExprSchema }).strict(),
+  z.object({ type: z.literal("chance"), percent: ExprSchema, then: z.array(EffectSchema), else: z.array(EffectSchema).optional() }).strict(),
+  z.object({ type: z.literal("setStat"), stat: z.enum(STAT_NAMES), value: ExprSchema, op: z.enum(VAR_OPS).optional() }).strict(),
   z.object({ type: z.literal("unlockAbility"), ability: IdSchema }).strict(),
+  z.object({ type: z.literal("removeAbility"), ability: IdSchema }).strict(),
+  z.object({ type: z.literal("grantTrait"), trait: IdSchema }).strict(),
+  z.object({ type: z.literal("removeTrait"), trait: IdSchema }).strict(),
   z.object({ type: z.literal("giveItem"), item: IdSchema, count: z.number().int().positive().optional() }).strict(),
   z.object({ type: z.literal("takeItem"), item: IdSchema, count: z.number().int().positive().optional() }).strict(),
-  z.object({ type: z.literal("heal"), amount: z.number().int().positive().optional() }).strict(),
+  z.object({ type: z.literal("heal"), amount: ExprSchema.optional() }).strict(),
+  z.object({ type: z.literal("damage"), target: z.enum(["player", "enemy"]), amount: ExprSchema, text: z.string().optional() }).strict(),
   z.object({ type: z.literal("teleport"), mapId: IdSchema, x: CoordSchema, y: CoordSchema, facing: DirectionSchema.optional() }).strict(),
+  z.object({ type: z.literal("setTile"), mapId: IdSchema.optional(), x: CoordSchema, y: CoordSchema, code: z.string().length(1) }).strict(),
   z.object({ type: z.literal("dialogue"), dialogue: IdSchema }).strict(),
+  z.object({ type: z.literal("choice"), prompt: z.string().optional(), speaker: z.string().optional(), options: z.array(ChoiceOptionSchema).min(1) }).strict(),
+  z.object({ type: z.literal("event"), event: IdSchema }).strict(),
   z.object({ type: z.literal("battle"), enemy: IdSchema, onVictory: z.array(EffectSchema).optional(), onDefeat: z.enum(["respawn", "continue"]).optional(), canFlee: z.boolean().optional() }).strict(),
+  z.object({ type: z.literal("battleLog"), text: z.string().min(1) }).strict(),
+  z.object({ type: z.literal("endBattle"), outcome: z.enum(["victory", "fled"]) }).strict(),
   z.object({ type: z.literal("markDone"), id: IdSchema }).strict(),
   z.object({ type: z.literal("if"), when: ConditionSchema, then: z.array(EffectSchema), else: z.array(EffectSchema).optional() }).strict(),
   z.object({ type: z.literal("system"), system: IdSchema, action: IdSchema, args: z.record(z.string(), z.unknown()).optional() }).strict(),
 ]));
 
+/* ------------------------------------------------------------------ Rules (data-driven triggers) */
+
+export const RULE_TRIGGERS = ["auto", "step", "mapEnter", "battleStart", "turnEnd", "dealDamage", "takeDamage", "lethalDamage", "victory", "defeat"] as const;
+export type RuleTrigger = (typeof RULE_TRIGGERS)[number];
+export const BATTLE_TRIGGERS: readonly RuleTrigger[] = ["battleStart", "turnEnd", "dealDamage", "takeDamage", "lethalDamage"];
+
+export const RuleSchema = z.object({
+  id: IdSchema,
+  /** When this rule is checked. See docs/rules.md. */
+  on: z.enum(RULE_TRIGGERS),
+  when: ConditionSchema.optional(),
+  /** Percent chance (0-100) to fire when `when` holds. */
+  chance: ExprSchema.optional(),
+  /** "battle": once per battle, "map": once per map visit, "game": once per playthrough. */
+  once: z.enum(["battle", "map", "game"]).optional(),
+  /** auto rules only: fire again after `when` became false and true again. */
+  repeat: z.boolean().default(false),
+  priority: z.number().int().default(0),
+  /** dealDamage/takeDamage: replace damage ({"ctx":"damage"} is the current value). lethalDamage: HP to keep instead of 0. */
+  modify: z.object({ damage: ExprSchema.optional(), hp: ExprSchema.optional() }).strict().optional(),
+  effects: z.array(EffectSchema).default([]),
+  description: z.string().optional(),
+}).strict();
+export type Rule = z.infer<typeof RuleSchema>;
+
+export const StatModsSchema = z.object({ maxHp: ExprSchema.optional(), attack: ExprSchema.optional(), defense: ExprSchema.optional() }).strict();
+export type StatMods = z.infer<typeof StatModsSchema>;
+
+export const UseSchema = z.object({
+  where: z.enum(["battle", "field", "both"]).default("battle"),
+  label: z.string().optional(),
+  when: ConditionSchema.optional(),
+  /** Variable costs, e.g. [{"var":"mp","amount":3}]. Not usable when short. */
+  cost: z.array(z.object({ var: IdSchema, amount: ExprSchema }).strict()).default([]),
+  /** HP cost (never kills: leaves at least 1). */
+  hpCost: ExprSchema.optional(),
+  effects: z.array(EffectSchema).min(1),
+  /** Item only: remove one after use (default true). */
+  consume: z.boolean().default(true),
+}).strict();
+export type Use = z.infer<typeof UseSchema>;
+
 /* ------------------------------------------------------------------ Project manifest */
 
 const FileRefSchema = z.object({ id: IdSchema, path: RelPathSchema, title: z.string().min(1) }).strict();
 export const FlagDeclSchema = z.object({ initial: z.boolean().default(false), description: z.string().optional() }).strict();
+export const VarDeclSchema = z.object({
+  initial: z.number().int().default(0),
+  min: z.number().int().optional(),
+  max: z.number().int().optional(),
+  label: z.string().optional(),
+  /** Show on the field HUD. */
+  hud: z.boolean().default(false),
+  description: z.string().optional(),
+}).strict();
+export type VarDecl = z.infer<typeof VarDeclSchema>;
 export const StatsSchema = z.object({
   maxHp: z.number().int().positive().max(9999),
   attack: z.number().int().nonnegative().max(999),
@@ -90,15 +243,22 @@ export const ProjectManifestSchema = z.object({
     sprite: IdSchema.optional(),
     stats: StatsSchema,
     abilities: z.array(IdSchema).default([]),
+    traits: z.array(IdSchema).default([]),
     items: z.record(IdSchema, z.number().int().positive()).default({}),
   }).strict(),
   /** Every flag used by data or systems must be declared. Typos then fail validation instead of silently never matching. */
   flags: z.record(IdSchema, FlagDeclSchema).default({}),
+  /** Integer variables (gold, reputation, mp, counters…). Must be declared like flags. */
+  variables: z.record(IdSchema, VarDeclSchema).default({}),
+  /** Effects run when a new game starts (e.g. race selection). */
+  intro: z.array(EffectSchema).default([]),
   maps: z.array(FileRefSchema).min(1),
   tilesetPath: RelPathSchema,
   dialoguesPath: RelPathSchema,
   eventsPath: RelPathSchema,
   databasePath: RelPathSchema,
+  /** Optional global rules file. */
+  rulesPath: RelPathSchema.optional(),
   assetsPath: RelPathSchema,
   systems: z.array(FileRefSchema).default([]),
 }).strict();
@@ -187,6 +347,11 @@ export const GameMapSchema = z.object({
   npcs: z.array(NpcSchema).default([]),
   portals: z.array(PortalSchema).default([]),
   interactables: z.array(InteractableSchema).default([]),
+  /** Tiles that change while a condition holds (bridge built, rubble cleared…). Later overlays win. */
+  overlays: z.array(z.object({
+    when: ConditionSchema,
+    cells: z.array(z.object({ x: CoordSchema, y: CoordSchema, w: z.number().int().positive().default(1), h: z.number().int().positive().default(1), code: z.string().length(1) }).strict()).min(1),
+  }).strict()).default([]),
   encounters: z.object({
     /** Chance per step, 0..1. */
     rate: z.number().min(0).max(1),
@@ -226,7 +391,8 @@ export type DialogueChoice = z.infer<typeof DialogueChoiceSchema>;
 export const DialogueSchema = z.object({
   id: IdSchema,
   speaker: z.string().min(1),
-  lines: z.array(z.string().min(1)).min(1),
+  /** Strings, or {"text","when"} for lines shown only when a condition holds. Supports {{var.x}} etc. */
+  lines: z.array(z.union([z.string().min(1), z.object({ text: z.string().min(1), when: ConditionSchema }).strict()])).min(1),
   /** Effects after the last line when there are no choices (or before choices are shown). */
   effects: z.array(EffectSchema).default([]),
   choices: z.array(DialogueChoiceSchema).default([]),
@@ -266,17 +432,44 @@ export const AbilitySchema = z.object({
   id: IdSchema,
   name: z.string().min(1),
   description: z.string().default(""),
-  /** "passive" abilities are implemented by systems; "field" abilities are checked by conditions. */
+  /** Display grouping only. Behaviour comes from statMods / rules / use. */
   kind: z.enum(["passive", "field", "battle"]).default("passive"),
+  /** Added to the player's stats while the ability is held. */
+  statMods: StatModsSchema.optional(),
+  /** Active while the ability is held. */
+  rules: z.array(RuleSchema).default([]),
+  /** Makes it a usable skill (battle command "わざ" / field menu). */
+  use: UseSchema.optional(),
 }).strict();
 export type Ability = z.infer<typeof AbilitySchema>;
+
+/** Races, classes, blessings, curses… anything the player "is". Category is free text. */
+export const TraitSchema = z.object({
+  id: IdSchema,
+  name: z.string().min(1),
+  category: z.string().min(1).default("特性"),
+  description: z.string().default(""),
+  tags: z.array(IdSchema).default([]),
+  statMods: StatModsSchema.optional(),
+  /** Abilities the player has while holding the trait (removed with it). */
+  abilities: z.array(IdSchema).default([]),
+  rules: z.array(RuleSchema).default([]),
+  /** Run once when the trait is granted. */
+  onGrant: z.array(EffectSchema).default([]),
+}).strict();
+export type Trait = z.infer<typeof TraitSchema>;
 
 export const ItemSchema = z.object({
   id: IdSchema,
   name: z.string().min(1),
   description: z.string().default(""),
-  /** Usable in battle / field to heal. */
+  /** Shorthand: usable in battle / field to heal this much. */
   heal: z.number().int().positive().optional(),
+  /** General use (overrides `heal`). */
+  use: UseSchema.optional(),
+  /** Passive bonus while carried (charms, equipment-like items). */
+  statMods: StatModsSchema.optional(),
+  rules: z.array(RuleSchema).default([]),
   key: z.boolean().default(false),
 }).strict();
 export type Item = z.infer<typeof ItemSchema>;
@@ -286,16 +479,23 @@ export const EnemyActionSchema = z.object({
   /** Added to the enemy attack before defence is subtracted. 0 = a non-damaging move (wind-up, taunt). */
   power: z.number().int().min(0).max(999),
   message: z.string().optional(),
+  /** Only used while this holds (e.g. HP below half: {"compare":[{"ctx":"enemyHp"},"<",{"percent":[{"ctx":"enemyMaxHp"},50]}]}). */
+  when: ConditionSchema.optional(),
+  /** Applied after the move (curses, buffs, flags). */
+  effects: z.array(EffectSchema).default([]),
 }).strict();
 
 export const EnemySchema = z.object({
   id: IdSchema,
   name: z.string().min(1),
   sprite: IdSchema.optional(),
+  tags: z.array(IdSchema).default([]),
   stats: StatsSchema,
-  /** Used in order, cycling, one per turn. */
+  /** Each turn, the available actions (whose `when` holds) are used in order, cycling. */
   actions: z.array(EnemyActionSchema).min(1),
   drops: z.array(z.object({ item: IdSchema, count: z.number().int().positive().default(1) }).strict()).default([]),
+  /** Rules active during battles with this enemy. */
+  rules: z.array(RuleSchema).default([]),
   canFlee: z.boolean().default(true),
 }).strict();
 export type Enemy = z.infer<typeof EnemySchema>;
@@ -303,6 +503,7 @@ export type Enemy = z.infer<typeof EnemySchema>;
 export const DatabaseSchema = z.object({
   formatVersion: z.literal(PROJECT_FORMAT_VERSION),
   abilities: z.array(AbilitySchema).default([]),
+  traits: z.array(TraitSchema).default([]),
   items: z.array(ItemSchema).default([]),
   enemies: z.array(EnemySchema).default([]),
 }).strict();
@@ -355,6 +556,12 @@ export const AssetManifestSchema = z.object({
 });
 export type AssetManifest = z.infer<typeof AssetManifestSchema>;
 
+export const RuleBundleSchema = z.object({
+  formatVersion: z.literal(PROJECT_FORMAT_VERSION),
+  rules: z.array(RuleSchema),
+}).strict();
+export type RuleBundle = z.infer<typeof RuleBundleSchema>;
+
 /* ------------------------------------------------------------------ Loaded content */
 
 /** Everything the engine needs, already parsed. Produced by `parseProjectFiles`. */
@@ -366,6 +573,8 @@ export interface GameContent {
   events: Record<string, GameEvent>;
   database: Database;
   assets: AssetManifest;
+  /** Global rules (rulesPath). */
+  rules: Rule[];
 }
 
 /* ------------------------------------------------------------------ Runtime state & saves */
@@ -382,6 +591,10 @@ export const BattleStateSchema = z.object({
   /** Per-battle scratch space for systems, keyed by system id (e.g. "used once per battle"). */
   systemData: z.record(z.string(), z.unknown()),
   outcome: z.enum(["ongoing", "victory", "defeat", "fled"]),
+  /** Keys of once:"battle" rules that already fired. */
+  fired: z.array(z.string()).default([]),
+  /** Effects from victory/defeat rules, run after the battle closes. */
+  after: z.array(EffectSchema).default([]),
 }).strict();
 export type BattleState = z.infer<typeof BattleStateSchema>;
 
@@ -390,6 +603,7 @@ export const SceneSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("message"), text: z.string(), speaker: z.string().optional() }).strict(),
   z.object({ kind: z.literal("dialogue"), dialogueId: IdSchema, line: z.number().int().nonnegative() }).strict(),
   z.object({ kind: z.literal("choice"), dialogueId: IdSchema }).strict(),
+  z.object({ kind: z.literal("prompt"), prompt: z.string().optional(), speaker: z.string().optional(), options: z.array(z.object({ id: z.string(), label: z.string(), effects: z.array(EffectSchema) }).strict()) }).strict(),
   z.object({ kind: z.literal("battle"), battle: BattleStateSchema }).strict(),
 ]);
 export type Scene = z.infer<typeof SceneSchema>;
@@ -403,9 +617,16 @@ export const GameStateSchema = z.object({
     hp: z.number().int().nonnegative(),
     stats: StatsSchema,
   }).strict(),
+  /** Abilities learned directly (trait abilities are added on top while the trait is held). */
   abilities: z.array(IdSchema),
+  traits: z.array(IdSchema).default([]),
   items: z.record(z.string(), z.number().int().positive()),
   flags: z.record(z.string(), z.boolean()),
+  vars: z.record(z.string(), z.number().int()).default({}),
+  /** setTile changes: mapId → "x,y" → tile code. */
+  tileOverrides: z.record(z.string(), z.record(z.string(), z.string())).default({}),
+  /** Keys of fired once:"game"/"map" rules and armed auto rules. */
+  fired: z.array(z.string()).default([]),
   /** Stable IDs of once-events, once-choices and markDone ids. */
   done: z.array(z.string()),
   scene: SceneSchema,

@@ -1,10 +1,16 @@
 import type {
-  BattleState, Direction, Effect, Enemy, GameContent, GameEvent, GameMap, GameState, Interactable, Npc, TileDef,
+  BattleState, Direction, Effect, Enemy, GameContent, GameEvent, GameMap, GameState, Interactable, Npc, Rule, RuleTrigger,
+  Stats, TileDef, Use,
 } from "../../schema/src/formats";
-import { evaluate, nextRandom } from "./conditions";
+import { abilitiesOf, effectiveStats, evalExpr, evaluate, interpolate, nextRandom, type EvalEnv } from "./conditions";
 import { sortSystems, type GameSystem } from "./systems";
 
-export type BattleCommand = { command: "attack" } | { command: "guard" } | { command: "flee" } | { command: "item"; item: string };
+export type BattleCommand =
+  | { command: "attack" }
+  | { command: "guard" }
+  | { command: "flee" }
+  | { command: "item"; item: string }
+  | { command: "skill"; ability: string };
 
 export type Action =
   | { type: "move"; direction: Direction }
@@ -13,7 +19,8 @@ export type Action =
   | { type: "advance" }
   | { type: "choose"; choiceId: string }
   | ({ type: "battle" } & BattleCommand)
-  | { type: "useItem"; item: string };
+  | { type: "useItem"; item: string }
+  | { type: "useAbility"; ability: string };
 
 /** Presentation hints for the runtime (sound, animation). Never needed for correctness. */
 export type Cue =
@@ -30,13 +37,21 @@ export interface StepResult {
   cues: Cue[];
 }
 
+export interface Usable {
+  id: string;
+  name: string;
+  kind: "ability" | "item";
+  use: Use;
+  /** Why it can't be used right now (cost, condition); undefined when usable. */
+  blocked?: string;
+  count?: number;
+}
+
 export const DELTAS: Record<Direction, { x: number; y: number }> = {
   up: { x: 0, y: -1 }, down: { x: 0, y: 1 }, left: { x: -1, y: 0 }, right: { x: 1, y: 0 },
 };
 
 interface Ctx {
-  content: GameContent;
-  systems: GameSystem[];
   log: string[];
   cues: Cue[];
 }
@@ -46,29 +61,85 @@ export interface Engine {
   readonly systems: readonly GameSystem[];
   newGame(seed?: number): GameState;
   step(state: GameState, action: Action): StepResult;
-  /** Run arbitrary effects (used by tests, the studio's debug console and system code). */
+  /** Run arbitrary effects (tests, studio debug console, system code). */
   run(state: GameState, effects: Effect[]): StepResult;
   isPassable(state: GameState, x: number, y: number): boolean;
+  /** Authored tile (editor). */
   tileAt(map: GameMap, x: number, y: number): TileDef | undefined;
+  /** Tile code after overlays and setTile changes. */
+  codeAt(state: GameState, map: GameMap, x: number, y: number): string;
+  /** Map rows after overlays and setTile changes (for drawing). */
+  rowsFor(state: GameState, mapId: string): string[];
   /** Atlas index to draw for a tile in the current state (handles opened gates). */
   tileIndex(state: GameState, tile: TileDef): number;
   visibleNpcs(state: GameState, map?: GameMap): Npc[];
   visibleInteractables(state: GameState, map?: GameMap): Interactable[];
+  /** Dialogue lines that are visible in this state, with {{templates}} filled in. */
+  dialogueLines(state: GameState, dialogueId: string): string[];
+  stats(state: GameState): Stats;
+  abilities(state: GameState): string[];
+  usables(state: GameState, where: "battle" | "field"): Usable[];
+  text(state: GameState, template: string): string;
+  evaluate: (condition: Parameters<typeof evaluate>[0], state: GameState) => boolean;
 }
+
+const DEFAULT_SEED = 20261114;
 
 export function createEngine(content: GameContent, systems: readonly GameSystem[] = []): Engine {
   const sorted = sortSystems(systems);
   const tiles = new Map(content.tileset.tiles.map(tile => [tile.code, tile]));
-  const ctx = (): Ctx => ({ content, systems: sorted, log: [], cues: [] });
+  const env: EvalEnv = { content };
+  const db = content.database;
+  const ev = (cond: Parameters<typeof evaluate>[0], state: GameState, extra?: EvalEnv["ctx"]) => evaluate(cond, state, extra ? { content, ctx: extra } : env);
+  const ex = (expr: Parameters<typeof evalExpr>[0], state: GameState, extra?: EvalEnv["ctx"]) => evalExpr(expr, state, extra ? { content, ctx: extra } : env);
+  const text = (template: string, state: GameState, extra?: EvalEnv["ctx"]) => interpolate(template, state, extra ? { content, ctx: extra } : env);
+  const stats = (state: GameState) => effectiveStats(state, content);
+  const enemyOf = (id: string): Enemy => {
+    const enemy = db.enemies.find(e => e.id === id);
+    if (!enemy) throw new Error(`敵 '${id}' がデータベースにありません`);
+    return enemy;
+  };
+  const itemName = (id: string) => db.items.find(i => i.id === id)?.name ?? id;
+  const abilityName = (id: string) => db.abilities.find(a => a.id === id)?.name ?? id;
 
+  /* ---------------------------------------------------------------- map queries */
   const tileAt = (map: GameMap, x: number, y: number) => tiles.get(Array.from(map.rows[y] ?? "")[x] ?? "");
-  const visibleNpcs = (state: GameState, map = content.maps[state.mapId]) => (map?.npcs ?? []).filter(npc => evaluate(npc.visibleWhen, state));
-  const visibleInteractables = (state: GameState, map = content.maps[state.mapId]) => (map?.interactables ?? []).filter(item => evaluate(item.visibleWhen, state));
+
+  function codeAt(state: GameState, map: GameMap, x: number, y: number): string {
+    const override = state.tileOverrides?.[map.id]?.[`${x},${y}`];
+    if (override) return override;
+    for (let i = map.overlays.length - 1; i >= 0; i--) {
+      const overlay = map.overlays[i]!;
+      const cell = overlay.cells.find(c => x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h);
+      if (cell && ev(overlay.when, state)) return cell.code;
+    }
+    return Array.from(map.rows[y] ?? "")[x] ?? "";
+  }
+
+  function rowsFor(state: GameState, mapId: string): string[] {
+    const map = content.maps[mapId];
+    if (!map) return [];
+    const overrides = state.tileOverrides?.[mapId];
+    const active = map.overlays.filter(o => ev(o.when, state));
+    if (!active.length && !overrides) return map.rows;
+    const grid = map.rows.map(row => Array.from(row));
+    for (const overlay of active) for (const c of overlay.cells) {
+      for (let y = c.y; y < c.y + c.h; y++) for (let x = c.x; x < c.x + c.w; x++) if (grid[y]?.[x] !== undefined) grid[y]![x] = c.code;
+    }
+    for (const [key, code] of Object.entries(overrides ?? {})) {
+      const [x, y] = key.split(",").map(Number);
+      if (grid[y!]?.[x!] !== undefined) grid[y!]![x!] = code;
+    }
+    return grid.map(row => row.join(""));
+  }
+
+  const visibleNpcs = (state: GameState, map = content.maps[state.mapId]) => (map?.npcs ?? []).filter(npc => ev(npc.visibleWhen, state));
+  const visibleInteractables = (state: GameState, map = content.maps[state.mapId]) => (map?.interactables ?? []).filter(item => ev(item.visibleWhen, state));
 
   function isPassable(state: GameState, x: number, y: number, map = content.maps[state.mapId]): boolean {
     if (!map || x < 0 || y < 0 || x >= map.width || y >= map.height) return false;
-    const tile = tileAt(map, x, y);
-    let passable = Boolean(tile && (tile.passable || (tile.passableWhen && evaluate(tile.passableWhen, state))));
+    const tile = tiles.get(codeAt(state, map, x, y));
+    let passable = Boolean(tile && (tile.passable || (tile.passableWhen && ev(tile.passableWhen, state))));
     if (passable && visibleNpcs(state, map).some(npc => npc.x === x && npc.y === y)) passable = false;
     if (passable && visibleInteractables(state, map).some(item => item.solid && item.trigger === "action" && item.x === x && item.y === y)) passable = false;
     for (const system of sorted) {
@@ -78,136 +149,329 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     return passable;
   }
 
-  function newGame(seed = 20261114): GameState {
-    const { project } = content;
-    return {
-      mapId: project.start.mapId,
-      player: { x: project.start.x, y: project.start.y, facing: project.start.facing, hp: project.player.stats.maxHp, stats: { ...project.player.stats } },
-      abilities: [...project.player.abilities],
-      items: { ...project.player.items },
-      flags: Object.fromEntries(Object.entries(project.flags).map(([id, decl]) => [id, decl.initial])),
-      done: [],
-      scene: { kind: "field" },
-      queue: [],
-      systemData: {},
-      rng: seed >>> 0,
-      steps: 0,
-    };
+  function dialogueLines(state: GameState, dialogueId: string): string[] {
+    const dialogue = content.dialogues[dialogueId];
+    if (!dialogue) return [];
+    const lines = dialogue.lines.filter(line => typeof line === "string" || ev(line.when, state)).map(line => text(typeof line === "string" ? line : line.text, state));
+    return lines.length ? lines : ["……"];
   }
 
-  /* ---------------------------------------------------------------- effects */
-
+  /* ---------------------------------------------------------------- state helpers */
   const random = (state: GameState): [number, GameState] => {
     const [value, rng] = nextRandom(state.rng);
     return [value, { ...state, rng }];
   };
+  const enqueue = (state: GameState, effects: Effect[]): GameState => (effects.length ? { ...state, queue: [...effects, ...state.queue] } : state);
+  const battleOf = (state: GameState) => (state.scene.kind === "battle" ? state.scene.battle : null);
+  const setBattle = (state: GameState, battle: BattleState): GameState => ({ ...state, scene: { kind: "battle", battle } });
+  const battleLog = (state: GameState, ...lines: string[]): GameState => {
+    const battle = battleOf(state);
+    return battle ? setBattle(state, { ...battle, log: [...battle.log, ...lines].slice(-10) }) : state;
+  };
+  const clampVar = (id: string, value: number) => {
+    const decl = content.project.variables[id];
+    let v = Math.trunc(value);
+    if (decl?.min !== undefined) v = Math.max(decl.min, v);
+    if (decl?.max !== undefined) v = Math.min(decl.max, v);
+    return v;
+  };
+  const applyOp = (current: number, op: string | undefined, value: number) => {
+    switch (op ?? "set") {
+      case "add": return current + value;
+      case "sub": return current - value;
+      case "mul": return current * value;
+      case "div": return value === 0 ? current : Math.floor(current / value);
+      case "min": return Math.min(current, value);
+      case "max": return Math.max(current, value);
+      default: return value;
+    }
+  };
 
-  function enqueue(state: GameState, effects: Effect[]): GameState {
-    return effects.length ? { ...state, queue: [...effects, ...state.queue] } : state;
+  /* ---------------------------------------------------------------- rules */
+  interface ActiveRule { key: string; rule: Rule; source: string }
+
+  function rulesFor(state: GameState, trigger: RuleTrigger): ActiveRule[] {
+    const out: ActiveRule[] = [];
+    const add = (prefix: string, source: string, list: Rule[]) => { for (const rule of list) if (rule.on === trigger) out.push({ key: `${prefix}:${rule.id}`, rule, source }); };
+    add("g", "全体", content.rules);
+    for (const id of abilitiesOf(state, content)) { const a = db.abilities.find(x => x.id === id); if (a) add(`a:${id}`, a.name, a.rules); }
+    for (const id of state.traits ?? []) { const t = db.traits.find(x => x.id === id); if (t) add(`t:${id}`, t.name, t.rules); }
+    for (const id of Object.keys(state.items)) { const i = db.items.find(x => x.id === id); if (i) add(`i:${id}`, i.name, i.rules); }
+    const battle = battleOf(state);
+    if (battle) { const e = db.enemies.find(x => x.id === battle.enemyId); if (e) add(`e:${e.id}`, e.name, e.rules); }
+    return out.sort((a, b) => a.rule.priority - b.rule.priority || a.key.localeCompare(b.key));
   }
 
+  const firedKey = (entry: ActiveRule) => entry.rule.once === "map" ? `map:${entry.key}` : `game:${entry.key}`;
+  function alreadyFired(state: GameState, entry: ActiveRule): boolean {
+    const once = entry.rule.once;
+    if (!once) return false;
+    if (once === "battle") return Boolean(battleOf(state)?.fired.includes(entry.key));
+    return state.fired.includes(firedKey(entry));
+  }
+  function markFired(state: GameState, entry: ActiveRule): GameState {
+    const once = entry.rule.once;
+    if (!once) return state;
+    if (once === "battle") { const b = battleOf(state); return b ? setBattle(state, { ...b, fired: [...b.fired, entry.key] }) : state; }
+    return { ...state, fired: [...state.fired, firedKey(entry)] };
+  }
+  /** Checks once / when / chance. Returns the (rng-advanced) state when the rule fires, else null. */
+  function tryRule(c: Ctx, state: GameState, entry: ActiveRule, ctxValues?: EvalEnv["ctx"]): GameState | null {
+    if (alreadyFired(state, entry) || !ev(entry.rule.when, state, ctxValues)) return null;
+    if (entry.rule.chance !== undefined) {
+      const percent = ex(entry.rule.chance, state, ctxValues);
+      let roll: number;
+      [roll, state] = random(state);
+      if (roll * 100 >= percent) return null;
+    }
+    c.log.push(`ルール発動: ${entry.source} / ${entry.rule.id}`);
+    return markFired(state, entry);
+  }
+
+  /** Field triggers (step, mapEnter): queue the effects of every rule that fires. */
+  function fireFieldRules(c: Ctx, state: GameState, trigger: RuleTrigger): GameState {
+    const collected: Effect[] = [];
+    for (const entry of rulesFor(state, trigger)) {
+      const next = tryRule(c, state, entry);
+      if (!next) continue;
+      state = next;
+      collected.push(...entry.rule.effects);
+    }
+    return enqueue(state, collected);
+  }
+
+  /** Auto rules: fire when their condition becomes true (once per game unless `repeat`). */
+  function runAuto(c: Ctx, state: GameState): GameState {
+    for (let guard = 0; guard < 50; guard++) {
+      if (state.scene.kind !== "field" || state.queue.length) return state;
+      let fired = false;
+      for (const entry of rulesFor(state, "auto")) {
+        const key = `auto:${entry.key}`;
+        const holds = ev(entry.rule.when, state);
+        if (state.fired.includes(key)) {
+          if (entry.rule.repeat && !holds) state = { ...state, fired: state.fired.filter(k => k !== key) };
+          continue;
+        }
+        if (!holds) continue;
+        if (entry.rule.chance !== undefined) {
+          let roll: number;
+          [roll, state] = random(state);
+          if (roll * 100 >= ex(entry.rule.chance, state)) continue;
+        }
+        c.log.push(`ルール発動: ${entry.source} / ${entry.rule.id}`);
+        state = runQueue(c, enqueue({ ...state, fired: [...state.fired, key] }, entry.rule.effects));
+        fired = true;
+        break;
+      }
+      if (!fired) return state;
+    }
+    throw new Error("autoルールが50回連続で発動しました。条件がずっと成り立ち続けるrepeatルールがないか確認してください");
+  }
+
+  /* ---------------------------------------------------------------- effects */
   function runQueue(c: Ctx, state: GameState): GameState {
     let guard = 0;
     while (state.scene.kind === "field" && state.queue.length) {
-      if (++guard > 1000) throw new Error("効果キューが1000件を超えました。会話やイベントが自分自身を無限に呼んでいないか確認してください");
+      if (++guard > 2000) throw new Error("効果キューが2000件を超えました。会話やイベントが自分自身を無限に呼んでいないか確認してください");
       const [effect, ...rest] = state.queue;
       state = applyEffect(c, { ...state, queue: rest }, effect!);
     }
     return state;
   }
 
-  function itemName(id: string) { return content.database.items.find(i => i.id === id)?.name ?? id; }
-  function abilityName(id: string) { return content.database.abilities.find(a => a.id === id)?.name ?? id; }
+  /** In battle every effect runs immediately; field-only ones (dialogue, teleport, choice, battle) wait until the battle ends. */
+  function runNow(c: Ctx, state: GameState, effects: Effect[], ctxValues?: EvalEnv["ctx"]): GameState {
+    for (const effect of effects) state = applyEffect(c, state, effect, ctxValues);
+    return state;
+  }
 
-  function applyEffect(c: Ctx, state: GameState, effect: Effect): GameState {
+  /** Keeps a "full HP" player full when max HP grows, and clamps HP when it shrinks. */
+  function withHpCare(state: GameState, change: (s: GameState) => GameState): GameState {
+    const before = stats(state).maxHp;
+    const next = change(state);
+    const after = stats(next).maxHp;
+    if (after === before && next.player.hp <= after) return next;
+    const hp = next.player.hp >= before ? Math.max(next.player.hp, after) : next.player.hp;
+    return { ...next, player: { ...next.player, hp: Math.min(after, hp) } };
+  }
+
+  function applyEffect(c: Ctx, state: GameState, effect: Effect, ctxValues?: EvalEnv["ctx"]): GameState {
+    const inBattle = state.scene.kind === "battle";
     switch (effect.type) {
       case "message":
-        return { ...state, scene: { kind: "message", text: effect.text, ...(effect.speaker ? { speaker: effect.speaker } : {}) } };
+      case "battleLog": {
+        const line = text(effect.text, state, ctxValues);
+        if (inBattle) return battleLog(state, line);
+        return { ...state, scene: { kind: "message", text: line, ...(effect.type === "message" && effect.speaker ? { speaker: effect.speaker } : {}) } };
+      }
       case "setFlag":
         c.log.push(`フラグ ${effect.flag} = ${effect.value ?? true}`);
         return { ...state, flags: { ...state.flags, [effect.flag]: effect.value ?? true } };
+      case "setVar": {
+        const current = ex({ var: effect.var }, state, ctxValues);
+        const value = clampVar(effect.var, applyOp(current, effect.op, ex(effect.value, state, ctxValues)));
+        c.log.push(`変数 ${effect.var} = ${value}`);
+        return { ...state, vars: { ...state.vars, [effect.var]: value } };
+      }
+      case "random": {
+        const lo = ex(effect.min, state, ctxValues), hi = ex(effect.max, state, ctxValues);
+        let roll: number;
+        [roll, state] = random(state);
+        const value = clampVar(effect.var, Math.min(lo, hi) + Math.floor(roll * (Math.abs(hi - lo) + 1)));
+        return { ...state, vars: { ...state.vars, [effect.var]: value } };
+      }
+      case "chance": {
+        let roll: number;
+        [roll, state] = random(state);
+        const branch = roll * 100 < ex(effect.percent, state, ctxValues) ? effect.then : effect.else ?? [];
+        return inBattle ? runNow(c, state, branch, ctxValues) : enqueue(state, branch);
+      }
+      case "if": {
+        const branch = ev(effect.when, state, ctxValues) ? effect.then : effect.else ?? [];
+        return inBattle ? runNow(c, state, branch, ctxValues) : enqueue(state, branch);
+      }
+      case "setStat":
+        return withHpCare(state, s => {
+          const value = Math.max(effect.stat === "maxHp" ? 1 : 0, applyOp(s.player.stats[effect.stat], effect.op, ex(effect.value, s, ctxValues)));
+          c.log.push(`基本能力 ${effect.stat} = ${value}`);
+          return { ...s, player: { ...s.player, stats: { ...s.player.stats, [effect.stat]: value } } };
+        });
       case "unlockAbility":
         if (state.abilities.includes(effect.ability)) return state;
         c.log.push(`能力「${abilityName(effect.ability)}」を習得`);
-        return { ...state, abilities: [...state.abilities, effect.ability] };
+        return withHpCare(state, s => ({ ...s, abilities: [...s.abilities, effect.ability] }));
+      case "removeAbility":
+        return withHpCare(state, s => ({ ...s, abilities: s.abilities.filter(a => a !== effect.ability) }));
+      case "grantTrait": {
+        if (state.traits.includes(effect.trait)) return state;
+        const trait = db.traits.find(t => t.id === effect.trait);
+        c.log.push(`特性「${trait?.name ?? effect.trait}」を得た`);
+        state = withHpCare(state, s => ({ ...s, traits: [...s.traits, effect.trait] }));
+        const gifts = trait?.onGrant ?? [];
+        return inBattle ? runNow(c, state, gifts, ctxValues) : enqueue(state, gifts);
+      }
+      case "removeTrait":
+        return withHpCare(state, s => ({ ...s, traits: s.traits.filter(t => t !== effect.trait) }));
       case "giveItem": {
         const count = effect.count ?? 1;
         c.log.push(`${itemName(effect.item)} ×${count} を入手`);
-        return { ...state, items: { ...state.items, [effect.item]: (state.items[effect.item] ?? 0) + count } };
+        return withHpCare(state, s => ({ ...s, items: { ...s.items, [effect.item]: (s.items[effect.item] ?? 0) + count } }));
       }
-      case "takeItem": {
-        const left = (state.items[effect.item] ?? 0) - (effect.count ?? 1);
-        const items = { ...state.items };
-        if (left > 0) items[effect.item] = left; else delete items[effect.item];
-        return { ...state, items };
-      }
+      case "takeItem":
+        return withHpCare(state, s => {
+          const left = (s.items[effect.item] ?? 0) - (effect.count ?? 1);
+          const items = { ...s.items };
+          if (left > 0) items[effect.item] = left; else delete items[effect.item];
+          return { ...s, items };
+        });
       case "heal": {
-        const hp = Math.min(state.player.stats.maxHp, state.player.hp + (effect.amount ?? state.player.stats.maxHp));
-        return { ...state, player: { ...state.player, hp } };
+        const max = stats(state).maxHp;
+        const amount = effect.amount === undefined ? max : ex(effect.amount, state, ctxValues);
+        return { ...state, player: { ...state.player, hp: Math.max(0, Math.min(max, state.player.hp + amount)) } };
       }
-      case "teleport": {
-        const from = state.mapId;
-        if (from !== effect.mapId) c.cues.push({ kind: "mapChanged", from });
-        c.log.push(`${content.maps[effect.mapId]?.title ?? effect.mapId} (${effect.x}, ${effect.y}) へ移動`);
-        return { ...state, mapId: effect.mapId, player: { ...state.player, x: effect.x, y: effect.y, facing: effect.facing ?? state.player.facing } };
+      case "damage": {
+        const amount = Math.max(0, ex(effect.amount, state, ctxValues));
+        if (effect.target === "enemy") {
+          const battle = battleOf(state);
+          if (!battle) return state;
+          c.cues.push({ kind: "hit", target: "enemy", amount });
+          state = setBattle(state, { ...battle, enemyHp: Math.max(0, battle.enemyHp - amount) });
+          return effect.text ? battleLog(state, text(effect.text, state, { ...ctxValues, damage: amount })) : state;
+        }
+        // Outside battle, damage never knocks the player out.
+        const floor = inBattle ? 0 : 1;
+        c.cues.push({ kind: "hit", target: "player", amount });
+        state = { ...state, player: { ...state.player, hp: Math.max(Math.min(floor, state.player.hp), state.player.hp - amount) } };
+        if (!effect.text) return state;
+        const line = text(effect.text, state, { ...ctxValues, damage: amount });
+        return inBattle ? battleLog(state, line) : enqueue(state, [{ type: "message", text: line }]);
       }
-      case "dialogue":
-        if (!content.dialogues[effect.dialogue]) throw new Error(`会話 '${effect.dialogue}' がありません`);
-        return { ...state, scene: { kind: "dialogue", dialogueId: effect.dialogue, line: 0 } };
-      case "battle":
-        return startBattle(c, state, effect);
+      case "setTile": {
+        const mapId = effect.mapId ?? state.mapId;
+        return { ...state, tileOverrides: { ...state.tileOverrides, [mapId]: { ...state.tileOverrides[mapId], [`${effect.x},${effect.y}`]: effect.code } } };
+      }
       case "markDone":
         return state.done.includes(effect.id) ? state : { ...state, done: [...state.done, effect.id] };
-      case "if":
-        return enqueue(state, evaluate(effect.when, state) ? effect.then : effect.else ?? []);
+      case "event": {
+        const event = content.events[effect.event];
+        if (!event) throw new Error(`イベント '${effect.event}' がありません`);
+        return inBattle ? runNow(c, state, eventEffects(c, state, event), ctxValues) : enqueue(state, eventEffects(c, state, event));
+      }
+      case "endBattle": {
+        const battle = battleOf(state);
+        if (!battle || battle.outcome !== "ongoing") return state;
+        if (effect.outcome === "victory") return setBattle(state, { ...battle, enemyHp: 0 });
+        c.cues.push({ kind: "battleEnd", outcome: "fled" });
+        return setBattle(state, { ...battle, outcome: "fled" });
+      }
       case "system": {
-        const system = c.systems.find(s => s.id === effect.system);
+        const system = sorted.find(s => s.id === effect.system);
         const action = system?.actions?.[effect.action];
         if (!action) throw new Error(`システム '${effect.system}' にアクション '${effect.action}' がありません`);
         const result = action({ content, state }, effect.args ?? {});
         c.log.push(...(result.log ?? []));
-        return enqueue(result.state ?? state, result.effects ?? []);
+        state = result.state ?? state;
+        return inBattle ? runNow(c, state, result.effects ?? [], ctxValues) : enqueue(state, result.effects ?? []);
       }
+      // Field-only (blocking) effects. In battle they wait until the battle closes.
+      case "dialogue":
+      case "choice":
+      case "teleport":
+      case "battle":
+        if (inBattle) { const b = battleOf(state)!; return setBattle(state, { ...b, after: [...b.after, effect] }); }
+        if (effect.type === "dialogue") {
+          if (!content.dialogues[effect.dialogue]) throw new Error(`会話 '${effect.dialogue}' がありません`);
+          return { ...state, scene: { kind: "dialogue", dialogueId: effect.dialogue, line: 0 } };
+        }
+        if (effect.type === "choice") {
+          const options = effect.options.map((option, index) => ({ option, index })).filter(({ option }) => ev(option.when, state))
+            .map(({ option, index }) => ({ id: option.id ?? `option-${index}`, label: text(option.label, state), effects: option.effects }));
+          if (!options.length) return state;
+          return { ...state, scene: { kind: "prompt", ...(effect.prompt ? { prompt: text(effect.prompt, state) } : {}), ...(effect.speaker ? { speaker: effect.speaker } : {}), options } };
+        }
+        if (effect.type === "teleport") {
+          const from = state.mapId;
+          c.log.push(`${content.maps[effect.mapId]?.title ?? effect.mapId} (${effect.x}, ${effect.y}) へ移動`);
+          state = { ...state, mapId: effect.mapId, player: { ...state.player, x: effect.x, y: effect.y, facing: effect.facing ?? state.player.facing } };
+          if (from !== effect.mapId) {
+            c.cues.push({ kind: "mapChanged", from });
+            state = { ...state, fired: state.fired.filter(k => !k.startsWith("map:")) };
+            state = fireFieldRules(c, state, "mapEnter");
+          }
+          return state;
+        }
+        return startBattle(c, state, effect);
     }
   }
 
-  function runEvent(c: Ctx, state: GameState, event: GameEvent): GameState {
-    if (event.once && state.done.includes(event.id)) return enqueue(state, event.afterDone);
-    if (!evaluate(event.when, state)) return enqueue(state, event.otherwise);
+  function eventEffects(c: Ctx, state: GameState, event: GameEvent): Effect[] {
+    if (event.once && state.done.includes(event.id)) return event.afterDone;
+    if (!ev(event.when, state)) return event.otherwise;
     c.log.push(`イベント「${event.label}」`);
     // markDone runs last so an event interrupted by a lost battle can be retried.
-    return enqueue(state, event.once ? [...event.effects, { type: "markDone", id: event.id }] : event.effects);
+    return event.once ? [...event.effects, { type: "markDone", id: event.id }] : event.effects;
   }
 
   /* ---------------------------------------------------------------- battle */
-
-  function enemyOf(id: string): Enemy {
-    const enemy = content.database.enemies.find(e => e.id === id);
-    if (!enemy) throw new Error(`敵 '${id}' がデータベースにありません`);
-    return enemy;
-  }
-
   function startBattle(c: Ctx, state: GameState, effect: Extract<Effect, { type: "battle" }>): GameState {
     const enemy = enemyOf(effect.enemy);
-    let battle: BattleState = {
-      enemyId: enemy.id,
-      enemyHp: enemy.stats.maxHp,
-      turn: 0,
-      guarding: false,
-      canFlee: effect.canFlee ?? enemy.canFlee,
-      onDefeat: effect.onDefeat ?? "respawn",
-      onVictory: effect.onVictory ?? [],
-      log: [`${enemy.name}が現れた！`],
-      systemData: {},
-      outcome: "ongoing",
+    const battle: BattleState = {
+      enemyId: enemy.id, enemyHp: enemy.stats.maxHp, turn: 0, guarding: false,
+      canFlee: effect.canFlee ?? enemy.canFlee, onDefeat: effect.onDefeat ?? "respawn", onVictory: effect.onVictory ?? [],
+      log: [`${enemy.name}が現れた！`], systemData: {}, outcome: "ongoing", fired: [], after: [],
     };
-    for (const system of c.systems) {
-      const data = system.onBattleStart?.({ content, state, battle, enemy });
-      if (data !== undefined) battle = { ...battle, systemData: { ...battle.systemData, [system.id]: data } };
+    state = setBattle(state, battle);
+    for (const system of sorted) {
+      const data = system.onBattleStart?.({ content, state, battle: battleOf(state)!, enemy });
+      if (data !== undefined) { const b = battleOf(state)!; state = setBattle(state, { ...b, systemData: { ...b.systemData, [system.id]: data } }); }
     }
     c.cues.push({ kind: "battleStart", enemyId: enemy.id });
     c.log.push(`戦闘開始: ${enemy.name}`);
-    return { ...state, scene: { kind: "battle", battle } };
+    for (const entry of rulesFor(state, "battleStart")) {
+      const next = tryRule(c, state, entry);
+      if (next) state = runNow(c, next, entry.rule.effects);
+    }
+    return checkBattleEnd(c, state);
   }
 
   function rollDamage(state: GameState, attack: number, power: number, defense: number): [number, GameState] {
@@ -218,137 +482,221 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
 
   /**
    * Damage pipeline, in this fixed order:
-   * ① formula → ② systems.modifyDamage → ③ lethal check → systems.onLethalDamage (first outcome wins) → ④ commit HP.
+   * ① formula → ② rules (dealDamage/takeDamage) then systems.modifyDamage → ③ lethal: rules (lethalDamage) then systems.onLethalDamage, first wins → ④ commit HP.
    */
-  function damage(c: Ctx, state: GameState, battle: BattleState, target: "player" | "enemy", raw: number): { state: GameState; battle: BattleState; amount: number; notes: string[] } {
-    const enemy = enemyOf(battle.enemyId);
+  function applyDamage(c: Ctx, state: GameState, target: "player" | "enemy", raw: number): [GameState, number] {
+    const enemy = enemyOf(battleOf(state)!.enemyId);
     let amount = raw;
-    for (const system of c.systems) {
+    for (const entry of rulesFor(state, target === "enemy" ? "dealDamage" : "takeDamage")) {
+      const next = tryRule(c, state, entry, { damage: amount });
+      if (!next) continue;
+      state = next;
+      if (entry.rule.modify?.damage !== undefined) amount = Math.max(0, ex(entry.rule.modify.damage, state, { damage: amount }));
+      state = runNow(c, state, entry.rule.effects, { damage: amount });
+    }
+    for (const system of sorted) {
+      const battle = battleOf(state)!;
       const changed = system.modifyDamage?.({ content, state, battle, enemy, target, amount, battleData: battle.systemData[system.id] });
       if (typeof changed === "number" && Number.isFinite(changed)) amount = Math.max(0, Math.floor(changed));
     }
-    const notes: string[] = [];
     if (target === "enemy") {
-      return { state, battle: { ...battle, enemyHp: Math.max(0, battle.enemyHp - amount) }, amount, notes };
+      const battle = battleOf(state)!;
+      c.cues.push({ kind: "hit", target: "enemy", amount });
+      return [setBattle(state, { ...battle, enemyHp: Math.max(0, battle.enemyHp - amount) }), amount];
     }
     const hpBefore = state.player.hp;
     let hp = Math.max(0, hpBefore - amount);
     if (hp === 0) {
-      for (const system of c.systems) {
-        const outcome = system.onLethalDamage?.({ content, state, battle, enemy, target, amount, battleData: battle.systemData[system.id], hpBefore });
-        if (!outcome) continue;
-        hp = Math.max(0, Math.min(state.player.stats.maxHp, Math.floor(outcome.hp)));
-        if (outcome.message) notes.push(outcome.message);
-        if (outcome.battleData !== undefined) battle = { ...battle, systemData: { ...battle.systemData, [system.id]: outcome.battleData } };
-        break;
+      let saved = false;
+      for (const entry of rulesFor(state, "lethalDamage")) {
+        const next = tryRule(c, state, entry, { damage: amount });
+        if (!next) continue;
+        state = runNow(c, next, entry.rule.effects, { damage: amount });
+        if (entry.rule.modify?.hp !== undefined) { hp = Math.max(0, Math.min(stats(state).maxHp, ex(entry.rule.modify.hp, state, { damage: amount }))); saved = true; break; }
+      }
+      if (!saved) {
+        for (const system of sorted) {
+          const battle = battleOf(state)!;
+          const outcome = system.onLethalDamage?.({ content, state, battle, enemy, target, amount, battleData: battle.systemData[system.id], hpBefore });
+          if (!outcome) continue;
+          hp = Math.max(0, Math.min(stats(state).maxHp, Math.floor(outcome.hp)));
+          if (outcome.message) state = battleLog(state, outcome.message);
+          if (outcome.battleData !== undefined) { const b = battleOf(state)!; state = setBattle(state, { ...b, systemData: { ...b.systemData, [system.id]: outcome.battleData } }); }
+          break;
+        }
       }
     }
-    return { state: { ...state, player: { ...state.player, hp } }, battle, amount, notes };
+    c.cues.push({ kind: "hit", target: "player", amount });
+    return [{ ...state, player: { ...state.player, hp } }, amount];
+  }
+
+  /** Resolves victory / defeat after anything that may have changed HP. */
+  function checkBattleEnd(c: Ctx, state: GameState): GameState {
+    let battle = battleOf(state);
+    if (!battle || battle.outcome !== "ongoing") return state;
+    const enemy = enemyOf(battle.enemyId);
+    if (battle.enemyHp <= 0) {
+      state = battleLog(state, `${enemy.name}を倒した！`);
+      for (const drop of enemy.drops) {
+        state = { ...state, items: { ...state.items, [drop.item]: (state.items[drop.item] ?? 0) + drop.count } };
+        state = battleLog(state, `${itemName(drop.item)}を${drop.count}個手に入れた。`);
+      }
+      const after: Effect[] = [];
+      for (const entry of rulesFor(state, "victory")) { const next = tryRule(c, state, entry); if (next) { state = next; after.push(...entry.rule.effects); } }
+      battle = battleOf(state)!;
+      c.cues.push({ kind: "battleEnd", outcome: "victory" });
+      c.log.push(`勝利: ${enemy.name}`);
+      return setBattle(state, { ...battle, outcome: "victory", after: [...battle.after, ...after] });
+    }
+    if (state.player.hp <= 0) {
+      state = battleLog(state, `${content.project.player.name}は倒れた……`);
+      const after: Effect[] = [];
+      for (const entry of rulesFor(state, "defeat")) { const next = tryRule(c, state, entry); if (next) { state = next; after.push(...entry.rule.effects); } }
+      battle = battleOf(state)!;
+      c.cues.push({ kind: "battleEnd", outcome: "defeat" });
+      c.log.push(`敗北: ${enemy.name}`);
+      return setBattle(state, { ...battle, outcome: "defeat", after: [...battle.after, ...after] });
+    }
+    return state;
+  }
+
+  function usableBlock(state: GameState, use: Use, where: "battle" | "field"): string | undefined {
+    if (use.where !== "both" && use.where !== where) return where === "battle" ? "戦闘では使えない" : "戦闘中しか使えない";
+    if (!ev(use.when, state)) return "条件を満たしていない";
+    for (const cost of use.cost) {
+      const need = ex(cost.amount, state);
+      if (ex({ var: cost.var }, state) < need) return `${content.project.variables[cost.var]?.label ?? cost.var}が${need}必要`;
+    }
+    return undefined;
+  }
+
+  function itemUse(id: string): Use | undefined {
+    const item = db.items.find(i => i.id === id);
+    if (!item) return undefined;
+    if (item.use) return item.use;
+    if (item.heal) return { where: "both", cost: [], effects: [{ type: "heal", amount: item.heal }], consume: true };
+    return undefined;
+  }
+
+  function usables(state: GameState, where: "battle" | "field"): Usable[] {
+    const out: Usable[] = [];
+    for (const id of abilitiesOf(state, content)) {
+      const a = db.abilities.find(x => x.id === id);
+      if (!a?.use || (a.use.where !== "both" && a.use.where !== where)) continue;
+      out.push({ id, name: a.use.label ?? a.name, kind: "ability", use: a.use, blocked: usableBlock(state, a.use, where) });
+    }
+    for (const [id, count] of Object.entries(state.items)) {
+      const use = itemUse(id);
+      if (!use || (use.where !== "both" && use.where !== where)) continue;
+      out.push({ id, name: itemName(id), kind: "item", use, blocked: usableBlock(state, use, where), count });
+    }
+    return out;
+  }
+
+  /** Pays costs and returns the effects to run, or a reason it can't be used. */
+  function payForUse(c: Ctx, state: GameState, kind: "ability" | "item", id: string, where: "battle" | "field"): [GameState, Effect[]] | string {
+    const use = kind === "item" ? ((state.items[id] ?? 0) > 0 ? itemUse(id) : undefined) : abilitiesOf(state, content).includes(id) ? db.abilities.find(a => a.id === id)?.use : undefined;
+    if (!use) return "使えない";
+    const blocked = usableBlock(state, use, where);
+    if (blocked) return blocked;
+    for (const cost of use.cost) state = { ...state, vars: { ...state.vars, [cost.var]: clampVar(cost.var, ex({ var: cost.var }, state) - ex(cost.amount, state)) } };
+    if (use.hpCost !== undefined) state = { ...state, player: { ...state.player, hp: Math.max(1, state.player.hp - ex(use.hpCost, state)) } };
+    if (kind === "item" && use.consume) {
+      const items = { ...state.items };
+      if ((items[id] ?? 0) > 1) items[id] = items[id]! - 1; else delete items[id];
+      state = { ...state, items };
+    }
+    c.log.push(`${kind === "item" ? itemName(id) : abilityName(id)}を使用`);
+    return [state, use.effects];
   }
 
   function battleStep(c: Ctx, state: GameState, command: BattleCommand): GameState {
-    if (state.scene.kind !== "battle") return state;
-    let battle = state.scene.battle;
-    if (battle.outcome !== "ongoing") return state;
+    let battle = battleOf(state);
+    if (!battle || battle.outcome !== "ongoing") return state;
     const enemy = enemyOf(battle.enemyId);
-    const lines: string[] = [];
-    battle = { ...battle, guarding: false };
+    const name = content.project.player.name;
+    state = setBattle(state, { ...battle, guarding: false });
 
     if (command.command === "attack") {
-      const [raw, next] = rollDamage(state, state.player.stats.attack, 0, enemy.stats.defense);
-      const hit = damage(c, next, battle, "enemy", raw);
-      state = hit.state; battle = hit.battle;
-      c.cues.push({ kind: "hit", target: "enemy", amount: hit.amount });
-      lines.push(`${content.project.player.name}の攻撃！ ${enemy.name}に${hit.amount}のダメージ。`);
+      const [raw, next] = rollDamage(state, stats(state).attack, 0, enemy.stats.defense);
+      const [after, amount] = applyDamage(c, next, "enemy", raw);
+      state = battleLog(after, `${name}の攻撃！ ${enemy.name}に${amount}のダメージ。`);
     } else if (command.command === "guard") {
-      battle = { ...battle, guarding: true };
-      lines.push(`${content.project.player.name}は身を守っている。`);
-    } else if (command.command === "item") {
-      const item = content.database.items.find(i => i.id === command.item);
-      if (!item?.heal || !(state.items[item.id] ?? 0)) {
-        lines.push("使えるアイテムがない。");
-        return { ...state, scene: { kind: "battle", battle: { ...battle, log: [...battle.log, ...lines].slice(-8) } } };
-      }
-      const hp = Math.min(state.player.stats.maxHp, state.player.hp + item.heal);
-      const items = { ...state.items };
-      if ((items[item.id] ?? 0) > 1) items[item.id] = items[item.id]! - 1; else delete items[item.id];
-      lines.push(`${item.name}を使った。HPが${hp - state.player.hp}回復した。`);
-      state = { ...state, items, player: { ...state.player, hp } };
+      state = battleLog(setBattle(state, { ...battleOf(state)!, guarding: true }), `${name}は身を守っている。`);
+    } else if (command.command === "item" || command.command === "skill") {
+      const kind = command.command === "item" ? "item" : "ability";
+      const id = command.command === "item" ? command.item : command.ability;
+      const label = kind === "item" ? itemName(id) : db.abilities.find(a => a.id === id)?.use?.label ?? abilityName(id);
+      const before = state.player.hp;
+      const paid = payForUse(c, state, kind, id, "battle");
+      if (typeof paid === "string") return battleLog(state, `${label}: ${paid}。`);
+      state = battleLog(paid[0], `${name}は${label}を使った！`);
+      state = runNow(c, state, paid[1]);
+      if (state.player.hp > before) state = battleLog(state, `HPが${state.player.hp - before}回復した。`);
     } else if (command.command === "flee") {
-      if (!battle.canFlee) {
-        lines.push("逃げられない！");
-      } else {
-        const [roll, next] = random(state);
-        state = next;
+      if (!battleOf(state)!.canFlee) state = battleLog(state, "逃げられない！");
+      else {
+        let roll: number;
+        [roll, state] = random(state);
         if (roll < 0.6) {
-          lines.push("うまく逃げ切れた。");
-          battle = { ...battle, outcome: "fled", log: [...battle.log, ...lines].slice(-8) };
           c.cues.push({ kind: "battleEnd", outcome: "fled" });
-          return { ...state, scene: { kind: "battle", battle } };
+          state = battleLog(state, "うまく逃げ切れた。");
+          return setBattle(state, { ...battleOf(state)!, outcome: "fled" });
         }
-        lines.push("逃げられなかった！");
+        state = battleLog(state, "逃げられなかった！");
       }
     }
+    state = checkBattleEnd(c, state);
+    if (battleOf(state)!.outcome !== "ongoing") return state;
 
-    if (battle.enemyHp <= 0) {
-      lines.push(`${enemy.name}を倒した！`);
-      for (const drop of enemy.drops) {
-        state = { ...state, items: { ...state.items, [drop.item]: (state.items[drop.item] ?? 0) + drop.count } };
-        lines.push(`${itemName(drop.item)}を${drop.count}個手に入れた。`);
+    // Enemy turn: actions whose `when` holds, used in order and cycling.
+    battle = battleOf(state)!;
+    const available = enemy.actions.filter(action => ev(action.when, state));
+    const action = available.length ? available[battle.turn % available.length]! : null;
+    if (action) {
+      state = battleLog(state, text(action.message ?? `${enemy.name}の${action.name}！`, state));
+      if (action.power > 0) {
+        const guarding = battleOf(state)!.guarding;
+        const [rolled, next] = rollDamage(state, enemy.stats.attack, action.power, stats(state).defense);
+        // Guarding halves the damage at step ① (before rules and systems see it).
+        const [after, amount] = applyDamage(c, next, "player", guarding ? Math.max(1, Math.ceil(rolled / 2)) : rolled);
+        state = battleLog(after, `${amount}のダメージを受けた。`);
       }
-      c.cues.push({ kind: "battleEnd", outcome: "victory" });
-      c.log.push(`勝利: ${enemy.name}`);
-      return { ...state, scene: { kind: "battle", battle: { ...battle, outcome: "victory", log: [...battle.log, ...lines].slice(-8) } } };
+      state = runNow(c, state, action.effects);
     }
-
-    // Enemy turn. An action with power 0 is a non-damaging move (a wind-up / telegraph).
-    const action = enemy.actions[battle.turn % enemy.actions.length]!;
-    lines.push(action.message ?? `${enemy.name}の${action.name}！`);
-    if (action.power > 0) {
-      const [rolled, next] = rollDamage(state, enemy.stats.attack, action.power, state.player.stats.defense);
-      // Guarding halves the damage at step ① (before systems see it).
-      const raw = battle.guarding ? Math.max(1, Math.ceil(rolled / 2)) : rolled;
-      const hit = damage(c, next, battle, "player", raw);
-      state = hit.state; battle = hit.battle;
-      c.cues.push({ kind: "hit", target: "player", amount: hit.amount });
-      lines.push(`${hit.amount}のダメージを受けた。`);
-      lines.push(...hit.notes);
+    state = checkBattleEnd(c, state);
+    if (battleOf(state)!.outcome !== "ongoing") return state;
+    for (const entry of rulesFor(state, "turnEnd")) {
+      const next = tryRule(c, state, entry);
+      if (next) state = runNow(c, next, entry.rule.effects);
     }
-    battle = { ...battle, turn: battle.turn + 1 };
-    if (state.player.hp <= 0) {
-      lines.push(`${content.project.player.name}は倒れた……`);
-      battle = { ...battle, outcome: "defeat" };
-      c.cues.push({ kind: "battleEnd", outcome: "defeat" });
-      c.log.push(`敗北: ${enemy.name}`);
-    }
-    return { ...state, scene: { kind: "battle", battle: { ...battle, log: [...battle.log, ...lines].slice(-8) } } };
+    state = checkBattleEnd(c, state);
+    battle = battleOf(state)!;
+    return setBattle(state, { ...battle, turn: battle.turn + 1 });
   }
 
   function closeBattle(c: Ctx, state: GameState): GameState {
-    if (state.scene.kind !== "battle") return state;
-    const battle = state.scene.battle;
-    if (battle.outcome === "ongoing") return state;
+    const battle = battleOf(state);
+    if (!battle || battle.outcome === "ongoing") return state;
     if (battle.outcome === "victory") {
-      return runQueue(c, enqueue({ ...state, scene: { kind: "field" } }, battle.onVictory));
+      return runQueue(c, enqueue({ ...state, scene: { kind: "field" } }, [...battle.onVictory, ...battle.after]));
     }
-    if (battle.outcome === "fled") return { ...state, scene: { kind: "field" }, queue: [] };
-    // Defeat.
+    if (battle.outcome === "fled") return runQueue(c, { ...state, scene: { kind: "field" }, queue: battle.after });
     if (battle.onDefeat === "continue") {
-      return { ...state, scene: { kind: "field" }, queue: [], player: { ...state.player, hp: 1 } };
+      return runQueue(c, { ...state, scene: { kind: "field" }, queue: battle.after, player: { ...state.player, hp: 1 } });
     }
     const { start } = content.project;
     if (state.mapId !== start.mapId) c.cues.push({ kind: "mapChanged", from: state.mapId });
     return {
       ...state,
       mapId: start.mapId,
-      player: { ...state.player, x: start.x, y: start.y, facing: start.facing, hp: state.player.stats.maxHp },
-      queue: [],
+      player: { ...state.player, x: start.x, y: start.y, facing: start.facing, hp: stats(state).maxHp },
+      queue: battle.after,
       scene: { kind: "message", text: "目の前が暗くなった……。気がつくと、見慣れた場所に戻っていた。" },
     };
   }
 
   /* ---------------------------------------------------------------- field */
-
   function move(c: Ctx, state: GameState, direction: Direction): GameState {
     const map = content.maps[state.mapId];
     if (!map) throw new Error(`現在のマップ '${state.mapId}' がありません`);
@@ -362,17 +710,18 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     state = { ...state, steps: state.steps + 1, player: { ...state.player, ...to } };
     c.cues.push({ kind: "moved", from });
 
-    const portal = map.portals.find(p => p.x === to.x && p.y === to.y && evaluate(p.when, state));
-    if (portal) {
-      return applyEffect(c, state, { type: "teleport", mapId: portal.targetMapId, x: portal.targetX, y: portal.targetY, ...(portal.facing ? { facing: portal.facing } : {}) });
-    }
+    const portal = map.portals.find(p => p.x === to.x && p.y === to.y && ev(p.when, state));
+    if (portal) return runQueue(c, applyEffect(c, state, { type: "teleport", mapId: portal.targetMapId, x: portal.targetX, y: portal.targetY, ...(portal.facing ? { facing: portal.facing } : {}) }));
+    state = fireFieldRules(c, state, "step");
     const touch = visibleInteractables(state, map).find(item => item.trigger === "touch" && item.x === to.x && item.y === to.y);
     if (touch) {
       const event = content.events[touch.event];
-      if (event) return runQueue(c, runEvent(c, state, event));
+      if (event) return runQueue(c, enqueue(state, eventEffects(c, state, event)));
     }
+    state = runQueue(c, state);
+    if (state.scene.kind !== "field") return state;
     if (map.encounters && map.encounters.rate > 0) {
-      const code = Array.from(map.rows[to.y] ?? "")[to.x] ?? "";
+      const code = codeAt(state, map, to.x, to.y);
       if (!map.encounters.tiles.length || map.encounters.tiles.includes(code)) {
         let roll: number;
         [roll, state] = random(state);
@@ -393,7 +742,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const front = { x: state.player.x + DELTAS[state.player.facing].x, y: state.player.y + DELTAS[state.player.facing].y };
     const npc = visibleNpcs(state, map).find(n => n.x === front.x && n.y === front.y);
     if (npc) {
-      const entry = npc.dialogues.find(d => evaluate(d.when, state));
+      const entry = npc.dialogues.find(d => ev(d.when, state));
       if (!entry) return state;
       c.log.push(`${npc.name}に話しかけた`);
       return runQueue(c, enqueue(state, [{ type: "dialogue", dialogue: entry.dialogue }]));
@@ -403,24 +752,49 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     if (target) {
       const event = content.events[target.event];
       if (!event) throw new Error(`イベント '${target.event}' がありません`);
-      return runQueue(c, runEvent(c, state, event));
+      return runQueue(c, enqueue(state, eventEffects(c, state, event)));
     }
     return state;
   }
 
-  function useFieldItem(c: Ctx, state: GameState, itemId: string): GameState {
-    const item = content.database.items.find(i => i.id === itemId);
-    if (!item?.heal || !(state.items[itemId] ?? 0)) return state;
-    if (state.player.hp >= state.player.stats.maxHp) return { ...state, scene: { kind: "message", text: "HPは満タンだ。" } };
-    const hp = Math.min(state.player.stats.maxHp, state.player.hp + item.heal);
-    const items = { ...state.items };
-    if ((items[itemId] ?? 0) > 1) items[itemId] = items[itemId]! - 1; else delete items[itemId];
-    c.log.push(`${item.name}を使用`);
-    return { ...state, items, player: { ...state.player, hp }, scene: { kind: "message", text: `${item.name}を使った。HPが${hp - state.player.hp}回復した。` } };
+  function fieldUse(c: Ctx, state: GameState, kind: "ability" | "item", id: string): GameState {
+    const paid = payForUse(c, state, kind, id, "field");
+    if (typeof paid === "string") return { ...state, scene: { kind: "message", text: paid } };
+    return runQueue(c, enqueue(paid[0], paid[1]));
+  }
+
+  function baseState(seed: number): GameState {
+    const { project } = content;
+    return {
+      mapId: project.start.mapId,
+      player: { x: project.start.x, y: project.start.y, facing: project.start.facing, hp: project.player.stats.maxHp, stats: { ...project.player.stats } },
+      abilities: [...project.player.abilities],
+      traits: [],
+      items: { ...project.player.items },
+      flags: Object.fromEntries(Object.entries(project.flags).map(([id, decl]) => [id, decl.initial])),
+      vars: Object.fromEntries(Object.entries(project.variables).map(([id, decl]) => [id, decl.initial])),
+      tileOverrides: {},
+      fired: [],
+      done: [],
+      scene: { kind: "field" },
+      queue: [],
+      systemData: {},
+      rng: seed >>> 0,
+      steps: 0,
+    };
+  }
+
+  function newGame(seed = DEFAULT_SEED): GameState {
+    const c: Ctx = { log: [], cues: [] };
+    let state = withHpCare(baseState(seed), s => s);
+    state = { ...state, player: { ...state.player, hp: stats(state).maxHp } };
+    const initialTraits: Effect[] = content.project.player.traits.map(trait => ({ type: "grantTrait", trait }));
+    state = runQueue(c, enqueue(state, [...initialTraits, ...content.project.intro]));
+    return runAuto(c, state);
   }
 
   function step(state: GameState, action: Action): StepResult {
-    const c = ctx();
+    const c: Ctx = { log: [], cues: [] };
     let next = state;
     const scene = state.scene;
     switch (action.type) {
@@ -435,21 +809,30 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         next = interact(c, state);
         break;
       case "useItem":
-        if (scene.kind === "field") next = useFieldItem(c, state, action.item);
+        if (scene.kind === "field") next = fieldUse(c, state, "item", action.item);
+        break;
+      case "useAbility":
+        if (scene.kind === "field") next = fieldUse(c, state, "ability", action.ability);
         break;
       case "advance":
         if (scene.kind === "message") next = runQueue(c, { ...state, scene: { kind: "field" } });
         else if (scene.kind === "dialogue") {
           const dialogue = content.dialogues[scene.dialogueId]!;
-          if (scene.line + 1 < dialogue.lines.length) next = { ...state, scene: { ...scene, line: scene.line + 1 } };
-          else if (dialogue.choices.some(choice => evaluate(choice.when, state))) next = { ...state, scene: { kind: "choice", dialogueId: dialogue.id } };
+          const lines = dialogueLines(state, dialogue.id);
+          if (scene.line + 1 < lines.length) next = { ...state, scene: { ...scene, line: scene.line + 1 } };
+          else if (dialogue.choices.some(choice => ev(choice.when, state))) next = { ...state, scene: { kind: "choice", dialogueId: dialogue.id } };
           else next = runQueue(c, enqueue({ ...state, scene: { kind: "field" } }, dialogue.effects));
         } else if (scene.kind === "battle") next = closeBattle(c, state);
         break;
       case "choose": {
+        if (scene.kind === "prompt") {
+          const option = scene.options.find(o => o.id === action.choiceId || o.label === action.choiceId);
+          if (option) next = runQueue(c, enqueue({ ...state, scene: { kind: "field" } }, option.effects));
+          break;
+        }
         if (scene.kind !== "choice") break;
         const dialogue = content.dialogues[scene.dialogueId]!;
-        const choice = dialogue.choices.find(item => item.id === action.choiceId && evaluate(item.when, state));
+        const choice = dialogue.choices.find(item => (item.id === action.choiceId || item.label === action.choiceId) && ev(item.when, state));
         if (!choice) break;
         const key = `${dialogue.id}/${choice.id}`;
         let effects = choice.effects;
@@ -464,12 +847,14 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         next = battleStep(c, state, action);
         break;
     }
+    if (next !== state) next = runAuto(c, next);
     return { state: next, log: c.log, cues: c.cues };
   }
 
   function run(state: GameState, effects: Effect[]): StepResult {
-    const c = ctx();
-    const next = runQueue(c, enqueue(state, effects));
+    const c: Ctx = { log: [], cues: [] };
+    let next = state.scene.kind === "battle" ? checkBattleEnd(c, runNow(c, state, effects)) : runQueue(c, enqueue(state, effects));
+    next = runAuto(c, next);
     return { state: next, log: c.log, cues: c.cues };
   }
 
@@ -481,8 +866,16 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     run,
     isPassable: (state, x, y) => isPassable(state, x, y),
     tileAt,
-    tileIndex: (state, tile) => (tile.openIndex !== undefined && tile.passableWhen && evaluate(tile.passableWhen, state) ? tile.openIndex : tile.index),
+    codeAt,
+    rowsFor,
+    tileIndex: (state, tile) => (tile.openIndex !== undefined && tile.passableWhen && ev(tile.passableWhen, state) ? tile.openIndex : tile.index),
     visibleNpcs,
     visibleInteractables,
+    dialogueLines,
+    stats,
+    abilities: state => abilitiesOf(state, content),
+    usables,
+    text: (state, template) => text(template, state),
+    evaluate: (condition, state) => ev(condition, state),
   };
 }

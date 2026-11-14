@@ -1,0 +1,127 @@
+{
+  "name": "獣人: 最初から獣道を知っていて、リオの台詞が変わり、かみつきが使える",
+  "seed": 2,
+  "steps": [
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "prompt",
+        "textIncludes": "種族"
+      }
+    },
+    {
+      "choose": "beastfolk"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "traits": [
+          "beastfolk"
+        ],
+        "abilities": [
+          "beast-trail",
+          "bite"
+        ],
+        "stats": {
+          "attack": 6
+        }
+      }
+    },
+    {
+      "walkTo": {
+        "x": 5,
+        "y": 9
+      }
+    },
+    {
+      "face": "up"
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "scene": "dialogue",
+        "textIncludes": "同じ獣人"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "walkTo": {
+        "x": 18,
+        "y": 9
+      }
+    },
+    {
+      "walkTo": {
+        "x": 9,
+        "y": 9
+      }
+    },
+    {
+      "face": "up"
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "flags": {
+          "ruinsShortcutOpen": true
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "setVar",
+          "var": "spirit",
+          "value": 2
+        },
+        {
+          "type": "battle",
+          "enemy": "cave-bat"
+        }
+      ]
+    },
+    {
+      "skill": "bite"
+    },
+    {
+      "expect": {
+        "vars": {
+          "spirit": 0
+        },
+        "battleOutcome": "victory"
+      }
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "textIncludes": "ゴールドを拾った",
+        "vars": {
+          "victories": 1
+        }
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    }
+  ]
+}

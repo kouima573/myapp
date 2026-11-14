@@ -1,9 +1,29 @@
 {
-  "name": "不屈の魂は1戦闘に1回だけ致命傷をHP1でこらえ、2度目の致命傷では倒れる",
-  "seed": 4,
+  "name": "不屈の魂（データだけで実装）は1戦闘に1回だけ致命傷をHP1でこらえる",
+  "seed": 1,
   "steps": [
     {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "prompt",
+        "textIncludes": "種族"
+      }
+    },
+    {
+      "choose": "dwarf"
+    },
+    {
+      "advance": "all"
+    },
+    {
       "effects": [
+        {
+          "type": "damage",
+          "target": "player",
+          "amount": 100
+        },
         {
           "type": "battle",
           "enemy": "stone-sentinel",
@@ -12,10 +32,9 @@
       ]
     },
     {
-      "battle": "attack"
-    },
-    {
-      "battle": "attack"
+      "expect": {
+        "hpAtLeast": 1
+      }
     },
     {
       "battle": "attack"
@@ -25,6 +44,9 @@
         "textIncludes": "不屈の魂！ 致命傷をHP1でこらえた。",
         "battleOutcome": "ongoing"
       }
+    },
+    {
+      "battle": "attack"
     },
     {
       "battle": "attack"
@@ -45,20 +67,11 @@
     {
       "effects": [
         {
-          "type": "heal"
-        },
-        {
           "type": "battle",
           "enemy": "stone-sentinel",
           "onDefeat": "continue"
         }
       ]
-    },
-    {
-      "battle": "attack"
-    },
-    {
-      "battle": "attack"
     },
     {
       "battle": "attack"

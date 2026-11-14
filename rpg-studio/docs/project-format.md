@@ -1,4 +1,4 @@
-# プロジェクト形式 v2
+# プロジェクト形式 v2（エンジン0.3で上位互換の拡張）
 
 正本は `projects/<id>/` のGit管理ファイルです。型と実行時スキーマは `packages/schema/src/formats.ts`（Zod）が唯一の定義で、`rpg validate` と工房が同じ検証（`loadProjectContent`）を使います。
 
@@ -9,40 +9,91 @@
 | `maps/*.json` | `rows`（タイルコードの文字列）、`npcs`、`portals`、`interactables`、任意の `encounters` |
 | `dialogues/*.json` | 会話（話者・行・最後の `effects`・`choices`） |
 | `events/*.json` | イベント（`when` 条件・`effects`・`otherwise`・`once`・`afterDone`） |
-| `database.json` | 能力・アイテム・敵 |
+| `database.json` | 特性（種族など）・能力・アイテム・敵 |
+| `rules.json`（任意） | 常に有効な全体ルール（`project.json` の `rulesPath`） |
 | `assets.json` | 素材ID・パス・種別・寸法・出典（素材形式は v1 のまま） |
 | `systems/*.ts` | データで表せない独自ルール（[extension-api.md](extension-api.md)） |
 | `tests/*.scenario.json` | 自動プレイテスト（[scenario-tests.md](scenario-tests.md)） |
 
+## 変数とフラグ
+
+```jsonc
+"flags":     { "metElder": { "initial": false, "description": "長老に会った" } },
+"variables": { "gold": { "initial": 0, "min": 0, "label": "ゴールド", "hud": true }, "trust_rio": { "initial": 0, "min": -10, "max": 10 } }
+```
+
+どちらも名前は自由ですが、宣言が必要です（打ち間違いを検出するため）。変数は整数で、`min`/`max` で自動的に範囲内に収まります。`label` を付けるとメニューに、`hud: true` で画面上部に表示されます。
+
+## 式（Expr）
+
+数値を書ける場所（変数の値、ダメージ量、回復量、確率、比較など）には、すべて式が書けます。
+
+```jsonc
+12                                   // 数
+{ "var": "gold" }  { "count": "herb" }  { "stat": "attack" }  { "hp": true }  { "steps": true }
+{ "ctx": "damage" }                  // ルール内: damage / turn / enemyHp / enemyMaxHp / enemyAttack / enemyDefense
+{ "add": [a, b, ...] } { "sub": [a, b] } { "mul": [...] } { "div": [a, b] } { "mod": [a, b] } { "min": [...] } { "max": [...] }
+{ "percent": [value, pct] }          // value × pct ÷ 100（切り捨て）
+{ "if": 条件, "then": 式, "else": 式 }
+```
+
+`{"stat"}` は特性・能力・アイテムによる補正込みの値です。
+
 ## 条件（Condition）
 
 ```jsonc
-{ "flag": "sentinelCalmed" }            // フラグがtrue（"is": false で偽を判定）
-{ "ability": "beast-trail" }            // 能力を持つ
-{ "item": "herb", "atLeast": 2 }        // アイテムを2個以上
-{ "done": "sentinel-battle" }           // 完了済み（onceイベントID、"会話ID/選択肢ID"、markDoneのID）
-{ "all": [ ... ] } / { "any": [ ... ] } / { "not": { ... } }
+{ "flag": "sentinelCalmed" }                       // フラグがtrue（"is": false で偽）
+{ "var": "gold", "op": ">=", "value": 10 }         // 変数の比較（op: == != > >= < <=、valueは式）
+{ "compare": [式, ">", 式] }                        // 任意の式どうしの比較
+{ "ability": "beast-trail" }  { "trait": "dwarf" }  { "item": "herb", "atLeast": 2 }
+{ "done": "sentinel-battle" }                      // 完了済み（onceイベント、"会話ID/選択肢ID"、markDoneのID）
+{ "map": "ruins" }  { "inBattle": true }  { "enemy": "stone-sentinel" }  { "enemyTag": "undead" }
+{ "all": [...] } / { "any": [...] } / { "not": {...} }
 ```
-
-使えるのは `project.json` の `flags` に宣言したフラグだけです。打ち間違いは検証エラーになります。
 
 ## 効果（Effect）
 
-上から順に実行します。`message`・`dialogue`・`battle` は画面を止め、プレイヤーが閉じた後に残りが続きます（効果キュー）。
+上から順に実行されます。`message`・`dialogue`・`choice`・`battle` は画面を止め、プレイヤーが閉じた後に残りの効果が続きます（効果キュー）。戦闘中に実行された場合は、文章は戦闘ログに出ます。`dialogue`・`choice`・`teleport`・`battle` は戦闘が終わった後に実行されます。
 
 | type | 例 |
 | --- | --- |
-| `message` | `{ "type": "message", "text": "扉が開いた。", "speaker": "門番" }` |
+| `message` | `{ "type": "message", "text": "所持金は{{var.gold}}G。", "speaker": "門番" }` |
 | `setFlag` | `{ "type": "setFlag", "flag": "gateOpen", "value": true }` |
-| `unlockAbility` | `{ "type": "unlockAbility", "ability": "beast-trail" }`（重複しない） |
-| `giveItem` / `takeItem` | `{ "type": "giveItem", "item": "herb", "count": 2 }` |
-| `heal` | `{ "type": "heal" }`（量省略で全回復） |
-| `teleport` | `{ "type": "teleport", "mapId": "ruins", "x": 3, "y": 9, "facing": "right" }` |
-| `dialogue` | `{ "type": "dialogue", "dialogue": "elder-before" }` |
-| `battle` | `{ "type": "battle", "enemy": "stone-sentinel", "canFlee": false, "onDefeat": "respawn" }`。勝てば後続の効果が続き、負け・逃走ではキューを破棄（イベントの`once`は完了扱いにならず再挑戦できる） |
-| `markDone` | `{ "type": "markDone", "id": "elder-thanks" }` |
+| `setVar` | `{ "type": "setVar", "var": "gold", "op": "add", "value": 10 }`（op: set/add/sub/mul/div/min/max） |
+| `random` | `{ "type": "random", "var": "roll", "min": 1, "max": 100 }` |
+| `chance` | `{ "type": "chance", "percent": 30, "then": [...], "else": [...] }` |
 | `if` | `{ "type": "if", "when": {...}, "then": [...], "else": [...] }` |
-| `system` | `{ "type": "system", "system": "my-rules", "action": "pray", "args": {...} }`（TypeScriptのアクションを呼ぶ） |
+| `setStat` | `{ "type": "setStat", "stat": "attack", "op": "add", "value": 1 }`（基本値を変える：レベルアップ等） |
+| `unlockAbility` / `removeAbility` | `{ "type": "unlockAbility", "ability": "beast-trail" }` |
+| `grantTrait` / `removeTrait` | `{ "type": "grantTrait", "trait": "dwarf" }`（特性の `onGrant` も実行） |
+| `giveItem` / `takeItem` | `{ "type": "giveItem", "item": "herb", "count": 2 }` |
+| `heal` | `{ "type": "heal", "amount": 8 }`（省略で全回復） |
+| `damage` | `{ "type": "damage", "target": "enemy", "amount": {...}, "text": "{{ctx.damage}}のダメージ！" }`（フィールドではHPは1未満にならない） |
+| `teleport` | `{ "type": "teleport", "mapId": "ruins", "x": 3, "y": 9, "facing": "right" }` |
+| `setTile` | `{ "type": "setTile", "mapId": "village", "x": 4, "y": 2, "code": "." }`（セーブに残る地形変更） |
+| `dialogue` | `{ "type": "dialogue", "dialogue": "elder-before" }` |
+| `choice` | `{ "type": "choice", "prompt": "どうする？", "options": [{ "id": "buy", "label": "買う", "when": {...}, "effects": [...] }] }`（条件を満たす選択肢だけ表示） |
+| `event` | `{ "type": "event", "event": "elder-shop" }`（別のイベントを呼ぶ） |
+| `battle` | `{ "type": "battle", "enemy": "stone-sentinel", "canFlee": false, "onDefeat": "respawn" }`。勝てば後続が続き、負け・逃走では後続を破棄（`once`イベントは完了扱いにならず再挑戦できる） |
+| `battleLog` | 戦闘ログに1行（フィールドではメッセージ） |
+| `endBattle` | `{ "type": "endBattle", "outcome": "victory" }`（即勝利／`fled`で離脱） |
+| `markDone` | `{ "type": "markDone", "id": "elder-thanks" }` |
+| `system` | `{ "type": "system", "system": "chronicle", "action": "summary" }`（TypeScriptを呼ぶ） |
+
+文章（message・会話の行・選択肢・戦闘ログ）には `{{var.gold}}` `{{item.herb}}` `{{stat.attack}}` `{{hp}}` `{{maxHp}}` `{{name}}` `{{flag.x}}` `{{enemy}}` `{{ctx.damage}}` `{{trait.種族}}`（そのカテゴリの特性名）を差し込めます。会話の行は `{ "text": "...", "when": {...} }` にすると条件付きで表示されます。
+
+## 特性・能力・アイテム・ルール
+
+- **特性**（`database.json` › `traits`）: `category`（種族・職業など自由）、`statMods`、`abilities`（特性がある間だけ持つ能力）、`rules`、`onGrant`、`tags`。
+- **能力**（`abilities`）: `statMods`、`rules`、`use`（技：`where` battle/field/both、`cost` 変数コスト、`hpCost`、`when`、`effects`）。
+- **アイテム**（`items`）: `heal`（簡易）、`use`（汎用、`consume`）、`statMods`・`rules`（持っているだけで効く）。
+- **ルール**（能力・特性・アイテム・敵、または `rulesPath` の `rules.json`）: `on`（auto / step / mapEnter / battleStart / turnEnd / dealDamage / takeDamage / lethalDamage / victory / defeat）、`when`、`chance`、`once`（battle / map / game）、`repeat`、`priority`、`modify`（damage / hp）、`effects`。詳しい使い方とレシピは [customization-guide.md](customization-guide.md) を参照。
+- **敵**: `tags`（条件 `enemyTag` 用）、`actions[].when`（条件付き行動）、`actions[].effects`、`rules`（その敵との戦闘中だけ有効）。
+- **開始時**: `project.json` の `player.traits`（初期特性）と `intro`（新規ゲーム開始時の効果。種族選択など）。
+
+## 地形の変化
+
+マップの `overlays` は「条件が成り立つ間だけ、指定したマスを別のタイルにする」もの（例：番人を倒すと大岩が消える）。`setTile` 効果は、その場でマスを書き換えてセーブに残します。
 
 ## マップの配置物
 
@@ -53,7 +104,7 @@
 
 ## 戦闘
 
-ダメージ = `max(1, 攻撃力 + 技の威力 − 防御力 ± 1)`。ぼうぎょ中は半分。敵の `actions` はターンごとに順番に使われ、`power: 0` は攻撃しない技（予告・溜めなど）。処理順は「①ダメージ計算 → ②`modifyDamage` → ③致死判定・`onLethalDamage` → ④HP確定」で固定です。
+ダメージ = `max(1, 攻撃力 + 技の威力 − 防御力 ± 1)`（能力値は補正込み）。ぼうぎょ中は半分。コマンドは たたかう／ぼうぎょ／わざ（`use` を持つ能力）／どうぐ／にげる。敵の `actions` は、そのターンに使えるもの（`when`）が順番に使われ、`power: 0` は攻撃しない技（予告・溜めなど）。処理順は「①ダメージ計算 → ②ルール（dealDamage/takeDamage）→ システムの`modifyDamage` → ③致死判定：ルール（lethalDamage）→ システムの`onLethalDamage` → ④HP確定」で固定です。毎ターンの最後に `turnEnd` ルール。
 
 ## 形式バージョンと移行
 
@@ -64,7 +115,7 @@
 
 ## プレイヤーセーブ（形式 v2）
 
-`{ formatVersion, projectId, savedAt, state }`。`state` には現在地・向き・HP・能力値・能力・アイテム・フラグ・完了ID・乱数シード・システム用データを安定IDで記録します。会話や戦闘の途中ではセーブできません。読込時はプロジェクトID・形式・マップの存在・座標を確認し、壊れていても例外にせず理由を表示して新規開始を選べます。v1セーブは読込時に変換します（元データは書き換えません）。後から追加したフラグは初期値で補います。
+`{ formatVersion, projectId, savedAt, state }`。`state` には現在地・向き・HP・基本能力値・能力・特性・アイテム・フラグ・変数・地形変更・発動済みルール・完了ID・乱数シード・システム用データを安定IDで記録します。0.3で増えた項目がない古いセーブも既定値で読み込めます。会話や戦闘の途中ではセーブできません。読込時はプロジェクトID・形式・マップの存在・座標を確認し、壊れていても例外にせず理由を表示して新規開始を選べます。v1セーブは読込時に変換します（元データは書き換えません）。後から追加したフラグは初期値で補います。
 
 ## 画像シート
 

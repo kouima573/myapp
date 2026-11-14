@@ -1,0 +1,1988 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "formatVersion": {
+      "type": "number",
+      "const": 2
+    },
+    "abilities": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "default": "",
+            "type": "string"
+          },
+          "kind": {
+            "default": "passive",
+            "type": "string",
+            "enum": [
+              "passive",
+              "field",
+              "battle"
+            ]
+          },
+          "statMods": {
+            "type": "object",
+            "properties": {
+              "maxHp": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "attack": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "defense": {
+                "$ref": "#/$defs/__schema0"
+              }
+            },
+            "additionalProperties": false
+          },
+          "rules": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 96,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "on": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "step",
+                    "mapEnter",
+                    "battleStart",
+                    "turnEnd",
+                    "dealDamage",
+                    "takeDamage",
+                    "lethalDamage",
+                    "victory",
+                    "defeat"
+                  ]
+                },
+                "when": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "chance": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "once": {
+                  "type": "string",
+                  "enum": [
+                    "battle",
+                    "map",
+                    "game"
+                  ]
+                },
+                "repeat": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "priority": {
+                  "default": 0,
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "modify": {
+                  "type": "object",
+                  "properties": {
+                    "damage": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "hp": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "effects": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema2"
+                  }
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "on"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "use": {
+            "type": "object",
+            "properties": {
+              "where": {
+                "default": "battle",
+                "type": "string",
+                "enum": [
+                  "battle",
+                  "field",
+                  "both"
+                ]
+              },
+              "label": {
+                "type": "string"
+              },
+              "when": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "cost": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "var": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 96,
+                      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                    },
+                    "amount": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "var",
+                    "amount"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "hpCost": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "effects": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/__schema2"
+                }
+              },
+              "consume": {
+                "default": true,
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "effects"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "traits": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "category": {
+            "default": "特性",
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "default": "",
+            "type": "string"
+          },
+          "tags": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "statMods": {
+            "type": "object",
+            "properties": {
+              "maxHp": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "attack": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "defense": {
+                "$ref": "#/$defs/__schema0"
+              }
+            },
+            "additionalProperties": false
+          },
+          "abilities": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "rules": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 96,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "on": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "step",
+                    "mapEnter",
+                    "battleStart",
+                    "turnEnd",
+                    "dealDamage",
+                    "takeDamage",
+                    "lethalDamage",
+                    "victory",
+                    "defeat"
+                  ]
+                },
+                "when": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "chance": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "once": {
+                  "type": "string",
+                  "enum": [
+                    "battle",
+                    "map",
+                    "game"
+                  ]
+                },
+                "repeat": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "priority": {
+                  "default": 0,
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "modify": {
+                  "type": "object",
+                  "properties": {
+                    "damage": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "hp": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "effects": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema2"
+                  }
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "on"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "onGrant": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/__schema2"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "items": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "default": "",
+            "type": "string"
+          },
+          "heal": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "use": {
+            "type": "object",
+            "properties": {
+              "where": {
+                "default": "battle",
+                "type": "string",
+                "enum": [
+                  "battle",
+                  "field",
+                  "both"
+                ]
+              },
+              "label": {
+                "type": "string"
+              },
+              "when": {
+                "$ref": "#/$defs/__schema1"
+              },
+              "cost": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "var": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 96,
+                      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                    },
+                    "amount": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "required": [
+                    "var",
+                    "amount"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "hpCost": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "effects": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/__schema2"
+                }
+              },
+              "consume": {
+                "default": true,
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "effects"
+            ],
+            "additionalProperties": false
+          },
+          "statMods": {
+            "type": "object",
+            "properties": {
+              "maxHp": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "attack": {
+                "$ref": "#/$defs/__schema0"
+              },
+              "defense": {
+                "$ref": "#/$defs/__schema0"
+              }
+            },
+            "additionalProperties": false
+          },
+          "rules": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 96,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "on": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "step",
+                    "mapEnter",
+                    "battleStart",
+                    "turnEnd",
+                    "dealDamage",
+                    "takeDamage",
+                    "lethalDamage",
+                    "victory",
+                    "defeat"
+                  ]
+                },
+                "when": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "chance": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "once": {
+                  "type": "string",
+                  "enum": [
+                    "battle",
+                    "map",
+                    "game"
+                  ]
+                },
+                "repeat": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "priority": {
+                  "default": 0,
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "modify": {
+                  "type": "object",
+                  "properties": {
+                    "damage": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "hp": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "effects": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema2"
+                  }
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "on"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "key": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "enemies": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sprite": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "tags": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "stats": {
+            "type": "object",
+            "properties": {
+              "maxHp": {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9999
+              },
+              "attack": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 999
+              },
+              "defense": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 999
+              }
+            },
+            "required": [
+              "maxHp",
+              "attack",
+              "defense"
+            ],
+            "additionalProperties": false
+          },
+          "actions": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "power": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 999
+                },
+                "message": {
+                  "type": "string"
+                },
+                "when": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "effects": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema2"
+                  }
+                }
+              },
+              "required": [
+                "name",
+                "power"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "drops": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "item": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 96,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "count": {
+                  "default": 1,
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "item"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "rules": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 96,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "on": {
+                  "type": "string",
+                  "enum": [
+                    "auto",
+                    "step",
+                    "mapEnter",
+                    "battleStart",
+                    "turnEnd",
+                    "dealDamage",
+                    "takeDamage",
+                    "lethalDamage",
+                    "victory",
+                    "defeat"
+                  ]
+                },
+                "when": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "chance": {
+                  "$ref": "#/$defs/__schema0"
+                },
+                "once": {
+                  "type": "string",
+                  "enum": [
+                    "battle",
+                    "map",
+                    "game"
+                  ]
+                },
+                "repeat": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "priority": {
+                  "default": 0,
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "modify": {
+                  "type": "object",
+                  "properties": {
+                    "damage": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "hp": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "effects": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema2"
+                  }
+                },
+                "description": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "on"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "canFlee": {
+            "default": true,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "stats",
+          "actions"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "formatVersion"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "__schema0": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "var": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "var"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "count"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "stat": {
+              "type": "string",
+              "enum": [
+                "maxHp",
+                "attack",
+                "defense"
+              ]
+            }
+          },
+          "required": [
+            "stat"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "hp": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "hp"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "steps": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "steps"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ctx": {
+              "type": "string",
+              "enum": [
+                "damage",
+                "turn",
+                "enemyHp",
+                "enemyMaxHp",
+                "enemyAttack",
+                "enemyDefense"
+              ]
+            }
+          },
+          "required": [
+            "ctx"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "add": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "add"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sub": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/__schema0"
+                },
+                {
+                  "$ref": "#/$defs/__schema0"
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "sub"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mul": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "mul"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "div": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/__schema0"
+                },
+                {
+                  "$ref": "#/$defs/__schema0"
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "div"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mod": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/__schema0"
+                },
+                {
+                  "$ref": "#/$defs/__schema0"
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "mod"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "min": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "min"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "max": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema0"
+              }
+            }
+          },
+          "required": [
+            "max"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "percent": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/__schema0"
+                },
+                {
+                  "$ref": "#/$defs/__schema0"
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "percent"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "if": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "then": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "else": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "if",
+            "then",
+            "else"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "__schema1": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "flag": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "is": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "flag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "var": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "op": {
+              "type": "string",
+              "enum": [
+                "==",
+                "!=",
+                ">",
+                ">=",
+                "<",
+                "<="
+              ]
+            },
+            "value": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "var",
+            "op",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "compare": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/__schema0"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    "==",
+                    "!=",
+                    ">",
+                    ">=",
+                    "<",
+                    "<="
+                  ]
+                },
+                {
+                  "$ref": "#/$defs/__schema0"
+                }
+              ],
+              "items": false,
+              "minItems": 3,
+              "maxItems": 3
+            }
+          },
+          "required": [
+            "compare"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ability": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "ability"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "trait": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "trait"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "item": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "atLeast": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "done": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "done"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "map": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "map"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "inBattle": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "inBattle"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "enemy": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "enemy"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "enemyTag": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "enemyTag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "all": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            }
+          },
+          "required": [
+            "all"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "any": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            }
+          },
+          "required": [
+            "any"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "not": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "not"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "__schema2": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "message"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1
+            },
+            "speaker": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "setFlag"
+            },
+            "flag": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "value": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "flag"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "setVar"
+            },
+            "var": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "value": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "op": {
+              "type": "string",
+              "enum": [
+                "set",
+                "add",
+                "sub",
+                "mul",
+                "div",
+                "min",
+                "max"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "var",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "random"
+            },
+            "var": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "min": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "max": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "type",
+            "var",
+            "min",
+            "max"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "chance"
+            },
+            "percent": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "then": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              }
+            },
+            "else": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "percent",
+            "then"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "setStat"
+            },
+            "stat": {
+              "type": "string",
+              "enum": [
+                "maxHp",
+                "attack",
+                "defense"
+              ]
+            },
+            "value": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "op": {
+              "type": "string",
+              "enum": [
+                "set",
+                "add",
+                "sub",
+                "mul",
+                "div",
+                "min",
+                "max"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "stat",
+            "value"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "unlockAbility"
+            },
+            "ability": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "ability"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "removeAbility"
+            },
+            "ability": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "ability"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "grantTrait"
+            },
+            "trait": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "trait"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "removeTrait"
+            },
+            "trait": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "trait"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "giveItem"
+            },
+            "item": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "count": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "type",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "takeItem"
+            },
+            "item": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "count": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "type",
+            "item"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "heal"
+            },
+            "amount": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "damage"
+            },
+            "target": {
+              "type": "string",
+              "enum": [
+                "player",
+                "enemy"
+              ]
+            },
+            "amount": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "amount"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "teleport"
+            },
+            "mapId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "x": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "y": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "facing": {
+              "type": "string",
+              "enum": [
+                "up",
+                "down",
+                "left",
+                "right"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "mapId",
+            "x",
+            "y"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "setTile"
+            },
+            "mapId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "x": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "y": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "code": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1
+            }
+          },
+          "required": [
+            "type",
+            "x",
+            "y",
+            "code"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "dialogue"
+            },
+            "dialogue": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "dialogue"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "choice"
+            },
+            "prompt": {
+              "type": "string"
+            },
+            "speaker": {
+              "type": "string"
+            },
+            "options": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 96,
+                    "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "when": {
+                    "$ref": "#/$defs/__schema1"
+                  },
+                  "effects": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/__schema2"
+                    }
+                  }
+                },
+                "required": [
+                  "label",
+                  "effects"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "type",
+            "options"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "event"
+            },
+            "event": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "event"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "battle"
+            },
+            "enemy": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "onVictory": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              }
+            },
+            "onDefeat": {
+              "type": "string",
+              "enum": [
+                "respawn",
+                "continue"
+              ]
+            },
+            "canFlee": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "enemy"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "battleLog"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "type",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "endBattle"
+            },
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "victory",
+                "fled"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "outcome"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "markDone"
+            },
+            "id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "if"
+            },
+            "when": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "then": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              }
+            },
+            "else": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              }
+            }
+          },
+          "required": [
+            "type",
+            "when",
+            "then"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "system"
+            },
+            "system": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "action": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "args": {
+              "type": "object",
+              "propertyNames": {
+                "type": "string"
+              },
+              "additionalProperties": {}
+            }
+          },
+          "required": [
+            "type",
+            "system",
+            "action"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

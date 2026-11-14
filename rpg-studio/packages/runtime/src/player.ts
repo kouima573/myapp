@@ -3,7 +3,7 @@
  * Used unchanged by the studio play-test and by the static build, so both always behave identically.
  */
 import type { AssetEntry, Direction, GameContent, GameState } from "../../schema/src/formats";
-import { createEngine, evaluate, makeSave, readSave, type Action, type Engine, type GameSystem, type StepResult } from "../../engine/src/index";
+import { createEngine, makeSave, readSave, type Action, type Engine, type GameSystem, type StepResult } from "../../engine/src/index";
 import { directionFromKey, GridMovementAnimator, WALK_ANIMATION_MS, type Point } from "./movement";
 import { drawEnemyPortrait, drawMap, loadImages, npcActors, TILE, type ImageMap } from "./render";
 import { RUNTIME_CSS } from "./styles";
@@ -103,7 +103,6 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   const held: Direction[] = [];
   let talkFacing: Record<string, Direction> = {};
   let selection = 0;
-  let itemPicker = false;
   let menuOpen = false;
   let toast: { text: string; until: number } | null = null;
   let typing = { text: "", startedAt: 0, done: true };
@@ -184,7 +183,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       if (npc) talkFacing = { [npc.id]: OPPOSITE[before.player.facing] };
     }
     if (state.scene.kind === "field") talkFacing = {};
-    if (state.scene.kind !== before.scene.kind || state.scene !== before.scene) { selection = 0; itemPicker = false; }
+    if (state.scene.kind !== before.scene.kind || state.scene !== before.scene) selection = 0;
     if (result.log.length) options.onLog?.(result.log, state);
     if (state !== before) options.onStateChange?.(state);
     renderUI();
@@ -224,7 +223,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   }
 
   function confirm() {
-    if (menuOpen || state.scene.kind === "choice" || (state.scene.kind === "battle")) {
+    if (menuOpen || state.scene.kind === "choice" || state.scene.kind === "prompt" || state.scene.kind === "battle") {
       if (!typing.done) { finishTyping(); return; }
       const list = buttons();
       list[Math.min(selection, list.length - 1)]?.click();
@@ -239,7 +238,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (state.scene.kind === "field" && !animator.update(performance.now()).moving) dispatch({ type: "interact" });
   }
   function cancel() {
-    if (state.scene.kind === "battle" && itemPicker) { itemPicker = false; selection = 0; renderUI(); return; }
+    if (state.scene.kind === "battle" && battlePicker) { battlePicker = null; selection = 0; renderUI(); return; }
     if (state.scene.kind !== "field") return;
     menuOpen = !menuOpen; selection = 0; held.length = 0;
     beeper.play("ok");
@@ -324,12 +323,20 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     windowLayer.replaceChildren();
     portraitCanvas = null;
     const map = content.maps[state.mapId];
+    const eff = engine.stats(state);
     // HUD
     hud.replaceChildren();
-    const title = el("div", "rpg-hud-title", map?.title ?? state.mapId);
+    const left = el("div", "rpg-hud-left");
+    left.append(el("div", "rpg-hud-title", map?.title ?? state.mapId));
+    const hudVars = Object.entries(content.project.variables).filter(([, decl]) => decl.hud);
+    if (hudVars.length) {
+      const vars = el("div", "rpg-hud-vars");
+      for (const [id, decl] of hudVars) vars.appendChild(el("span", undefined, `${decl.label ?? id} ${state.vars[id] ?? decl.initial}`));
+      left.append(vars);
+    }
     const hp = el("div", "rpg-hud-hp");
-    hp.append(el("span", "rpg-hud-label", `${content.project.player.name}  HP ${state.player.hp}/${state.player.stats.maxHp}`), hpBar(state.player.hp, state.player.stats.maxHp, state.player.hp <= state.player.stats.maxHp / 4 ? "is-low" : ""));
-    hud.append(title, hp);
+    hp.append(el("span", "rpg-hud-label", `${content.project.player.name}  HP ${state.player.hp}/${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
+    hud.append(left, hp);
     hud.hidden = state.scene.kind === "battle";
     root.dataset.scene = menuOpen ? "menu" : state.scene.kind;
 
@@ -337,16 +344,21 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (scene.kind === "message") messageWindow(scene.speaker, scene.text);
     else if (scene.kind === "dialogue") {
       const dialogue = content.dialogues[scene.dialogueId]!;
-      messageWindow(dialogue.speaker, dialogue.lines[scene.line] ?? "");
+      messageWindow(dialogue.speaker, engine.dialogueLines(state, dialogue.id)[scene.line] ?? "");
     } else if (scene.kind === "choice") {
       const dialogue = content.dialogues[scene.dialogueId]!;
       const list = el("div", "rpg-window rpg-choices");
       for (const choice of dialogue.choices) {
-        if (!evaluate(choice.when, state)) continue;
-        list.appendChild(navButton(choice.label, () => dispatch({ type: "choose", choiceId: choice.id })));
+        if (!engine.evaluate(choice.when, state)) continue;
+        list.appendChild(navButton(engine.text(state, choice.label), () => dispatch({ type: "choose", choiceId: choice.id })));
       }
-      messageWindow(dialogue.speaker, dialogue.lines[dialogue.lines.length - 1] ?? "", list);
+      messageWindow(dialogue.speaker, engine.dialogueLines(state, dialogue.id).at(-1) ?? "", list);
       typing = { ...typing, done: true };
+    } else if (scene.kind === "prompt") {
+      const list = el("div", "rpg-window rpg-choices");
+      for (const option of scene.options) list.appendChild(navButton(option.label, () => dispatch({ type: "choose", choiceId: option.id })));
+      if (scene.prompt) { messageWindow(scene.speaker, scene.prompt, list); typing = { ...typing, done: true }; }
+      else windowLayer.appendChild(list);
     } else if (scene.kind === "battle") renderBattle(scene.battle);
     else if (menuOpen) renderMenu();
     if (toast && toast.until > performance.now()) windowLayer.appendChild(el("div", "rpg-toast", toast.text));
@@ -355,8 +367,11 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     updateTyping(performance.now());
   }
 
+  let battlePicker: "items" | "skills" | null = null;
+
   function renderBattle(battle: Extract<GameState["scene"], { kind: "battle" }>["battle"]) {
     const enemy = content.database.enemies.find(e => e.id === battle.enemyId)!;
+    const eff = engine.stats(state);
     const panel = el("div", "rpg-battle");
     const stage = el("div", "rpg-battle-stage");
     portraitCanvas = el("canvas", "rpg-portrait");
@@ -365,25 +380,35 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     enemyInfo.append(el("div", "rpg-enemy-name", enemy.name), hpBar(battle.enemyHp, enemy.stats.maxHp, "is-enemy"));
     stage.append(enemyInfo, portraitCanvas);
     const status = el("div", "rpg-window rpg-battle-status");
-    status.append(el("div", "rpg-speaker", `${content.project.player.name}`), el("div", "rpg-battle-hp", `HP ${state.player.hp} / ${state.player.stats.maxHp}`), hpBar(state.player.hp, state.player.stats.maxHp, state.player.hp <= state.player.stats.maxHp / 4 ? "is-low" : ""));
+    status.append(el("div", "rpg-speaker", `${content.project.player.name}`), el("div", "rpg-battle-hp", `HP ${state.player.hp} / ${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
+    for (const [id, decl] of Object.entries(content.project.variables)) if (decl.hud) status.appendChild(el("div", "rpg-battle-var", `${decl.label ?? id} ${state.vars[id] ?? decl.initial}`));
     const log = el("div", "rpg-window rpg-battle-log");
     for (const line of battle.log.slice(-4)) log.appendChild(el("div", "rpg-log-line", line));
     live.textContent = battle.log[battle.log.length - 1] ?? "";
     const commands = el("div", "rpg-window rpg-commands");
+    const usable = engine.usables(state, "battle");
+    const skills = usable.filter(u => u.kind === "ability");
+    const items = usable.filter(u => u.kind === "item");
     if (battle.outcome !== "ongoing") {
+      battlePicker = null;
       const label = battle.outcome === "victory" ? "勝利！ 次へ" : battle.outcome === "fled" ? "フィールドへ戻る" : "次へ";
       commands.appendChild(navButton(label, () => dispatch({ type: "advance" })));
-    } else if (itemPicker) {
-      const usable = content.database.items.filter(item => item.heal && (state.items[item.id] ?? 0) > 0);
-      for (const item of usable) commands.appendChild(navButton(item.name, () => dispatch({ type: "battle", command: "item", item: item.id }), { hint: `×${state.items[item.id]}` }));
-      commands.appendChild(navButton("もどる", () => { itemPicker = false; selection = 0; renderUI(); }));
+    } else if (battlePicker) {
+      const list = battlePicker === "items" ? items : skills;
+      for (const u of list) {
+        commands.appendChild(navButton(u.name, () => { battlePicker = null; dispatch(u.kind === "item" ? { type: "battle", command: "item", item: u.id } : { type: "battle", command: "skill", ability: u.id }); }, {
+          hint: u.blocked ?? (u.kind === "item" ? `×${u.count}` : u.use.cost.map(c => `${content.project.variables[c.var]?.label ?? c.var}${typeof c.amount === "number" ? c.amount : ""}`).join(" ")),
+          disabled: Boolean(u.blocked),
+        }));
+      }
+      commands.appendChild(navButton("もどる", () => { battlePicker = null; selection = 0; renderUI(); }));
     } else {
       commands.dataset.grid = "2";
-      const hasItems = content.database.items.some(item => item.heal && (state.items[item.id] ?? 0) > 0);
       commands.append(
         navButton("たたかう", () => dispatch({ type: "battle", command: "attack" }), { hint: "1" }),
         navButton("ぼうぎょ", () => dispatch({ type: "battle", command: "guard" }), { hint: "2" }),
-        navButton("どうぐ", () => { itemPicker = true; selection = 0; renderUI(); }, { hint: "3", disabled: !hasItems }),
+        ...(skills.length ? [navButton("わざ", () => { battlePicker = "skills"; selection = 0; renderUI(); })] : []),
+        navButton("どうぐ", () => { battlePicker = "items"; selection = 0; renderUI(); }, { hint: "3", disabled: !items.length }),
         navButton("にげる", () => dispatch({ type: "battle", command: "flee" }), { hint: "4", disabled: !battle.canFlee }),
       );
     }
@@ -397,20 +422,44 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const menu = el("div", "rpg-window rpg-menu");
     menu.appendChild(el("div", "rpg-menu-title", "メニュー"));
     const stats = el("div", "rpg-menu-stats");
-    const s = state.player.stats;
+    const s = engine.stats(state);
     stats.textContent = `${content.project.player.name}　HP ${state.player.hp}/${s.maxHp}　攻撃 ${s.attack}　防御 ${s.defense}`;
     menu.appendChild(stats);
     const section = (title: string) => menu.appendChild(el("div", "rpg-menu-section", title));
+    const labeled = Object.entries(content.project.variables).filter(([, decl]) => decl.label);
+    if (labeled.length) {
+      const vars = el("div", "rpg-menu-stats");
+      vars.textContent = labeled.map(([id, decl]) => `${decl.label} ${state.vars[id] ?? decl.initial}`).join("　");
+      menu.appendChild(vars);
+    }
+    if (state.traits.length) {
+      section("とくせい");
+      for (const id of state.traits) {
+        const trait = content.database.traits.find(t => t.id === id);
+        const row = el("div", "rpg-menu-ability");
+        row.append(el("strong", undefined, `${trait?.name ?? id}${trait ? `（${trait.category}）` : ""}`), el("span", undefined, trait?.description ?? ""));
+        menu.appendChild(row);
+      }
+    }
+    const fieldUsable = engine.usables(state, "field");
     section("どうぐ");
     const owned = Object.entries(state.items);
     if (!owned.length) menu.appendChild(el("div", "rpg-menu-empty", "何も持っていない"));
     for (const [id, count] of owned) {
       const item = content.database.items.find(i => i.id === id);
-      menu.appendChild(navButton(`${item?.name ?? id}`, () => { if (item?.heal) { menuOpen = false; dispatch({ type: "useItem", item: id }); } else showToast(item?.description || "使えない。"); }, { hint: `×${count}${item?.heal ? "　使う" : ""}` }));
+      const usable = fieldUsable.find(u => u.kind === "item" && u.id === id);
+      menu.appendChild(navButton(`${item?.name ?? id}`, () => { if (usable && !usable.blocked) { menuOpen = false; dispatch({ type: "useItem", item: id }); } else showToast(usable?.blocked ?? (item?.description || "使えない。")); }, { hint: `×${count}${usable && !usable.blocked ? "　使う" : ""}` }));
     }
     section("のうりょく");
-    for (const id of state.abilities) {
+    const abilities = engine.abilities(state);
+    if (!abilities.length) menu.appendChild(el("div", "rpg-menu-empty", "なし"));
+    for (const id of abilities) {
       const ability = content.database.abilities.find(a => a.id === id);
+      const usable = fieldUsable.find(u => u.kind === "ability" && u.id === id);
+      if (usable) {
+        menu.appendChild(navButton(usable.name, () => { if (!usable.blocked) { menuOpen = false; dispatch({ type: "useAbility", ability: id }); } else showToast(usable.blocked); }, { hint: usable.blocked ?? "使う" }));
+        continue;
+      }
       const row = el("div", "rpg-menu-ability");
       row.append(el("strong", undefined, ability?.name ?? id), el("span", undefined, ability?.description ?? ""));
       menu.appendChild(row);
@@ -483,8 +532,9 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         y: Math.max(0, Math.min(map.height - VIEW_ROWS, renderPos.y - (VIEW_ROWS - 1) / 2)),
       };
       const npcs = engine.visibleNpcs(state, map);
+      const rows = engine.rowsFor(state, map.id);
       drawMap(ctx, {
-        content, map, images, state, time: now,
+        content, map: rows === map.rows ? map : { ...map, rows }, images, state, time: now,
         view: { camera: cam, cols: VIEW_COLS, rows: VIEW_ROWS },
         interactables: engine.visibleInteractables(state, map),
         actors: [

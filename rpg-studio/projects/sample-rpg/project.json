@@ -3,7 +3,7 @@
   "id": "sample-rpg",
   "title": "森境の小さな冒険",
   "engineCompatibility": {
-    "min": "0.2.0"
+    "min": "0.3.0"
   },
   "start": {
     "mapId": "village",
@@ -19,10 +19,9 @@
       "attack": 5,
       "defense": 1
     },
-    "abilities": [
-      "unyielding-soul"
-    ],
-    "items": {}
+    "abilities": [],
+    "items": {},
+    "traits": []
   },
   "flags": {
     "beastPathUnlocked": {
@@ -40,8 +39,86 @@
     "questComplete": {
       "initial": false,
       "description": "長老に報告してクエスト完了"
+    },
+    "veteran": {
+      "initial": false,
+      "description": "3体倒して戦いに慣れた（攻撃+1済み）"
     }
   },
+  "variables": {
+    "gold": {
+      "initial": 0,
+      "min": 0,
+      "label": "ゴールド",
+      "hud": true,
+      "description": "所持金"
+    },
+    "spirit": {
+      "initial": 3,
+      "min": 0,
+      "max": 9,
+      "label": "気力",
+      "hud": true,
+      "description": "技に使う。8歩ごとに1回復"
+    },
+    "victories": {
+      "initial": 0,
+      "min": 0,
+      "label": "撃破数",
+      "description": "倒した魔物の数"
+    },
+    "loot": {
+      "initial": 0,
+      "min": 0,
+      "description": "直前に拾ったゴールド（文章表示用）"
+    }
+  },
+  "intro": [
+    {
+      "type": "message",
+      "text": "ここは森境の地。苔むした村から、あなたの旅が始まる。"
+    },
+    {
+      "type": "choice",
+      "prompt": "あなたの種族は？",
+      "options": [
+        {
+          "id": "dwarf",
+          "label": "小人 — 頑丈。致命傷を一度こらえる",
+          "effects": [
+            {
+              "type": "grantTrait",
+              "trait": "dwarf"
+            }
+          ]
+        },
+        {
+          "id": "beastfolk",
+          "label": "獣人 — 力強い。獣道を最初から知っている",
+          "effects": [
+            {
+              "type": "grantTrait",
+              "trait": "beastfolk"
+            }
+          ]
+        },
+        {
+          "id": "human",
+          "label": "人間 — 器用。お金と薬草を持っている",
+          "effects": [
+            {
+              "type": "grantTrait",
+              "trait": "human"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "message",
+      "text": "{{name}}は{{trait.種族}}の旅人として歩き出した。"
+    }
+  ],
   "maps": [
     {
       "id": "village",
@@ -63,12 +140,13 @@
   "dialoguesPath": "dialogues/dialogues.json",
   "eventsPath": "events/events.json",
   "databasePath": "database.json",
+  "rulesPath": "rules.json",
   "assetsPath": "assets.json",
   "systems": [
     {
-      "id": "sample-abilities",
-      "path": "systems/abilities.ts",
-      "title": "種族固有能力（不屈の魂）"
+      "id": "chronicle",
+      "path": "systems/chronicle.ts",
+      "title": "旅の日誌（TypeScript拡張の例）"
     }
   ]
 }

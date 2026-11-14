@@ -81,5 +81,19 @@
     "tiles": [
       "i"
     ]
-  }
+  },
+  "overlays": [
+    {
+      "when": {
+        "flag": "sentinelCalmed"
+      },
+      "cells": [
+        {
+          "x": 11,
+          "y": 9,
+          "code": "i"
+        }
+      ]
+    }
+  ]
 }

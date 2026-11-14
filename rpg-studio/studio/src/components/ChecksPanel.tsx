@@ -10,14 +10,22 @@ interface Props {
   onOpenFile: (file: string) => void;
 }
 
+const PRESETS: Array<{ label: string; task: string }> = [
+  { label: "種族を追加", task: "次の種族を特性(traits)として追加して。各効果は docs/customization-guide.md のレシピ（statMods・rules・use）で実装し、データで書けないものは一覧にして相談して。\n\n種族名：\n説明：\n効果1：\n効果2：" },
+  { label: "仕様書から効果を実装", task: "添付の仕様書の効果を、1種族ずつ database.json の traits / abilities と rules に実装して。仕様にない効果は推測で作らず、表現できない効果はリストアップして。各効果に tests/*.scenario.json の動作確認を付けて。" },
+  { label: "仕組みを追加", task: "次の仕組みをフラグ・変数・rules.json のルールで追加して（例：昼夜、好感度、評判、空腹度）。\n\n仕組み：" },
+  { label: "マップとイベント", task: "村の東に小さな湖を作り、釣り人のNPCが『魚の鱗』をくれるイベントを追加して" },
+];
+
 function agentPrompt(task: string, projectDir: string) {
   return `${task.trim() || "（ここにやりたいことを書く）"}
 
 作業ルール:
-- まず AGENTS.md（Claude Codeは CLAUDE.md）と docs/project-format.md・docs/extension-api.md を読む。
+- まず AGENTS.md（Claude Codeは CLAUDE.md）と docs/customization-guide.md・docs/project-format.md を読む。
+- pnpm rpg catalog --project ${projectDir} で既存のID・フラグ・変数・特性を確認する。
 - 対象プロジェクト: ${projectDir}
-- データ（JSON）で表現できることはデータで、できない独自ルールは systems/*.ts の defineSystem フックで実装する。
-- 新しいフラグは project.json の flags に宣言する。素材は assets.json に出典・寸法つきで登録する。
+- 種族・効果・仕組みはデータ（特性・能力・ルール・効果・条件・式）で作る。表現できないものだけ systems/*.ts の defineSystem で実装する。
+- 新しいフラグ・変数は project.json の flags / variables に宣言する。素材は assets.json に出典・寸法つきで登録する。
 - 変更を確かめる自動プレイテストを tests/*.scenario.json に追加する。
 - 最後に次を実行し、すべて OK になるまで直す:
   pnpm rpg validate --project ${projectDir}
@@ -29,7 +37,7 @@ function agentPrompt(task: string, projectDir: string) {
 export default function ChecksPanel({ store, diagnostics, onOpenFile }: Props) {
   const [tests, setTests] = useState<TestResponse | null>(null);
   const [running, setRunning] = useState(false);
-  const [task, setTask] = useState("村の東に小さな湖を作り、釣り人のNPCが『魚の鱗』をくれるイベントを追加して");
+  const [task, setTask] = useState(PRESETS[0]!.task);
   const [copied, setCopied] = useState(false);
   const errors = diagnostics.filter(d => d.severity === "error");
   const warnings = diagnostics.filter(d => d.severity === "warning");
@@ -91,7 +99,8 @@ export default function ChecksPanel({ store, diagnostics, onOpenFile }: Props) {
     <section className="card">
       <header><h3>Codex／Claude Codeへの依頼文</h3></header>
       <p className="muted small">工房はAIを内蔵しません。普段のCodex／Claude Codeにこの文章を渡すと、リポジトリの規約と検証手順に沿って作業します。<AlertTriangle size={11} /> 同じファイルを工房とエージェントで同時に編集しないでください（保存前に画面を閉じるか、エージェント作業後に再読込）。</p>
-      <textarea className="task-input" rows={2} value={task} onChange={e => setTask(e.target.value)} />
+      <div className="chips">{PRESETS.map(p => <button key={p.label} className={`chip ${task === p.task ? "is-on" : ""}`} onClick={() => setTask(p.task)}>{p.label}</button>)}</div>
+      <textarea className="task-input" rows={5} value={task} onChange={e => setTask(e.target.value)} />
       <pre className="prompt-preview">{agentPrompt(task, projectDir)}</pre>
       <button className="button primary" onClick={() => void copy()}><ClipboardCopy size={14} /> {copied ? "コピーしました" : "依頼文をコピー"}</button>
     </section>

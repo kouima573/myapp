@@ -2,6 +2,21 @@
   "name": "獣道を覚える前は岩の隙間を通れず、長い回り道になる",
   "steps": [
     {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "prompt",
+        "textIncludes": "種族"
+      }
+    },
+    {
+      "choose": "dwarf"
+    },
+    {
+      "advance": "all"
+    },
+    {
       "effects": [
         {
           "type": "teleport",

@@ -77,7 +77,19 @@ export default function PlayPanel({ store, content, stale, systems, systemsVersi
     if (!handle) return;
     const current = handle.getState();
     const has = current.abilities.includes(id);
-    handle.setState({ ...current, abilities: has ? current.abilities.filter(a => a !== id) : [...current.abilities, id] });
+    handle.setState(handle.engine.run(current, [{ type: has ? "removeAbility" : "unlockAbility", ability: id }]).state);
+    handle.focus();
+  };
+  const setVar = (id: string, value: number) => {
+    const handle = handleRef.current;
+    if (!handle || !Number.isFinite(value)) return;
+    handle.setState(handle.engine.run(handle.getState(), [{ type: "setVar", var: id, value: Math.trunc(value) }]).state);
+  };
+  const toggleTrait = (id: string) => {
+    const handle = handleRef.current;
+    if (!handle) return;
+    const has = handle.getState().traits.includes(id);
+    handle.setState(handle.engine.run(handle.getState(), [{ type: has ? "removeTrait" : "grantTrait", trait: id }]).state);
     handle.focus();
   };
   const giveItem = (id: string) => {
@@ -100,11 +112,27 @@ export default function PlayPanel({ store, content, stale, systems, systemsVersi
       <div className="play-host" ref={hostRef} />
       {state && <aside className="debug-panel" aria-label="試遊状態">
         <h4>現在地</h4>
-        <p className="mono small">{state.mapId} ({state.player.x}, {state.player.y}) · {state.scene.kind} · HP {state.player.hp}/{state.player.stats.maxHp}</p>
+        <p className="mono small">{state.mapId} ({state.player.x}, {state.player.y}) · {state.scene.kind} · HP {state.player.hp} · {state.steps}歩</p>
         <h4>フラグ <span className="muted small">クリックで切替</span></h4>
         <div className="chips">{Object.keys(content.project.flags).map(flag => <button key={flag} className={`chip ${state.flags[flag] ? "is-on" : ""}`} title={content.project.flags[flag]?.description} onClick={() => toggleFlag(flag)}>{flag}</button>)}</div>
-        <h4>能力</h4>
-        <div className="chips">{content.database.abilities.map(a => <button key={a.id} className={`chip ${state.abilities.includes(a.id) ? "is-on" : ""}`} title={a.description} onClick={() => toggleAbility(a.id)}>{a.name}</button>)}</div>
+        {Object.keys(content.project.variables).length > 0 && <>
+          <h4>変数 <span className="muted small">値を直接変更</span></h4>
+          <div className="var-grid">{Object.entries(content.project.variables).map(([id, decl]) => <label key={id} title={decl.description}>
+            <span>{decl.label ?? id}</span>
+            <input type="number" value={state.vars[id] ?? decl.initial} min={decl.min} max={decl.max} onChange={e => setVar(id, Number(e.target.value))} />
+          </label>)}</div>
+        </>}
+        {content.database.traits.length > 0 && <>
+          <h4>特性 <span className="muted small">種族など</span></h4>
+          <div className="chips">{content.database.traits.map(t => <button key={t.id} className={`chip ${state.traits.includes(t.id) ? "is-on" : ""}`} title={`${t.category}: ${t.description}`} onClick={() => toggleTrait(t.id)}>{t.name}</button>)}</div>
+        </>}
+        <h4>能力 <span className="muted small">特性由来は特性側で切替</span></h4>
+        <div className="chips">{content.database.abilities.map(a => {
+          const viaTrait = !state.abilities.includes(a.id) && handleRef.current?.engine.abilities(state).includes(a.id);
+          return <button key={a.id} className={`chip ${state.abilities.includes(a.id) || viaTrait ? "is-on" : ""}`} disabled={viaTrait} title={a.description} onClick={() => toggleAbility(a.id)}>{a.name}</button>;
+        })}</div>
+        <h4>能力値</h4>
+        <p className="mono small">{(() => { const st = handleRef.current?.engine.stats(state); return st ? `最大HP ${st.maxHp} / 攻撃 ${st.attack} / 防御 ${st.defense}` : ""; })()}</p>
         <h4>持ち物 <span className="muted small">クリックで+1</span></h4>
         <div className="chips">{content.database.items.map(i => <button key={i.id} className={`chip ${(state.items[i.id] ?? 0) > 0 ? "is-on" : ""}`} onClick={() => giveItem(i.id)}>{i.name} ×{state.items[i.id] ?? 0}</button>)}</div>
         <h4>完了済み</h4>

@@ -11,6 +11,7 @@ import { formatDiagnostic, migrateProjectV1toV2, type Diagnostic, type GameConte
 import type { GameSystem } from "../../engine/src/index";
 import { runScenario, ScenarioSchema, type ScenarioResult } from "../../engine/src/scenario";
 import { buildProject, importSystemModule, REPO_ROOT } from "./build";
+import { catalog, jsonSchemas } from "./catalog";
 import { loadProjectFromDisk, readProjectTexts, resolveInside } from "./load";
 
 const USAGE = `RPG Studio CLI
@@ -20,6 +21,8 @@ const USAGE = `RPG Studio CLI
   rpg build    --project <dir> [--out <dir>]  型検査・bundleして dist/game/<id>/ に静的ゲームを出力
   rpg dev      --project <dir> [--port 4174]  ビルドして127.0.0.1で配信、変更で自動再ビルド
   rpg migrate  --project <dir> [--write]      旧形式を移行（既定は差分表示のみ。--writeでバックアップ後に保存）
+  rpg catalog  --project <dir>          定義済みのID・フラグ・変数・特性・ルールの一覧（Markdown）
+  rpg schema   [--check]                schema/*.schema.json（エディター・AI向けJSON Schema）を生成／最新か確認
 `;
 
 function parseArgs(argv: string[]) {
@@ -220,6 +223,30 @@ async function cmdDev(flags: Record<string, string | boolean>): Promise<number> 
   return 0;
 }
 
+async function cmdCatalog(flags: Record<string, string | boolean>): Promise<number> {
+  const loaded = await loadProjectFromDisk(projectDir(flags));
+  if (!loaded.content) { report(loaded.diagnostics); console.log("FAILED catalog: 先に validate のエラーを直してください"); return 1; }
+  process.stdout.write(catalog(loaded.content));
+  return 0;
+}
+
+async function cmdSchema(flags: Record<string, string | boolean>): Promise<number> {
+  const dir = path.join(REPO_ROOT, "schema");
+  let stale = 0;
+  for (const [name, schema] of Object.entries(jsonSchemas())) {
+    const text = `${JSON.stringify(schema, null, 2)}\n`;
+    const file = path.join(dir, name);
+    const current = await fs.readFile(file, "utf8").catch(() => "");
+    if (current === text) continue;
+    stale++;
+    if (flags.check) console.log(`ERROR schema/${name} が古くなっています。pnpm rpg schema で再生成してください`);
+    else { await fs.mkdir(dir, { recursive: true }); await fs.writeFile(file, text); console.log(`wrote schema/${name}`); }
+  }
+  if (flags.check && stale) return 1;
+  console.log(`OK schema: ${flags.check ? "最新です" : `${stale}件更新`}`);
+  return 0;
+}
+
 export async function main(argv = process.argv.slice(2)): Promise<number> {
   let parsed: ReturnType<typeof parseArgs>;
   try { parsed = parseArgs(argv); } catch (error) { console.error(String(error)); console.error(USAGE); return 2; }
@@ -229,6 +256,8 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "build": return cmdBuild(parsed.flags);
     case "dev": return cmdDev(parsed.flags);
     case "migrate": return cmdMigrate(parsed.flags);
+    case "catalog": return cmdCatalog(parsed.flags);
+    case "schema": return cmdSchema(parsed.flags);
     default: console.log(USAGE); return parsed.command && parsed.command !== "help" && parsed.command !== "--help" ? 2 : 0;
   }
 }

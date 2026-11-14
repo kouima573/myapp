@@ -1,206 +1,200 @@
 import path from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { loadProjectFromDisk } from "../../cli/src/load";
-import type { Direction, GameContent, GameState } from "../../schema/src/index";
-import sampleSystem from "../../../projects/sample-rpg/systems/abilities";
-import { createEngine, DELTAS, makeSave, readSave, type Engine } from "./index";
+import { loadSystems, runProjectScenarios } from "../../cli/src/index";
+import type { Effect, GameContent, GameState, Rule } from "../../schema/src/index";
+import { createEngine, evalExpr, evaluate, interpolate, makeSave, readSave, type Engine, type GameSystem } from "./index";
 
+const root = path.resolve(__dirname, "../../../projects/sample-rpg");
 let content: GameContent;
+let systems: GameSystem[];
 let engine: Engine;
 
 beforeAll(async () => {
-  const loaded = await loadProjectFromDisk(path.resolve(__dirname, "../../../projects/sample-rpg"));
+  const loaded = await loadProjectFromDisk(root);
   expect(loaded.diagnostics.filter(d => d.severity === "error")).toEqual([]);
   content = loaded.content!;
-  engine = createEngine(content, [sampleSystem]);
+  systems = await loadSystems(root, content);
+  engine = createEngine(content, systems);
 });
 
-/** Shortest path on the current map using the engine's own passability. */
-function route(state: GameState, target: { x: number; y: number }): Direction[] {
-  const map = content.maps[state.mapId]!;
-  const key = (x: number, y: number) => `${x},${y}`;
-  const prev = new Map<string, { from: string; dir: Direction }>();
-  const queue = [{ x: state.player.x, y: state.player.y }];
-  const seen = new Set([key(state.player.x, state.player.y)]);
-  while (queue.length) {
-    const cur = queue.shift()!;
-    if (cur.x === target.x && cur.y === target.y) break;
-    for (const dir of ["up", "down", "left", "right"] as Direction[]) {
-      const nx = cur.x + DELTAS[dir].x, ny = cur.y + DELTAS[dir].y;
-      if (seen.has(key(nx, ny)) || nx < 0 || ny < 0 || nx >= map.width || ny >= map.height) continue;
-      const isTarget = nx === target.x && ny === target.y;
-      if (!isTarget && !engine.isPassable(state, nx, ny)) continue;
-      if (map.portals.some(p => p.x === nx && p.y === ny) && !isTarget) continue;
-      seen.add(key(nx, ny));
-      prev.set(key(nx, ny), { from: key(cur.x, cur.y), dir });
-      queue.push({ x: nx, y: ny });
-    }
-  }
-  const dirs: Direction[] = [];
-  let k = key(target.x, target.y);
-  if (!prev.has(k)) throw new Error(`no route to ${k} on ${state.mapId}`);
-  while (prev.has(k)) { const p = prev.get(k)!; dirs.unshift(p.dir); k = p.from; }
-  return dirs;
-}
-
-function winBattle(state: GameState): GameState {
-  let guard = 0;
-  while (state.scene.kind === "battle" && state.scene.battle.outcome === "ongoing") {
-    if (++guard > 50) throw new Error("battle did not end");
-    state = engine.step(state, { type: "battle", command: "attack" }).state;
-  }
-  if (state.scene.kind === "battle" && state.scene.battle.outcome === "defeat") throw new Error("lost a random battle");
-  return engine.step(state, { type: "advance" }).state;
-}
-
-/** Walks to a cell, fighting random encounters on the way. */
-function walkTo(state: GameState, target: { x: number; y: number }): GameState {
-  for (let attempts = 0; attempts < 20; attempts++) {
-    for (const dir of route(state, target)) {
-      const before = state.mapId;
-      state = engine.step(state, { type: "move", direction: dir }).state;
-      if (state.scene.kind === "battle") { state = winBattle(engine.run(state, [{ type: "heal" }]).state); break; }
-      if (state.mapId !== before) return state;
-    }
-    if (state.player.x === target.x && state.player.y === target.y) return state;
-  }
-  throw new Error("could not reach target");
-}
-
-function face(state: GameState, direction: Direction) { return engine.step(state, { type: "face", direction }).state; }
-function advanceAll(state: GameState): GameState {
-  let guard = 0;
-  while (state.scene.kind === "message" || state.scene.kind === "dialogue") {
-    if (++guard > 50) throw new Error("stuck in text");
-    state = engine.step(state, { type: "advance" }).state;
-  }
+function start(race: "dwarf" | "beastfolk" | "human", seed = 1): GameState {
+  let state = engine.newGame(seed);
+  while (state.scene.kind === "message") state = engine.step(state, { type: "advance" }).state;
+  expect(state.scene.kind).toBe("prompt");
+  state = engine.step(state, { type: "choose", choiceId: race }).state;
+  while (state.scene.kind === "message") state = engine.step(state, { type: "advance" }).state;
   return state;
 }
 
-describe("data-driven engine", () => {
-  it("starts from project.json, not from engine constants", () => {
-    const state = engine.newGame();
-    expect(state.mapId).toBe("village");
-    expect(state.player).toMatchObject({ x: 3, y: 9, hp: 18 });
-    expect(state.flags).toEqual({ beastPathUnlocked: false, ruinsShortcutOpen: false, sentinelCalmed: false, questComplete: false });
-    expect(state.abilities).toEqual(["unyielding-soul"]);
+/** Content with extra global rules, for testing rule behaviour in isolation. */
+function withRules(rules: Rule[]): Engine {
+  return createEngine({ ...content, rules: [...content.rules, ...rules] }, systems);
+}
+const rule = (r: Partial<Rule> & Pick<Rule, "id" | "on">): Rule => ({ repeat: false, priority: 0, effects: [], ...r });
+
+describe("expressions and conditions", () => {
+  it("evaluates arithmetic, variables, stats and nested conditions", () => {
+    const state = { ...start("dwarf"), vars: { gold: 17, spirit: 3, victories: 0, loot: 0 } };
+    const env = { content };
+    expect(evalExpr({ add: [{ var: "gold" }, 3] }, state, env)).toBe(20);
+    expect(evalExpr({ div: [{ var: "gold" }, 5] }, state, env)).toBe(3);
+    expect(evalExpr({ mod: [-1, 8] }, state, env)).toBe(7);
+    expect(evalExpr({ percent: [{ stat: "maxHp" }, 50] }, state, env)).toBe(11);
+    expect(evalExpr({ if: { trait: "dwarf" }, then: 1, else: 2 }, state, env)).toBe(1);
+    expect(evaluate({ var: "gold", op: ">=", value: { mul: [3, 5] } }, state, env)).toBe(true);
+    expect(evaluate({ all: [{ ability: "unyielding-soul" }, { not: { trait: "human" } }] }, state, env)).toBe(true);
+    expect(interpolate("{{name}}({{trait.種族}}) {{var.gold}}G HP{{hp}}/{{maxHp}} {{unknown}}", state, env)).toBe("アオ(小人) 17G HP22/22 {{unknown}}");
+  });
+});
+
+describe("races as data (traits)", () => {
+  it("each race changes stats, abilities and starting gifts", () => {
+    const dwarf = start("dwarf");
+    expect(engine.stats(dwarf)).toEqual({ maxHp: 22, attack: 5, defense: 2 });
+    expect(dwarf.player.hp).toBe(22);
+    expect(engine.abilities(dwarf)).toEqual(expect.arrayContaining(["unyielding-soul", "earth-ward"]));
+    const beast = start("beastfolk");
+    expect(engine.stats(beast).attack).toBe(6);
+    expect(engine.abilities(beast)).toContain("beast-trail");
+    const human = start("human");
+    expect(human.items.herb).toBe(2);
+    expect(human.vars.gold).toBe(10);
   });
 
-  it("blocks the beast-trail gap until the event opens it, and the event needs the ability", () => {
-    let state = engine.run(engine.newGame(), [{ type: "teleport", mapId: "ruins", x: 9, y: 9 }]).state;
-    expect(engine.isPassable(state, 9, 8)).toBe(false);
-    state = engine.step(face(state, "up"), { type: "interact" }).state;
-    expect(state.scene).toMatchObject({ kind: "message", text: expect.stringContaining("通れそうにない") });
-    state = advanceAll(state);
-    expect(state.flags.ruinsShortcutOpen).toBe(false);
-    expect(state.done).not.toContain("open-ruins-shortcut");
+  it("removing a trait removes its abilities and clamps HP", () => {
+    let state = start("dwarf");
+    state = engine.run(state, [{ type: "removeTrait", trait: "dwarf" }]).state;
+    expect(engine.abilities(state)).not.toContain("unyielding-soul");
+    expect(state.player.hp).toBe(18);
   });
 
-  it("does not let a second lethal blow in the same battle be saved", () => {
-    let state = engine.run(engine.newGame(), [{ type: "battle", enemy: "stone-sentinel", onDefeat: "continue" }]).state;
-    // Attacking blindly: the turn-2 heavy blow is lethal and saved once; the turn-5 one is not.
-    const notes: string[] = [];
-    for (let i = 0; i < 8 && state.scene.kind === "battle" && state.scene.battle.outcome === "ongoing"; i++) {
-      state = engine.step(state, { type: "battle", command: "attack" }).state;
-      if (state.scene.kind === "battle") notes.push(...state.scene.battle.log);
-    }
-    expect(notes.join("\n")).toContain("不屈の魂");
-    expect(state.scene.kind === "battle" && state.scene.battle.outcome).toBe("defeat");
-    expect(state.scene.kind === "battle" && state.scene.battle.systemData["sample-abilities"]).toEqual({ unyieldingUsed: true });
-    // A new battle resets the once-per-battle state.
-    state = engine.step(state, { type: "advance" }).state;
-    state = engine.run(state, [{ type: "heal" }, { type: "battle", enemy: "stone-sentinel" }]).state;
-    expect(state.scene.kind === "battle" && state.scene.battle.systemData["sample-abilities"]).toEqual({ unyieldingUsed: false });
-  });
-
-  it("plays the whole sample: learn → shortcut → sentinel → save/restore → report", () => {
-    let state = engine.newGame(7);
-
-    // Learn the beast trail from Rio (5,8): stand below him and face up.
-    state = walkTo(state, { x: 5, y: 9 });
-    state = engine.step(face(state, "up"), { type: "interact" }).state;
-    expect(state.scene).toMatchObject({ kind: "dialogue", dialogueId: "scout-dialog" });
-    state = engine.step(engine.step(state, { type: "advance" }).state, { type: "advance" }).state;
-    expect(state.scene.kind).toBe("choice");
-    state = advanceAll(engine.step(state, { type: "choose", choiceId: "learn-trail" }).state);
-    expect(state.abilities).toContain("beast-trail");
-    expect(state.done).toContain("scout-dialog/learn-trail");
-
-    // Talking again picks the conditional dialogue, and re-running the choice never duplicates the reward.
+  it("the beast-trail gap needs the ability (from a trait or learned)", () => {
+    let state = engine.run(start("dwarf"), [{ type: "teleport", mapId: "ruins", x: 9, y: 9, facing: "up" }]).state;
     state = engine.step(state, { type: "interact" }).state;
-    expect(state.scene).toMatchObject({ kind: "dialogue", dialogueId: "rio-after" });
-    state = advanceAll(state);
-    const again = engine.run(state, [{ type: "dialogue", dialogue: "scout-dialog" }]).state;
-    const chosen = engine.step(engine.step(engine.step(again, { type: "advance" }).state, { type: "advance" }).state, { type: "choose", choiceId: "learn-trail" });
-    expect(chosen.log.join()).toContain("重複させません");
-    expect(chosen.state.abilities.filter(a => a === "beast-trail")).toHaveLength(1);
+    expect(state.scene).toMatchObject({ kind: "message", text: expect.stringContaining("通れそうにない") });
+    let beast = engine.run(start("beastfolk"), [{ type: "teleport", mapId: "ruins", x: 9, y: 9, facing: "up" }]).state;
+    beast = engine.step(beast, { type: "interact" }).state;
+    expect(beast.flags.ruinsShortcutOpen).toBe(true);
+    expect(engine.isPassable(beast, 9, 8)).toBe(true);
+  });
+});
 
-    // Visit the elder for herbs.
-    state = walkTo(state, { x: 8, y: 5 });
-    expect(state.mapId).toBe("elder-house");
-    state = walkTo(state, { x: 4, y: 3 });
-    state = engine.step(face(state, "up"), { type: "interact" }).state;
-    state = engine.step(engine.step(state, { type: "advance" }).state, { type: "advance" }).state;
-    state = advanceAll(engine.step(state, { type: "choose", choiceId: "get-herbs" }).state);
-    expect(state.items.herb).toBe(2);
-
-    // Go to the ruins and open the gap.
-    state = walkTo(state, { x: 4, y: 7 });
-    expect(state.mapId).toBe("village");
-    state = walkTo(state, { x: 18, y: 9 });
-    expect(state.mapId).toBe("ruins");
-    state = walkTo(state, { x: 9, y: 9 });
-    state = advanceAll(engine.step(face(state, "up"), { type: "interact" }).state);
-    expect(state.flags.ruinsShortcutOpen).toBe(true);
-    expect(engine.isPassable(state, 9, 8)).toBe(true);
-    expect(engine.tileIndex(state, engine.tileAt(content.maps.ruins!, 9, 8)!)).toBe(1);
-
-    // Save in the field, then "restart" by restoring from JSON.
-    const saved = JSON.parse(JSON.stringify(makeSave(content, state)));
-    const restored = readSave(saved, content);
-    expect(restored.ok).toBe(true);
-    state = restored.ok ? restored.save.state : state;
-    expect(state.flags.ruinsShortcutOpen).toBe(true);
-    expect(state.abilities).toContain("beast-trail");
-
-    // The shortcut leads straight to the sentinel.
-    const shortcut = route(state, { x: 9, y: 6 });
-    expect(shortcut.length).toBeLessThan(5);
-    state = walkTo(state, { x: 9, y: 6 });
-    state = engine.step(face(state, "up"), { type: "interact" }).state;
-    state = engine.step(state, { type: "advance" }).state; // "石像の目に光が…"
-    expect(state.scene.kind).toBe("battle");
-    // Sensible play: guard after the wind-up telegraph, heal when low.
-    for (let turn = 0; turn < 30 && state.scene.kind === "battle" && state.scene.battle.outcome === "ongoing"; turn++) {
-      const log = state.scene.battle.log;
-      const telegraphed = log.slice(-2).some(line => line.includes("ためて"));
-      const action = telegraphed ? { command: "guard" as const }
-        : state.player.hp <= 9 && (state.items.herb ?? 0) > 0 ? { command: "item" as const, item: "herb" } : { command: "attack" as const };
-      state = engine.step(state, { type: "battle", ...action }).state;
-    }
-    expect(state.scene.kind === "battle" && state.scene.battle.outcome).toBe("victory");
-    state = advanceAll(engine.step(state, { type: "advance" }).state);
-    expect(state.flags.sentinelCalmed).toBe(true);
-    expect(state.items["wind-shard"]).toBe(1);
-    expect(state.done).toContain("sentinel-battle");
-    expect(engine.visibleInteractables(state).some(i => i.id === "sentinel")).toBe(false);
-
-    // Back to the village and report to the elder — reward only once.
-    state = walkTo(state, { x: 9, y: 9 });
-    state = walkTo(state, { x: 2, y: 9 });
-    expect(state.mapId).toBe("village");
-    state = walkTo(state, { x: 8, y: 5 });
-    state = walkTo(state, { x: 4, y: 3 });
-    state = advanceAll(engine.step(face(state, "up"), { type: "interact" }).state);
-    expect(state.flags.questComplete).toBe(true);
-    const herbs = state.items.herb ?? 0;
-    state = advanceAll(engine.step(state, { type: "interact" }).state);
-    expect(state.items.herb ?? 0).toBe(herbs);
+describe("rules", () => {
+  it("lethalDamage with once:battle saves only once per battle, and resets next battle", () => {
+    // HP 1 makes every hit lethal regardless of the dice. Sentinel: tackle, wind-up (no damage), smash.
+    let state = engine.run(start("dwarf"), [{ type: "damage", target: "player", amount: 100 }, { type: "battle", enemy: "stone-sentinel", onDefeat: "continue" }]).state;
+    expect(state.player.hp).toBe(1);
+    state = engine.step(state, { type: "battle", command: "attack" }).state; // tackle → saved
+    expect(state.player.hp).toBe(1);
+    expect(state.scene.kind === "battle" && state.scene.battle.log.join()).toContain("不屈の魂");
+    state = engine.step(state, { type: "battle", command: "attack" }).state; // wind-up
+    state = engine.step(state, { type: "battle", command: "attack" }).state; // smash → not saved
+    expect(state.scene.kind === "battle" && state.scene.battle.outcome).toBe("defeat");
+    state = engine.step(state, { type: "advance" }).state;
+    state = engine.run(state, [{ type: "battle", enemy: "stone-sentinel", onDefeat: "continue" }]).state;
+    state = engine.step(state, { type: "battle", command: "attack" }).state;
+    expect(state.player.hp).toBe(1);
+    expect(state.scene.kind === "battle" && state.scene.battle.outcome).toBe("ongoing");
   });
 
+  it("auto rules fire once when their condition becomes true; repeat re-arms", () => {
+    const e = withRules([
+      rule({ id: "rich", on: "auto", when: { var: "gold", op: ">=", value: 50 }, effects: [{ type: "giveItem", item: "herb" }] }),
+      rule({ id: "broke", on: "auto", repeat: true, when: { var: "gold", op: "==", value: 0 }, effects: [{ type: "setVar", var: "loot", op: "add", value: 1 }] }),
+    ]);
+    let state = start("dwarf");
+    state = e.run(state, []).state;
+    expect(state.vars.loot).toBe(1); // gold is 0 at start
+    state = e.run(state, [{ type: "setVar", var: "gold", value: 60 }]).state;
+    expect(state.items.herb).toBe(1);
+    state = e.run(state, [{ type: "setVar", var: "gold", value: 0 }]).state;
+    state = e.run(state, [{ type: "setVar", var: "gold", value: 70 }]).state;
+    expect(state.items.herb).toBe(1); // once per game
+    state = e.run(state, [{ type: "setVar", var: "gold", value: 0 }]).state;
+    expect(state.vars.loot).toBe(3); // repeat fired each time gold returned to 0
+  });
+
+  it("the sample's veteran rule raises attack after 3 victories, and loot uses {{var}} text", () => {
+    let state = start("beastfolk", 5);
+    for (let i = 0; i < 3; i++) {
+      state = engine.run(state, [{ type: "heal" }, { type: "battle", enemy: "moss-slime" }]).state;
+      for (let t = 0; t < 20 && state.scene.kind === "battle" && state.scene.battle.outcome === "ongoing"; t++) state = engine.step(state, { type: "battle", command: "attack" }).state;
+      state = engine.step(state, { type: "advance" }).state;
+      expect(state.scene).toMatchObject({ kind: "message", text: expect.stringMatching(/^[2-5]ゴールドを拾った。$/) });
+      while (state.scene.kind === "message") state = engine.step(state, { type: "advance" }).state;
+    }
+    expect(state.vars.victories).toBe(3);
+    expect(state.flags.veteran).toBe(true);
+    expect(engine.stats(state).attack).toBe(7);
+    expect(state.vars.gold).toBeGreaterThanOrEqual(6);
+  });
+
+  it("dealDamage rules can multiply damage with a chance, deterministically per seed", () => {
+    const e = withRules([rule({ id: "triple", on: "dealDamage", modify: { damage: { mul: [{ ctx: "damage" }, 3] } } })]);
+    let state = e.run(start("dwarf"), [{ type: "battle", enemy: "stone-sentinel" }]).state;
+    state = e.step(state, { type: "battle", command: "attack" }).state;
+    const hp = state.scene.kind === "battle" ? state.scene.battle.enemyHp : -1;
+    expect(16 - hp).toBeGreaterThanOrEqual(9); // 3..5 damage tripled
+  });
+
+  it("step rules use expressions on the step counter", () => {
+    let state = start("dwarf");
+    const before = state.vars.spirit!;
+    state = engine.run(state, [{ type: "teleport", mapId: "village", x: 2, y: 9 }]).state;
+    for (let i = 0; i < 8; i++) state = engine.step(state, { type: "move", direction: i % 2 ? "left" : "right" }).state;
+    expect(state.steps).toBe(8);
+    expect(state.vars.spirit).toBe(before + 1);
+  });
+});
+
+describe("world changes", () => {
+  it("overlays follow flags and setTile persists in saves", () => {
+    let state = start("dwarf");
+    state = engine.run(state, [{ type: "teleport", mapId: "ruins", x: 3, y: 9 }]).state;
+    expect(engine.isPassable(state, 11, 9)).toBe(false);
+    state = engine.run(state, [{ type: "setFlag", flag: "sentinelCalmed" }]).state;
+    expect(engine.isPassable(state, 11, 9)).toBe(true);
+    expect(engine.rowsFor(state, "ruins")[9]![11]).toBe("i");
+    state = engine.run(state, [{ type: "setTile", x: 4, y: 9, code: "R" }]).state;
+    expect(engine.isPassable(state, 4, 9)).toBe(false);
+    const restored = readSave(JSON.parse(JSON.stringify(makeSave(content, state))), content);
+    expect(restored.ok && engine.isPassable(restored.save.state, 4, 9)).toBe(false);
+  });
+
+  it("choice prompts filter options by condition (shop)", () => {
+    let state = start("dwarf");
+    state = engine.run(state, [{ type: "event", event: "elder-shop" }]).state;
+    expect(state.scene.kind === "prompt" && state.scene.options.map(o => o.id)).toEqual(["leave"]);
+    state = engine.step(state, { type: "choose", choiceId: "leave" }).state;
+    state = engine.run(state, [{ type: "setVar", var: "gold", value: 25 }, { type: "event", event: "elder-shop" }]).state;
+    expect(state.scene.kind === "prompt" && state.scene.prompt).toContain("25G");
+    state = engine.step(state, { type: "choose", choiceId: "buy-charm" }).state;
+    expect(state.vars.gold).toBe(5);
+    expect(engine.stats(state).attack).toBe(6);
+  });
+
+  it("skills check and pay their cost", () => {
+    let state = engine.run(start("beastfolk"), [{ type: "setVar", var: "spirit", value: 3 }, { type: "battle", enemy: "stone-sentinel" }]).state;
+    expect(engine.usables(state, "battle").find(u => u.id === "bite")?.blocked).toBeUndefined();
+    state = engine.step(state, { type: "battle", command: "skill", ability: "bite" }).state;
+    expect(state.vars.spirit).toBe(1);
+    expect(state.scene.kind === "battle" && state.scene.battle.enemyHp).toBe(4); // 16 - 6*2
+    expect(engine.usables(state, "battle").find(u => u.id === "bite")?.blocked).toContain("気力");
+  });
+
+  it("TypeScript systems are called from data", () => {
+    let state = engine.run(start("human"), [{ type: "event", event: "read-diary" }]).state;
+    expect(state.scene).toMatchObject({ kind: "message", text: expect.stringContaining("旅の日誌 — アオ（人間）") });
+    state = engine.step(state, { type: "advance" }).state;
+    expect(state.scene.kind).toBe("message");
+  });
+});
+
+describe("determinism and saves", () => {
   it("is deterministic for the same seed and actions", () => {
     const play = () => {
-      let s = engine.run(engine.newGame(99), [{ type: "battle", enemy: "cave-bat" }]).state;
+      let s = engine.run(start("beastfolk", 99), [{ type: "battle", enemy: "cave-bat" }]).state;
       for (let i = 0; i < 4; i++) s = engine.step(s, { type: "battle", command: "attack" }).state;
       return s;
     };
@@ -208,10 +202,28 @@ describe("data-driven engine", () => {
   });
 
   it("rejects saves from other projects or unknown formats without throwing", () => {
-    const save = makeSave(content, engine.newGame());
+    const save = makeSave(content, start("dwarf"));
     expect(readSave({ ...save, projectId: "other" }, content)).toMatchObject({ ok: false });
     expect(readSave({ ...save, formatVersion: 9 }, content)).toMatchObject({ ok: false, reason: expect.stringContaining("未対応") });
     expect(readSave("garbage", content)).toMatchObject({ ok: false });
-    expect(() => makeSave(content, engine.run(engine.newGame(), [{ type: "message", text: "x" }]).state)).toThrow();
+    expect(() => makeSave(content, engine.newGame())).toThrow(); // intro prompt is open
+  });
+
+  it("older v2 saves without the new fields still load", () => {
+    const save = makeSave(content, start("dwarf")) as unknown as { state: Record<string, unknown> };
+    for (const key of ["traits", "vars", "tileOverrides", "fired"]) delete save.state[key];
+    const result = readSave(save, content);
+    expect(result.ok).toBe(true);
   });
 });
+
+describe("sample scenarios", () => {
+  it("all tests/*.scenario.json pass", async () => {
+    const results = await runProjectScenarios(root, content, systems);
+    expect(results.filter(r => !r.ok)).toEqual([]);
+    expect(results.length).toBeGreaterThanOrEqual(5);
+  });
+});
+
+// Keep the Effect type referenced so editors show it when reading this file as an example.
+export type { Effect };

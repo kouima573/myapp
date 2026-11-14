@@ -1,0 +1,159 @@
+{
+  "name": "人間: 所持金で長老の店から買い物、商才で追加ゴールド",
+  "seed": 4,
+  "steps": [
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "prompt",
+        "textIncludes": "種族"
+      }
+    },
+    {
+      "choose": "human"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "vars": {
+          "gold": 10
+        },
+        "items": {
+          "herb": 2
+        },
+        "abilities": [
+          "haggle"
+        ]
+      }
+    },
+    {
+      "walkTo": {
+        "x": 8,
+        "y": 5
+      }
+    },
+    {
+      "expect": {
+        "mapId": "elder-house"
+      }
+    },
+    {
+      "walkTo": {
+        "x": 7,
+        "y": 2
+      }
+    },
+    {
+      "face": "up"
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "scene": "prompt",
+        "textIncludes": "所持金 10G"
+      }
+    },
+    {
+      "choose": "buy-herb"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "vars": {
+          "gold": 5
+        },
+        "items": {
+          "herb": 3
+        }
+      }
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "textIncludes": "所持金 5G"
+      }
+    },
+    {
+      "choose": "buy-herb"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "scene": "prompt"
+      }
+    },
+    {
+      "choose": "leave"
+    },
+    {
+      "expect": {
+        "vars": {
+          "gold": 0
+        },
+        "items": {
+          "herb": 4
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "battle",
+          "enemy": "moss-slime"
+        }
+      ]
+    },
+    {
+      "fight": "auto"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    },
+    {
+      "useAbility": "first-aid"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "walkTo": {
+        "x": 1,
+        "y": 2
+      }
+    },
+    {
+      "face": "up"
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "textIncludes": "人間"
+      }
+    },
+    {
+      "advance": "all"
+    }
+  ]
+}

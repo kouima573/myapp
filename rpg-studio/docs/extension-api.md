@@ -1,21 +1,23 @@
 # 独自ルールの拡張API
 
-データ（JSON）で表現できることはデータで書き、表現できないルールだけを `projects/<id>/systems/*.ts` に TypeScript で書きます。システムは `project.json` の `systems` に登録し、`default export` で `defineSystem({...})` を返します。
+**まずデータのルール（[customization-guide.md](customization-guide.md)）で書けないか考えてください。** 食いしばり・会心・特効・再生・毒・技・コスト・好感度・地形変化などは、TypeScriptなしでJSONのルールで書けます。それでも表せない処理（文章の組み立て、複雑な計算・探索、独自のミニゲームなど）だけを `projects/<id>/systems/*.ts` に TypeScript で書きます。システムは `project.json` の `systems` に登録し、`default export` で `defineSystem({...})` を返します。
 
 ```ts
 import { defineSystem } from "@rpg/engine";
 
 export default defineSystem({
-  id: "sample-abilities",            // project.json の systems[].id と一致させる
+  id: "chronicle",                    // project.json の systems[].id と一致させる
   priority: 0,                        // 小さい順に実行（同値はid順）
-  onBattleStart: () => ({ unyieldingUsed: false }),
-  onLethalDamage(ctx) {
-    if (!ctx.state.abilities.includes("unyielding-soul")) return;
-    if ((ctx.battleData as { unyieldingUsed?: boolean })?.unyieldingUsed) return;
-    return { hp: 1, message: "不屈の魂！", battleData: { unyieldingUsed: true } };
+  actions: {
+    // データから { "type": "system", "system": "chronicle", "action": "summary" } で呼ぶ
+    summary({ content, state }) {
+      return { effects: [{ type: "message", text: `歩いた距離 ${state.steps}歩` }] };
+    },
   },
 });
 ```
+
+`@rpg/engine` からは `evalExpr`・`evaluate`・`effectiveStats`・`abilitiesOf`・`interpolate` なども使えます。
 
 `@rpg/engine` はエンジンの公開APIです（プロジェクトの置き場所に関係なく解決されます）。
 
@@ -39,7 +41,7 @@ export default defineSystem({
 
 ### ダメージ処理順（固定）
 
-① 計算式（攻撃 + 威力 − 防御 ± 1、ぼうぎょ中は半減）→ ② `modifyDamage`（priority順）→ ③ HPが0になるなら `onLethalDamage`（最初の結果を採用）→ ④ HP確定・勝敗判定。
+① 計算式（攻撃 + 威力 − 防御 ± 1、ぼうぎょ中は半減）→ ② データのルール（`dealDamage`/`takeDamage`）→ システムの `modifyDamage`（それぞれpriority順）→ ③ HPが0になるなら、データのルール（`lethalDamage`）→ システムの `onLethalDamage`（最初に結果を返したものを採用）→ ④ HP確定・勝敗判定。
 
 ## 共通エンジンを変える場合
 

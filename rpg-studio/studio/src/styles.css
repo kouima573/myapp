@@ -164,6 +164,9 @@ textarea { resize: vertical; }
 .debug-panel h4 { margin: 12px 0 6px; font-size: 11px; color: var(--amber); font-weight: 600; }
 .debug-panel h4:first-child { margin-top: 0; }
 .debug-panel p { margin: 0; }
+.var-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.var-grid label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; color: var(--muted); }
+.var-grid input { padding: 3px 6px; }
 
 /* ---------- data */
 .data-panel { flex: 1; min-height: 0; display: grid; grid-template-columns: 250px minmax(0, 1fr); }

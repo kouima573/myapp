@@ -4,14 +4,162 @@
     {
       "id": "unyielding-soul",
       "name": "不屈の魂",
-      "description": "小人の種族能力。1回の戦闘で一度だけ、致命傷をHP1でこらえる。",
-      "kind": "passive"
+      "description": "1回の戦闘で一度だけ、致命傷をHP1でこらえる。",
+      "kind": "passive",
+      "rules": [
+        {
+          "id": "stand-firm",
+          "on": "lethalDamage",
+          "once": "battle",
+          "modify": {
+            "hp": 1
+          },
+          "effects": [
+            {
+              "type": "battleLog",
+              "text": "不屈の魂！ 致命傷をHP1でこらえた。"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "earth-ward",
+      "name": "大地の守り",
+      "description": "気力2：HPを8回復する。",
+      "kind": "battle",
+      "use": {
+        "where": "battle",
+        "cost": [
+          {
+            "var": "spirit",
+            "amount": 2
+          }
+        ],
+        "effects": [
+          {
+            "type": "heal",
+            "amount": 8
+          }
+        ]
+      }
     },
     {
       "id": "beast-trail",
       "name": "獣道",
-      "description": "獣人に伝わる技。岩場のわずかな隙間を抜けられる。",
+      "description": "岩場のわずかな隙間を抜けられる。",
       "kind": "field"
+    },
+    {
+      "id": "wild-strike",
+      "name": "野生の一撃",
+      "description": "攻撃時25%で与ダメージ2倍。",
+      "kind": "passive",
+      "rules": [
+        {
+          "id": "crit",
+          "on": "dealDamage",
+          "chance": 25,
+          "modify": {
+            "damage": {
+              "mul": [
+                {
+                  "ctx": "damage"
+                },
+                2
+              ]
+            }
+          },
+          "effects": [
+            {
+              "type": "battleLog",
+              "text": "野生の一撃！"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bite",
+      "name": "かみつき",
+      "description": "気力2：攻撃力の2倍のダメージ（防御無視）。",
+      "kind": "battle",
+      "use": {
+        "where": "battle",
+        "cost": [
+          {
+            "var": "spirit",
+            "amount": 2
+          }
+        ],
+        "effects": [
+          {
+            "type": "damage",
+            "target": "enemy",
+            "amount": {
+              "mul": [
+                {
+                  "stat": "attack"
+                },
+                2
+              ]
+            },
+            "text": "{{enemy}}に{{ctx.damage}}のダメージ！"
+          }
+        ]
+      }
+    },
+    {
+      "id": "first-aid",
+      "name": "応急手当",
+      "description": "気力1：HPを8回復（いつでも）。",
+      "kind": "field",
+      "use": {
+        "where": "both",
+        "cost": [
+          {
+            "var": "spirit",
+            "amount": 1
+          }
+        ],
+        "effects": [
+          {
+            "type": "heal",
+            "amount": 8
+          },
+          {
+            "type": "message",
+            "text": "応急手当をした。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "haggle",
+      "name": "商才",
+      "description": "魔物を倒すと追加で2ゴールド。",
+      "kind": "passive",
+      "rules": [
+        {
+          "id": "bonus-gold",
+          "on": "victory",
+          "when": {
+            "enemyTag": "monster"
+          },
+          "effects": [
+            {
+              "type": "setVar",
+              "var": "gold",
+              "op": "add",
+              "value": 2
+            },
+            {
+              "type": "message",
+              "text": "商才で2ゴールド上乗せした。"
+            }
+          ]
+        }
+      ]
     }
   ],
   "items": [
@@ -26,6 +174,14 @@
       "name": "風の欠片",
       "description": "遺跡の番人が守っていた、淡く光る石。",
       "key": true
+    },
+    {
+      "id": "lucky-charm",
+      "name": "幸運のお守り",
+      "description": "持っているだけで攻撃+1。",
+      "statMods": {
+        "attack": 1
+      }
     }
   ],
   "enemies": [
@@ -44,7 +200,10 @@
         }
       ],
       "drops": [],
-      "canFlee": true
+      "canFlee": true,
+      "tags": [
+        "monster"
+      ]
     },
     {
       "id": "cave-bat",
@@ -66,7 +225,10 @@
         }
       ],
       "drops": [],
-      "canFlee": true
+      "canFlee": true,
+      "tags": [
+        "monster"
+      ]
     },
     {
       "id": "stone-sentinel",
@@ -93,7 +255,102 @@
         }
       ],
       "drops": [],
-      "canFlee": false
+      "canFlee": false,
+      "tags": [
+        "guardian",
+        "construct"
+      ],
+      "rules": [
+        {
+          "id": "cracked",
+          "on": "turnEnd",
+          "once": "battle",
+          "when": {
+            "compare": [
+              {
+                "ctx": "enemyHp"
+              },
+              "<=",
+              {
+                "percent": [
+                  {
+                    "ctx": "enemyMaxHp"
+                  },
+                  50
+                ]
+              }
+            ]
+          },
+          "effects": [
+            {
+              "type": "battleLog",
+              "text": "番人の体にひびが走った！"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "traits": [
+    {
+      "id": "dwarf",
+      "name": "小人",
+      "category": "種族",
+      "description": "小柄だが頑丈な一族。",
+      "tags": [
+        "small"
+      ],
+      "statMods": {
+        "maxHp": 4,
+        "defense": 1
+      },
+      "abilities": [
+        "unyielding-soul",
+        "earth-ward"
+      ]
+    },
+    {
+      "id": "beastfolk",
+      "name": "獣人",
+      "category": "種族",
+      "description": "森に生きる俊敏な一族。",
+      "tags": [
+        "wild"
+      ],
+      "statMods": {
+        "attack": 1
+      },
+      "abilities": [
+        "beast-trail",
+        "wild-strike",
+        "bite"
+      ]
+    },
+    {
+      "id": "human",
+      "name": "人間",
+      "category": "種族",
+      "description": "どこにでもいる器用な一族。",
+      "tags": [
+        "civil"
+      ],
+      "abilities": [
+        "first-aid",
+        "haggle"
+      ],
+      "onGrant": [
+        {
+          "type": "giveItem",
+          "item": "herb",
+          "count": 2
+        },
+        {
+          "type": "setVar",
+          "var": "gold",
+          "op": "add",
+          "value": 10
+        }
+      ]
     }
   ]
 }

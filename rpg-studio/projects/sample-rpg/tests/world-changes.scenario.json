@@ -1,0 +1,89 @@
+{
+  "name": "フラグで地形が変わる（番人を倒すと遺跡の大岩が消える）・3体撃破で強くなる",
+  "seed": 6,
+  "steps": [
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "prompt",
+        "textIncludes": "種族"
+      }
+    },
+    {
+      "choose": "dwarf"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "ruins",
+          "x": 3,
+          "y": 9
+        }
+      ]
+    },
+    {
+      "expect": {
+        "passable": [
+          {
+            "x": 11,
+            "y": 9,
+            "is": false
+          }
+        ]
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "setFlag",
+          "flag": "sentinelCalmed"
+        }
+      ]
+    },
+    {
+      "expect": {
+        "passable": [
+          {
+            "x": 11,
+            "y": 9,
+            "is": true
+          }
+        ]
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "setVar",
+          "var": "victories",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "expect": {
+        "flags": {
+          "veteran": true
+        },
+        "stats": {
+          "attack": 6
+        },
+        "textIncludes": "攻撃力が1上がった"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    }
+  ]
+}

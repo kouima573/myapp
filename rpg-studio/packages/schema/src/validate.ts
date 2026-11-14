@@ -1,8 +1,8 @@
 import type { z } from "zod";
 import {
-  AssetManifestSchema, DatabaseSchema, DialogueBundleSchema, EventBundleSchema, GameMapSchema, PROJECT_FORMAT_VERSION,
+  AssetManifestSchema, BATTLE_TRIGGERS, DatabaseSchema, RuleBundleSchema, DialogueBundleSchema, EventBundleSchema, GameMapSchema, PROJECT_FORMAT_VERSION,
   ProjectManifestSchema, TilesetSchema,
-  type Condition, type Effect, type GameContent, type GameMap, type ProjectManifest,
+  type Condition, type Effect, type Expr, type GameContent, type GameMap, type ProjectManifest, type Rule, type StatMods, type Use,
 } from "./formats";
 
 export interface Diagnostic {
@@ -66,8 +66,8 @@ export function detectProjectFormat(projectJsonText: string): number | null {
 }
 
 /** Lists every JSON file the manifest references (used by loaders to know what to read). */
-export function referencedJsonFiles(manifest: Pick<ProjectManifest, "maps" | "tilesetPath" | "dialoguesPath" | "eventsPath" | "databasePath" | "assetsPath">): string[] {
-  return ["project.json", manifest.tilesetPath, manifest.dialoguesPath, manifest.eventsPath, manifest.databasePath, manifest.assetsPath, ...manifest.maps.map(map => map.path)];
+export function referencedJsonFiles(manifest: Pick<ProjectManifest, "maps" | "tilesetPath" | "dialoguesPath" | "eventsPath" | "databasePath" | "assetsPath" | "rulesPath">): string[] {
+  return ["project.json", manifest.tilesetPath, manifest.dialoguesPath, manifest.eventsPath, manifest.databasePath, manifest.assetsPath, ...(manifest.rulesPath ? [manifest.rulesPath] : []), ...manifest.maps.map(map => map.path)];
 }
 
 /**
@@ -94,6 +94,7 @@ export function loadProjectContent(texts: ProjectFileTexts): LoadResult {
   const eventBundle = parseWith(EventBundleSchema, project.eventsPath, parseJson(project.eventsPath, texts, diagnostics), diagnostics);
   const database = parseWith(DatabaseSchema, project.databasePath, parseJson(project.databasePath, texts, diagnostics), diagnostics);
   const assets = parseWith(AssetManifestSchema, project.assetsPath, parseJson(project.assetsPath, texts, diagnostics), diagnostics);
+  const ruleBundle = project.rulesPath ? parseWith(RuleBundleSchema, project.rulesPath, parseJson(project.rulesPath, texts, diagnostics), diagnostics) : { formatVersion: PROJECT_FORMAT_VERSION, rules: [] };
   const maps: Record<string, GameMap> = {};
   const mapFiles: Record<string, string> = {};
   const seenMapIds = new Set<string>();
@@ -114,7 +115,7 @@ export function loadProjectContent(texts: ProjectFileTexts): LoadResult {
     if (texts[system.path] === undefined) diagnostics.push({ severity: "error", file: system.path, message: "システムのソースファイルが見つかりません" });
   });
 
-  if (!tileset || !dialogueBundle || !eventBundle || !database || !assets || Object.keys(maps).length !== project.maps.length || diagnostics.some(d => d.severity === "error")) {
+  if (!tileset || !dialogueBundle || !eventBundle || !database || !assets || !ruleBundle || Object.keys(maps).length !== project.maps.length || diagnostics.some(d => d.severity === "error")) {
     return { content: null, diagnostics };
   }
   const content: GameContent = {
@@ -125,12 +126,15 @@ export function loadProjectContent(texts: ProjectFileTexts): LoadResult {
     events: Object.fromEntries(eventBundle.events.map(event => [event.id, event])),
     database,
     assets,
+    rules: ruleBundle.rules,
   };
   duplicateIds(project.dialoguesPath, "dialogues", dialogueBundle.dialogues, diagnostics);
   duplicateIds(project.eventsPath, "events", eventBundle.events, diagnostics);
   duplicateIds(project.databasePath, "abilities", database.abilities, diagnostics);
   duplicateIds(project.databasePath, "items", database.items, diagnostics);
   duplicateIds(project.databasePath, "enemies", database.enemies, diagnostics);
+  duplicateIds(project.databasePath, "traits", database.traits, diagnostics);
+  if (project.rulesPath) duplicateIds(project.rulesPath, "rules", ruleBundle.rules, diagnostics);
   diagnostics.push(...checkReferences(content, mapFiles));
   return { content: diagnostics.some(d => d.severity === "error") ? null : content, diagnostics };
 }
@@ -148,23 +152,25 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   const out: Diagnostic[] = [];
   const { project, tileset, maps, dialogues, events, database, assets } = content;
   const P = "project.json";
+  const DB = project.databasePath;
   const err = (file: string, at: string, message: string) => out.push({ severity: "error", file, at, message });
   const warn = (file: string, at: string, message: string) => out.push({ severity: "warning", file, at, message });
   const abilityIds = new Set(database.abilities.map(a => a.id));
+  const traitIds = new Set(database.traits.map(t => t.id));
   const itemIds = new Set(database.items.map(i => i.id));
   const enemyIds = new Set(database.enemies.map(e => e.id));
+  const enemyTags = new Set(database.enemies.flatMap(e => e.tags));
   const systemIds = new Set(project.systems.map(s => s.id));
   const assetById = new Map(assets.assets.map(a => [a.id, a]));
   const tileByCode = new Map(tileset.tiles.map(t => [t.code, t]));
   const flagIds = new Set(Object.keys(project.flags));
+  const varIds = new Set(Object.keys(project.variables));
 
   // IDs that `done` conditions may refer to.
   const doneIds = new Set<string>();
   for (const event of Object.values(events)) doneIds.add(event.id);
   for (const dialogue of Object.values(dialogues)) for (const choice of dialogue.choices) doneIds.add(`${dialogue.id}/${choice.id}`);
-  const collectMarkDone = (effects: Effect[]) => walkEffects(effects, effect => { if (effect.type === "markDone") doneIds.add(effect.id); });
-  for (const event of Object.values(events)) { collectMarkDone(event.effects); collectMarkDone(event.otherwise); collectMarkDone(event.afterDone); }
-  for (const dialogue of Object.values(dialogues)) { collectMarkDone(dialogue.effects); dialogue.choices.forEach(c => collectMarkDone(c.effects)); }
+  forEachEffectList(content, (effects) => walkEffects(effects, effect => { if (effect.type === "markDone") doneIds.add(effect.id); }));
 
   const mapFile = (mapId: string) => mapFiles[mapId] ?? `maps/${mapId}.json`;
   const tileAt = (mapId: string, x: number, y: number) => {
@@ -177,47 +183,127 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     if (!map) { err(file, at, `${label}のマップ '${mapId}' が存在しません`); return; }
     if (x >= map.width || y >= map.height) { err(file, at, `${label}の座標(${x}, ${y})がマップ '${mapId}' の範囲外です`); return; }
     const tile = tileAt(mapId, x, y);
-    if (tile && !tile.passable && !tile.passableWhen) warn(file, at, `${label}の座標(${x}, ${y})は通行不可タイル「${tile.name}」です`);
+    if (tile && !tile.passable && !tile.passableWhen && !map.overlays.length) warn(file, at, `${label}の座標(${x}, ${y})は通行不可タイル「${tile.name}」です`);
+  };
+  const checkText = (file: string, at: string, text: string) => {
+    for (const match of text.matchAll(/\{\{\s*([a-zA-Z]+)(?:\.([^}\s]+))?\s*\}\}/g)) {
+      const [, kind, key] = match;
+      if (kind === "var" && key && !varIds.has(key)) warn(file, at, `文中の {{var.${key}}} は未宣言の変数です`);
+      else if (kind === "item" && key && !itemIds.has(key)) warn(file, at, `文中の {{item.${key}}} は未定義のアイテムです`);
+      else if (kind === "flag" && key && !flagIds.has(key)) warn(file, at, `文中の {{flag.${key}}} は未宣言のフラグです`);
+      else if (!["var", "item", "flag", "stat", "hp", "maxHp", "name", "ctx", "enemy", "trait"].includes(kind!)) warn(file, at, `文中の {{${kind}}} は使えない差し込みです`);
+    }
   };
 
-  const checkCondition = (file: string, at: string, condition: Condition | undefined) => {
+  const checkExpr = (file: string, at: string, expr: Expr | undefined, ctxAllowed = false) => {
+    if (expr === undefined) return;
+    walkExpr(expr, e => {
+      if (typeof e === "number") return;
+      if ("var" in e && !varIds.has(e.var)) err(file, at, `未宣言の変数 '${e.var}' を参照しています。project.jsonのvariablesに宣言してください`);
+      if ("count" in e && !itemIds.has(e.count)) err(file, at, `未定義のアイテム '${e.count}' を参照しています`);
+      if ("ctx" in e && !ctxAllowed) warn(file, at, `{"ctx":"${e.ctx}"} は戦闘・ダメージのルール以外では常に0です`);
+    }, c => checkCondition(file, at, c, ctxAllowed));
+  };
+  function checkCondition(file: string, at: string, condition: Condition | undefined, ctxAllowed = false) {
     if (!condition) return;
     walkCondition(condition, c => {
       if ("flag" in c && !flagIds.has(c.flag)) err(file, at, `未宣言のフラグ '${c.flag}' を参照しています。project.jsonのflagsに宣言してください`);
+      if ("var" in c) { if (!varIds.has(c.var)) err(file, at, `未宣言の変数 '${c.var}' を参照しています`); checkExpr(file, at, c.value, ctxAllowed); }
+      if ("compare" in c) { checkExpr(file, at, c.compare[0], ctxAllowed); checkExpr(file, at, c.compare[2], ctxAllowed); }
       if ("ability" in c && !abilityIds.has(c.ability)) err(file, at, `未定義の能力 '${c.ability}' を参照しています`);
+      if ("trait" in c && !traitIds.has(c.trait)) err(file, at, `未定義の特性 '${c.trait}' を参照しています`);
       if ("item" in c && !itemIds.has(c.item)) err(file, at, `未定義のアイテム '${c.item}' を参照しています`);
       if ("done" in c && !doneIds.has(c.done)) err(file, at, `完了IDとして不明な '${c.done}' を参照しています（イベントID、'会話ID/選択肢ID'、markDoneのID）`);
+      if ("map" in c && !maps[c.map]) err(file, at, `未定義のマップ '${c.map}'`);
+      if ("enemy" in c && !enemyIds.has(c.enemy)) err(file, at, `未定義の敵 '${c.enemy}'`);
+      if ("enemyTag" in c && !enemyTags.has(c.enemyTag)) warn(file, at, `どの敵にも付いていないタグ '${c.enemyTag}'`);
     });
-  };
-  const checkEffects = (file: string, at: string, effects: Effect[]) => {
+  }
+  const checkEffects = (file: string, at: string, effects: Effect[], ctxAllowed = false) => {
     effects.forEach((effect, index) => {
       const here = `${at}[${index}]`;
       switch (effect.type) {
+        case "message": case "battleLog": checkText(file, here, effect.text); break;
         case "setFlag": if (!flagIds.has(effect.flag)) err(file, here, `未宣言のフラグ '${effect.flag}' を設定しています`); break;
-        case "unlockAbility": if (!abilityIds.has(effect.ability)) err(file, here, `未定義の能力 '${effect.ability}'`); break;
+        case "setVar": if (!varIds.has(effect.var)) err(file, here, `未宣言の変数 '${effect.var}' を設定しています`); checkExpr(file, here, effect.value, ctxAllowed); break;
+        case "random": if (!varIds.has(effect.var)) err(file, here, `未宣言の変数 '${effect.var}'`); checkExpr(file, here, effect.min, ctxAllowed); checkExpr(file, here, effect.max, ctxAllowed); break;
+        case "chance": checkExpr(file, here, effect.percent, ctxAllowed); checkEffects(file, `${here}.then`, effect.then, ctxAllowed); if (effect.else) checkEffects(file, `${here}.else`, effect.else, ctxAllowed); break;
+        case "setStat": checkExpr(file, here, effect.value, ctxAllowed); break;
+        case "unlockAbility": case "removeAbility": if (!abilityIds.has(effect.ability)) err(file, here, `未定義の能力 '${effect.ability}'`); break;
+        case "grantTrait": case "removeTrait": if (!traitIds.has(effect.trait)) err(file, here, `未定義の特性 '${effect.trait}'`); break;
         case "giveItem": case "takeItem": if (!itemIds.has(effect.item)) err(file, here, `未定義のアイテム '${effect.item}'`); break;
+        case "heal": checkExpr(file, here, effect.amount, ctxAllowed); break;
+        case "damage": checkExpr(file, here, effect.amount, ctxAllowed); if (effect.text) checkText(file, here, effect.text); break;
         case "teleport": checkPosition(file, here, effect.mapId, effect.x, effect.y, "移動先"); break;
+        case "setTile": {
+          if (!tileByCode.has(effect.code)) err(file, here, `タイルセットにないコード '${effect.code}'`);
+          const map = effect.mapId ? maps[effect.mapId] : undefined;
+          if (effect.mapId && !map) err(file, here, `未定義のマップ '${effect.mapId}'`);
+          if (map && (effect.x >= map.width || effect.y >= map.height)) err(file, here, `座標(${effect.x}, ${effect.y})がマップ範囲外です`);
+          break;
+        }
         case "dialogue": if (!dialogues[effect.dialogue]) err(file, here, `未定義の会話 '${effect.dialogue}'`); break;
+        case "choice":
+          if (effect.prompt) checkText(file, here, effect.prompt);
+          effect.options.forEach((option, i) => { checkCondition(file, `${here}.options[${i}].when`, option.when); checkText(file, `${here}.options[${i}]`, option.label); checkEffects(file, `${here}.options[${i}].effects`, option.effects); });
+          break;
+        case "event": if (!events[effect.event]) err(file, here, `未定義のイベント '${effect.event}'`); break;
         case "battle":
           if (!enemyIds.has(effect.enemy)) err(file, here, `未定義の敵 '${effect.enemy}'`);
           if (effect.onVictory) checkEffects(file, `${here}.onVictory`, effect.onVictory);
           break;
         case "if":
-          checkCondition(file, `${here}.when`, effect.when);
-          checkEffects(file, `${here}.then`, effect.then);
-          if (effect.else) checkEffects(file, `${here}.else`, effect.else);
+          checkCondition(file, `${here}.when`, effect.when, ctxAllowed);
+          checkEffects(file, `${here}.then`, effect.then, ctxAllowed);
+          if (effect.else) checkEffects(file, `${here}.else`, effect.else, ctxAllowed);
           break;
         case "system": if (!systemIds.has(effect.system)) err(file, here, `project.jsonのsystemsにないシステム '${effect.system}'`); break;
         default: break;
       }
     });
   };
+  const checkRules = (file: string, at: string, rules: Rule[]) => {
+    rules.forEach(rule => {
+      const here = at === "rules" ? `rules[${rule.id}]` : `${at}.rules[${rule.id}]`;
+      const battleTrigger = BATTLE_TRIGGERS.includes(rule.on);
+      const ctxOk = battleTrigger || rule.on === "victory" || rule.on === "defeat";
+      checkCondition(file, `${here}.when`, rule.when, ctxOk);
+      checkExpr(file, `${here}.chance`, rule.chance, ctxOk);
+      checkEffects(file, `${here}.effects`, rule.effects, ctxOk);
+      if (rule.modify?.damage !== undefined && rule.on !== "dealDamage" && rule.on !== "takeDamage") warn(file, here, "modify.damage は on が dealDamage / takeDamage のときだけ使われます");
+      if (rule.modify?.hp !== undefined && rule.on !== "lethalDamage") warn(file, here, "modify.hp は on が lethalDamage のときだけ使われます");
+      checkExpr(file, `${here}.modify`, rule.modify?.damage, true);
+      checkExpr(file, `${here}.modify`, rule.modify?.hp, true);
+      if (rule.once === "battle" && !battleTrigger) warn(file, here, `once:"battle" は戦闘中のトリガー以外では効きません（on=${rule.on}）`);
+      if (rule.repeat && rule.on !== "auto") warn(file, here, "repeat は on が auto のときだけ使われます");
+      if (rule.on === "auto" && !rule.when) warn(file, here, "条件(when)のないautoルールは開始直後に1回だけ発動します");
+    });
+  };
+  const checkStatMods = (file: string, at: string, mods: StatMods | undefined) => {
+    if (!mods) return;
+    for (const value of Object.values(mods)) checkExpr(file, `${at}.statMods`, value);
+  };
+  const checkUse = (file: string, at: string, use: Use | undefined) => {
+    if (!use) return;
+    checkCondition(file, `${at}.use.when`, use.when);
+    use.cost.forEach((cost, i) => { if (!varIds.has(cost.var)) err(file, `${at}.use.cost[${i}]`, `未宣言の変数 '${cost.var}'`); checkExpr(file, `${at}.use.cost[${i}]`, cost.amount); });
+    checkExpr(file, `${at}.use.hpCost`, use.hpCost);
+    checkEffects(file, `${at}.use.effects`, use.effects, use.where !== "field");
+  };
 
   // Manifest.
   checkPosition(P, "start", project.start.mapId, project.start.x, project.start.y, "開始位置");
   if (project.player.sprite && assetById.get(project.player.sprite)?.kind !== "character") err(P, "player.sprite", `キャラクター素材 '${project.player.sprite}' がassets.jsonにありません`);
   project.player.abilities.forEach((id, i) => { if (!abilityIds.has(id)) err(P, `player.abilities[${i}]`, `未定義の能力 '${id}'`); });
+  project.player.traits.forEach((id, i) => { if (!traitIds.has(id)) err(P, `player.traits[${i}]`, `未定義の特性 '${id}'`); });
   Object.keys(project.player.items).forEach(id => { if (!itemIds.has(id)) err(P, `player.items.${id}`, `未定義のアイテム '${id}'`); });
+  for (const [id, decl] of Object.entries(project.variables)) {
+    if (decl.min !== undefined && decl.max !== undefined && decl.min > decl.max) err(P, `variables.${id}`, "min が max より大きいです");
+    if ((decl.min !== undefined && decl.initial < decl.min) || (decl.max !== undefined && decl.initial > decl.max)) err(P, `variables.${id}`, "initial が min〜max の範囲外です");
+    if (flagIds.has(id)) warn(P, `variables.${id}`, "同じ名前のフラグがあります。紛らわしいので別名にしてください");
+  }
+  checkEffects(P, "intro", project.intro);
+  if (project.rulesPath) checkRules(project.rulesPath, "rules", content.rules.length ? content.rules : []);
 
   // Tileset.
   const atlas = assetById.get(tileset.atlas);
@@ -237,6 +323,13 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     map.rows.forEach((row, y) => Array.from(row).forEach((code, x) => {
       if (!tileByCode.has(code)) err(file, `rows[${y}]`, `タイルセットにないコード '${code}' (x=${x}, y=${y})`);
     }));
+    map.overlays.forEach((overlay, i) => {
+      checkCondition(file, `overlays[${i}].when`, overlay.when);
+      overlay.cells.forEach((cell, j) => {
+        if (!tileByCode.has(cell.code)) err(file, `overlays[${i}].cells[${j}]`, `タイルセットにないコード '${cell.code}'`);
+        if (cell.x + cell.w > map.width || cell.y + cell.h > map.height) err(file, `overlays[${i}].cells[${j}]`, "マップ範囲外です");
+      });
+    });
     const occupied = new Map<string, string>();
     const occupy = (id: string, x: number, y: number, at: string) => {
       const key = `${x},${y}`;
@@ -244,7 +337,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       if (other) warn(file, at, `${id}と${other}が同じ座標(${x}, ${y})にあります`);
       occupied.set(key, id);
     };
-    map.npcs.forEach((npc, i) => {
+    map.npcs.forEach(npc => {
       const at = `npcs[${npc.id}]`;
       occupy(npc.id, npc.x, npc.y, at);
       if (npc.sprite && assetById.get(npc.sprite)?.kind !== "character") err(file, `${at}.sprite`, `キャラクター素材 '${npc.sprite}' がassets.jsonにありません`);
@@ -254,7 +347,6 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       });
       if (npc.dialogues[npc.dialogues.length - 1]?.when) warn(file, `${at}.dialogues`, "最後の会話に条件があります。どれにも一致しないとき話しかけても反応しません");
       checkCondition(file, `${at}.visibleWhen`, npc.visibleWhen);
-      void i;
     });
     map.portals.forEach(portal => {
       const at = `portals[${portal.id}]`;
@@ -277,9 +369,14 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   // Dialogues & events.
   for (const dialogue of Object.values(dialogues)) {
     const at = `dialogues[${dialogue.id}]`;
+    dialogue.lines.forEach((line, i) => {
+      if (typeof line === "string") checkText(project.dialoguesPath, `${at}.lines[${i}]`, line);
+      else { checkText(project.dialoguesPath, `${at}.lines[${i}]`, line.text); checkCondition(project.dialoguesPath, `${at}.lines[${i}].when`, line.when); }
+    });
     checkEffects(project.dialoguesPath, `${at}.effects`, dialogue.effects);
     dialogue.choices.forEach(choice => {
       checkCondition(project.dialoguesPath, `${at}.choices[${choice.id}].when`, choice.when);
+      checkText(project.dialoguesPath, `${at}.choices[${choice.id}]`, choice.label);
       checkEffects(project.dialoguesPath, `${at}.choices[${choice.id}].effects`, choice.effects);
     });
   }
@@ -293,9 +390,21 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   }
 
   // Database.
+  database.abilities.forEach(a => { const at = `abilities[${a.id}]`; checkStatMods(DB, at, a.statMods); checkRules(DB, at, a.rules); checkUse(DB, at, a.use); });
+  database.traits.forEach(t => {
+    const at = `traits[${t.id}]`;
+    t.abilities.forEach((id, i) => { if (!abilityIds.has(id)) err(DB, `${at}.abilities[${i}]`, `未定義の能力 '${id}'`); });
+    checkStatMods(DB, at, t.statMods); checkRules(DB, at, t.rules); checkEffects(DB, `${at}.onGrant`, t.onGrant);
+  });
+  database.items.forEach(i => { const at = `items[${i.id}]`; checkStatMods(DB, at, i.statMods); checkRules(DB, at, i.rules); checkUse(DB, at, i.use); });
   database.enemies.forEach(enemy => {
-    if (enemy.sprite && assetById.get(enemy.sprite)?.kind !== "enemy" && assetById.get(enemy.sprite)?.kind !== "character") err(project.databasePath, `enemies[${enemy.id}].sprite`, `素材 '${enemy.sprite}' がassets.jsonにありません`);
-    enemy.drops.forEach((drop, i) => { if (!itemIds.has(drop.item)) err(project.databasePath, `enemies[${enemy.id}].drops[${i}]`, `未定義のアイテム '${drop.item}'`); });
+    const at = `enemies[${enemy.id}]`;
+    if (enemy.sprite && assetById.get(enemy.sprite)?.kind !== "enemy" && assetById.get(enemy.sprite)?.kind !== "character") err(DB, `${at}.sprite`, `素材 '${enemy.sprite}' がassets.jsonにありません`);
+    enemy.drops.forEach((drop, i) => { if (!itemIds.has(drop.item)) err(DB, `${at}.drops[${i}]`, `未定義のアイテム '${drop.item}'`); });
+    enemy.actions.forEach((action, i) => { checkCondition(DB, `${at}.actions[${i}].when`, action.when, true); checkEffects(DB, `${at}.actions[${i}].effects`, action.effects, true); if (action.message) checkText(DB, `${at}.actions[${i}]`, action.message); });
+    if (enemy.actions.every(a => a.when)) warn(DB, `${at}.actions`, "すべての行動に条件があります。どれも満たさないターンは何もしません");
+    checkRules(DB, at, enemy.rules);
+    enemy.rules.forEach(rule => { if (!BATTLE_TRIGGERS.includes(rule.on) && rule.on !== "victory" && rule.on !== "defeat") warn(DB, `${at}.rules[${rule.id}]`, `敵のルールは戦闘中だけ有効です（on=${rule.on} は発動しません）`); });
   });
 
   // Unreferenced content is not an error, but usually a mistake when an agent adds data.
@@ -305,12 +414,37 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     map.interactables.forEach(i => usedEvents.add(i.event));
     map.npcs.forEach(n => n.dialogues.forEach(d => usedDialogues.add(d.dialogue)));
   }
-  const noteDialogueRefs = (effects: Effect[]) => walkEffects(effects, e => { if (e.type === "dialogue") usedDialogues.add(e.dialogue); });
-  Object.values(events).forEach(e => { noteDialogueRefs(e.effects); noteDialogueRefs(e.otherwise); noteDialogueRefs(e.afterDone); });
-  Object.values(dialogues).forEach(d => { noteDialogueRefs(d.effects); d.choices.forEach(c => noteDialogueRefs(c.effects)); });
-  for (const id of Object.keys(events)) if (!usedEvents.has(id)) warn(project.eventsPath, `events[${id}]`, "どのマップからも参照されていないイベントです");
-  for (const id of Object.keys(dialogues)) if (!usedDialogues.has(id)) warn(project.dialoguesPath, `dialogues[${id}]`, "どのNPC・イベントからも参照されていない会話です");
+  forEachEffectList(content, effects => walkEffects(effects, e => {
+    if (e.type === "dialogue") usedDialogues.add(e.dialogue);
+    if (e.type === "event") usedEvents.add(e.event);
+  }));
+  for (const id of Object.keys(events)) if (!usedEvents.has(id)) warn(project.eventsPath, `events[${id}]`, "どのマップ・効果からも参照されていないイベントです");
+  for (const id of Object.keys(dialogues)) if (!usedDialogues.has(id)) warn(project.dialoguesPath, `dialogues[${id}]`, "どのNPC・効果からも参照されていない会話です");
   return out;
+}
+
+/** Calls `visit` with every list of effects anywhere in the project. */
+export function forEachEffectList(content: GameContent, visit: (effects: Effect[]) => void): void {
+  const rules = (list: Rule[]) => list.forEach(r => visit(r.effects));
+  visit(content.project.intro);
+  rules(content.rules);
+  for (const event of Object.values(content.events)) { visit(event.effects); visit(event.otherwise); visit(event.afterDone); }
+  for (const dialogue of Object.values(content.dialogues)) { visit(dialogue.effects); dialogue.choices.forEach(c => visit(c.effects)); }
+  for (const a of content.database.abilities) { rules(a.rules); if (a.use) visit(a.use.effects); }
+  for (const t of content.database.traits) { rules(t.rules); visit(t.onGrant); }
+  for (const i of content.database.items) { rules(i.rules); if (i.use) visit(i.use.effects); }
+  for (const e of content.database.enemies) { rules(e.rules); e.actions.forEach(a => visit(a.effects)); }
+}
+
+export function walkExpr(expr: Expr, visit: (expr: Expr) => void, onCondition?: (condition: Condition) => void): void {
+  visit(expr);
+  if (typeof expr === "number") return;
+  const children: Expr[] =
+    "add" in expr ? expr.add : "mul" in expr ? expr.mul : "min" in expr ? expr.min : "max" in expr ? expr.max
+    : "sub" in expr ? expr.sub : "div" in expr ? expr.div : "mod" in expr ? expr.mod : "percent" in expr ? expr.percent
+    : "if" in expr ? [expr.then, expr.else] : [];
+  if ("if" in expr) onCondition?.(expr.if);
+  children.forEach(child => walkExpr(child, visit, onCondition));
 }
 
 export function walkCondition(condition: Condition, visit: (condition: Condition) => void): void {
@@ -324,7 +458,8 @@ export function walkEffects(effects: Effect[], visit: (effect: Effect) => void):
   for (const effect of effects) {
     visit(effect);
     if (effect.type === "battle" && effect.onVictory) walkEffects(effect.onVictory, visit);
-    if (effect.type === "if") { walkEffects(effect.then, visit); if (effect.else) walkEffects(effect.else, visit); }
+    if (effect.type === "if" || effect.type === "chance") { walkEffects(effect.then, visit); if (effect.else) walkEffects(effect.else, visit); }
+    if (effect.type === "choice") effect.options.forEach(option => walkEffects(option.effects, visit));
   }
 }
 

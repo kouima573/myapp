@@ -1,16 +1,30 @@
 {
-  "name": "本編: 獣道を覚え、近道から番人を倒して長老に報告する",
+  "name": "本編（小人）: 獣道を覚え、近道から番人を倒して長老に報告する",
   "seed": 3,
   "steps": [
     {
+      "advance": "all"
+    },
+    {
       "expect": {
-        "mapId": "village",
-        "at": {
-          "x": 3,
-          "y": 9
-        },
-        "flags": {
-          "beastPathUnlocked": false
+        "scene": "prompt",
+        "textIncludes": "種族"
+      }
+    },
+    {
+      "choose": "dwarf"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "traits": [
+          "dwarf"
+        ],
+        "stats": {
+          "maxHp": 22,
+          "defense": 2
         }
       }
     },
@@ -288,6 +302,14 @@
           "y": 9
         }
       }
+    },
+    {
+      "expect": {
+        "textIncludes": "風が戻ってきた"
+      }
+    },
+    {
+      "advance": "all"
     },
     {
       "walkTo": {

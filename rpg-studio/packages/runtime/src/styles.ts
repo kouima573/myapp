@@ -14,6 +14,9 @@ export const RUNTIME_CSS = String.raw`
 .rpg-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 .rpg-hud { position:absolute; left:2%; top:2.5%; right:2%; display:flex; justify-content:space-between; align-items:flex-start; gap:2%; pointer-events:none; }
 .rpg-hud[hidden] { display:none; }
+.rpg-hud-left { display:flex; flex-direction:column; gap:.35em; align-items:flex-start; }
+.rpg-hud-vars { display:flex; gap:.8em; padding:.25em .7em; background:var(--rpg-win); border:2px solid var(--rpg-edge); border-radius:6px; font-size:.75em; color:var(--rpg-accent); }
+.rpg-battle-var { font-size:.75em; color:var(--rpg-accent); margin-top:.3em; }
 .rpg-hud-title { padding:.3em .8em; background:var(--rpg-win); border:2px solid var(--rpg-edge); border-radius:6px; font-size:.82em; letter-spacing:.06em; box-shadow:0 2px 0 rgba(0,0,0,.35); }
 .rpg-hud-hp { min-width:30%; padding:.35em .7em .45em; background:var(--rpg-win); border:2px solid var(--rpg-edge); border-radius:6px; font-size:.78em; box-shadow:0 2px 0 rgba(0,0,0,.35); }
 .rpg-hud-label { display:block; margin-bottom:.3em; white-space:nowrap; }

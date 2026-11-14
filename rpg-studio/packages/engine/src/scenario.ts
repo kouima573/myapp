@@ -10,7 +10,7 @@ import type { GameSystem } from "./systems";
 const ExpectSchema = z.object({
   mapId: IdSchema.optional(),
   at: z.object({ x: z.number().int(), y: z.number().int() }).strict().optional(),
-  scene: z.enum(["field", "message", "dialogue", "choice", "battle"]).optional(),
+  scene: z.enum(["field", "message", "dialogue", "choice", "prompt", "battle"]).optional(),
   flags: z.record(z.string(), z.boolean()).optional(),
   abilities: z.array(IdSchema).optional(),
   lacksAbilities: z.array(IdSchema).optional(),
@@ -18,6 +18,10 @@ const ExpectSchema = z.object({
   done: z.array(z.string()).optional(),
   notDone: z.array(z.string()).optional(),
   hpAtLeast: z.number().int().optional(),
+  vars: z.record(z.string(), z.number().int()).optional(),
+  traits: z.array(IdSchema).optional(),
+  lacksTraits: z.array(IdSchema).optional(),
+  stats: z.object({ maxHp: z.number().int().optional(), attack: z.number().int().optional(), defense: z.number().int().optional() }).strict().optional(),
   passable: z.array(z.object({ x: z.number().int(), y: z.number().int(), is: z.boolean() }).strict()).optional(),
   battleOutcome: z.enum(["ongoing", "victory", "defeat", "fled"]).optional(),
   textIncludes: z.string().optional(),
@@ -32,6 +36,9 @@ const StepSchema = z.union([
   z.object({ choose: IdSchema }).strict(),
   z.object({ battle: z.enum(["attack", "guard", "flee"]) }).strict(),
   z.object({ battleItem: IdSchema }).strict(),
+  z.object({ skill: IdSchema }).strict(),
+  z.object({ useItem: IdSchema }).strict(),
+  z.object({ useAbility: IdSchema }).strict(),
   /** Simple AI: guard after a telegraph (power-0 move), heal under 1/2 HP, otherwise attack; then close the battle. */
   z.object({ fight: z.literal("auto") }).strict(),
   z.object({ effects: z.array(EffectSchema) }).strict(),
@@ -58,11 +65,12 @@ export interface ScenarioResult {
 
 class ScenarioError extends Error {}
 
-function textOf(content: GameContent, state: GameState): string {
+function textOf(engine: Engine, state: GameState): string {
   const scene = state.scene;
   if (scene.kind === "message") return scene.text;
-  if (scene.kind === "dialogue") return content.dialogues[scene.dialogueId]?.lines[scene.line] ?? "";
-  if (scene.kind === "choice") return content.dialogues[scene.dialogueId]?.lines.at(-1) ?? "";
+  if (scene.kind === "dialogue") return engine.dialogueLines(state, scene.dialogueId)[scene.line] ?? "";
+  if (scene.kind === "choice") return engine.dialogueLines(state, scene.dialogueId).at(-1) ?? "";
+  if (scene.kind === "prompt") return [scene.prompt ?? "", ...scene.options.map(o => o.label)].join("\n");
   if (scene.kind === "battle") return scene.battle.log.join("\n");
   return "";
 }
@@ -128,15 +136,21 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
     if (expect.at && (state.player.x !== expect.at.x || state.player.y !== expect.at.y)) fail(`at: 期待 (${expect.at.x}, ${expect.at.y}) / 実際 (${state.player.x}, ${state.player.y})`);
     if (expect.scene && state.scene.kind !== expect.scene) fail(`scene: 期待 ${expect.scene} / 実際 ${state.scene.kind}`);
     for (const [flag, value] of Object.entries(expect.flags ?? {})) if ((state.flags[flag] ?? false) !== value) fail(`flags.${flag}: 期待 ${value} / 実際 ${state.flags[flag] ?? false}`);
-    for (const id of expect.abilities ?? []) if (!state.abilities.includes(id)) fail(`能力 ${id} がありません`);
-    for (const id of expect.lacksAbilities ?? []) if (state.abilities.includes(id)) fail(`能力 ${id} を持っています`);
+    const abilities = engine.abilities(state);
+    for (const id of expect.abilities ?? []) if (!abilities.includes(id)) fail(`能力 ${id} がありません`);
+    for (const id of expect.lacksAbilities ?? []) if (abilities.includes(id)) fail(`能力 ${id} を持っています`);
     for (const [id, count] of Object.entries(expect.items ?? {})) if ((state.items[id] ?? 0) !== count) fail(`items.${id}: 期待 ${count} / 実際 ${state.items[id] ?? 0}`);
     for (const id of expect.done ?? []) if (!state.done.includes(id)) fail(`done に ${id} がありません`);
     for (const id of expect.notDone ?? []) if (state.done.includes(id)) fail(`done に ${id} があります`);
+    for (const [id, value] of Object.entries(expect.vars ?? {})) if ((state.vars[id] ?? 0) !== value) fail(`vars.${id}: 期待 ${value} / 実際 ${state.vars[id] ?? 0}`);
+    for (const id of expect.traits ?? []) if (!state.traits.includes(id)) fail(`特性 ${id} がありません`);
+    for (const id of expect.lacksTraits ?? []) if (state.traits.includes(id)) fail(`特性 ${id} を持っています`);
+    const eff = engine.stats(state);
+    for (const [key, value] of Object.entries(expect.stats ?? {})) if (eff[key as "attack"] !== value) fail(`stats.${key}: 期待 ${value} / 実際 ${eff[key as "attack"]}`);
     if (expect.hpAtLeast !== undefined && state.player.hp < expect.hpAtLeast) fail(`HP: ${expect.hpAtLeast}以上を期待 / 実際 ${state.player.hp}`);
     for (const cell of expect.passable ?? []) if (engine.isPassable(state, cell.x, cell.y) !== cell.is) fail(`(${cell.x}, ${cell.y}) の通行可否: 期待 ${cell.is}`);
     if (expect.battleOutcome && (state.scene.kind !== "battle" || state.scene.battle.outcome !== expect.battleOutcome)) fail(`戦闘結果: 期待 ${expect.battleOutcome}`);
-    if (expect.textIncludes && !textOf(content, state).includes(expect.textIncludes)) fail(`表示テキストに「${expect.textIncludes}」がありません（実際: 「${textOf(content, state)}」）`);
+    if (expect.textIncludes && !textOf(engine, state).includes(expect.textIncludes)) fail(`表示テキストに「${expect.textIncludes}」がありません（実際: 「${textOf(engine, state)}」）`);
   };
 
   for (let index = 0; index < scenario.steps.length; index++) {
@@ -155,14 +169,17 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
       else if ("interact" in s) step({ type: "interact" });
       else if ("advance" in s) {
         if (s.advance === "once") step({ type: "advance" });
-        else for (let guard = 0; guard < 100 && (state.scene.kind === "message" || state.scene.kind === "dialogue"); guard++) step({ type: "advance" });
+        else for (let guard = 0; guard < 100 && (state.scene.kind === "message" || state.scene.kind === "dialogue" || (state.scene.kind === "battle" && state.scene.battle.outcome !== "ongoing")); guard++) step({ type: "advance" });
       } else if ("choose" in s) {
-        if (state.scene.kind !== "choice") throw new ScenarioError(`choose: 選択肢が表示されていません (scene=${state.scene.kind})`);
+        if (state.scene.kind !== "choice" && state.scene.kind !== "prompt") throw new ScenarioError(`choose: 選択肢が表示されていません (scene=${state.scene.kind})`);
         const before = state;
         step({ type: "choose", choiceId: s.choose });
         if (state === before) throw new ScenarioError(`choose: 選択肢 '${s.choose}' は選べません`);
       } else if ("battle" in s) step({ type: "battle", command: s.battle });
       else if ("battleItem" in s) step({ type: "battle", command: "item", item: s.battleItem });
+      else if ("skill" in s) step({ type: "battle", command: "skill", ability: s.skill });
+      else if ("useItem" in s) step({ type: "useItem", item: s.useItem });
+      else if ("useAbility" in s) step({ type: "useAbility", ability: s.useAbility });
       else if ("fight" in s) autoFight();
       else if ("effects" in s) state = engine.run(state, s.effects).state;
       else if ("saveAndLoad" in s) {

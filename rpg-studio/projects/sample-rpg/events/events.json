@@ -84,6 +84,94 @@
           "text": "宝箱は空っぽだ。"
         }
       ]
+    },
+    {
+      "id": "elder-shop",
+      "label": "よろず棚",
+      "effects": [
+        {
+          "type": "choice",
+          "speaker": "長老オババ",
+          "prompt": "何を買うかね？（所持金 {{var.gold}}G）",
+          "options": [
+            {
+              "id": "buy-herb",
+              "label": "薬草 — 5G",
+              "when": {
+                "var": "gold",
+                "op": ">=",
+                "value": 5
+              },
+              "effects": [
+                {
+                  "type": "setVar",
+                  "var": "gold",
+                  "op": "sub",
+                  "value": 5
+                },
+                {
+                  "type": "giveItem",
+                  "item": "herb"
+                },
+                {
+                  "type": "message",
+                  "text": "薬草を買った。"
+                }
+              ]
+            },
+            {
+              "id": "buy-charm",
+              "label": "幸運のお守り — 20G",
+              "when": {
+                "all": [
+                  {
+                    "var": "gold",
+                    "op": ">=",
+                    "value": 20
+                  },
+                  {
+                    "not": {
+                      "item": "lucky-charm"
+                    }
+                  }
+                ]
+              },
+              "effects": [
+                {
+                  "type": "setVar",
+                  "var": "gold",
+                  "op": "sub",
+                  "value": 20
+                },
+                {
+                  "type": "giveItem",
+                  "item": "lucky-charm"
+                },
+                {
+                  "type": "message",
+                  "text": "幸運のお守りを買った。持っているだけで攻撃+1。"
+                }
+              ]
+            },
+            {
+              "id": "leave",
+              "label": "やめておく",
+              "effects": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "read-diary",
+      "label": "旅の日誌",
+      "effects": [
+        {
+          "type": "system",
+          "system": "chronicle",
+          "action": "summary"
+        }
+      ]
     }
   ]
 }

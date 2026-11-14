@@ -1,0 +1,114 @@
+{
+  "formatVersion": 2,
+  "rules": [
+    {
+      "id": "monster-loot",
+      "on": "victory",
+      "when": {
+        "enemyTag": "monster"
+      },
+      "description": "魔物を倒すと2〜5ゴールドと撃破数+1",
+      "effects": [
+        {
+          "type": "random",
+          "var": "loot",
+          "min": 2,
+          "max": 5
+        },
+        {
+          "type": "setVar",
+          "var": "gold",
+          "op": "add",
+          "value": {
+            "var": "loot"
+          }
+        },
+        {
+          "type": "setVar",
+          "var": "victories",
+          "op": "add",
+          "value": 1
+        },
+        {
+          "type": "message",
+          "text": "{{var.loot}}ゴールドを拾った。"
+        }
+      ]
+    },
+    {
+      "id": "veteran",
+      "on": "auto",
+      "when": {
+        "var": "victories",
+        "op": ">=",
+        "value": 3
+      },
+      "description": "3体倒すと攻撃力+1（1回だけ）",
+      "effects": [
+        {
+          "type": "setStat",
+          "stat": "attack",
+          "op": "add",
+          "value": 1
+        },
+        {
+          "type": "setFlag",
+          "flag": "veteran"
+        },
+        {
+          "type": "message",
+          "text": "戦いに慣れてきた！ 攻撃力が1上がった。"
+        }
+      ]
+    },
+    {
+      "id": "spirit-regen",
+      "on": "step",
+      "when": {
+        "compare": [
+          {
+            "mod": [
+              {
+                "steps": true
+              },
+              8
+            ]
+          },
+          "==",
+          0
+        ]
+      },
+      "description": "8歩ごとに気力+1",
+      "effects": [
+        {
+          "type": "setVar",
+          "var": "spirit",
+          "op": "add",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "wind-returns",
+      "on": "mapEnter",
+      "once": "game",
+      "when": {
+        "all": [
+          {
+            "map": "village"
+          },
+          {
+            "flag": "sentinelCalmed"
+          }
+        ]
+      },
+      "description": "番人を倒した後に村へ戻ると",
+      "effects": [
+        {
+          "type": "message",
+          "text": "村に風が戻ってきた。木々がざわめいている。"
+        }
+      ]
+    }
+  ]
+}

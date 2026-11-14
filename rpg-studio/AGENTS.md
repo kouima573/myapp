@@ -5,14 +5,16 @@
 ## 最初に読むもの
 
 1. `docs/project-format.md` — データ形式v2（条件・効果・マップ・会話・イベント・戦闘・セーブ）
-2. `docs/extension-api.md` — 独自ルールのフック（`defineSystem`）
-3. `docs/scenario-tests.md` — 自動プレイテスト
-4. 対象プロジェクトの `README.md`（例: `projects/sample-rpg/README.md`）
+2. `docs/customization-guide.md` — 種族・効果・仕組みをデータで作るレシピ集（フラグ・変数・特性・ルール・式）
+3. `docs/extension-api.md` — データで書けないものだけ使うTypeScriptフック（`defineSystem`）
+4. `docs/scenario-tests.md` — 自動プレイテスト
+5. 対象プロジェクトの `README.md` と `pnpm rpg catalog --project projects/<id>`（定義済みIDの一覧）
 
 ## 作り方の原則
 
-- **データで書けることはデータで**（`projects/<id>/*.json`）。条件（flag/ability/item/done/all/any/not）と効果（message/setFlag/giveItem/battle/teleport/if/…）で表せないルールだけを `systems/*.ts` に書く。
-- 新しいフラグは必ず `project.json` の `flags` に宣言する（未宣言は検証エラー）。
+- **データで書けることはデータで**（`projects/<id>/*.json`）。種族・職業などは特性(traits)、効果は能力のstatMods・rules・use、全体の仕組みは `rules.json` のルールで書く。条件・効果・式・ルールで表せないものだけを `systems/*.ts` に書く。
+- 種族や効果の**内容**（仕様書）はユーザーが用意する。仕様にない効果を推測で作らない。不明点は質問する。
+- 新しいフラグ・変数は必ず `project.json` の `flags`・`variables` に宣言する（未宣言は検証エラー）。
 - ID（マップ・NPC・会話・イベント・能力・アイテム・敵・素材）はセーブや参照に使う安定ID。リネームするなら参照もすべて直す。
 - エンジン（`packages/engine`）や描画（`packages/runtime`）を変えてよいが、**プロジェクト固有のIDをエンジンに書かない**。形式を変えるなら `packages/schema` と検証・移行・テストを同時に更新する。
 - 素材は `assets.json` に出典・ライセンス・寸法つきで登録。絶対パス・base64埋め込み・出典不明の素材は使わない。既存作品の模写をしない。
@@ -25,6 +27,7 @@ pnpm rpg validate --project projects/<id>
 pnpm rpg test     --project projects/<id>
 pnpm rpg build    --project projects/<id>
 pnpm test && pnpm check        # packages/ を変えた場合
+pnpm rpg schema                # packages/schema の形式を変えた場合（schema/*.schema.json を再生成）
 git diff --check && git diff   # 差分を確認
 ```
 

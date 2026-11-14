@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "formatVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 240
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "tileset",
+              "character",
+              "enemy",
+              "animation",
+              "bgm",
+              "sfx"
+            ]
+          },
+          "mimeType": {
+            "type": "string",
+            "minLength": 1
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "source": {
+            "default": "自作",
+            "type": "string"
+          },
+          "license": {
+            "default": "プロジェクト内素材",
+            "type": "string"
+          },
+          "tileWidth": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "tileHeight": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "margin": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "spacing": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "columns": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "rows": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "frameDurationMs": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "frameOrder": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "loop": {
+            "type": "boolean"
+          },
+          "initialVolume": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "kind",
+          "mimeType",
+          "bytes"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "formatVersion",
+    "assets"
+  ],
+  "additionalProperties": false
+}
