@@ -15,10 +15,12 @@ import { catalog, jsonSchemas } from "./catalog";
 import { cmdArt, cmdAsset } from "./assets";
 import { loadProjectFromDisk, readProjectTexts, resolveInside } from "./load";
 import { newProject } from "./scaffold";
+import { genreAtlasMarkdown, GENRES, LEVEL_LABEL, searchGenres } from "../../modules/src/genres";
 
 const USAGE = `RPG Studio CLI
 
   rpg new      <id> [--title <名前>] [--dir projects]  発想を育てる空のプロジェクト（IDEA.md つき）を作る
+  rpg genres   [--query <言葉>] [--write]  ジャンル地図（どのジャンルをどう作るか）。--write で docs/genre-atlas.md を更新
   rpg validate --project <dir>          形式・参照・素材を検証
   rpg test     --project <dir>          検証 + システム読込 + tests/*.scenario.json の自動プレイ
   rpg build    --project <dir> [--out <dir>]  型検査・bundleして dist/game/<id>/ に静的ゲームを出力
@@ -291,6 +293,14 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         console.log(`OK new: ${rel}\n次に ${rel}/IDEA.md に発想を書き、AIに「IDEA.md の発想を形にして」と頼んでください。\n  pnpm rpg test --project ${rel}`);
         return 0;
       } catch (error) { console.error(`ERROR ${error instanceof Error ? error.message : String(error)}`); return 1; }
+    }
+    case "genres": {
+      if (parsed.flags.write) { await fs.writeFile(path.join(REPO_ROOT, "docs", "genre-atlas.md"), genreAtlasMarkdown()); console.log(`OK genres: docs/genre-atlas.md（${GENRES.length}ジャンル）`); return 0; }
+      const query = typeof parsed.flags.query === "string" ? parsed.flags.query : parsed.sub;
+      const list = query ? searchGenres(query) : GENRES;
+      for (const g of list) console.log(`${g.family} / ${g.name} [${g.id}] — ${LEVEL_LABEL[g.level]}${g.modules.length ? `（${g.modules.join(", ")}）` : ""}\n    ${g.recipe}`);
+      console.log(`${list.length}件${query ? `（"${query}"）` : ""}。詳しくは docs/genre-atlas.md と docs/genre-modules.md`);
+      return 0;
     }
     case "validate": return cmdValidate(parsed.flags);
     case "test": return cmdTest(parsed.flags);

@@ -1,0 +1,26 @@
+{
+  "formatVersion": 1,
+  "title": "たたかい",
+  "tempo": 150,
+  "loop": true,
+  "tracks": [
+    {
+      "name": "lead",
+      "wave": "square",
+      "volume": 0.1,
+      "notes": "D5/8 D5/8 R/8 D5/8 F5/8 E5/8 D5/8 C5/8 | A4/4 R/8 A4/8 C5/8 D5/8 E5/4 | F5/8 F5/8 R/8 F5/8 G5/8 F5/8 E5/8 D5/8 | E5/4. C5/8 A4/2 | Bb4/8 Bb4/8 R/8 Bb4/8 D5/8 C5/8 Bb4/8 A4/8 | C5/4 R/8 C5/8 E5/8 F5/8 G5/4 | A5/8 G5/8 F5/8 E5/8 D5/8 C5/8 Bb4/8 C5/8 | D5/2 R/4 A4/4"
+    },
+    {
+      "name": "bass",
+      "wave": "triangle",
+      "volume": 0.28,
+      "notes": "D2/8 D2/8 D2/8 D2/8 D2/8 D2/8 D2/8 D2/8 | D2/8 D2/8 D2/8 D2/8 D2/8 D2/8 D2/8 D2/8 | Bb1/8 Bb1/8 Bb1/8 Bb1/8 Bb1/8 Bb1/8 Bb1/8 Bb1/8 | A1/8 A1/8 A1/8 A1/8 A1/8 A1/8 A1/8 A1/8 | G1/8 G1/8 G1/8 G1/8 G1/8 G1/8 G1/8 G1/8 | A1/8 A1/8 A1/8 A1/8 A1/8 A1/8 A1/8 A1/8 | Bb1/8 Bb1/8 Bb1/8 Bb1/8 Bb1/8 Bb1/8 Bb1/8 Bb1/8 | A1/8 A1/8 A1/8 A1/8 D2/8 D2/8 D2/8 D2/8"
+    },
+    {
+      "name": "drums",
+      "wave": "noise",
+      "volume": 0.05,
+      "notes": "x/8 R/8 x/8 R/8 x/8 R/8 x/16 x/16 x/8 | x/8 R/8 x/8 R/8 x/8 R/8 x/16 x/16 x/8 | x/8 R/8 x/8 R/8 x/8 R/8 x/16 x/16 x/8 | x/8 R/8 x/8 R/8 x/8 R/8 x/16 x/16 x/8 | x/8 R/8 x/8 R/8 x/8 R/8 x/16 x/16 x/8 | x/8 R/8 x/8 R/8 x/8 R/8 x/16 x/16 x/8 | x/8 R/8 x/8 R/8 x/8 R/8 x/16 x/16 x/8 | x/8 R/8 x/8 R/8 x/8 R/8 x/16 x/16 x/8"
+    }
+  ]
+}

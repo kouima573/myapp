@@ -16,6 +16,11 @@ export function button(label: string, onClick: () => void, selected = false, dis
   return b;
 }
 
+/** Opaque full-screen background so the field does not show through a scene. */
+export function backdrop(host: HTMLElement, colors = "#2a2433, #0f0d12"): void {
+  host.appendChild(h("div", `position:absolute;inset:0;background:radial-gradient(ellipse at 50% 30%, ${colors} 75%)`));
+}
+
 export function panel(style: string): HTMLDivElement {
   return h("div", `position:absolute;${style}`, undefined, "rpg-window");
 }

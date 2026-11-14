@@ -1,0 +1,335 @@
+{
+  "formatVersion": 1,
+  "assets": [
+    {
+      "id": "village-tiles",
+      "path": "assets/tilesets/sample-village.png",
+      "kind": "tileset",
+      "mimeType": "image/png",
+      "bytes": 153184,
+      "source": "AI画像生成（Manus）",
+      "license": "Custom AI-generated sample distributed under repository LICENSE (MIT)",
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "margin": 0,
+      "spacing": 0,
+      "origin": "generated",
+      "sourceId": "ai-image",
+      "generator": {
+        "tool": "Manus image generation",
+        "note": "Manus image generation, original commissioned artwork (/manus-storage/async-images/AjzbZ4Z9hGdfnuwWjCGdRl/image-1.webp)"
+      }
+    },
+    {
+      "id": "adventurer",
+      "path": "assets/characters/adventurer-sheet.png",
+      "kind": "character",
+      "mimeType": "image/png",
+      "bytes": 83924,
+      "source": "AI画像生成（Manus）",
+      "license": "Custom AI-generated sample distributed under repository LICENSE (MIT)",
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "origin": "generated",
+      "sourceId": "ai-image",
+      "generator": {
+        "tool": "Manus image generation",
+        "note": "Manus image generation, original commissioned artwork (/manus-storage/async-images/AjzbZ4Z9hGdfnuwWjCGdRl/image-2.webp)"
+      }
+    },
+    {
+      "id": "sfx-cursor",
+      "path": "assets/audio/sfx/sfx-cursor.wav",
+      "kind": "sfx",
+      "mimeType": "audio/wav",
+      "bytes": 2338,
+      "source": "内蔵効果音ジェネレーター",
+      "license": "プロジェクト内素材（オリジナル生成）",
+      "origin": "generated",
+      "sourceId": "builtin-sfx",
+      "creditRequired": false,
+      "redistributable": true,
+      "generator": {
+        "tool": "rpg asset gen-sfx",
+        "preset": "cursor",
+        "seed": 1
+      },
+      "loop": false
+    },
+    {
+      "id": "sfx-confirm",
+      "path": "assets/audio/sfx/sfx-confirm.wav",
+      "kind": "sfx",
+      "mimeType": "audio/wav",
+      "bytes": 5866,
+      "source": "内蔵効果音ジェネレーター",
+      "license": "プロジェクト内素材（オリジナル生成）",
+      "origin": "generated",
+      "sourceId": "builtin-sfx",
+      "creditRequired": false,
+      "redistributable": true,
+      "generator": {
+        "tool": "rpg asset gen-sfx",
+        "preset": "confirm",
+        "seed": 1
+      },
+      "loop": false
+    },
+    {
+      "id": "sfx-cancel",
+      "path": "assets/audio/sfx/sfx-cancel.wav",
+      "kind": "sfx",
+      "mimeType": "audio/wav",
+      "bytes": 5424,
+      "source": "内蔵効果音ジェネレーター",
+      "license": "プロジェクト内素材（オリジナル生成）",
+      "origin": "generated",
+      "sourceId": "builtin-sfx",
+      "creditRequired": false,
+      "redistributable": true,
+      "generator": {
+        "tool": "rpg asset gen-sfx",
+        "preset": "cancel",
+        "seed": 1
+      },
+      "loop": false
+    },
+    {
+      "id": "sfx-bump",
+      "path": "assets/audio/sfx/sfx-bump.wav",
+      "kind": "sfx",
+      "mimeType": "audio/wav",
+      "bytes": 3616,
+      "source": "内蔵効果音ジェネレーター",
+      "license": "プロジェクト内素材（オリジナル生成）",
+      "origin": "generated",
+      "sourceId": "builtin-sfx",
+      "creditRequired": false,
+      "redistributable": true,
+      "generator": {
+        "tool": "rpg asset gen-sfx",
+        "preset": "bump",
+        "seed": 1
+      },
+      "loop": false
+    },
+    {
+      "id": "sfx-hit",
+      "path": "assets/audio/sfx/sfx-hit.wav",
+      "kind": "sfx",
+      "mimeType": "audio/wav",
+      "bytes": 5650,
+      "source": "内蔵効果音ジェネレーター",
+      "license": "プロジェクト内素材（オリジナル生成）",
+      "origin": "generated",
+      "sourceId": "builtin-sfx",
+      "creditRequired": false,
+      "redistributable": true,
+      "generator": {
+        "tool": "rpg asset gen-sfx",
+        "preset": "hit",
+        "seed": 1
+      },
+      "loop": false
+    },
+    {
+      "id": "sfx-hurt",
+      "path": "assets/audio/sfx/sfx-hurt.wav",
+      "kind": "sfx",
+      "mimeType": "audio/wav",
+      "bytes": 8908,
+      "source": "内蔵効果音ジェネレーター",
+      "license": "プロジェクト内素材（オリジナル生成）",
+      "origin": "generated",
+      "sourceId": "builtin-sfx",
+      "creditRequired": false,
+      "redistributable": true,
+      "generator": {
+        "tool": "rpg asset gen-sfx",
+        "preset": "hurt",
+        "seed": 1
+      },
+      "loop": false
+    },
+    {
+      "id": "sfx-heal",
+      "path": "assets/audio/sfx/sfx-heal.wav",
+      "kind": "sfx",
+      "mimeType": "audio/wav",
+      "bytes": 22536,
+      "source": "内蔵効果音ジェネレーター",
+      "license": "プロジェクト内素材（オリジナル生成）",
+      "origin": "generated",
+      "sourceId": "builtin-sfx",
+      "creditRequired": false,
+      "redistributable": true,
+      "generator": {
+        "tool": "rpg asset gen-sfx",
+        "preset": "heal",
+        "seed": 1
+      },
+      "loop": false
+    },
+    {
+      "id": "sfx-encounter",
+      "path": "assets/audio/sfx/sfx-encounter.wav",
+      "kind": "sfx",
+      "mimeType": "audio/wav",
+      "bytes": 20110,
+      "source": "内蔵効果音ジェネレーター",
+      "license": "プロジェクト内素材（オリジナル生成）",
+      "origin": "generated",
+      "sourceId": "builtin-sfx",
+      "creditRequired": false,
+      "redistributable": true,
+      "generator": {
+        "tool": "rpg asset gen-sfx",
+        "preset": "encounter",
+        "seed": 1
+      },
+      "loop": false
+    },
+    {
+      "id": "sfx-victory",
+      "path": "assets/audio/sfx/sfx-victory.wav",
+      "kind": "sfx",
+      "mimeType": "audio/wav",
+      "bytes": 46570,
+      "source": "内蔵効果音ジェネレーター",
+      "license": "プロジェクト内素材（オリジナル生成）",
+      "origin": "generated",
+      "sourceId": "builtin-sfx",
+      "creditRequired": false,
+      "redistributable": true,
+      "generator": {
+        "tool": "rpg asset gen-sfx",
+        "preset": "victory",
+        "seed": 1
+      },
+      "loop": false
+    },
+    {
+      "id": "sfx-defeat",
+      "path": "assets/audio/sfx/sfx-defeat.wav",
+      "kind": "sfx",
+      "mimeType": "audio/wav",
+      "bytes": 48994,
+      "source": "内蔵効果音ジェネレーター",
+      "license": "プロジェクト内素材（オリジナル生成）",
+      "origin": "generated",
+      "sourceId": "builtin-sfx",
+      "creditRequired": false,
+      "redistributable": true,
+      "generator": {
+        "tool": "rpg asset gen-sfx",
+        "preset": "defeat",
+        "seed": 1
+      },
+      "loop": false
+    },
+    {
+      "id": "sfx-door",
+      "path": "assets/audio/sfx/sfx-door.wav",
+      "kind": "sfx",
+      "mimeType": "audio/wav",
+      "bytes": 10716,
+      "source": "内蔵効果音ジェネレーター",
+      "license": "プロジェクト内素材（オリジナル生成）",
+      "origin": "generated",
+      "sourceId": "builtin-sfx",
+      "creditRequired": false,
+      "redistributable": true,
+      "generator": {
+        "tool": "rpg asset gen-sfx",
+        "preset": "door",
+        "seed": 1
+      },
+      "loop": false
+    },
+    {
+      "id": "sfx-item",
+      "path": "assets/audio/sfx/sfx-item.wav",
+      "kind": "sfx",
+      "mimeType": "audio/wav",
+      "bytes": 13362,
+      "source": "内蔵効果音ジェネレーター",
+      "license": "プロジェクト内素材（オリジナル生成）",
+      "origin": "generated",
+      "sourceId": "builtin-sfx",
+      "creditRequired": false,
+      "redistributable": true,
+      "generator": {
+        "tool": "rpg asset gen-sfx",
+        "preset": "item",
+        "seed": 1
+      },
+      "loop": false
+    },
+    {
+      "id": "sfx-save",
+      "path": "assets/audio/sfx/sfx-save.wav",
+      "kind": "sfx",
+      "mimeType": "audio/wav",
+      "bytes": 26946,
+      "source": "内蔵効果音ジェネレーター",
+      "license": "プロジェクト内素材（オリジナル生成）",
+      "origin": "generated",
+      "sourceId": "builtin-sfx",
+      "creditRequired": false,
+      "redistributable": true,
+      "generator": {
+        "tool": "rpg asset gen-sfx",
+        "preset": "save",
+        "seed": 1
+      },
+      "loop": false
+    },
+    {
+      "id": "sfx-menu",
+      "path": "assets/audio/sfx/sfx-menu.wav",
+      "kind": "sfx",
+      "mimeType": "audio/wav",
+      "bytes": 3660,
+      "source": "内蔵効果音ジェネレーター",
+      "license": "プロジェクト内素材（オリジナル生成）",
+      "origin": "generated",
+      "sourceId": "builtin-sfx",
+      "creditRequired": false,
+      "redistributable": true,
+      "generator": {
+        "tool": "rpg asset gen-sfx",
+        "preset": "menu",
+        "seed": 1
+      },
+      "loop": false
+    },
+    {
+      "id": "song-battle",
+      "path": "assets/audio/songs/song-battle.song.json",
+      "kind": "song",
+      "mimeType": "application/json",
+      "bytes": 1329,
+      "source": "楽譜BGM（.song.json をAI/人が作曲）",
+      "license": "プロジェクト内素材",
+      "origin": "generated",
+      "sourceId": "builtin-song",
+      "creditRequired": false,
+      "redistributable": true,
+      "generator": {
+        "tool": "楽譜BGM（Claude作曲）"
+      }
+    }
+  ]
+}

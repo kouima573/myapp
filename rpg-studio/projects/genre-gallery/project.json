@@ -1,0 +1,123 @@
+{
+  "formatVersion": 2,
+  "id": "genre-gallery",
+  "title": "ジャンルの回廊",
+  "engineCompatibility": {
+    "min": "0.7.0"
+  },
+  "start": {
+    "mapId": "start",
+    "x": 10,
+    "y": 11,
+    "facing": "up"
+  },
+  "player": {
+    "name": "主人公",
+    "sprite": "adventurer",
+    "stats": {
+      "maxHp": 20,
+      "attack": 5,
+      "defense": 1
+    },
+    "abilities": [],
+    "items": {},
+    "traits": []
+  },
+  "flags": {},
+  "variables": {
+    "skill": {
+      "initial": 0,
+      "label": "技"
+    }
+  },
+  "sets": {
+    "cleared": {
+      "label": "制した遊び",
+      "show": true,
+      "entries": {
+        "novel": "ノベル",
+        "platform": "横スクロールアクション",
+        "survivors": "サバイバー系",
+        "tactics": "タクティクス",
+        "match3": "マッチ3",
+        "rhythm": "リズム",
+        "escape": "脱出",
+        "mystery": "推理",
+        "race": "レース",
+        "quiz": "クイズ",
+        "puzzle": "押しパズル",
+        "planner": "育成",
+        "rhythm-battle": "リズムバトル",
+        "puzzle-battle": "パズルバトル",
+        "quiz-battle": "問答バトル",
+        "boss-action": "アクションボス"
+      }
+    }
+  },
+  "endings": {},
+  "verbs": {},
+  "signals": {},
+  "intro": [
+    {
+      "type": "message",
+      "text": "ジャンルの回廊へようこそ。像や机を調べると、それぞれ別の遊び方でRPGが進む。"
+    },
+    {
+      "type": "message",
+      "text": "どれもRPGの能力値とつながっている。HPは持ち越し、勝てば「制した遊び」に記録される（メニューで確認）。"
+    }
+  ],
+  "maps": [
+    {
+      "id": "start",
+      "path": "maps/start.json",
+      "title": "ジャンルの回廊"
+    }
+  ],
+  "tilesetPath": "tiles.json",
+  "dialoguesPath": "dialogues/dialogues.json",
+  "eventsPath": "events/events.json",
+  "databasePath": "database.json",
+  "rulesPath": "rules.json",
+  "assetsPath": "assets.json",
+  "systems": [],
+  "modules": {
+    "novel": {},
+    "puzzle": {},
+    "shooter": {},
+    "planner": {},
+    "cards": {},
+    "action": {},
+    "tactics": {},
+    "match3": {},
+    "rhythm": {},
+    "room": {},
+    "deduce": {},
+    "runner": {},
+    "quiz": {}
+  },
+  "audio": {
+    "battle": "song-battle",
+    "victory": "sfx-victory",
+    "sfx": {
+      "cursor": "sfx-cursor",
+      "confirm": "sfx-confirm",
+      "cancel": "sfx-cancel",
+      "bump": "sfx-bump",
+      "hit": "sfx-hit",
+      "hurt": "sfx-hurt",
+      "heal": "sfx-heal",
+      "encounter": "sfx-encounter",
+      "victory": "sfx-victory",
+      "defeat": "sfx-defeat",
+      "door": "sfx-door",
+      "item": "sfx-item",
+      "save": "sfx-save",
+      "menu": "sfx-menu"
+    }
+  },
+  "credits": [
+    "企画: RPGシステム工房 サンプル（ジャンルの回廊）",
+    "タイル・主人公・効果音: RPGシステム工房 サンプル素材（MIT）"
+  ]
+}

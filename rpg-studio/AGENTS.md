@@ -7,7 +7,8 @@
 0. プロジェクトに `IDEA.md` があれば最初に読む。それが作り手の発想の正本。進め方は `docs/idea-to-game.md`（**発想を削らない・すり替えない、足りない部品は作る**）
 1. `docs/project-format.md` — データ形式v2（条件・効果・マップ・会話・イベント・戦闘・セーブ）
 2. `docs/customization-guide.md` — 種族・効果・仕組みをデータで作るレシピ集（フラグ・変数・特性・ルール・式）
-   `docs/genre-modules.md` — ノベル・パズル・弾幕・育成・カードなど他ジャンルの遊びをRPGに組み込むモジュール（作れるのはRPGのみ）
+   `docs/genre-atlas.md`（`pnpm rpg genres --query <言葉>`）— 104ジャンルそれぞれをこの工房でどう作るか
+   `docs/genre-modules.md` — ノベル・パズル・弾幕・育成・カード・アクション・タクティクス・マッチ3・リズム・脱出・推理・レース・クイズなど他ジャンルの遊びをRPGに組み込むモジュール（作れるのはRPGのみ）
    `docs/innovation-guide.md` — 新しい遊びを発明するための部品（エンティティ・領域・集合・周回・独自画面・描画レイヤー）と発想集
 3. `docs/extension-api.md` — データで書けないものだけ使うTypeScriptフック（`defineSystem`）
 4. `docs/scenario-tests.md` — 自動プレイテスト

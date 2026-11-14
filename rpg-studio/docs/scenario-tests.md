@@ -28,6 +28,7 @@
 | `{ "sceneInput": "up" }` / `{ "sceneInput": { "custom": 値 } }` | 独自画面に入力を送る |
 | `{ "verb": "listen" }` | 自作の動詞を使う（project.json の verbs） |
 | `{ "sceneInputs": ["confirm", "down"], "repeat": 30 }` | 入力の並びを最大 repeat 回くり返す（画面が閉じたら止まる）。カード戦闘など |
+| `{ "framesLoop": [{ "frames": 12, "hold": ["right", "up"] }, { "frames": 2, "hold": ["right"] }], "repeat": 60 }` | 押し方のパターンをくり返す（走ってジャンプ、など）。画面が閉じたら止まる |
 | `{ "frames": 3000, "hold": ["fire"] }` | リアルタイム画面をボタンを押したまま進める（画面が変わったら止まる）。弾幕戦闘など |
 | `{ "fight": "auto" }` | 簡易AIで戦闘を最後まで行い閉じる（予告技の次は防御、HP半分以下で回復）。勝てなければ失敗 |
 | `{ "effects": [...] }` | 効果を直接実行（テストの前提づくり：テレポート、フラグ設定、戦闘開始など） |

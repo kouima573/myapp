@@ -15,7 +15,7 @@ const PRESETS: Array<{ label: string; task: string }> = [
   { label: "仕様書から効果を実装", task: "添付の仕様書の効果を、1種族ずつ database.json の traits / abilities と rules に実装して。仕様にない効果は推測で作らず、表現できない効果はリストアップして。各効果に tests/*.scenario.json の動作確認を付けて。" },
   { label: "仕組みを追加", task: "次の仕組みをフラグ・変数・rules.json のルールで追加して（例：昼夜、好感度、評判、空腹度）。\n\n仕組み：" },
   { label: "発想をそのまま形にする", task: "IDEA.md（なければ下の発想）を、docs/idea-to-game.md の約束どおりに形にして。発想の核を削ったり、よくある形に置き換えたりしないこと。データ・動詞・シグナル・ジャンルモジュールで足りなければ systems/*.ts、それでも足りなければエンジンを広げてよい。まず10分で遊べる最小の形を作り、核の動きを tests/*.scenario.json で確かめて。好みの問題だけ質問し、決めたことは IDEA.md に追記して。\n\n発想：" },
-  { label: "ジャンルを混ぜる", task: "次の場面を、組み込みジャンルモジュール（docs/genre-modules.md: novel / puzzle / shooter / planner / cards）を使って作って。RPGの能力値・アイテム・フラグと結果がつながるようにし、合うモジュールがなければ新しいジャンルモジュールを systems/*.ts の defineSystem（scenes・realtime・draw・checkArgs）で作って。\n\n場面：\nジャンル：\n勝ち・成功したとき：\n負け・失敗したとき：" },
+  { label: "ジャンルを混ぜる", task: "次の場面を、組み込みジャンルモジュール（docs/genre-modules.md: novel / puzzle / shooter / planner / cards / action / tactics / match3 / rhythm / room / deduce / runner / quiz）と、ジャンル地図（pnpm rpg genres --query <ジャンル名>）のレシピを使って作って。RPGの能力値・アイテム・フラグと結果がつながるようにし、合うモジュールがなければ新しいジャンルモジュールを systems/*.ts の defineSystem（scenes・realtime・draw・checkArgs）で作って。\n\n場面：\nジャンル：\n勝ち・成功したとき：\n負け・失敗したとき：" },
   { label: "マップとイベント", task: "村の東に小さな湖を作り、釣り人のNPCが『魚の鱗』をくれるイベントを追加して" },
 ];
 

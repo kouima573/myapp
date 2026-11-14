@@ -5,6 +5,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { REPO_ROOT } from "./build";
+import { MODULES } from "../../modules/src/index";
 
 const SAMPLE = path.join(REPO_ROOT, "projects", "sample-rpg");
 const BORROWED_ASSETS = new Set(["village-tiles", "adventurer", "sfx-cursor", "sfx-confirm", "sfx-cancel", "sfx-bump", "sfx-hit", "sfx-hurt", "sfx-heal", "sfx-encounter", "sfx-victory", "sfx-defeat", "sfx-door", "sfx-item", "sfx-save", "sfx-menu", "song-battle"]);
@@ -83,7 +84,7 @@ export async function newProject(id: string, title: string, root = path.join(REP
       tilesetPath: "tiles.json", dialoguesPath: "dialogues/dialogues.json", eventsPath: "events/events.json",
       databasePath: "database.json", rulesPath: "rules.json", assetsPath: "assets.json",
       systems: [],
-      modules: { novel: {}, puzzle: {}, shooter: {}, planner: {}, cards: {} },
+      modules: Object.fromEntries(Object.keys(MODULES).map(id => [id, {}])),
       audio: { battle: "song-battle", victory: "sfx-victory", sfx: Object.fromEntries(["cursor", "confirm", "cancel", "bump", "hit", "hurt", "heal", "encounter", "victory", "defeat", "door", "item", "save", "menu"].map(cue => [cue, `sfx-${cue}`])) },
       credits: [`企画: ${title} の作者`, "タイル・主人公・効果音: RPGシステム工房 サンプル素材（MIT）"],
     },

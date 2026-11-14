@@ -243,6 +243,54 @@
           {
             "type": "object",
             "properties": {
+              "framesLoop": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "frames": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 10000
+                    },
+                    "hold": {
+                      "default": [],
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": [
+                          "up",
+                          "down",
+                          "left",
+                          "right",
+                          "fire",
+                          "focus"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "frames"
+                  ],
+                  "additionalProperties": false
+                }
+              },
+              "repeat": {
+                "default": 1,
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 10000
+              }
+            },
+            "required": [
+              "framesLoop"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
               "sceneInputs": {
                 "minItems": 1,
                 "type": "array",

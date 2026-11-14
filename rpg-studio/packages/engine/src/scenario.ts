@@ -50,6 +50,8 @@ const StepSchema = z.union([
   z.object({ verb: IdSchema }).strict(),
   /** Realtime scenes (shooting): run up to `frames` simulation steps holding these buttons; stops when the scene ends. */
   z.object({ frames: z.number().int().positive().max(100000), hold: z.array(z.enum(["up", "down", "left", "right", "fire", "focus"])).default([]) }).strict(),
+  /** Realtime scenes: repeat a pattern of held buttons (e.g. run, then jump) until the scene ends or `repeat` runs out. */
+  z.object({ framesLoop: z.array(z.object({ frames: z.number().int().positive().max(10000), hold: z.array(z.enum(["up", "down", "left", "right", "fire", "focus"])).default([]) }).strict()).min(1), repeat: z.number().int().positive().max(10000).default(1) }).strict(),
   /** Send a sequence of inputs, repeated up to `repeat` times, until the custom scene closes. */
   z.object({ sceneInputs: z.array(z.enum(["up", "down", "left", "right", "confirm", "cancel"])).min(1), repeat: z.number().int().positive().max(1000).default(1) }).strict(),
   z.object({ sceneInput: z.union([z.enum(["up", "down", "left", "right", "confirm", "cancel"]), z.object({ custom: z.unknown() }).strict()]) }).strict(),
@@ -212,6 +214,15 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
         outer: for (let r = 0; r < s.repeat; r++) for (const type of s.sceneInputs) {
           if (state.scene.kind !== "custom") break outer;
           step({ type: "sceneInput", input: { type } });
+        }
+      }
+      else if ("framesLoop" in s) {
+        if (state.scene.kind !== "custom") throw new ScenarioError(`framesLoop: リアルタイム画面が開いていません (scene=${state.scene.kind})`);
+        const opened = state.scene;
+        const same = () => state.scene.kind === "custom" && state.scene.system === opened.system && state.scene.scene === opened.scene;
+        outer: for (let r = 0; r < s.repeat; r++) for (const part of s.framesLoop) for (let i = 0; i < part.frames; i++) {
+          step({ type: "sceneInput", input: { type: "frame", held: part.hold } });
+          if (!same()) break outer;
         }
       }
       else if ("frames" in s) {

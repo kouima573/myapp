@@ -1,0 +1,870 @@
+{
+  "formatVersion": 2,
+  "id": "start",
+  "title": "ジャンルの回廊",
+  "width": 20,
+  "height": 13,
+  "rows": [
+    "TTTTTTTTTTTTTTTTTTTT",
+    "T..................T",
+    "T..................T",
+    "T..................T",
+    "T..................T",
+    "T::::::::::::::::::T",
+    "T..................T",
+    "T..................T",
+    "T..................T",
+    "T::::::::::::::::::T",
+    "T..................T",
+    "T..................T",
+    "TTTTTTTTTTTTTTTTTTTT"
+  ],
+  "npcs": [],
+  "portals": [],
+  "interactables": [],
+  "entities": [
+    {
+      "id": "novel-stone",
+      "name": "語り部の石",
+      "x": 2,
+      "y": 3,
+      "states": [
+        {
+          "marker": "sign",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "古い石に文字が刻まれている。"
+            },
+            {
+              "type": "startScene",
+              "system": "novel",
+              "scene": "play",
+              "args": {
+                "script": [
+                  {
+                    "speaker": "語り部の石",
+                    "text": "この回廊には、いくつもの遊び方が眠っている。"
+                  },
+                  {
+                    "speaker": "語り部の石",
+                    "text": "剣で語る者、謎で語る者、歌で語る者……あなたはどれから始める？",
+                    "choices": [
+                      {
+                        "label": "剣から",
+                        "jump": "sword"
+                      },
+                      {
+                        "label": "謎から",
+                        "jump": "riddle"
+                      }
+                    ]
+                  },
+                  {
+                    "label": "sword",
+                    "speaker": "語り部の石",
+                    "text": "ならば東の門へ。跳び、駆け、斬るがいい。",
+                    "jump": "end"
+                  },
+                  {
+                    "label": "riddle",
+                    "speaker": "語り部の石",
+                    "text": "ならば南の部屋と、問答のスフィンクスへ。"
+                  },
+                  {
+                    "label": "end",
+                    "text": "（石は再び黙った）",
+                    "end": true
+                  }
+                ],
+                "onEnd": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "novel"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "platform-gate",
+      "name": "跳躍の門",
+      "x": 5,
+      "y": 3,
+      "states": [
+        {
+          "marker": "statue",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "門の向こうに、足場の続く世界が見える。（↑ジャンプ）"
+            },
+            {
+              "type": "startScene",
+              "system": "action",
+              "scene": "stage",
+              "args": {
+                "title": "跳躍の門",
+                "view": "side",
+                "goal": "exit",
+                "rows": [
+                  "#                                  #",
+                  "#                                  #",
+                  "#                   * *            #",
+                  "#                  #####           #",
+                  "#        *                  w    G #",
+                  "#@     ####     ^^      #######  ###",
+                  "####################  ##############"
+                ],
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "platform"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "arena",
+      "name": "群れの闘技場",
+      "x": 8,
+      "y": 3,
+      "states": [
+        {
+          "marker": "statue",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "闘技場だ。15秒、群れから生き延びろ（剣は自動で振る）。"
+            },
+            {
+              "type": "startScene",
+              "system": "action",
+              "scene": "stage",
+              "args": {
+                "title": "群れの闘技場",
+                "view": "top",
+                "goal": "survive",
+                "seconds": 15,
+                "autoAttack": true,
+                "enemyHp": 4,
+                "spawnEvery": 150,
+                "rows": [
+                  "##############",
+                  "#s          s#",
+                  "#            #",
+                  "#            #",
+                  "#     @      #",
+                  "#            #",
+                  "#            #",
+                  "#s          s#",
+                  "##############"
+                ],
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "survivors"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "war-table",
+      "name": "作戦卓",
+      "x": 11,
+      "y": 3,
+      "states": [
+        {
+          "marker": "sign",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "作戦卓の上に、駒が並んでいる。"
+            },
+            {
+              "type": "startScene",
+              "system": "tactics",
+              "scene": "battle",
+              "args": {
+                "title": "砦の小競り合い",
+                "goal": "rout",
+                "rows": [
+                  "##########",
+                  "#@......e#",
+                  "#a..~~...#",
+                  "#....~..e#",
+                  "##########"
+                ],
+                "allies": [
+                  {
+                    "name": "見習い騎士",
+                    "hp": 14,
+                    "attack": 4,
+                    "defense": 1,
+                    "move": 3,
+                    "range": 1
+                  }
+                ],
+                "enemy": {
+                  "name": "影兵",
+                  "hp": 8,
+                  "attack": 4,
+                  "move": 3
+                },
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "tactics"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "gem-basin",
+      "name": "石の水盤",
+      "x": 14,
+      "y": 3,
+      "states": [
+        {
+          "marker": "sparkle",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "水盤の底で、色とりどりの石が光っている。3つそろえよう。"
+            },
+            {
+              "type": "startScene",
+              "system": "match3",
+              "scene": "battle",
+              "args": {
+                "title": "石の水盤",
+                "target": 20,
+                "moves": 20,
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "match3"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "drum",
+      "name": "祭りの太鼓",
+      "x": 17,
+      "y": 3,
+      "states": [
+        {
+          "marker": "statue",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "太鼓だ。← ↓ ↑ → で叩こう。"
+            },
+            {
+              "type": "startScene",
+              "system": "rhythm",
+              "scene": "play",
+              "args": {
+                "title": "祭りの太鼓",
+                "bpm": 100,
+                "pass": 60,
+                "chart": [
+                  "x...",
+                  "....",
+                  "..x.",
+                  "....",
+                  ".x..",
+                  "....",
+                  "...x",
+                  "....",
+                  "x...",
+                  "x...",
+                  "..x.",
+                  "..x.",
+                  ".x..",
+                  "...x",
+                  "x..x",
+                  "...."
+                ],
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "rhythm"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cellar-door",
+      "name": "地下倉庫の扉",
+      "x": 2,
+      "y": 7,
+      "states": [
+        {
+          "marker": "chest",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "地下倉庫への扉だ。中を調べよう（持ち物を選んでから調べると使える）。"
+            },
+            {
+              "type": "startScene",
+              "system": "room",
+              "scene": "explore",
+              "args": {
+                "title": "地下倉庫",
+                "rooms": [
+                  {
+                    "id": "storage",
+                    "title": "倉庫",
+                    "color": "#3a3128",
+                    "text": "薄暗い倉庫。扉には鍵がかかっている。",
+                    "hotspots": [
+                      {
+                        "id": "pot",
+                        "label": "古い壺",
+                        "x": 12,
+                        "y": 55,
+                        "w": 14,
+                        "h": 22,
+                        "text": "壺の底に、錆びた鍵があった。",
+                        "effects": [
+                          {
+                            "type": "giveItem",
+                            "item": "rusty-key"
+                          }
+                        ],
+                        "once": true
+                      },
+                      {
+                        "id": "crate",
+                        "label": "木箱",
+                        "x": 40,
+                        "y": 60,
+                        "w": 18,
+                        "h": 20,
+                        "hidden": true,
+                        "text": "木箱の隙間に、走り書きのメモ。『鍵は器の中』"
+                      },
+                      {
+                        "id": "door",
+                        "label": "鉄の扉",
+                        "x": 75,
+                        "y": 20,
+                        "w": 16,
+                        "h": 55,
+                        "needs": "rusty-key",
+                        "consume": true,
+                        "lockedText": "鍵がかかっている。何か使えるものは……",
+                        "goto": "corridor",
+                        "text": "錆びた鍵で扉が開いた。"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "corridor",
+                    "title": "通路",
+                    "color": "#2a3036",
+                    "text": "外の光が見える。",
+                    "hotspots": [
+                      {
+                        "id": "exit",
+                        "label": "外への階段",
+                        "x": 45,
+                        "y": 15,
+                        "w": 14,
+                        "h": 60,
+                        "exit": true,
+                        "text": "地下倉庫から抜け出した！"
+                      }
+                    ]
+                  }
+                ],
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "escape"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "detective",
+      "name": "探偵の机",
+      "x": 5,
+      "y": 7,
+      "states": [
+        {
+          "marker": "sign",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "探偵の机に、事件の書類がある。"
+            },
+            {
+              "type": "startScene",
+              "system": "deduce",
+              "scene": "case",
+              "args": {
+                "title": "消えたお守り",
+                "intro": "粉屋の証言を聞こう。矛盾する証言に、証拠をつきつけるんだ。",
+                "evidence": [
+                  {
+                    "id": "muddy-boots",
+                    "label": "泥だらけの長靴",
+                    "text": "粉屋の戸口にあった。今朝の雨の泥だ。"
+                  },
+                  {
+                    "id": "flour",
+                    "label": "小麦粉の袋"
+                  },
+                  {
+                    "id": "note",
+                    "label": "走り書きのメモ",
+                    "text": "『お守りは粉袋の底に』と粉屋の字で書かれている。"
+                  }
+                ],
+                "statements": [
+                  {
+                    "speaker": "粉屋",
+                    "text": "今朝は一歩も外に出ていないよ。",
+                    "contradiction": "muddy-boots",
+                    "press": "雨だったからね、ずっと粉を挽いていたさ。",
+                    "broken": "う……長靴は、その……"
+                  },
+                  {
+                    "speaker": "粉屋",
+                    "text": "メモなんて書いた覚えはない。",
+                    "contradiction": "note",
+                    "press": "字は苦手でね。",
+                    "broken": "……それは、私の字だ。"
+                  },
+                  {
+                    "speaker": "粉屋",
+                    "text": "お守りなんて見たこともない。",
+                    "press": "本当さ。"
+                  }
+                ],
+                "question": {
+                  "prompt": "お守りを隠したのは？",
+                  "options": [
+                    {
+                      "id": "cat",
+                      "label": "迷い猫"
+                    },
+                    {
+                      "id": "miller",
+                      "label": "粉屋"
+                    },
+                    {
+                      "id": "wind",
+                      "label": "風のいたずら"
+                    }
+                  ],
+                  "answer": "miller"
+                },
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "mystery"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "track",
+      "name": "風の走路",
+      "x": 8,
+      "y": 7,
+      "states": [
+        {
+          "marker": "statue",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "走路だ。風の子と競争しよう（←→ レーン、Z ジャンプ）。"
+            },
+            {
+              "type": "startScene",
+              "system": "runner",
+              "scene": "race",
+              "args": {
+                "title": "風の走路",
+                "length": 60,
+                "speed": 5,
+                "density": 0.18,
+                "hitDamage": 1,
+                "rivals": [
+                  {
+                    "name": "風の子",
+                    "speed": 3.6
+                  }
+                ],
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "race"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sphinx",
+      "name": "スフィンクス",
+      "x": 11,
+      "y": 7,
+      "states": [
+        {
+          "marker": "statue",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "スフィンクスが問いかけてくる。"
+            },
+            {
+              "type": "startScene",
+              "system": "quiz",
+              "scene": "ask",
+              "args": {
+                "title": "スフィンクスの問い",
+                "questions": [
+                  {
+                    "q": "朝は四本、昼は二本、夕べは三本。それは何？",
+                    "answer": [
+                      "にんげん",
+                      "人間",
+                      "ひと"
+                    ],
+                    "explain": "杖をつく夕暮れまで。"
+                  },
+                  {
+                    "q": "この回廊にある遊びでないものは？",
+                    "choices": [
+                      "レース",
+                      "推理",
+                      "釣り堀"
+                    ],
+                    "answer": 2
+                  },
+                  {
+                    "q": "見えないのに、木々を揺らすものは？",
+                    "answer": [
+                      "かぜ",
+                      "風"
+                    ]
+                  }
+                ],
+                "pass": 2,
+                "onWin": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "quiz"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "crate-room",
+      "name": "石押しの間",
+      "x": 14,
+      "y": 7,
+      "states": [
+        {
+          "marker": "chest",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "石を目印へ押し込む仕掛けだ。"
+            },
+            {
+              "type": "startScene",
+              "system": "puzzle",
+              "scene": "push",
+              "args": {
+                "title": "石押しの間",
+                "rows": [
+                  "#######",
+                  "#     #",
+                  "# $ . #",
+                  "#  @  #",
+                  "#######"
+                ],
+                "onSolve": [
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "puzzle"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dojo",
+      "name": "稽古場",
+      "x": 17,
+      "y": 7,
+      "states": [
+        {
+          "marker": "sign",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "message",
+              "text": "稽古場だ。三日間の過ごし方を決めよう。"
+            },
+            {
+              "type": "startScene",
+              "system": "planner",
+              "scene": "schedule",
+              "args": {
+                "title": "三日稽古",
+                "turns": 3,
+                "show": [
+                  "skill"
+                ],
+                "activities": [
+                  {
+                    "id": "swing",
+                    "label": "素振り",
+                    "description": "技+1",
+                    "effects": [
+                      {
+                        "type": "setVar",
+                        "var": "skill",
+                        "op": "add",
+                        "value": 1
+                      }
+                    ],
+                    "text": "技が {{var.skill}} になった"
+                  },
+                  {
+                    "id": "rest",
+                    "label": "休む",
+                    "description": "HP全快",
+                    "effects": [
+                      {
+                        "type": "heal"
+                      }
+                    ]
+                  }
+                ],
+                "onEnd": [
+                  {
+                    "type": "if",
+                    "when": {
+                      "var": "skill",
+                      "op": ">=",
+                      "value": 2
+                    },
+                    "then": [
+                      {
+                        "type": "setStat",
+                        "stat": "attack",
+                        "op": "add",
+                        "value": 1
+                      },
+                      {
+                        "type": "message",
+                        "text": "稽古の成果で攻撃力が1上がった！"
+                      }
+                    ]
+                  },
+                  {
+                    "type": "addToSet",
+                    "set": "cleared",
+                    "value": "planner"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "foe-drummer",
+      "name": "太鼓の精",
+      "x": 3,
+      "y": 10,
+      "states": [
+        {
+          "marker": "sparkle",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "battle",
+              "enemy": "drummer",
+              "onDefeat": "continue",
+              "onVictory": [
+                {
+                  "type": "addToSet",
+                  "set": "cleared",
+                  "value": "rhythm-battle"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "foe-gem-golem",
+      "name": "石塊ゴーレム",
+      "x": 7,
+      "y": 10,
+      "states": [
+        {
+          "marker": "sparkle",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "battle",
+              "enemy": "gem-golem",
+              "onDefeat": "continue",
+              "onVictory": [
+                {
+                  "type": "addToSet",
+                  "set": "cleared",
+                  "value": "puzzle-battle"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "foe-riddler",
+      "name": "なぞかけ狐",
+      "x": 13,
+      "y": 10,
+      "states": [
+        {
+          "marker": "sparkle",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "battle",
+              "enemy": "riddler",
+              "onDefeat": "continue",
+              "onVictory": [
+                {
+                  "type": "addToSet",
+                  "set": "cleared",
+                  "value": "quiz-battle"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "foe-slime-king",
+      "name": "スライム王",
+      "x": 16,
+      "y": 10,
+      "states": [
+        {
+          "marker": "sparkle",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "battle",
+              "enemy": "slime-king",
+              "onDefeat": "continue",
+              "onVictory": [
+                {
+                  "type": "addToSet",
+                  "set": "cleared",
+                  "value": "boss-action"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

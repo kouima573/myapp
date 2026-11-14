@@ -1,0 +1,25 @@
+{
+  "formatVersion": 2,
+  "rules": [
+    {
+      "id": "all-cleared",
+      "on": "auto",
+      "when": {
+        "compare": [
+          {
+            "size": "cleared"
+          },
+          ">=",
+          16
+        ]
+      },
+      "description": "全部の遊びを制した",
+      "effects": [
+        {
+          "type": "message",
+          "text": "回廊のすべての遊びを制した！ どんなジャンルも、あなたのRPGの一部になる。"
+        }
+      ]
+    }
+  ]
+}

@@ -56,7 +56,7 @@ scenes: {
 - `checkArgs(args, { content })` を書くと、引数の誤りを `rpg validate` と工房の検証に表示できる（エラー文の配列を返す）。
 - **リアルタイム画面**: `realtime: { fps: 30 }` を付けると、毎フレーム `input(ctx, data, { type: "frame", held: ["left", "fire", ...] })` が呼ばれ、`draw(ctx2d, view)` でCanvasに描く（`view.width` / `height` / `time`）。`held` は `up/down/left/right/fire/focus`。シミュレーションは `data` に入れた種で乱数を回し、決定的にする。
 - **戦闘モード**: 敵の `"battle": { "mode": "id.scene", "args": {...} }` か戦闘効果の `mode` で、その画面が戦闘になる。`start` の `args.enemyId` に敵ID、`ctx.state.scene.battle` にRPG側の戦闘情報。決着は `outcome` で返す。
-- 組み込みのジャンルモジュール（ノベル・パズル・弾幕・育成・カード）は `packages/modules/src/` にあり、そのまま見本になる。[genre-modules.md](genre-modules.md)
+- 組み込みのジャンルモジュール（13種。ノベル・パズル・弾幕・育成・カード・アクション・タクティクス・マッチ3・リズム・部屋・推理・ランナー・クイズ）は `packages/modules/src/` にあり、そのまま見本になる。[genre-modules.md](genre-modules.md)
 - 自動プレイテストでは `{ "sceneInput": "up" }` や `{ "sceneInput": { "custom": ... } }`、`{ "sceneInputs": ["confirm", "down"], "repeat": 10 }`、リアルタイム画面は `{ "frames": 600, "hold": ["fire"] }` で操作できる。
 - `rpg test` は、データが参照している条件・関数・画面・アクションが実際に定義されているかも確認する。
 

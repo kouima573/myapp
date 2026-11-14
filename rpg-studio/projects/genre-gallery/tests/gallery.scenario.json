@@ -1,0 +1,845 @@
+{
+  "name": "ジャンルの回廊: ノベル・育成・押しパズル・脱出・推理・クイズ・タクティクス・マッチ3・リズム・レース・サバイバー・横スクロール・問答バトル・各戦闘モードからの逃走",
+  "seed": 3,
+  "steps": [
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "field",
+        "at": {
+          "x": 10,
+          "y": 11
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 2,
+          "y": 4,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInputs": [
+        "confirm"
+      ],
+      "repeat": 6
+    },
+    {
+      "expect": {
+        "scene": "field",
+        "sets": {
+          "cleared": [
+            "novel"
+          ]
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 17,
+          "y": 8,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInputs": [
+        "confirm"
+      ],
+      "repeat": 3
+    },
+    {
+      "expect": {
+        "vars": {
+          "skill": 3
+        },
+        "textIncludes": "攻撃力が1上がった"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "stats": {
+          "attack": 6
+        },
+        "sets": {
+          "cleared": [
+            "planner"
+          ]
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 14,
+          "y": 8,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": "left"
+    },
+    {
+      "sceneInput": "left"
+    },
+    {
+      "sceneInput": "up"
+    },
+    {
+      "sceneInput": "right"
+    },
+    {
+      "sceneInput": "right"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "sets": {
+          "cleared": [
+            "puzzle"
+          ]
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 2,
+          "y": 8,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "spot": "door"
+        }
+      }
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "spot": "pot"
+        }
+      }
+    },
+    {
+      "expect": {
+        "items": {
+          "rusty-key": 1
+        }
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "item": "rusty-key"
+        }
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "spot": "door"
+        }
+      }
+    },
+    {
+      "expect": {
+        "items": {
+          "rusty-key": 0
+        }
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "spot": "exit"
+        }
+      }
+    },
+    {
+      "expect": {
+        "textIncludes": "抜け出した"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "sets": {
+          "cleared": [
+            "escape"
+          ]
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 5,
+          "y": 8,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "cursor": 0
+        }
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "evidence": 1
+        }
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "present": true
+        }
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "evidence": 0
+        }
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "present": true
+        }
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "cursor": 1
+        }
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "evidence": 2
+        }
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "present": true
+        }
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "answer": "miller"
+        }
+      }
+    },
+    {
+      "expect": {
+        "textIncludes": "真相"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "sets": {
+          "cleared": [
+            "mystery"
+          ]
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 11,
+          "y": 8,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "answer": "ニンゲン"
+        }
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "answer": 2
+        }
+      }
+    },
+    {
+      "expect": {
+        "textIncludes": "2問正解"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "sets": {
+          "cleared": [
+            "quiz"
+          ]
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 11,
+          "y": 4,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "quit": true
+        }
+      }
+    },
+    {
+      "expect": {
+        "textIncludes": "陣を引いた"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "lacksInSets": {
+          "cleared": [
+            "tactics"
+          ]
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 14,
+          "y": 4,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": "cancel"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 17,
+          "y": 4,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "frames": 900,
+      "hold": []
+    },
+    {
+      "expect": {
+        "textIncludes": "リズムが合わなかった"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 8,
+          "y": 8,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "frames": 3000,
+      "hold": []
+    },
+    {
+      "expect": {
+        "textIncludes": "1位でゴール"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "sets": {
+          "cleared": [
+            "race"
+          ]
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 8,
+          "y": 4,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "frames": 600,
+      "hold": []
+    },
+    {
+      "expect": {
+        "textIncludes": "突破"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "sets": {
+          "cleared": [
+            "survivors"
+          ]
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 5,
+          "y": 4,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "framesLoop": [
+        {
+          "frames": 12,
+          "hold": [
+            "right",
+            "up"
+          ]
+        },
+        {
+          "frames": 2,
+          "hold": [
+            "right"
+          ]
+        }
+      ],
+      "repeat": 60
+    },
+    {
+      "expect": {
+        "textIncludes": "跳躍の門を突破"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "sets": {
+          "cleared": [
+            "platform"
+          ]
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 13,
+          "y": 11,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "answer": "お風呂"
+        }
+      }
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": {
+        "custom": {
+          "answer": 1
+        }
+      }
+    },
+    {
+      "expect": {
+        "scene": "battle",
+        "battleOutcome": "victory"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "sets": {
+          "cleared": [
+            "quiz-battle"
+          ]
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 3,
+          "y": 11,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": "cancel"
+    },
+    {
+      "expect": {
+        "scene": "battle",
+        "battleOutcome": "fled"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 7,
+          "y": 11,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": "cancel"
+    },
+    {
+      "expect": {
+        "scene": "battle",
+        "battleOutcome": "fled"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "start",
+          "x": 16,
+          "y": 11,
+          "facing": "up"
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "scene": "custom"
+      }
+    },
+    {
+      "sceneInput": "cancel"
+    },
+    {
+      "expect": {
+        "scene": "battle",
+        "battleOutcome": "fled"
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    },
+    {
+      "saveAndLoad": true
+    },
+    {
+      "expect": {
+        "sets": {
+          "cleared": [
+            "novel",
+            "planner",
+            "puzzle",
+            "escape",
+            "mystery",
+            "quiz",
+            "race",
+            "survivors",
+            "platform",
+            "quiz-battle"
+          ]
+        }
+      }
+    }
+  ]
+}

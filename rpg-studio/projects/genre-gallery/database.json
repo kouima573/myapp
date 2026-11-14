@@ -1,0 +1,167 @@
+{
+  "formatVersion": 2,
+  "abilities": [],
+  "items": [
+    {
+      "id": "rusty-key",
+      "name": "錆びた鍵",
+      "description": "地下倉庫の扉の鍵。",
+      "key": true
+    }
+  ],
+  "enemies": [
+    {
+      "id": "drummer",
+      "name": "太鼓の精",
+      "tags": [
+        "gallery"
+      ],
+      "stats": {
+        "maxHp": 8,
+        "attack": 3,
+        "defense": 0
+      },
+      "actions": [
+        {
+          "name": "攻撃",
+          "power": 1
+        }
+      ],
+      "drops": [],
+      "canFlee": true,
+      "battle": {
+        "mode": "rhythm.play",
+        "args": {
+          "bpm": 96,
+          "hpScale": 1.5,
+          "chart": [
+            "x...",
+            "..x.",
+            ".x..",
+            "...x",
+            "x.x.",
+            ".x.x",
+            "x...",
+            "...x"
+          ]
+        }
+      }
+    },
+    {
+      "id": "gem-golem",
+      "name": "石塊ゴーレム",
+      "tags": [
+        "gallery"
+      ],
+      "stats": {
+        "maxHp": 12,
+        "attack": 4,
+        "defense": 1
+      },
+      "actions": [
+        {
+          "name": "攻撃",
+          "power": 1
+        }
+      ],
+      "drops": [],
+      "canFlee": true,
+      "battle": {
+        "mode": "match3.battle",
+        "args": {
+          "hpScale": 1.5,
+          "enemyEvery": 3
+        }
+      }
+    },
+    {
+      "id": "riddler",
+      "name": "なぞかけ狐",
+      "tags": [
+        "gallery"
+      ],
+      "stats": {
+        "maxHp": 11,
+        "attack": 3,
+        "defense": 0
+      },
+      "actions": [
+        {
+          "name": "攻撃",
+          "power": 1
+        }
+      ],
+      "drops": [],
+      "canFlee": true,
+      "battle": {
+        "mode": "quiz.ask",
+        "args": {
+          "questions": [
+            {
+              "q": "上は洪水、下は大火事。これなあに？",
+              "answer": [
+                "おふろ",
+                "風呂",
+                "お風呂"
+              ]
+            },
+            {
+              "q": "1+2×3 は？",
+              "choices": [
+                "9",
+                "7",
+                "5"
+              ],
+              "answer": 1
+            },
+            {
+              "q": "使えば使うほど小さくなるものは？（ひらがな）",
+              "answer": [
+                "せっけん",
+                "えんぴつ",
+                "けしごむ"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "slime-king",
+      "name": "スライム王",
+      "tags": [
+        "gallery"
+      ],
+      "stats": {
+        "maxHp": 10,
+        "attack": 4,
+        "defense": 0
+      },
+      "actions": [
+        {
+          "name": "攻撃",
+          "power": 1
+        }
+      ],
+      "drops": [],
+      "canFlee": true,
+      "battle": {
+        "mode": "action.stage",
+        "args": {
+          "view": "side",
+          "goal": "defeat",
+          "hpScale": 2,
+          "rows": [
+            "#                  #",
+            "#                  #",
+            "#     ###          #",
+            "#              B   #",
+            "#@                 #",
+            "####################"
+          ]
+        }
+      }
+    }
+  ],
+  "traits": []
+}
