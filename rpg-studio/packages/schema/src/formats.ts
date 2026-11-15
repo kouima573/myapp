@@ -529,6 +529,8 @@ export const NpcSchema = z.object({
   dialogues: z.array(z.object({ when: ConditionSchema.optional(), dialogue: IdSchema }).strict()).min(1),
   /** NPC only appears while this holds. */
   visibleWhen: ConditionSchema.optional(),
+  /** Code active while this is shown on the current map (regions: while the player stands inside). See docs/scripting.md. */
+  script: ScriptRefSchema.optional(),
 }).strict();
 export type Npc = z.infer<typeof NpcSchema>;
 
@@ -556,6 +558,8 @@ export const InteractableSchema = z.object({
   solid: z.boolean().default(false),
   marker: z.enum(["none", "sign", "chest", "sparkle", "statue"]).default("sparkle"),
   visibleWhen: ConditionSchema.optional(),
+  /** Code active while this is shown on the current map (regions: while the player stands inside). See docs/scripting.md. */
+  script: ScriptRefSchema.optional(),
 }).strict();
 export type Interactable = z.infer<typeof InteractableSchema>;
 
@@ -620,6 +624,8 @@ export const RegionSchema = z.object({
   onStep: z.array(EffectSchema).default([]),
   /** Action key inside the region (when nothing else is in front). */
   inspect: z.array(EffectSchema).default([]),
+  /** Code active while this is shown on the current map (regions: while the player stands inside). See docs/scripting.md. */
+  script: ScriptRefSchema.optional(),
 }).strict();
 export type Region = z.infer<typeof RegionSchema>;
 

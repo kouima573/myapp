@@ -262,6 +262,12 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     for (const member of state.party ?? []) attach(extra, db.companions.find(x => x.id === member.id)?.script, "companion", member.id);
     attach(extra, content.maps[state.mapId]?.script, "map", state.mapId);
     for (const view of visibleEntities(state)) attach(extra, view.state.script, "entity", view.entity.id);
+    const here = content.maps[state.mapId];
+    if (here) {
+      for (const npc of visibleNpcs(state, here)) attach(extra, npc.script, "npc", npc.id);
+      for (const item of visibleInteractables(state, here)) attach(extra, item.script, "interactable", item.id);
+      for (const id of state.regions) attach(extra, here.regions.find(r => r.id === id)?.script, "region", id);
+    }
     const battle = state.scene.kind === "battle" ? state.scene.battle : undefined;
     if (battle) {
       const ids = [battle.enemyId, ...(battle.foes ?? []).map(f => f.enemyId)];

@@ -555,6 +555,9 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   for (const [id, map] of Object.entries(maps)) {
     checkScript(mapFiles[id] ?? id, "", map.script);
     map.entities.forEach(e => e.states.forEach((st, i) => checkScript(mapFiles[id] ?? id, `entities[${e.id}].states[${i}]`, st.script)));
+    map.npcs.forEach(n => checkScript(mapFiles[id] ?? id, `npcs[${n.id}]`, n.script));
+    map.interactables.forEach(n => checkScript(mapFiles[id] ?? id, `interactables[${n.id}]`, n.script));
+    map.regions.forEach(n => checkScript(mapFiles[id] ?? id, `regions[${n.id}]`, n.script));
   }
   database.abilities.forEach(a => { const at = `abilities[${a.id}]`; checkStatMods(DB, at, a.statMods); checkRules(DB, at, a.rules); checkUse(DB, at, a.use); });
   database.traits.forEach(t => {

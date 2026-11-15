@@ -21,7 +21,7 @@ export interface SystemContext {
 
 /** What an attached script belongs to. `index` = position of the enemy in the battle (0 = first). */
 export interface ScriptSelf {
-  kind: "ability" | "item" | "trait" | "enemy" | "companion" | "map" | "entity" | "effect" | "command";
+  kind: "ability" | "item" | "trait" | "enemy" | "companion" | "map" | "entity" | "npc" | "interactable" | "region" | "effect" | "command";
   id: string;
   args: Record<string, unknown>;
   index?: number;

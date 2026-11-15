@@ -21,6 +21,9 @@ export function scriptUses(content: GameContent): Record<string, string[]> {
   Object.values(content.maps).forEach((m: GameMap) => {
     add(m.script, `マップ「${m.title}」`);
     m.entities.forEach(e => e.states.forEach((st, i) => add(st.script, `エンティティ「${e.name}」の状態${i + 1}`)));
+    m.npcs.forEach(n => add(n.script, `NPC「${n.name}」`));
+    m.interactables.forEach(n => add(n.script, `仕掛け「${n.id}」`));
+    m.regions.forEach(n => add(n.script, `領域「${n.label ?? n.id}」`));
   });
   return out;
 }

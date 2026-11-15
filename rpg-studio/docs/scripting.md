@@ -15,6 +15,8 @@
 | `database.json › companions[]` | 仲間にいる間 |
 | `maps/*.json`（マップ自体） | そのマップにいる間 |
 | `maps/*.json › entities[].states[]` | その状態のエンティティが今のマップに出ている間 |
+| `maps/*.json › npcs[]` / `interactables[]` | 今のマップに表示されている間 |
+| `maps/*.json › regions[]` | 主人公がその領域の中にいる間 |
 | 効果 `{ "type": "script", "script": "名前", "call"?: "アクション名", "args"?: {...} }` | その効果が実行された時（`use`、または `actions[call]`） |
 
 ```json
