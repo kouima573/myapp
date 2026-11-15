@@ -72,6 +72,14 @@ pnpm rpg dev                     # 完成版ゲームだけを試遊: http://127
 | `studio/` | 工房UI（React）：マップ編集・試遊・データ編集・検証 |
 | `docs/` | 形式・拡張API・シナリオテスト・安全性・素材依頼 |
 
+## Webで公開する（Cloudflare Pages）
+
+```powershell
+pnpm deploy:site
+```
+
+工房のPreview版（見本プロジェクトで操作できる。変更はブラウザ内だけ）と見本ゲーム2本を `dist/site/` にまとめ、Cloudflare Pages の `rpg-studio` プロジェクトへ公開します。初回はブラウザで Cloudflare へのログインを求められ、プロジェクトがなければ作成を聞かれます（本番ブランチは `main`）。中身だけ作るなら `pnpm build:site`。見本の素材はすべて内蔵生成・AI生成で、第三者サイトの素材は含みません。
+
 ## v1.3の変更（AIとの会話で完結・取得元の見直し・コードを探す）
 
 - **チャットで素材を決める**: `rpg asset find`（内蔵の選択肢と、取得元ごとの検索URL・試聴の仕方・クレジット・注意点）、`rpg library preview`（番号つき見本画像）。AIは候補を番号で見せ、音は聴けるURLを出し、選ぶのはあなた（AGENTS.md）
