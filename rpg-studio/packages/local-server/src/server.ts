@@ -185,7 +185,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     } catch { /* no tests folder */ }
     const hashes: Record<string, string> = {};
     for (const [file, text] of Object.entries(texts)) hashes[file] = sha256(Buffer.from(text, "utf8"));
-    return { projectDir: path.relative(REPO_ROOT, root).split(path.sep).join("/") || root, texts, hashes };
+    return { projectDir: path.relative(REPO_ROOT, root).split(path.sep).join("/") || root, texts, hashes, repoRoot: REPO_ROOT };
   }
 
   async function save(body: SaveRequest) {

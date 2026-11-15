@@ -55,7 +55,11 @@ export function browserStorage(): SaveStorage {
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
-  if (className) node.className = className;
+  if (className) {
+    node.className = className;
+    // For the studio's 「コードを探す」: which runtime code draws this part (search the class name here; look in styles.ts for its look).
+    node.dataset.src = `packages/runtime/src/player.ts#${className.split(" ").pop()}`;
+  }
   if (text !== undefined) node.textContent = text;
   return node;
 }

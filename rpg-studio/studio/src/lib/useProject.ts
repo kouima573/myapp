@@ -22,6 +22,7 @@ export function useProject(source: ProjectSource) {
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [externallyChanged, setExternallyChanged] = useState<Set<string>>(new Set());
   const [build, setBuild] = useState<BuildStatus | null>(null);
+  const [projectInfo, setProjectInfo] = useState<{ projectDir: string; repoRoot?: string }>({ projectDir: "" });
   const [systems, setSystems] = useState<GameSystem[]>([]);
   const [systemsVersion, setSystemsVersion] = useState<string | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -45,6 +46,7 @@ export function useProject(source: ProjectSource) {
   const reload = useCallback(async (paths?: string[]) => {
     try {
       const snapshot = await source.load();
+      setProjectInfo({ projectDir: snapshot.projectDir, repoRoot: snapshot.repoRoot });
       setTexts(current => {
         if (!paths) return snapshot.texts;
         const next = { ...current };
@@ -248,7 +250,7 @@ export function useProject(source: ProjectSource) {
   }, [source, log]);
 
   return {
-    source, status, loadError, texts, dirty, conflicts, externallyChanged, build, systems, systemsVersion, logs,
+    source, status, loadError, texts, projectInfo, dirty, conflicts, externallyChanged, build, systems, systemsVersion, logs,
     content: loaded.content, lastGoodContent: lastGood.current, diagnostics: loaded.diagnostics,
     log, setFileText, updateJson, raiseConflict, beginGroup, endGroup, undo, redo, historyState, resolveConflict, requestBuild, reload,
   };

@@ -1002,7 +1002,7 @@
       "tileWidth": 64,
       "tileHeight": 64,
       "columns": 8,
-      "rows": 5,
+      "rows": 7,
       "tiles": [
         {
           "key": "floor-wood",
@@ -1036,7 +1036,7 @@
         },
         {
           "key": "carpet-red",
-          "name": "赤い絨毯",
+          "name": "赤い絨毯（模様・敷き詰め用）",
           "index": 3,
           "passable": true,
           "color": "#c44e3d",
@@ -1047,7 +1047,7 @@
         },
         {
           "key": "carpet-blue",
-          "name": "青い絨毯",
+          "name": "青い絨毯（模様・敷き詰め用）",
           "index": 4,
           "passable": true,
           "color": "#506dad",
@@ -1058,7 +1058,7 @@
         },
         {
           "key": "carpet-green",
-          "name": "緑の絨毯",
+          "name": "緑の絨毯（模様・敷き詰め用）",
           "index": 5,
           "passable": true,
           "color": "#4e9149",
@@ -1390,9 +1390,225 @@
           "tags": [
             "window"
           ]
+        },
+        {
+          "key": "rug-red-tl",
+          "name": "赤の絨毯（左上）",
+          "index": 37,
+          "passable": true,
+          "color": "#bd5c3f",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-red-t",
+          "name": "赤の絨毯（上）",
+          "index": 38,
+          "passable": true,
+          "color": "#c2573e",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-red-tr",
+          "name": "赤の絨毯（右上）",
+          "index": 39,
+          "passable": true,
+          "color": "#bd5c3e",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-red-l",
+          "name": "赤の絨毯（左）",
+          "index": 40,
+          "passable": true,
+          "color": "#bf553e",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-red-c",
+          "name": "赤の絨毯（中央）",
+          "index": 41,
+          "passable": true,
+          "color": "#c44e3d",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-red-r",
+          "name": "赤の絨毯（右）",
+          "index": 42,
+          "passable": true,
+          "color": "#bf553e",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-red-bl",
+          "name": "赤の絨毯（左下）",
+          "index": 43,
+          "passable": true,
+          "color": "#ba593d",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-red-b",
+          "name": "赤の絨毯（下）",
+          "index": 44,
+          "passable": true,
+          "color": "#bf543c",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-red-br",
+          "name": "赤の絨毯（右下）",
+          "index": 45,
+          "passable": true,
+          "color": "#ba593d",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-blue-tl",
+          "name": "青の絨毯（左上）",
+          "index": 46,
+          "passable": true,
+          "color": "#6b708c",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-blue-t",
+          "name": "青の絨毯（上）",
+          "index": 47,
+          "passable": true,
+          "color": "#60709c",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-blue-tr",
+          "name": "青の絨毯（右上）",
+          "index": 48,
+          "passable": true,
+          "color": "#6b708c",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-blue-l",
+          "name": "青の絨毯（左）",
+          "index": 49,
+          "passable": true,
+          "color": "#5e6e9b",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-blue-c",
+          "name": "青の絨毯（中央）",
+          "index": 50,
+          "passable": true,
+          "color": "#506dad",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-blue-r",
+          "name": "青の絨毯（右）",
+          "index": 51,
+          "passable": true,
+          "color": "#5e6d9a",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-blue-bl",
+          "name": "青の絨毯（左下）",
+          "index": 52,
+          "passable": true,
+          "color": "#696d8a",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-blue-b",
+          "name": "青の絨毯（下）",
+          "index": 53,
+          "passable": true,
+          "color": "#5e6d99",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
+        },
+        {
+          "key": "rug-blue-br",
+          "name": "青の絨毯（右下）",
+          "index": 54,
+          "passable": true,
+          "color": "#696d8a",
+          "tags": [
+            "floor",
+            "carpet",
+            "rug9"
+          ]
         }
       ],
-      "bytes": 22161
+      "bytes": 26068
     },
     {
       "id": "lib-tiles-dungeon",

@@ -383,7 +383,7 @@
       "path": "assets/tilesets/lib-tiles-interior.png",
       "kind": "tileset",
       "mimeType": "image/png",
-      "bytes": 22161,
+      "bytes": 26068,
       "source": "内蔵ドット絵ジェネレーター（rpg art generate ／ library/）",
       "license": "MIT（rpg-studio リポジトリのライセンス。内蔵ジェネレーターによるオリジナル生成物）",
       "origin": "generated",
@@ -399,7 +399,7 @@
       "tileWidth": 64,
       "tileHeight": 64,
       "columns": 8,
-      "rows": 5
+      "rows": 7
     },
     {
       "id": "lib-tiles-dungeon",

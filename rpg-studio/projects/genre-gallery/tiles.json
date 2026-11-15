@@ -1664,6 +1664,150 @@
       "index": 38,
       "passable": false,
       "color": "#615c5e"
+    },
+    {
+      "code": "グ",
+      "name": "赤の絨毯（左上）",
+      "atlas": "lib-tiles-interior",
+      "index": 37,
+      "passable": true,
+      "color": "#bd5c3f"
+    },
+    {
+      "code": "ケ",
+      "name": "赤の絨毯（上）",
+      "atlas": "lib-tiles-interior",
+      "index": 38,
+      "passable": true,
+      "color": "#c2573e"
+    },
+    {
+      "code": "ゲ",
+      "name": "赤の絨毯（右上）",
+      "atlas": "lib-tiles-interior",
+      "index": 39,
+      "passable": true,
+      "color": "#bd5c3e"
+    },
+    {
+      "code": "コ",
+      "name": "赤の絨毯（左）",
+      "atlas": "lib-tiles-interior",
+      "index": 40,
+      "passable": true,
+      "color": "#bf553e"
+    },
+    {
+      "code": "ゴ",
+      "name": "赤の絨毯（中央）",
+      "atlas": "lib-tiles-interior",
+      "index": 41,
+      "passable": true,
+      "color": "#c44e3d"
+    },
+    {
+      "code": "サ",
+      "name": "赤の絨毯（右）",
+      "atlas": "lib-tiles-interior",
+      "index": 42,
+      "passable": true,
+      "color": "#bf553e"
+    },
+    {
+      "code": "ザ",
+      "name": "赤の絨毯（左下）",
+      "atlas": "lib-tiles-interior",
+      "index": 43,
+      "passable": true,
+      "color": "#ba593d"
+    },
+    {
+      "code": "シ",
+      "name": "赤の絨毯（下）",
+      "atlas": "lib-tiles-interior",
+      "index": 44,
+      "passable": true,
+      "color": "#bf543c"
+    },
+    {
+      "code": "ジ",
+      "name": "赤の絨毯（右下）",
+      "atlas": "lib-tiles-interior",
+      "index": 45,
+      "passable": true,
+      "color": "#ba593d"
+    },
+    {
+      "code": "ス",
+      "name": "青の絨毯（左上）",
+      "atlas": "lib-tiles-interior",
+      "index": 46,
+      "passable": true,
+      "color": "#6b708c"
+    },
+    {
+      "code": "ズ",
+      "name": "青の絨毯（上）",
+      "atlas": "lib-tiles-interior",
+      "index": 47,
+      "passable": true,
+      "color": "#60709c"
+    },
+    {
+      "code": "セ",
+      "name": "青の絨毯（右上）",
+      "atlas": "lib-tiles-interior",
+      "index": 48,
+      "passable": true,
+      "color": "#6b708c"
+    },
+    {
+      "code": "ゼ",
+      "name": "青の絨毯（左）",
+      "atlas": "lib-tiles-interior",
+      "index": 49,
+      "passable": true,
+      "color": "#5e6e9b"
+    },
+    {
+      "code": "ソ",
+      "name": "青の絨毯（中央）",
+      "atlas": "lib-tiles-interior",
+      "index": 50,
+      "passable": true,
+      "color": "#506dad"
+    },
+    {
+      "code": "ゾ",
+      "name": "青の絨毯（右）",
+      "atlas": "lib-tiles-interior",
+      "index": 51,
+      "passable": true,
+      "color": "#5e6d9a"
+    },
+    {
+      "code": "タ",
+      "name": "青の絨毯（左下）",
+      "atlas": "lib-tiles-interior",
+      "index": 52,
+      "passable": true,
+      "color": "#696d8a"
+    },
+    {
+      "code": "ダ",
+      "name": "青の絨毯（下）",
+      "atlas": "lib-tiles-interior",
+      "index": 53,
+      "passable": true,
+      "color": "#5e6d99"
+    },
+    {
+      "code": "チ",
+      "name": "青の絨毯（右下）",
+      "atlas": "lib-tiles-interior",
+      "index": 54,
+      "passable": true,
+      "color": "#696d8a"
     }
   ]
 }

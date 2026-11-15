@@ -8,6 +8,8 @@ export interface ProjectSnapshot {
   texts: Record<string, string>;
   /** project-relative path → SHA-256 hex of the bytes on disk. */
   hashes: Record<string, string>;
+  /** Absolute path of the rpg-studio folder (local only), for "open in editor" links. */
+  repoRoot?: string;
 }
 
 export interface SaveRequest { path: string; content: string; expectedHash: string }

@@ -15,6 +15,7 @@ import DatabasePanel from "./components/DatabasePanel";
 import ScriptsPanel from "./components/ScriptsPanel";
 import PixelEditor from "./components/PixelEditor";
 import LibraryPanel from "./components/LibraryPanel";
+import CodeFinder from "./components/CodeFinder";
 import ConflictDialog from "./components/ConflictDialog";
 import { useProject } from "./lib/useProject";
 import type { ProjectSource } from "./lib/source";
@@ -50,6 +51,7 @@ function editorContent(texts: Record<string, string>, base: GameContent | null):
 export default function App({ source }: { source: ProjectSource }) {
   const store = useProject(source);
   const [section, setSection] = useState<Section>("map");
+  const [findingCode, setFindingCode] = useState(false);
   const [mapId, setMapId] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
   const [dataFile, setDataFile] = useState<string | null>(null);
@@ -82,7 +84,8 @@ export default function App({ source }: { source: ProjectSource }) {
   if (store.status === "loading") return <div className="splash"><Loader2 className="spin" /> プロジェクトを読み込んでいます…</div>;
   if (store.status === "error") return <div className="splash error"><XCircle /> 読み込めません: {store.loadError}</div>;
 
-  return <main className={`studio section-${section}`}>
+  return <main className={`studio section-${section} ${findingCode ? "is-finding-code" : ""}`}>
+    <CodeFinder active={findingCode} onExit={() => setFindingCode(false)} repoRoot={store.projectInfo.repoRoot} projectDir={store.projectInfo.projectDir} />
     <header className="topbar">
       <div className="brand"><img src="./favicon.svg" alt="" width={26} height={26} /><div><b>RPGシステム工房</b><span>AGENT WORKBENCH 1.0</span></div></div>
       <div className="project-pill" title={store.texts["project.json"] ? "project.json" : ""}>
@@ -98,6 +101,7 @@ export default function App({ source }: { source: ProjectSource }) {
           {store.build?.state === "building" ? <Loader2 size={12} className="spin" /> : null}
           ビルド {store.build?.state === "ready" ? "OK" : store.build?.state === "error" ? "失敗" : store.build?.state === "building" ? "中" : "待機"}
         </span>}
+        <button className={`pill ${findingCode ? "warn" : ""}`} title="画面の部品をクリックすると、その部分を作っているコードの場所を表示（Alt+クリックでもいつでも）" onClick={() => setFindingCode(v => !v)}><Code2 size={12} />{findingCode ? "コードを探す（Escで終了）" : "コードを探す"}</button>
         <span className={`pill ${store.dirty.size ? "warn" : ""}`} title={[...store.dirty].join("\n")}><Save size={12} />{store.dirty.size ? `保存待ち ${store.dirty.size}` : "保存済み"}</span>
       </div>
     </header>

@@ -156,6 +156,27 @@ const G = {
     }
     void r;
   },
+  /**
+   * One piece of a rectangular rug (9-slice): the carpet pattern with a dark rim, a gold band and fringe on the
+   * flagged sides, and the wooden floor showing outside it. Lay tl/t/tr, l/c/r, bl/b/br to make any size.
+   */
+  carpetPiece(img: Img, r: Rng, base: string, sides: { t?: boolean; b?: boolean; l?: boolean; r?: boolean }) {
+    const floor = new Img(32, 32);
+    G.wood(floor, r);
+    G.carpet(img, r, base);
+    const c = R(base, 5, 0.8), gold = R(P.gold);
+    for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
+      const d = Math.min(sides.t ? y : 99, sides.b ? 31 - y : 99, sides.l ? x : 99, sides.r ? 31 - x : 99);
+      if (d === 99) continue;
+      const along = (sides.t && d === y) || (sides.b && d === 31 - y);
+      if (d < 3) img.set(x, y, along && d === 2 && x % 3 === 1 ? gold[2]! : along && d === 1 && x % 3 === 1 ? gold[1]! : floor.get(x, y));
+      else if (d === 3) img.set(x, y, c[0]!);
+      else if (d === 4) img.set(x, y, gold[3]!);
+      else if (d === 5) img.set(x, y, gold[2]!);
+      else if (d === 6) img.set(x, y, c[1]!);
+      else if (d === 7) img.set(x, y, c[2]!);
+    }
+  },
   checker(img: Img, _r: Rng, a: string = "#e8e2d4", b: string = "#4a4a58") {
     const ca = R(a, 5, 0.4), cb = R(b, 5, 0.6);
     for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) {
@@ -578,9 +599,9 @@ export const SHEETS: SheetSpec[] = [
       t("floor-wood", "板張りの床", true, ["floor"], (i, r) => G.wood(i, r)),
       t("floor-wood-dark", "濃い板張りの床", true, ["floor"], (i, r) => G.wood(i, r, "#7a4c2c")),
       t("floor-wood-light", "白木の床", true, ["floor"], (i, r) => G.wood(i, r, "#c8a070")),
-      t("carpet-red", "赤い絨毯", true, ["floor", "carpet"], (i, r) => G.carpet(i, r)),
-      t("carpet-blue", "青い絨毯", true, ["floor", "carpet"], (i, r) => G.carpet(i, r, P.blue)),
-      t("carpet-green", "緑の絨毯", true, ["floor", "carpet"], (i, r) => G.carpet(i, r, P.green)),
+      t("carpet-red", "赤い絨毯（模様・敷き詰め用）", true, ["floor", "carpet"], (i, r) => G.carpet(i, r)),
+      t("carpet-blue", "青い絨毯（模様・敷き詰め用）", true, ["floor", "carpet"], (i, r) => G.carpet(i, r, P.blue)),
+      t("carpet-green", "緑の絨毯（模様・敷き詰め用）", true, ["floor", "carpet"], (i, r) => G.carpet(i, r, P.green)),
       t("floor-checker", "市松模様の床", true, ["floor"], (i, r) => G.checker(i, r)),
       t("floor-tile", "タイルの床", true, ["floor"], (i, r) => G.checker(i, r, "#d8d4c8", "#b8b4a8")),
       t("tatami", "畳", true, ["floor", "japanese"], i => G.tatami(i)),
@@ -612,6 +633,16 @@ export const SHEETS: SheetSpec[] = [
       t("stairs-down-in", "下り階段（屋内）", true, ["stairs"], stairs(true, P.wood, (i, r) => G.wood(i, r))),
       t("door-in", "部屋の扉", true, ["door"], door((i, r) => { const c = R("#c8b08a", 5, 0.5); for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) i.set(x, y, c[x % 8 === 0 ? 3 : 2]!); void r; }, "wood")),
       t("window-in", "屋内の窓", false, ["window"], windowTile((i, r) => { const c = R("#c8b08a", 5, 0.5); for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) i.set(x, y, c[x % 8 === 0 ? 3 : 2]!); void r; }, false)),
+      // Rectangular rugs: 9 pieces each (corners, edges, centre). Appended last so earlier indices never move.
+      ...(["red", "blue"] as const).flatMap(color => {
+        const base = color === "red" ? P.red : P.blue, label = color === "red" ? "赤" : "青";
+        const parts: Array<[string, string, { t?: boolean; b?: boolean; l?: boolean; r?: boolean }]> = [
+          ["tl", "左上", { t: true, l: true }], ["t", "上", { t: true }], ["tr", "右上", { t: true, r: true }],
+          ["l", "左", { l: true }], ["c", "中央", {}], ["r", "右", { r: true }],
+          ["bl", "左下", { b: true, l: true }], ["b", "下", { b: true }], ["br", "右下", { b: true, r: true }],
+        ];
+        return parts.map(([k, name, sides]) => t(`rug-${color}-${k}`, `${label}の絨毯（${name}）`, true, ["floor", "carpet", "rug9"], (img, r) => G.carpetPiece(img, r, base, sides)));
+      }),
     ],
   },
   {
