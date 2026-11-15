@@ -34,3 +34,7 @@
 | 太鼓の精・石塊ゴーレム・なぞかけ狐・スライム王 | 戦闘モード（リズム・パズル・問答・アクション） | 敵の `battle.mode` |
 
 すべての遊び方と、ほかのジャンル（111）の作り方は `docs/genre-modules.md` と `docs/genre-atlas.md`（`pnpm rpg genres --query <言葉>`）にあります。自動プレイテスト: `tests/gallery.scenario.json`。
+
+## 素材の庭
+
+回廊の東（右）の出口から「素材の庭」と「庭の家」へ行けます。床・壁・屋根・木・家具・宝箱・NPC・敵・戦闘背景は、すべて共有素材ライブラリ（`library/`、内蔵ドット絵ジェネレーター）から `pnpm rpg library add` で取り込んだものです。北の背の高い草むらではスライム・コウモリ・狼が出て、遺跡の魔法陣を踏むと骸骨兵と戦います（`tests/garden.scenario.json`）。

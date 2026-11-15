@@ -38,7 +38,7 @@
 
 | 方法 | 効果音 | BGM | 画像 |
 | --- | --- | --- | --- |
-| **生成** | `pnpm rpg asset gen-sfx`（内蔵合成器、権利クリーン） | 楽譜BGM `.song.json`（AIや人が作曲、超軽量） | `art/requests.json` の要件定義をもとにAI画像生成 |
+| **生成** | `pnpm rpg asset gen-sfx`（内蔵合成器、権利クリーン） | 楽譜BGM `.song.json`（AIや人が作曲、超軽量） | 共有素材ライブラリ `library/`（内蔵ドット絵ジェネレーター、権利クリーン。§7）／`art/requests.json` の要件定義をもとにAI画像生成 |
 | **サイト** | 有効にしたサイトから、規約を確認して `asset add` | 同左 | 同左（CC0・商用可のもの） |
 | **購入・依頼** | BOOTH等で購入、ココナラ等で依頼。合意内容を記録 | 同左 | 同左 |
 
@@ -66,7 +66,7 @@
 サンプルには第三者サイトの素材を入れていません。理由は、素材の再配布が禁止されているサイトが多く、サンプル＝配布物だからです。サンプルの素材は次の3種類だけです。
 - 効果音16個: 内蔵ジェネレーターで生成
 - BGM3曲: 楽譜BGMとして新規に作曲
-- 画像: 元からあるAI生成のオリジナル
+- 画像: 元からあるAI生成のオリジナルと、内蔵ドット絵ジェネレーターの生成物（`library/` から取り込んだもの。「ジャンルの回廊」の素材の庭など）
 
 ## 3. 効果音を生成する
 
@@ -115,3 +115,28 @@ pnpm rpg asset gen-sfx --project projects/<id> --preset confirm --seed 3 --id sf
 - まず `pnpm rpg asset sources` で、有効な取得元と確認事項を見る
 - `prefer` の順に、生成かサイトかを選ぶ
 - 規約を守れない素材は使わず、最後に `rpg validate / test / build / asset report` を実行する
+
+## 7. 共有素材ライブラリ（内蔵ドット絵ジェネレーター）
+
+`library/` には、このリポジトリのコード（`packages/cli/src/artgen/`）が手続き的に描いたオリジナルのドット絵が入っています。第三者の素材・既存作品の模写・ネットからのダウンロードは一切使っていないので、**商用・再配布・改変すべて自由**です（リポジトリのライセンス MIT）。取得元カタログでは `builtin-art`（既定で有効）です。
+
+| 種類 | 数 | 形式 |
+| --- | --- | --- |
+| タイル | 4シート・165種（野外／町／屋内／ダンジョン） | 64×64セル・8列。32×32で描いて2倍に拡大しているので、マップ表示（32px）で1ドットも欠けない。地面は継ぎ目なく並ぶ |
+| キャラクター | 53体（村人・騎士・魔法使い・商人・長老・子ども・獣人・エルフ・ドワーフ・鬼・からくり・幽霊など） | 64×64、4列（歩行: 立ち・足・立ち・足）×4行（下・左・右・上） |
+| 敵 | 55体（スライム・コウモリ・狼・鳥・ゴーレム・骸骨・幽霊・花・虫・目玉・竜・キノコ・精霊・蛇・ゴブリン） | 64×64、4列×1行（待機アニメ） |
+| 戦闘背景 | 12枚（草原・森・洞窟・遺跡・雪山・砂漠・城・月夜・沼・火山・海辺・迷宮） | 640×448 |
+
+見本（コンタクトシート）は `library/previews/` にあります（`tiles.png`・`characters.png`・`monsters.png`・`backgrounds.png`）。
+
+```sh
+pnpm rpg library list [--kind tileset|tile|character|enemy|background] [--query 宝箱]   # 探す（--json も可）
+pnpm rpg library add lib-tiles-town chr-knight mon-slime-green bg-field --project projects/<id>
+pnpm rpg library add lib-tiles-dungeon --tiles chest-dungeon,pillar --project projects/<id>   # シートの一部のタイルだけ定義
+pnpm rpg art generate [--out library] [--only tiles,characters,monsters,backgrounds]           # ライブラリを再生成（同じ結果になる）
+```
+
+- `library add` は `rpg asset add` と同じ処理（容量予算・取得元・形式の検査、`bytes` は実ファイルの大きさ）で `assets/` にコピーし、`assets.json` に `origin: "generated"`・`sourceId: "builtin-art"`・`generator`（ツール・版・ライブラリID）付きで登録します。キャラは `frameOrder`・`loop` も記録します。既に同じIDがあれば飛ばします（`--replace` で置き換え）。
+- **タイルシート**を取り込むと、`tiles.json` に各タイルの定義（名前・通行可否・代替色・`atlas` にシートID）を、空いている1文字コードで追記します（英数字 → 記号 → ギリシャ文字 → かな → 漢字の順）。既存のタイル・コード・番号は変えません。`--tiles` で一部だけ、`--no-tiles` で画像だけにできます。追加されたコードは実行結果に表示されます（`0=草地 ε=石畳 …`）。
+- 物（木・宝箱・樽・家具など）のタイルは、下の地面込みの1枚です（タイルは1マス1枚のため）。草地用・石畳用・床用など、置き場所に合った地面のものを選んでください。
+- 絵柄を変えたいときは `packages/cli/src/artgen/` の数値や配色（`paint.ts` の `P`）を変えて `pnpm rpg art generate` し、`library/` の差分を確認してください。描画を変えたら `ARTGEN_VERSION` を上げます。`pnpm test` は `library/` が今のコードの出力と一致するかを確かめます。

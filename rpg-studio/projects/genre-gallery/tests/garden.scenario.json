@@ -1,0 +1,23 @@
+{
+  "name": "素材の庭: 回廊の東の出口から庭へ、家に入って出る、魔法陣の番人を倒す（library の生成素材）",
+  "seed": 5,
+  "steps": [
+    { "advance": "all" },
+    { "walkTo": { "x": 19, "y": 11 } },
+    { "expect": { "mapId": "garden", "at": { "x": 1, "y": 5 } } },
+    { "walkTo": { "x": 5, "y": 3 } },
+    { "expect": { "mapId": "garden-house", "at": { "x": 3, "y": 7 } } },
+    { "walkTo": { "x": 3, "y": 4 } },
+    { "face": "up" },
+    { "interact": true },
+    { "expect": { "textIncludes": "家具" } },
+    { "advance": "all" },
+    { "walkTo": { "x": 3, "y": 8 } },
+    { "expect": { "mapId": "garden", "at": { "x": 5, "y": 4 } } },
+    { "walkTo": { "x": 22, "y": 15 } },
+    { "advance": "once" },
+    { "expect": { "scene": "battle" } },
+    { "fight": "auto" },
+    { "expect": { "scene": "field", "mapId": "garden", "done": ["garden-ruin-guardian"] } }
+  ]
+}

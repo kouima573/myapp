@@ -14,7 +14,7 @@
 4. `docs/scenario-tests.md` — 自動プレイテスト
 5. 対象プロジェクトの `README.md` と `pnpm rpg catalog --project projects/<id>`（定義済みIDの一覧）
 6. ほかのプロジェクトや作り手が作った仕組みを使うときは `pnpm rpg mod list` / `pnpm rpg mod add <id> --project …`（出どころは mods.json に残る）。自分の仕組みを共有するときは `pnpm rpg mod export <systemId> --project … --author … --license …`
-7. 素材（画像・BGM・効果音）を扱うときは `docs/asset-guide.md` と `pnpm rpg asset sources --project projects/<id>`
+7. 素材（画像・BGM・効果音）を扱うときは `docs/asset-guide.md` と `pnpm rpg asset sources --project projects/<id>`。タイル・キャラ・敵・戦闘背景は、まず共有素材ライブラリ（`pnpm rpg library list`、見本は `library/previews/`）から `pnpm rpg library add` で取り込めないか探す
 
 ## 作り方の原則
 

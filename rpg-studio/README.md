@@ -35,6 +35,7 @@ pnpm rpg dev                     # 完成版ゲームだけを試遊: http://127
 | `pnpm rpg schema [--check]` | `schema/*.schema.json`（エディター・AI向けJSON Schema）の生成／最新確認 |
 | `pnpm rpg asset <sources\|enable\|disable\|add\|gen-sfx\|report\|credits>` | 素材の取得元・規約記録つき追加・効果音生成・容量とクレジット |
 | `pnpm rpg art <list\|prompt\|check>` | 画像の依頼一覧・生成用プロンプト・納品物の寸法チェック |
+| `pnpm rpg library <list\|add>` / `pnpm rpg art generate` | 内蔵ドット絵ジェネレーターの共有素材（タイル165種・キャラ53体・敵55体・戦闘背景12枚）を探す・プロジェクトに取り込む（タイル定義も追加）・再生成 |
 | `pnpm test` / `pnpm check` | エンジン・スキーマ・移行・ローカルサーバー安全性のユニットテスト／型検査 |
 
 問題の行は必ず `ERROR` / `WARN` で始まり、`ファイル › 場所: 内容` の形で出ます。例:
@@ -181,6 +182,7 @@ pnpm rpg dev                     # 完成版ゲームだけを試遊: http://127
 - **取得元カタログとON/OFF**: 主な素材サイトと生成手段について、規約の要点・確認項目・クレジットの要否・再配布の可否・自動取得の可否を記録
 - **出どころの記録と検査**: 規約確認日・入手URL・クレジット・作者の注意書きを記録し、未記入・無効サイト・共有用プロジェクトへの再配布禁止素材をエラーにする。`CREDITS.md` を自動生成
 - **容量予算**: 既定は目安100MB・上限300MB・1ファイル20MB（考え方は [docs/asset-guide.md](docs/asset-guide.md)）。`rpg asset report` で内訳を表示
+- **共有素材ライブラリ**（`library/`）: コードで描いたオリジナルのドット絵（タイル・キャラ・敵・戦闘背景）。権利クリーン（MIT）。`rpg library add` で取り込み（[docs/asset-guide.md §7](docs/asset-guide.md)）
 - **画像の要件定義**: `art/style-guide.md` と `art/requests.json`（要望・フィードバック欄つき）、`rpg art prompt / check`。追加キャラ6体・敵3体・タイル2シート・戦闘背景の依頼をサンプルに用意
 - タイルごとに別のタイルシートを使える（`tiles.json` の `atlas`）、戦闘背景（マップ・敵ごと）
 - 工房に「素材」画面: 容量バー、素材一覧と試聴、音の割り当て、効果音ジェネレーターの試聴、取得元のON/OFF、画像依頼の要望記入とプロンプトのコピー、AIへの依頼文
