@@ -47,10 +47,12 @@ export const RUNTIME_CSS = String.raw`
 .rpg-commands[data-grid] .rpg-option-hint { display:none; }
 .rpg-root[data-scene="menu"] .rpg-hud { display:none; }
 .rpg-root[data-scene="menu"] .rpg-layer { background:rgba(6,9,7,.35); }
-.rpg-battle { position:absolute; inset:0; display:flex; flex-direction:column; background-size:cover; background-position:center; image-rendering:pixelated; background:radial-gradient(ellipse at 50% 40%, #3b3a2f 0%, #1c1e19 62%, #101210 100%); animation:rpg-in .25s ease-out; }
+.rpg-battle { position:absolute; inset:0; display:flex; flex-direction:column; background:radial-gradient(ellipse at 50% 40%, #3b3a2f 0%, #1c1e19 62%, #101210 100%); background-size:cover; background-position:center; background-repeat:no-repeat; image-rendering:pixelated; animation:rpg-in .25s ease-out; }
 @keyframes rpg-in { from { opacity:0; transform:scale(1.04); } }
 .rpg-battle-stage { position:relative; flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.4em; min-height:0; }
+.rpg-portraits { display:flex; justify-content:center; align-items:flex-end; gap:2%; width:100%; }
 .rpg-portrait { width:24%; aspect-ratio:1; image-rendering:pixelated; }
+.rpg-portrait.is-group { width:18%; }
 .rpg-enemy-info { width:36%; text-align:center; font-size:.85em; display:flex; flex-direction:column; gap:.3em; }
 .rpg-battle-bottom { display:grid; grid-template-columns:1fr 1.6fr 1.2fr; gap:1.5%; padding:0 2.5% 3%; height:38%; }
 .rpg-battle-status, .rpg-battle-log, .rpg-commands { padding:.55em .8em; overflow:hidden; }

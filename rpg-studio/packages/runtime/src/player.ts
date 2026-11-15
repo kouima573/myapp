@@ -377,11 +377,12 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     return bar;
   }
 
-  let portraitCanvas: HTMLCanvasElement | null = null;
+  /** One canvas per enemy in the battle (index 0 = primary, then battle.foes). */
+  let portraitCanvases: HTMLCanvasElement[] = [];
 
   function renderUI() {
     windowLayer.replaceChildren();
-    portraitCanvas = null;
+    portraitCanvases = [];
     const map = content.maps[state.mapId];
     const eff = engine.stats(state);
     // HUD
@@ -498,8 +499,6 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const backgroundUrl = backgroundId ? images[backgroundId]?.src : undefined;
     if (backgroundUrl) panel.style.backgroundImage = `linear-gradient(rgba(10,12,10,.15), rgba(10,12,10,.55)), url("${backgroundUrl}")`;
     const stage = el("div", "rpg-battle-stage");
-    portraitCanvas = el("canvas", "rpg-portrait");
-    portraitCanvas.width = 128; portraitCanvas.height = 128;
     const enemyInfo = el("div", "rpg-enemy-info");
     const foes = [{ enemyId: battle.enemyId, hp: battle.enemyHp }, ...(battle.foes ?? [])];
     for (const foe of foes) {
@@ -508,7 +507,9 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       row.append(el("div", "rpg-enemy-name", `${e.name}${foes.length > 1 && foe.hp <= 0 ? "（倒れた）" : ""}`), hpBar(foe.hp, e.stats.maxHp, "is-enemy"));
       enemyInfo.appendChild(row);
     }
-    stage.append(enemyInfo, portraitCanvas);
+    const portraits = el("div", "rpg-portraits");
+    portraitCanvases = foes.map(() => { const c = el("canvas", foes.length > 1 ? "rpg-portrait is-group" : "rpg-portrait"); c.width = 128; c.height = 128; portraits.appendChild(c); return c; });
+    stage.append(enemyInfo, portraits);
     const status = el("div", "rpg-window rpg-battle-status");
     status.append(el("div", "rpg-speaker", `${heroName()}`), el("div", "rpg-battle-hp", `HP ${state.player.hp} / ${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
     for (const member of state.party ?? []) {
@@ -838,13 +839,17 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const fading = fadeUntil - now;
     fade.style.opacity = fading > 0 ? String(Math.min(1, fading / 220)) : "0";
     screen.classList.toggle("is-shaking", shakeUntil > now);
-    if (portraitCanvas && state.scene.kind === "battle") {
+    if (portraitCanvases.length && state.scene.kind === "battle") {
       const battle = state.scene.battle;
-      const enemy = content.database.enemies.find(e => e.id === battle.enemyId);
-      const asset = enemy?.sprite ? content.assets.assets.find(a => a.id === enemy.sprite) : undefined;
-      const pctx = portraitCanvas.getContext("2d")!;
-      if (battle.outcome === "victory") { pctx.clearRect(0, 0, 128, 128); }
-      else drawEnemyPortrait(pctx, battle.enemyId, 128, now, enemy?.sprite ? images[enemy.sprite] : undefined, asset);
+      const foes = [{ enemyId: battle.enemyId, hp: battle.enemyHp }, ...(battle.foes ?? [])];
+      portraitCanvases.forEach((canvas, i) => {
+        const foe = foes[i];
+        const pctx = canvas.getContext("2d")!;
+        if (!foe || foe.hp <= 0 || battle.outcome === "victory") { pctx.clearRect(0, 0, 128, 128); return; }
+        const enemy = content.database.enemies.find(e => e.id === foe.enemyId);
+        const asset = enemy?.sprite ? content.assets.assets.find(a => a.id === enemy.sprite) : undefined;
+        drawEnemyPortrait(pctx, foe.enemyId, 128, now + i * 170, enemy?.sprite ? images[enemy.sprite] : undefined, asset);
+      });
     }
     if (!typing.done) updateTyping(now);
   }
