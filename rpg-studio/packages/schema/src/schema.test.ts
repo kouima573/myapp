@@ -28,7 +28,7 @@ describe("project format v2", () => {
   it("reports cross-file mistakes with file and location", async () => {
     let texts = await sampleTexts();
     texts = edit(texts, "events/events.json", json => { json.events[1].effects[0].flag = "ruinsShortcutOpne"; });
-    texts = edit(texts, "maps/village.json", json => { json.npcs[0].dialogues[1].dialogue = "missing-dialog"; json.rows[3] = json.rows[3].replace("*", "Z"); });
+    texts = edit(texts, "maps/village.json", json => { json.npcs[0].dialogues[1].dialogue = "missing-dialog"; json.rows[3] = json.rows[3].replace("*", "!"); });
     texts = edit(texts, "maps/ruins.json", json => { json.portals[0].targetMapId = "nowhere"; });
     const result = loadProjectContent(texts);
     expect(result.content).toBeNull();
@@ -36,7 +36,7 @@ describe("project format v2", () => {
     expect(messages).toEqual(expect.arrayContaining([
       expect.stringMatching(/events\/events\.json › events\[open-ruins-shortcut\]\.effects\[0\]: 未宣言のフラグ 'ruinsShortcutOpne'/),
       expect.stringMatching(/maps\/village\.json › npcs\[scout\]\.dialogues\[1\]: 未定義の会話 'missing-dialog'/),
-      expect.stringMatching(/maps\/village\.json › rows\[3\]: タイルセットにないコード 'Z'/),
+      expect.stringMatching(/maps\/village\.json › rows\[3\]: タイルセットにないコード '!'/),
       expect.stringMatching(/maps\/ruins\.json › portals\[ruins-to-village\]\.target: 出入口の行き先のマップ 'nowhere'/),
     ]));
   });
