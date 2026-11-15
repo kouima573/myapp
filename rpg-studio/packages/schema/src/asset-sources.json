@@ -1,11 +1,13 @@
 {
   "formatVersion": 1,
-  "note": "規約の要約は2026-11時点の一般情報で、このツールの作成環境からは各サイトの規約原文に接続できず未照合です（verifiedAt: null）。素材を追加するたびに termsUrl の原文を読み、checklist を確認したうえで assets.json に termsCheckedAt を記録してください。規約は変わります。",
+  "note": "規約の要約は2026-11時点の一般情報で、このツールの作成環境からは各サイトの規約原文に接続できず未照合です（verifiedAt: null）。素材を追加するたびに termsUrl の原文を読み、checklist を確認したうえで assets.json に termsCheckedAt を記録してください。規約は変わります。 2026-11-15: 34サイトを調査（ネットワーク制限のため検索の抜粋・解説記事から。research.method = \"secondary\"）。verifiedAt は原文を読んだ人だけが入れる。",
   "sources": [
     {
       "id": "builtin-sfx",
       "name": "内蔵効果音ジェネレーター（rpg asset gen-sfx）",
-      "categories": ["sfx"],
+      "categories": [
+        "sfx"
+      ],
       "origin": "generated",
       "summary": "このリポジトリのコードで合成するオリジナル効果音。第三者の権利を含まないため、商用・再配布・改変すべて自由（プロジェクトのライセンスに従う）。",
       "checklist": [],
@@ -18,10 +20,14 @@
     {
       "id": "builtin-song",
       "name": "楽譜BGM（.song.json をAI/人が作曲）",
-      "categories": ["song"],
+      "categories": [
+        "song"
+      ],
       "origin": "generated",
       "summary": "テキストの楽譜をゲーム内で合成して鳴らすチップチューンBGM。数KBで軽い。既存曲の旋律をなぞらないこと（作曲物としての著作権に注意）。",
-      "checklist": ["既存の楽曲のメロディーを写していない"],
+      "checklist": [
+        "既存の楽曲のメロディーを写していない"
+      ],
       "creditRequired": "no",
       "redistribution": "allowed",
       "automatedDownload": "allowed",
@@ -31,7 +37,9 @@
     {
       "id": "builtin-art",
       "name": "内蔵ドット絵ジェネレーター（rpg art generate ／ library/）",
-      "categories": ["image"],
+      "categories": [
+        "image"
+      ],
       "origin": "generated",
       "summary": "このリポジトリのコード（packages/cli/src/artgen）が手続き的に描くオリジナルのタイル・キャラ・敵・戦闘背景。第三者の素材や既存作品の模写を含まないため、商用・再配布・改変すべて自由（リポジトリのライセンス MIT に従う）。",
       "checklist": [],
@@ -44,10 +52,16 @@
     {
       "id": "ai-image",
       "name": "AI画像生成（Codex等、art/requests.json の要件から生成）",
-      "categories": ["image"],
+      "categories": [
+        "image"
+      ],
       "origin": "generated",
       "summary": "利用する生成AIサービスの利用規約に従う（生成物の商用利用可否・権利帰属はサービスごとに異なる）。既存作品・特定の作家の画風を模写させない。",
-      "checklist": ["使った生成サービスの規約で商用利用が認められている", "プロンプトに既存作品名・作家名・キャラクター名を入れていない", "生成物が既存作品と酷似していない"],
+      "checklist": [
+        "使った生成サービスの規約で商用利用が認められている",
+        "プロンプトに既存作品名・作家名・キャラクター名を入れていない",
+        "生成物が既存作品と酷似していない"
+      ],
       "creditRequired": "unknown",
       "redistribution": "varies",
       "automatedDownload": "allowed",
@@ -59,132 +73,1056 @@
       "name": "Kenney",
       "url": "https://kenney.nl/assets",
       "termsUrl": "https://kenney.nl/support",
-      "categories": ["image", "sfx"],
+      "categories": [
+        "image",
+        "sfx"
+      ],
       "origin": "site",
       "summary": "多くの素材パックがCC0（パブリックドメイン相当）として配布されている（要確認：パックごとの同梱ライセンスファイル）。ドット絵は16px系が中心で、このサンプルの64px描き込み調とは画風が異なる。",
-      "checklist": ["ダウンロードしたパック内の License.txt が CC0 である", "パック名とURLを記録した"],
+      "checklist": [
+        "ダウンロードしたパック内の License.txt が CC0 である",
+        "パック名とURLを記録した"
+      ],
       "creditRequired": "no",
       "redistribution": "allowed",
       "automatedDownload": "unknown",
       "verifiedAt": null,
-      "defaultEnabled": false
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://kenney.nl/support",
+          "https://x.com/KenneyNL/status/1939336549684183078",
+          "https://twitter.com/KenneyNL/status/1363191196693237760"
+        ]
+      },
+      "preview": "https://kenney.nl/assets/<pack-slug>（パック単位。プレビュー画像あり）",
+      "contact": "https://kenney.nl/support（問い合わせ先の具体URLは未確認）",
+      "notes": ""
     },
     {
       "id": "opengameart",
       "name": "OpenGameArt.org",
       "url": "https://opengameart.org/",
-      "categories": ["image", "bgm", "sfx"],
+      "categories": [
+        "image",
+        "bgm",
+        "sfx"
+      ],
       "origin": "site",
       "summary": "素材ごとにライセンスが異なる（CC0 / CC-BY / CC-BY-SA / GPL 等）。CC-BY系はクレジット必須、CC-BY-SA・GPLはゲーム全体の配布条件に影響しうるので避けるのが無難。",
-      "checklist": ["素材ページに記載のライセンスを確認した（CC0 か CC-BY を推奨）", "CC-BYなら作者名・作品名・ライセンス名・URLを credit に書いた", "SA/GPL/NC（非営利）ではない"],
+      "checklist": [
+        "素材ページに記載のライセンスを確認した（CC0 か CC-BY を推奨）",
+        "CC-BYなら作者名・作品名・ライセンス名・URLを credit に書いた",
+        "SA/GPL/NC（非営利）ではない"
+      ],
       "creditRequired": "varies",
       "redistribution": "varies",
       "automatedDownload": "unknown",
       "verifiedAt": null,
-      "defaultEnabled": false
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://opengameart.org/content/faq",
+          "https://opengameart.org/forumtopic/commercial-usage-of-oga-assets-and-more",
+          "https://www.pypi.org/project/oga/"
+        ]
+      },
+      "preview": "https://opengameart.org/content/<slug>（試聴プレイヤー/画像プレビューあり）",
+      "searchUrl": "https://opengameart.org/art-search?keys={q}",
+      "cautions": [
+        "CC-BY-SA・GPL はゲーム全体の配布条件に影響しうるので避ける"
+      ],
+      "notes": ""
     },
     {
       "id": "freesound",
       "name": "Freesound",
       "url": "https://freesound.org/",
-      "categories": ["sfx"],
+      "categories": [
+        "sfx"
+      ],
       "origin": "site",
       "summary": "ファイルごとにCC0 / CC-BY / CC-BY-NC等が設定されている。NC（非営利）は商用不可。ダウンロードにはログインが必要。",
-      "checklist": ["ファイルのライセンスがCC0かCC-BYである（NCは不可）", "CC-BYなら作者名・ファイル名・URLを credit に書いた"],
+      "checklist": [
+        "ファイルのライセンスがCC0かCC-BYである（NCは不可）",
+        "CC-BYなら作者名・ファイル名・URLを credit に書いた"
+      ],
       "creditRequired": "varies",
       "redistribution": "varies",
       "automatedDownload": "manual",
       "verifiedAt": null,
-      "defaultEnabled": false
+      "defaultEnabled": false,
+      "integration": "api",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://freesound.org/docs/api/overview.html",
+          "https://freesound.org/docs/api/terms_of_use.html",
+          "https://freesound.org/help/tos_api",
+          "https://freesound.org/docs/api/authentication.html",
+          "https://groups.google.com/g/freesound-api/c/R_shemawHsE"
+        ]
+      },
+      "preview": "https://freesound.org/people/<user>/sounds/<id>/（APIの previews フィールドにMP3/OGGプレビューURLあり）",
+      "searchUrl": "https://freesound.org/search/?q={q}",
+      "contact": "mtg@upf.edu（API規約記載の連絡先。https://freesound.org/contact/ も存在）",
+      "cautions": [
+        "API の無料利用は非商用に限られるとの記載あり（商用ゲームでのAPI利用は要確認）。CC BY-NC（非営利）の音は既定で除外する",
+        "CC BY は作者名・音名・URL・ライセンスをクレジットに"
+      ],
+      "notes": ""
     },
     {
       "id": "soundeffect-lab",
       "name": "効果音ラボ",
       "url": "https://soundeffect-lab.info/",
       "termsUrl": "https://soundeffect-lab.info/agreement/",
-      "categories": ["sfx"],
+      "categories": [
+        "sfx"
+      ],
       "origin": "site",
       "summary": "一般に、商用利用可・クレジット表記不要とされるが、素材そのものの再配布（素材集・テンプレートとしての配布）は禁止とされる（原文未照合）。自分のゲームに組み込んで配布するのは可、共有用サンプルへの同梱は不可として扱う。",
-      "checklist": ["利用規約ページの原文を読んだ（日付を記録）", "ゲームに組み込む用途であり、素材として再配布しない", "このプロジェクトは assetPolicy.shareable=false である"],
+      "checklist": [
+        "利用規約ページの原文を読んだ（日付を記録）",
+        "ゲームに組み込む用途であり、素材として再配布しない",
+        "このプロジェクトは assetPolicy.shareable=false である"
+      ],
       "creditRequired": "no",
       "redistribution": "prohibited",
       "automatedDownload": "manual",
       "verifiedAt": null,
       "defaultEnabled": false,
-      "notes": "サイトへの過度な自動アクセスは避け、必要なファイルだけを人がダウンロードする運用を推奨。"
+      "notes": "サイトへの過度な自動アクセスは避け、必要なファイルだけを人がダウンロードする運用を推奨。",
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://soundeffect-lab.info/agreement/",
+          "https://soundeffect-lab.info/faq/",
+          "https://soundeffect-lab.info/agreement/choku-link.html",
+          "https://soundeffect-lab.info/agreement/niconico.html"
+        ]
+      },
+      "preview": "https://soundeffect-lab.info/sound/<category>/（カテゴリページ内で試聴）",
+      "contact": "https://soundeffect-lab.info/faq/（問い合わせフォームURLは未確認）",
+      "cautions": [
+        "公開リポジトリ（GitHubなど）に音源ファイルを置くと素材の再配布にあたるおそれ。共有するプロジェクトでは使わない"
+      ]
     },
     {
       "id": "maou-audio",
       "name": "魔王魂",
       "url": "https://maou.audio/",
       "termsUrl": "https://maou.audio/rule/",
-      "categories": ["bgm", "sfx"],
+      "categories": [
+        "bgm",
+        "sfx"
+      ],
       "origin": "site",
       "summary": "一般に商用利用可・クレジット任意（推奨）とされ、素材そのものの再配布は禁止とされる（原文未照合）。",
-      "checklist": ["利用規約ページの原文を読んだ（クレジットの扱いを確認）", "素材として再配布しない", "このプロジェクトは assetPolicy.shareable=false である"],
+      "checklist": [
+        "利用規約ページの原文を読んだ（クレジットの扱いを確認）",
+        "素材として再配布しない",
+        "このプロジェクトは assetPolicy.shareable=false である"
+      ],
       "creditRequired": "unknown",
       "redistribution": "prohibited",
       "automatedDownload": "manual",
       "verifiedAt": null,
-      "defaultEnabled": false
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://maou.audio/rule/",
+          "https://x.com/koichi_maou/status/1494278634814976004"
+        ]
+      },
+      "preview": "https://maou.audio/<category>-<id>/（曲ページで試聴）",
+      "cautions": [
+        "公開リポジトリに音源ファイルを置くと再配布にあたるおそれ"
+      ],
+      "notes": ""
     },
     {
       "id": "dova-syndrome",
-      "name": "DOVA-SYNDROME（OpenTracksへ名称変更予定の告知あり）",
-      "url": "https://dova-s.jp/",
-      "termsUrl": "https://dova-s.jp/_contents/license/",
-      "categories": ["bgm", "sfx"],
+      "name": "OpenTracks（旧DOVA-SYNDROME。2026-09-15 改称）",
+      "url": "https://opentracks.com/",
+      "termsUrl": "https://opentracks.com/help/articles/license/",
+      "categories": [
+        "bgm",
+        "sfx"
+      ],
       "origin": "site",
-      "summary": "基本は無料・クレジット不要だが、作曲者ごとに個別の利用条件がある。音源自体が主要コンテンツになる使い方、AI学習への利用、Content ID等への登録は禁止とされる（原文未照合）。",
-      "checklist": ["音源利用許諾の原文を読んだ", "その曲の作曲者プロフィール・曲ページの個別条件を読んだ（notes に要点を記録）", "素材として再配布しない", "このプロジェクトは assetPolicy.shareable=false である"],
+      "summary": "商用: 可（無料。音源利用ライセンス範囲内）／ゲームへの同梱: 条件付き可: ゲームが主コンテンツで、ユーザーが通常操作で音源だけを取り出し保存できない形で組み込む（暗号化は推奨・必須でない）。取り出せる場合も条件付きで可と2026-11-13に公式X案内（規約で抽出・転用禁止を明記等）。音ゲー/リズムゲームは範囲外／改変: 作曲者ごと（大幅改変禁止の例あり）／クレジット: 任意（作曲者ごとに異なる場合あり）（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "音源利用許諾の原文を読んだ",
+        "その曲の作曲者プロフィール・曲ページの個別条件を読んだ（notes に要点を記録）",
+        "素材として再配布しない",
+        "このプロジェクトは assetPolicy.shareable=false である"
+      ],
       "creditRequired": "varies",
       "redistribution": "prohibited",
       "automatedDownload": "manual",
       "verifiedAt": null,
-      "defaultEnabled": false
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://opentracks.com/help/articles/game_trpg/",
+          "https://opentracks.com/en/help/articles/license/",
+          "https://opentracks.com/en/help/articles/license-prohibitions/",
+          "https://www.gamespark.jp/article/2026/11/13/174826.html",
+          "https://www.gamebusiness.jp/article/2026/11/12/28655.html"
+        ]
+      },
+      "preview": "https://opentracks.com/bgm/detail/<id>（試聴ページ）",
+      "contact": "https://opentracks.com/help/（問い合わせ先URL未確認）",
+      "cautions": [
+        "2026-09-15 に OpenTracks へ改称（URL は opentracks.com）。2026-11 に「ゲームでは通常の操作で音源を取り出せない形で組み込む」条件が案内され、取り出せる場合も3点の条件を満たせば可とされた（3点の中身は未確認）。HTML5 書き出しの本ツールは「取り出せる」側にあたる可能性が高いので、使う前に必ず原文を確認する"
+      ],
+      "notes": ""
     },
     {
       "id": "otologic",
       "name": "OtoLogic",
       "url": "https://otologic.jp/",
       "termsUrl": "https://otologic.jp/free/license.html",
-      "categories": ["bgm", "sfx"],
+      "categories": [
+        "bgm",
+        "sfx"
+      ],
       "origin": "site",
       "summary": "CC BY 4.0 で提供されているとされ、クレジット表記が必要（原文未照合）。",
-      "checklist": ["ライセンスページの原文を読んだ", "指定どおりのクレジット文言を credit に書いた"],
+      "checklist": [
+        "ライセンスページの原文を読んだ",
+        "指定どおりのクレジット文言を credit に書いた"
+      ],
       "creditRequired": "yes",
-      "redistribution": "unknown",
+      "redistribution": "allowed",
       "automatedDownload": "manual",
       "verifiedAt": null,
-      "defaultEnabled": false
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://otologic.jp/free/license.html",
+          "https://otologic.jp/free/faq.html"
+        ]
+      },
+      "preview": "https://otologic.jp/free/bgm/<category>.html 等（カテゴリページで試聴）",
+      "cautions": [
+        "CC BY 4.0: クレジット必須（例「BGM by OtoLogic (CC BY 4.0)」）"
+      ],
+      "notes": ""
     },
     {
       "id": "booth",
       "name": "BOOTH（購入素材）",
       "url": "https://booth.pm/",
-      "categories": ["image", "bgm", "sfx"],
+      "categories": [
+        "image",
+        "bgm",
+        "sfx"
+      ],
       "origin": "purchased",
       "summary": "ショップ・商品ごとに規約が異なる。素材の再配布・転売は禁止の例が多い。商用可否・クレジット・改変可否を商品ページで確認する。",
-      "checklist": ["商品ページの利用規約を読み、要点を notes に記録した", "商用利用が認められている", "素材として再配布しない"],
+      "checklist": [
+        "商品ページの利用規約を読み、要点を notes に記録した",
+        "商用利用が認められている",
+        "素材として再配布しない"
+      ],
       "creditRequired": "varies",
       "redistribution": "prohibited",
       "automatedDownload": "manual",
       "verifiedAt": null,
-      "defaultEnabled": false
+      "defaultEnabled": false,
+      "integration": "manual",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://booth.pm/announcements/863",
+          "https://booth.pm/guidelines",
+          "https://www.itmedia.co.jp/news/articles/2510/10/news119.html"
+        ]
+      },
+      "preview": "https://booth.pm/ja/items/<id> ・ https://<shop>.booth.pm/items/<id>",
+      "searchUrl": "https://booth.pm/ja/search/{q}",
+      "contact": "https://booth.pm/guidelines（問い合わせはBOOTHヘルプ）",
+      "notes": ""
     },
     {
       "id": "coconala",
       "name": "ココナラ（依頼・購入）",
       "url": "https://coconala.com/",
-      "categories": ["image", "bgm", "sfx"],
+      "categories": [
+        "image",
+        "bgm",
+        "sfx"
+      ],
       "origin": "commission",
       "summary": "出品者との個別取引。著作権の譲渡・商用利用範囲・クレジット・改変の可否は出品ページと取引メッセージで個別に合意する（既定で著作権が移るとは限らない）。",
-      "checklist": ["商用利用（ゲームへの組み込みと販売）を出品者と合意した", "著作権譲渡または利用許諾の範囲を取引メッセージで確認した", "クレジット表記の要否を確認した", "合意内容の要点を notes に記録した"],
+      "checklist": [
+        "商用利用（ゲームへの組み込みと販売）を出品者と合意した",
+        "著作権譲渡または利用許諾の範囲を取引メッセージで確認した",
+        "クレジット表記の要否を確認した",
+        "合意内容の要点を notes に記録した"
+      ],
       "creditRequired": "varies",
       "redistribution": "prohibited",
       "automatedDownload": "manual",
       "verifiedAt": null,
-      "defaultEnabled": false
+      "defaultEnabled": false,
+      "integration": "manual",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://coconala.com/pages/terms_user",
+          "https://coconala.com/news/1159"
+        ]
+      },
+      "preview": "https://coconala.com/services/<id>",
+      "contact": "ココナラヘルプ",
+      "notes": ""
+    },
+    {
+      "id": "itchio",
+      "name": "itch.io（アセットストア）",
+      "url": "https://itch.io/game-assets",
+      "categories": [
+        "image",
+        "bgm",
+        "sfx",
+        "font"
+      ],
+      "origin": "site",
+      "summary": "商用: 商品ごと（作者のライセンス表記に従う）／ゲームへの同梱: 商品ごと／改変: 商品ごと／クレジット: 商品ごと（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた",
+        "個別ページのライセンス表記を確認した"
+      ],
+      "creditRequired": "varies",
+      "redistribution": "varies",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://itch.io/docs/api/serverside",
+          "https://itch.io/docs/api/oauth",
+          "https://itch.io/t/7114687/oauth-updates-authorization-code-flow-device-login-new-scopes",
+          "https://itch.io/about/terms"
+        ]
+      },
+      "preview": "https://<creator>.itch.io/<project-slug>",
+      "searchUrl": "https://itch.io/search?q={q}",
+      "contact": "https://itch.io/support（未確認）",
+      "cautions": [
+        "パックごとにライセンスが違う。購入済みパックは各自のPCから手で取り込む"
+      ]
+    },
+    {
+      "id": "pixabay",
+      "name": "Pixabay（画像・音楽・効果音）",
+      "url": "https://pixabay.com/",
+      "categories": [
+        "image",
+        "bgm",
+        "sfx"
+      ],
+      "origin": "site",
+      "summary": "商用: 可（Pixabay Content License）／ゲームへの同梱: 可（素材単体での再配布・販売は不可）／改変: 可／クレジット: 不要（任意: \"by [Contributor] via Pixabay\"）（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "no",
+      "redistribution": "prohibited",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://pixabay.com/api/docs/",
+          "https://pixabay.com/service/license",
+          "https://pixabay.com/service/faq/",
+          "https://pixabay.com/service/terms/"
+        ]
+      },
+      "preview": "https://pixabay.com/music/<slug>-<id>/ ・ https://pixabay.com/sound-effects/<slug>-<id>/ ・ 画像 https://pixabay.com/(illustrations|vectors)/<slug>-<id>/",
+      "searchUrl": "https://pixabay.com/music/search/{q}/",
+      "cautions": [
+        "系統的な大量ダウンロードは禁止。APIは画像・動画のみで音楽・効果音は個別ページから手でDL"
+      ]
+    },
+    {
+      "id": "unity-asset-store",
+      "name": "Unity Asset Store",
+      "url": "https://assetstore.unity.com/",
+      "categories": [
+        "image",
+        "bgm",
+        "sfx",
+        "font"
+      ],
+      "origin": "purchased",
+      "summary": "商用: 可（有料/無料、Standard EULA）／ゲームへの同梱: 可（ゲームに組み込んだ形で。Unity以外のエンジンでも可と公式サポート記事）／改変: 可（SDKは不可の場合あり）／クレジット: 不要（商品による）（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた",
+        "購入・依頼時の利用条件（ライセンス文）を保存した"
+      ],
+      "creditRequired": "varies",
+      "redistribution": "unknown",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "manual",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://support.unity.com/hc/en-us/articles/34387186019988-Can-I-use-assets-from-the-Asset-Store-with-other-engines",
+          "https://unity.com/legal/as_terms",
+          "https://assetstore.unity.com/browse/eula-faq"
+        ]
+      },
+      "preview": "https://assetstore.unity.com/packages/<category>/<slug>-<id>"
+    },
+    {
+      "id": "game-icons",
+      "name": "Game-icons.net",
+      "url": "https://game-icons.net/",
+      "categories": [
+        "image"
+      ],
+      "origin": "site",
+      "summary": "商用: 可（CC BY 3.0）／ゲームへの同梱: 可／改変: 可／クレジット: 必須（アイコンごとの作者名＋game-icons.net。例: Icon by Lorc / Delapouite, CC BY 3.0, https://game-icons.net）（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "yes",
+      "redistribution": "allowed",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://game-icons.net/about.html",
+          "https://icon-sets.iconify.design/game-icons/"
+        ]
+      },
+      "preview": "https://game-icons.net/1x1/<author>/<icon-name>.html"
+    },
+    {
+      "id": "craftpix",
+      "name": "CraftPix.net",
+      "url": "https://craftpix.net/",
+      "categories": [
+        "image"
+      ],
+      "origin": "site",
+      "summary": "商用: 可（無料素材も商用ライセンス）／ゲームへの同梱: 可／改変: 可（推定）／クレジット: 無料素材は不要（任意）（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "no",
+      "redistribution": "prohibited",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://craftpix.net/file-licenses/（未取得）",
+          "https://itch.io/post/12956572"
+        ]
+      },
+      "preview": "https://craftpix.net/freebies/<slug>/ ・ https://craftpix.net/product/<slug>/"
+    },
+    {
+      "id": "gamedev-market",
+      "name": "GameDev Market",
+      "url": "https://www.gamedevmarket.net/",
+      "categories": [
+        "image",
+        "bgm",
+        "sfx",
+        "font"
+      ],
+      "origin": "purchased",
+      "summary": "商用: 可（購入ライセンス）／ゲームへの同梱: 可／改変: 未確認／クレジット: 未確認（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた",
+        "購入・依頼時の利用条件（ライセンス文）を保存した"
+      ],
+      "creditRequired": "varies",
+      "redistribution": "unknown",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "manual",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://www.gamedevmarket.net/about/licences",
+          "https://www.gamedevmarket.net/support"
+        ]
+      },
+      "preview": "https://www.gamedevmarket.net/asset/<slug>",
+      "contact": "https://www.gamedevmarket.net/support"
+    },
+    {
+      "id": "rpgmaker-official",
+      "name": "RPGツクール公式素材（RTP・DLC / Komodo, Gotcha Gotcha Games）",
+      "url": "https://rpgmakerofficial.com/",
+      "categories": [
+        "image",
+        "bgm",
+        "sfx"
+      ],
+      "origin": "site",
+      "summary": "商用: ツクール製ゲーム内なら可／ゲームへの同梱: RTPはツクール製品以外のエンジンでの使用不可とする情報が多数（公式条文は未取得）／改変: ツクール内で可／クレジット: 製品による（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "unknown",
+      "redistribution": "unknown",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "avoid",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://rpgmakerofficial.com/en/?p=1248",
+          "https://gamefromscratch.com/?p=10474"
+        ]
+      },
+      "contact": "Gotcha Gotcha Games サポート（URL未確認）",
+      "cautions": [
+        "ツクール以外のエンジンでは使えないとの情報が多い（使わない）"
+      ],
+      "notes": "このツールでは使わない（理由は cautions）。"
+    },
+    {
+      "id": "incompetech",
+      "name": "Incompetech（Kevin MacLeod）",
+      "url": "https://incompetech.com/music/royalty-free/",
+      "categories": [
+        "bgm"
+      ],
+      "origin": "site",
+      "summary": "商用: 可（CC BY 4.0。有料ライセンスでクレジット不要化）／ゲームへの同梱: 可／改変: 可／クレジット: 必須: \"<曲名>\" Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0 License http://creativecommons.org/licenses/by/4.0/（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "yes",
+      "redistribution": "allowed",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://incompetech.com/music/royalty-free/faq.html"
+        ]
+      },
+      "preview": "https://incompetech.com/music/royalty-free/index.html?isrc=<ISRC>（曲ページ。要確認）"
+    },
+    {
+      "id": "ccmixter",
+      "name": "ccMixter / dig.ccMixter",
+      "url": "https://dig.ccmixter.org/",
+      "categories": [
+        "bgm"
+      ],
+      "origin": "site",
+      "summary": "商用: 曲ごと（CC BY / CC0 は可、NC系は不可）／ゲームへの同梱: 曲ごと／改変: 曲ごと／クレジット: 曲ごと（CCの表示義務）（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた",
+        "個別ページのライセンス表記を確認した"
+      ],
+      "creditRequired": "varies",
+      "redistribution": "varies",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "api",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://ccmixter.org/query-api",
+          "https://ccmixter.org/about"
+        ]
+      },
+      "preview": "https://ccmixter.org/files/<user>/<id>"
+    },
+    {
+      "id": "fma",
+      "name": "Free Music Archive",
+      "url": "https://freemusicarchive.org/",
+      "categories": [
+        "bgm"
+      ],
+      "origin": "site",
+      "summary": "商用: 曲ごと（CC各種）／ゲームへの同梱: 曲ごと／改変: 曲ごと／クレジット: 曲ごと（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "varies",
+      "redistribution": "prohibited",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://www.hypebot.com/tribe-of-noise-acquires-free-music-archive.md",
+          "https://techradar.com/news/the-free-music-archive-is-shutting-down-due-to-lack-of-funds"
+        ]
+      },
+      "preview": "https://freemusicarchive.org/music/<artist>/<album>/<track>"
+    },
+    {
+      "id": "youtube-audio-library",
+      "name": "YouTube オーディオライブラリ",
+      "url": "https://studio.youtube.com/",
+      "categories": [
+        "bgm",
+        "sfx"
+      ],
+      "origin": "site",
+      "summary": "商用: YouTube動画向け。YouTube外の利用は公式に明示なし／ゲームへの同梱: 未確認（YouTube外利用は保証されない）／改変: —／クレジット: 曲ごと（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "unknown",
+      "redistribution": "unknown",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "avoid",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://medium.com/creators-x-music-x-tech/youtube-audio-library-the-ultimate-guide-to-usage-merits-and-demerits-53920430dbf8"
+        ]
+      },
+      "preview": "（YouTube Studio内。公開URLなし）",
+      "cautions": [
+        "YouTube 外での利用が明示されていない（使わない）"
+      ],
+      "notes": "このツールでは使わない（理由は cautions）。"
+    },
+    {
+      "id": "google-fonts",
+      "name": "Google Fonts",
+      "url": "https://fonts.google.com/",
+      "categories": [
+        "font"
+      ],
+      "origin": "site",
+      "summary": "商用: 可（主にSIL OFL 1.1 / Apache 2.0）／ゲームへの同梱: 可（OFLはライセンス文の同梱が必要。フォント単体販売は不可）／改変: 可（OFLの予約フォント名に注意）／クレジット: クレジット不要だがOFL全文を同梱（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "no",
+      "redistribution": "allowed",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "api",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://developers.google.com/fonts/docs/developer_api"
+        ]
+      },
+      "preview": "https://fonts.google.com/specimen/<Family+Name>",
+      "searchUrl": "https://fonts.google.com/?query={q}",
+      "cautions": [
+        "OFL のライセンス文をゲームに同梱する"
+      ]
+    },
+    {
+      "id": "fontfree",
+      "name": "フォントフリー（FONT FREE）",
+      "url": "https://fontfree.me/",
+      "categories": [
+        "font"
+      ],
+      "origin": "site",
+      "summary": "商用: フォントごと／ゲームへの同梱: フォントごと（ゲームへの埋め込み可否は各フォントの規約）／改変: フォントごと／クレジット: フォントごと（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "varies",
+      "redistribution": "prohibited",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://fontfree.me/554"
+        ]
+      },
+      "preview": "https://fontfree.me/<id>"
+    },
+    {
+      "id": "pixiv-fanbox",
+      "name": "pixivFANBOX",
+      "url": "https://www.fanbox.cc/",
+      "categories": [
+        "image",
+        "bgm",
+        "sfx"
+      ],
+      "origin": "purchased",
+      "summary": "商用: クリエイターごと／ゲームへの同梱: クリエイターごと／改変: クリエイターごと／クレジット: クリエイターごと（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた",
+        "購入・依頼時の利用条件（ライセンス文）を保存した"
+      ],
+      "creditRequired": "varies",
+      "redistribution": "unknown",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "manual",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://policies.pixiv.net/#fanbox"
+        ]
+      },
+      "preview": "https://<creator>.fanbox.cc/posts/<id>"
+    },
+    {
+      "id": "pipoya",
+      "name": "ぴぽや倉庫（ぴぽや）",
+      "url": "https://pipoya.net/sozai/",
+      "categories": [
+        "image",
+        "sfx"
+      ],
+      "origin": "site",
+      "summary": "商用: 可（無料・有料とも個人/法人の営利利用可）／ゲームへの同梱: 可（ブラウザゲーム等サーバー設置は二次配布とみなさない素材あり）／改変: 可（素材による）／クレジット: 不要（する場合『ぴぽや』https://pipoya.net/）（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "no",
+      "redistribution": "prohibited",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://pipoya.net/sozai/terms-of-use/",
+          "https://pipoya.net/sozai/news/support/"
+        ]
+      },
+      "preview": "https://pipoya.net/sozai/assets/<category>/<slug>/",
+      "contact": "https://pipoya.net/sozai/news/support/"
+    },
+    {
+      "id": "r-do",
+      "name": "Rド",
+      "categories": [
+        "image"
+      ],
+      "origin": "site",
+      "summary": "商用: 未確認／ゲームへの同梱: 未確認／改変: 未確認／クレジット: 未確認（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "unknown",
+      "redistribution": "unknown",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "avoid",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": []
+      },
+      "notes": "このツールでは使わない（理由は cautions）。"
+    },
+    {
+      "id": "amacha",
+      "name": "甘茶の音楽工房",
+      "url": "https://amachamusic.chagasi.com/",
+      "categories": [
+        "bgm"
+      ],
+      "origin": "site",
+      "summary": "商用: 可／ゲームへの同梱: 可（BGMとして。ゲーム明記）／改変: 可（加工自由、著作権は作者）／クレジット: 不要（する場合サイト名・作曲者名・URLのいずれか）（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "no",
+      "redistribution": "prohibited",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://amachamusic.chagasi.com/terms.html"
+        ]
+      },
+      "preview": "https://amachamusic.chagasi.com/music_<name>.html（曲ページで試聴）"
+    },
+    {
+      "id": "musmus",
+      "name": "MusMus",
+      "url": "https://musmus.main.jp/",
+      "categories": [
+        "bgm",
+        "sfx"
+      ],
+      "origin": "site",
+      "summary": "商用: 可（BGM用途）／ゲームへの同梱: 可（2026-10からループ対応OGG約258曲も配布）／改変: 未確認／クレジット: 必須（MusMusの楽曲と分かる表記）（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "yes",
+      "redistribution": "prohibited",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://musmus.main.jp/about.html",
+          "https://musmus.main.jp/blog/term-of-use/",
+          "https://gamemakers.jp/article/2026_10_21_147803/"
+        ]
+      },
+      "preview": "https://musmus.main.jp/music_<category>.html 等"
+    },
+    {
+      "id": "pocket-se",
+      "name": "ポケットサウンド",
+      "url": "https://pocket-se.info/",
+      "categories": [
+        "bgm",
+        "sfx",
+        "voice"
+      ],
+      "origin": "site",
+      "summary": "商用: 可／ゲームへの同梱: 可（Unityゲーム・18禁ゲームもOKと一覧に明記）／改変: 未確認／クレジット: 必須（作品内クレジットまたはサイトへのリンク）。不可の場合は有償（効果音550円/点、BGM1,100円〜）またはサブスク（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "yes",
+      "redistribution": "prohibited",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://pocket-se.info/rules/",
+          "https://pocket-se.info/rules/compensation-plan/"
+        ]
+      },
+      "preview": "https://pocket-se.info/archives/<id>/"
+    },
+    {
+      "id": "on-jin",
+      "name": "On-Jin ～音人～",
+      "url": "https://on-jin.com/",
+      "categories": [
+        "sfx"
+      ],
+      "origin": "site",
+      "summary": "商用: 可（事業での利用は連絡が必要との二次情報）／ゲームへの同梱: 可（ファイルがむき出しなら著作表記必須との二次情報）／改変: 未確認／クレジット: 任意（ゲームで音源ファイルむき出しの場合は必須との解説あり）（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "varies",
+      "redistribution": "prohibited",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://on-jin.com/kiyaku.php"
+        ]
+      },
+      "preview": "https://on-jin.com/sound/listshow.php?pagename=<cat>（推定・未確認）"
+    },
+    {
+      "id": "voicevox",
+      "name": "VOICEVOX（音声合成。キャラクター別規約）",
+      "url": "https://voicevox.hiroshiba.jp/",
+      "categories": [
+        "voice"
+      ],
+      "origin": "site",
+      "summary": "商用: キャラクターごと（多くは商用可）／ゲームへの同梱: キャラクターごと／改変: —／クレジット: 必須（例『VOICEVOX:ずんだもん』。キャラごとに確認）。クレジットなし商用は有償契約が必要なキャラあり（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "yes",
+      "redistribution": "unknown",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "api",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://voicevox.hiroshiba.jp/term/",
+          "https://github.com/VOICEVOX/voicevox/issues/1561"
+        ]
+      },
+      "preview": "（ローカル生成。キャラ規約URL: https://voicevox.hiroshiba.jp/term/ と各キャラ公式）",
+      "contact": "各キャラクター権利者",
+      "cautions": [
+        "キャラクターごとに規約とクレジット表記が違う（例「VOICEVOX:ずんだもん」）。クレジットなしの商用は有償契約が必要なキャラあり"
+      ]
+    },
+    {
+      "id": "irasutoya",
+      "name": "いらすとや",
+      "url": "https://www.irasutoya.com/",
+      "categories": [
+        "image"
+      ],
+      "origin": "site",
+      "summary": "商用: 商用は1制作物20点まで無料（21点以上は有償、目安1点1,100円税込）／ゲームへの同梱: 未確認（ゲーム固有の記載なし）／改変: 可（二次情報）／クレジット: 不要（二次情報）（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "no",
+      "redistribution": "prohibited",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://www.irasutoya.com/p/faq.html"
+        ]
+      },
+      "preview": "https://www.irasutoya.com/<yyyy>/<mm>/blog-post_<n>.html",
+      "contact": "https://www.irasutoya.com/p/faq.html"
+    },
+    {
+      "id": "skima",
+      "name": "SKIMA",
+      "url": "https://skima.jp/",
+      "categories": [
+        "image"
+      ],
+      "origin": "commission",
+      "summary": "商用: 出品ごと（商用はオプション料金の例が多い）／ゲームへの同梱: 出品ごと／改変: 出品ごと／クレジット: 出品ごと（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた",
+        "購入・依頼時の利用条件（ライセンス文）を保存した"
+      ],
+      "creditRequired": "varies",
+      "redistribution": "unknown",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "manual",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://skima.jp/rule/agreement"
+        ]
+      },
+      "preview": "https://skima.jp/item/detail?item_id=<id>"
+    },
+    {
+      "id": "skeb",
+      "name": "Skeb",
+      "url": "https://skeb.jp/",
+      "categories": [
+        "image",
+        "bgm",
+        "voice"
+      ],
+      "origin": "site",
+      "summary": "商用: 原則不可（納品物の権利はクリエイター、クライアントは個人鑑賞・SNS等に限定）／ゲームへの同梱: 不可（楽曲リクエストでゲーム収録は規約上対応不可との案内）／改変: 不可／クレジット: —（検索の抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "規約の原文を読み、ゲームへの同梱・商用・クレジットの条件を確かめた"
+      ],
+      "creditRequired": "unknown",
+      "redistribution": "unknown",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "avoid",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-15",
+        "urls": [
+          "https://fcdn.skeb.jp/assets/documents/20231201-rev2_skeb_terms.pdf",
+          "https://x.com/skeb_jp/status/1134691597931536389"
+        ]
+      },
+      "cautions": [
+        "納品物の利用は原則個人鑑賞まで（ゲームには使わない）"
+      ],
+      "notes": "このツールでは使わない（理由は cautions）。"
     }
   ]
 }

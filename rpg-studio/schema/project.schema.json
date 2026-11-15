@@ -747,7 +747,9 @@
                     "image",
                     "bgm",
                     "sfx",
-                    "song"
+                    "song",
+                    "voice",
+                    "font"
                   ]
                 }
               },
@@ -809,6 +811,61 @@
               },
               "notes": {
                 "type": "string"
+              },
+              "integration": {
+                "type": "string",
+                "enum": [
+                  "api",
+                  "link",
+                  "manual",
+                  "avoid"
+                ]
+              },
+              "searchUrl": {
+                "type": "string"
+              },
+              "preview": {
+                "type": "string"
+              },
+              "creditFormat": {
+                "type": "string"
+              },
+              "cautions": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "research": {
+                "type": "object",
+                "properties": {
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "original",
+                      "secondary"
+                    ]
+                  },
+                  "checkedAt": {
+                    "type": "string"
+                  },
+                  "urls": {
+                    "default": [],
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "method",
+                  "checkedAt"
+                ],
+                "additionalProperties": false
+              },
+              "contact": {
+                "type": "string"
               }
             },
             "required": [
@@ -833,7 +890,9 @@
               "image",
               "bgm",
               "sfx",
-              "song"
+              "song",
+              "voice",
+              "font"
             ]
           },
           "additionalProperties": {

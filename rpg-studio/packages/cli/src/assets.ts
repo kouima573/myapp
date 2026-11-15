@@ -59,6 +59,7 @@ async function addEntry(root: string, entry: AssetEntry, replace: boolean): Prom
 export async function cmdAsset(sub: string | undefined, root: string, flags: Flags): Promise<number> {
   switch (sub) {
     case "sources": return sources(root);
+    case "find": return find(root, flags);
     case "enable": case "disable": return toggle(root, str(flags, "source") ?? str(flags, "id"), sub === "enable");
     case "add": return addAsset(root, flags);
     case "gen-sfx": return genSfx(root, flags);
@@ -66,6 +67,8 @@ export async function cmdAsset(sub: string | undefined, root: string, flags: Fla
     case "credits": { const loaded = await loadProjectFromDisk(root); if (!loaded.content) { console.log("FAILED: validate のエラーを直してください"); return 1; } console.log(creditLines(loaded.content).join("\n")); return 0; }
     default:
       console.log(`rpg asset sources|enable|disable|add|gen-sfx|report|credits --project <dir>
+  find --kind <bgm|sfx|image|tile|character|enemy|background|voice|font> --words "<言葉>" [--all] [--json]
+                                  AIが会話で候補を出す用: 内蔵素材・取得元の検索URL・試聴の仕方・条件をまとめて表示
   sources                         取得元カタログ（規約の要点・チェック項目・このプロジェクトでの有効/無効）
   enable|disable --source <id>    取得元を有効/無効にする
   add --file <path> --id <id> --kind <kind> [--source <id> --url <ページ> --license <規約名> --terms-checked YYYY-MM-DD
@@ -266,3 +269,55 @@ export async function cmdArt(sub: string | undefined, root: string, flags: Flags
   console.log("rpg art list|prompt --id <依頼>|check --id <依頼> --file <png> --project <dir>");
   return sub ? 2 : 0;
 }
+
+/* ------------------------------------------------------------------ find: candidates for a chat */
+
+const FIND_KINDS: Record<string, "image" | "bgm" | "sfx" | "voice" | "font"> = {
+  image: "image", tile: "image", tiles: "image", tileset: "image", character: "image", chara: "image", enemy: "image", monster: "image", background: "image", bg: "image",
+  bgm: "bgm", music: "bgm", song: "bgm", sfx: "sfx", se: "sfx", sound: "sfx", voice: "voice", font: "font",
+};
+const INTEGRATION_LABEL = { api: "公式APIあり（検索はAI、選ぶのはあなた）", link: "リンク（ブラウザで聴く・見る→自分でDL）", manual: "購入・依頼（あなたが手続き）", avoid: "このツールでは使わない" } as const;
+
+/**
+ * Everything an agent needs to offer choices in the chat without opening the studio: built-in options first,
+ * then each enabled source with a search link the person can open to listen / look, the conditions and cautions.
+ */
+async function find(root: string, flags: Flags): Promise<number> {
+  const kindFlag = str(flags, "kind") ?? "";
+  const category = FIND_KINDS[kindFlag];
+  if (!category) { console.log(`ERROR --kind は ${Object.keys(FIND_KINDS).join(" / ")} のどれか`); return 2; }
+  const words = (str(flags, "words") ?? "").trim();
+  const { parsed } = await manifest(root);
+  const list = sourcesFor(parsed).filter(s => s.categories.includes(category) && (flags.all || s.integration !== "avoid"));
+  const enabled = list.filter(s => isSourceEnabled(parsed, s));
+  const others = list.filter(s => !isSourceEnabled(parsed, s));
+  const linkFor = (s: (typeof list)[number]) => (s.searchUrl && words ? s.searchUrl.replace("{q}", encodeURIComponent(words)) : s.searchUrl?.replace("{q}", "") ?? s.url);
+  const builtIn: string[] = [];
+  if (category === "image") builtIn.push(`内蔵ライブラリ: pnpm rpg library preview --kind ${["tile", "character", "enemy", "background"].includes(kindFlag) ? kindFlag : "tile"}${words ? ` --query "${words}"` : ""}  → 番号つき見本画像を作って見せる（MIT・クレジット不要・すぐ取り込める）`, "自分で描く: 工房の「ドット絵」画面", "AI画像生成: art/requests.json に依頼を書いて pnpm rpg art prompt");
+  if (category === "bgm") builtIn.push("楽譜BGM: AIがオリジナル曲を .song.json で作曲（容量が小さく権利の心配がない。docs/asset-guide.md）");
+  if (category === "sfx") builtIn.push(`内蔵効果音: pnpm rpg asset gen-sfx --preset <${SFX_PRESETS.join("|")}> --id <id>（オリジナル・クレジット不要）`);
+  if (flags.json) {
+    console.log(JSON.stringify({ category, words, builtIn, sources: [...enabled, ...others].map(s => ({ ...s, enabled: isSourceEnabled(parsed, s), link: linkFor(s) })) }, null, 2));
+    return 0;
+  }
+  console.log(`# 「${words || "（言葉なし）"}」の${category}候補の探し方\n`);
+  if (builtIn.length) { console.log("## すぐ使える（内蔵）"); for (const line of builtIn) console.log(`- ${line}`); console.log(""); }
+  const show = (s: (typeof list)[number], on: boolean) => {
+    console.log(`### ${s.name}  [${s.id}]${on ? "" : "  （このプロジェクトでは無効: pnpm rpg asset enable --source " + s.id + "）"}`);
+    if (s.integration) console.log(`- 方式: ${INTEGRATION_LABEL[s.integration]}`);
+    console.log(`- 開くURL: ${linkFor(s) ?? "（なし）"}`);
+    if (s.preview) console.log(`- 試聴・見本: ${s.preview}`);
+    console.log(`- クレジット: ${s.creditFormat ?? s.creditRequired}　共有テンプレートへの同梱: ${s.redistribution}`);
+    for (const c of s.cautions) console.log(`- ⚠ ${c}`);
+    console.log(`- 規約: ${s.termsUrl ?? s.url ?? "（なし）"}（${s.verifiedAt ? `${s.verifiedAt} に原文確認` : s.research?.method === "secondary" ? `要約は${s.research.checkedAt}の二次情報。使う前に原文を確認` : "未照合"}）`);
+  };
+  if (enabled.length) { console.log("## このプロジェクトで有効な取得元"); for (const s of enabled) show(s, true); console.log(""); }
+  if (others.length) { console.log("## ほかの取得元（無効）"); for (const s of others) show(s, false); console.log(""); }
+  console.log(`## 進め方（AI向け）
+1. 上の候補を、番号と「開くURL」つきで相手に示す。音は判定できないので、必ずURLを開いて聴いてもらう。
+2. 相手が選んだ素材の個別ページURLと、ダウンロードしたファイルの場所を聞く（ログインや購入は相手がブラウザで行う。パスワードは預からない）。
+3. 規約の原文を開いて条件を確かめ、pnpm rpg asset add --file <ファイル> --id <id> --kind <kind> --source <取得元> --url <個別ページ> --license <名前> --terms-checked <今日> [--credit "<表記>" --credit-required] で登録。
+4. pnpm rpg validate → test → build。`);
+  return 0;
+}
+

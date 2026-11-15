@@ -17,6 +17,7 @@ const CUE_LABEL: Record<string, string> = { cursor: "カーソル", confirm: "�
 const ORIGIN_LABEL: Record<AssetEntry["origin"], string> = { original: "自作", generated: "生成", site: "サイト", purchased: "購入", commission: "依頼" };
 
 const ASSET_PROMPTS = [
+  { label: "チャットで素材を選ぶ", text: "AGENTS.md の「素材はチャットの中で決める」の手順で、次の素材の候補を `pnpm rpg asset find`（画像は `pnpm rpg library preview` の番号つき見本）で番号つきで見せて。音は聴けるURLを出して、選ぶのは私。決まったら出どころ・ライセンスつきで登録して validate / test / build を通して。\n\n欲しい素材：" },
   { label: "効果音を追加", text: "次の場面の効果音を用意して。まず `pnpm rpg asset sources` で有効な取得元と確認事項を見て、prefer の順（生成→サイト）で探す。生成なら `pnpm rpg asset gen-sfx`、サイトなら規約の原文を読んでから `pnpm rpg asset add`（--source --url --license --terms-checked 必須、作者の注意書きは --notes）。project.json の audio.sfx に割り当てて validate / test / build を通す。\n\n場面：" },
   { label: "BGMを追加", text: "次の場所のBGMを用意して。軽さを優先して、まず楽譜BGM（.song.json、docs/asset-guide.md の書式）でオリジナル曲を作る案と、有効なサイトから商用利用可の曲を選ぶ案を比べて提案して。サイトの曲は規約・作曲者ごとの条件を確認し、OGG 96〜128kbps・1曲3MB以内にして `pnpm rpg asset add` で登録。\n\n場所・雰囲気：" },
   { label: "キャラ画像を作る", text: "art/requests.json に次のキャラクターの依頼を draft で追加して、内容を私に確認して。承認後に `pnpm rpg art prompt --id <依頼>` の文章で画像を生成し、`pnpm rpg art check` で寸法を確認してから `pnpm rpg asset add --request` で登録、マップに配置して。\n\nキャラクター：" },

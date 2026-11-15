@@ -379,7 +379,7 @@ export const AudioConfigSchema = z.object({
 }).strict();
 export type AudioConfig = z.infer<typeof AudioConfigSchema>;
 
-export const SOURCE_CATEGORIES = ["image", "bgm", "sfx", "song"] as const;
+export const SOURCE_CATEGORIES = ["image", "bgm", "sfx", "song", "voice", "font"] as const;
 export const AssetSourceSchema = z.object({
   id: IdSchema,
   name: z.string().min(1),
@@ -400,6 +400,24 @@ export const AssetSourceSchema = z.object({
   verifiedAt: z.string().nullable().default(null),
   defaultEnabled: z.boolean().default(false),
   notes: z.string().optional(),
+  /**
+   * How an AI agent works with this source:
+   * api = an official API may be used to search (the person still chooses), link = the agent shows search / item
+   * page URLs and the person downloads in their browser, manual = bought / commissioned by the person, avoid = not usable here.
+   */
+  integration: z.enum(["api", "link", "manual", "avoid"]).optional(),
+  /** Search page for the agent to show, with {q} for the words (only where the URL form is known). */
+  searchUrl: z.string().optional(),
+  /** How the person can see / listen before choosing (item page, preview player…). */
+  preview: z.string().optional(),
+  /** Credit line format when credit is needed. */
+  creditFormat: z.string().optional(),
+  /** Points that change how the asset may be used in this tool's HTML5 builds or public repos. */
+  cautions: z.array(z.string()).default([]),
+  /** Where the summary came from: "original" (terms page read) or "secondary" (search snippets / articles only). */
+  research: z.object({ method: z.enum(["original", "secondary"]), checkedAt: z.string(), urls: z.array(z.string()).default([]) }).strict().optional(),
+  /** Where to ask the site when the terms are unclear. */
+  contact: z.string().optional(),
 }).strict();
 export type AssetSource = z.infer<typeof AssetSourceSchema>;
 

@@ -30,6 +30,17 @@
 - 容量予算（`assetPolicy.budget`）を守る。BGMは楽譜BGMかOGG 96〜128kbps、効果音は短く。
 - 変更した挙動には `tests/*.scenario.json` を追加・更新する。
 
+## 素材はチャットの中で決める（相手は工房を開かない前提）
+
+多くの人は工房の画面を開かず、あなた（Codex／Claude Code）との会話だけで素材を決めます。次の順で、選ぶのは必ず相手に任せてください。
+
+1. `pnpm rpg asset find --kind <bgm|sfx|tile|character|enemy|background|image|voice|font> --words "<相手の言葉>" --project <dir>` を実行する。内蔵の選択肢と、取得元ごとの検索URL・試聴の仕方・クレジット・注意点が出る。
+2. 画像は `pnpm rpg library preview --kind <tile|character|enemy|background> --query "<言葉>"` で番号つき見本画像（`.rpg-studio/library-preview.png`）を作り、その画像を見せて「何番にしますか？」と聞く。決まったら `pnpm rpg library add <id> --project <dir>`（タイルは `--tiles <key,…>` で一部だけ）。
+3. 音（BGM・効果音）は判定できないので、**聴けるURL**（取得元の検索URL・個別ページURL）を番号つきで示し、相手に聴いてもらって選んでもらう。内蔵の選択肢（楽譜BGM・`asset gen-sfx`）も並べる。
+4. 外部サイトは**相手がブラウザでログイン・購入・ダウンロード**する。パスワード・Cookie・トークンを聞いたり保存したりしない。買った／DLしたパックは `pnpm rpg packs add …` で台帳（このPCの `~/.rpg-studio/packs.json`）に登録すると、以後は `pnpm rpg packs files <パック>` → `pnpm rpg packs use <パック> --file … --id … --kind … --project <dir>` で出どころ・ライセンスつきで取り込める。
+5. 取得元の要約が `research.method = "secondary"`（二次情報）のときは、登録の前に規約の原文（`termsUrl`）を相手と一緒に確認する。`cautions` に書かれた注意（例: OpenTracks の HTML5 組み込み条件、公開リポジトリへの音源の置き方）は必ず伝える。
+6. 規約がはっきりしないときは、`docs/asset-source-inquiries.md` の問い合わせ文を相手に渡す（送るのは相手。深追いしない）。
+
 ## 完了条件（すべてOKになるまで直す）
 
 ```sh

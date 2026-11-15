@@ -16,6 +16,7 @@ import { cmdArt, cmdAsset } from "./assets";
 import { loadProjectFromDisk, readProjectTexts, resolveInside } from "./load";
 import { newProject } from "./scaffold";
 import { cmdMod } from "./mods";
+import { cmdPacks } from "./packs";
 import { cmdLibrary } from "./library";
 import { genreAtlasMarkdown, GENRES, LEVEL_LABEL, searchGenres } from "../../modules/src/genres";
 
@@ -34,7 +35,9 @@ const USAGE = `RPG Studio CLI
   rpg asset    <sources|enable|disable|add|gen-sfx|report|credits> --project <dir>   素材の取得元・追加・生成・容量・クレジット
   rpg art      <list|prompt|check> --project <dir>                                   画像の要件定義（art/requests.json）から生成用プロンプト・納品チェック
   rpg art      generate [--out library] [--only tiles,characters,monsters,backgrounds] [--no-previews]   内蔵ジェネレーターで共有素材ライブラリを（再）生成
-  rpg library  <list|add> [<id...>] [--kind …] [--query …] --project <dir>          共有素材ライブラリを探す・プロジェクトに取り込む（タイル定義も追加）
+  rpg library  <list|add|preview> [<id...>] [--kind …] [--query …] --project <dir>  共有素材ライブラリを探す・番号つき見本画像・取り込む（タイル定義も追加）
+  rpg packs    <list|add|files|use|remove>                                     買った・DLした素材パックをこのPCの台帳でまとめて管理（パスワードは保存しない）
+  rpg asset find --kind <bgm|sfx|image…> --words "<言葉>"                        AIが会話で候補を出す用（内蔵素材・取得元の検索URL・条件）
 `;
 
 function parseArgs(argv: string[]) {
@@ -337,6 +340,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       return 0;
     }
     case "library": return cmdLibrary(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
+    case "packs": return cmdPacks(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
     default: console.log(USAGE); return parsed.command && parsed.command !== "help" && parsed.command !== "--help" ? 2 : 0;
   }
 }

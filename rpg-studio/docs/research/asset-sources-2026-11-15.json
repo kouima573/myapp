@@ -1,0 +1,1317 @@
+[
+  {
+    "id": "kenney",
+    "name": "Kenney",
+    "url": "https://kenney.nl/assets",
+    "kinds": [
+      "image",
+      "tileset",
+      "character",
+      "sfx",
+      "font"
+    ],
+    "commercial": "可（CC0）",
+    "bundleInGame": "可",
+    "modify": "可",
+    "credit": "不要（任意。する場合は \"Kenney\" / www.kenney.nl。ロゴ使用は不可）",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIなし（検索結果に該当なし）"
+    },
+    "automation": "unspecified",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://kenney.nl/assets/<pack-slug>（パック単位。プレビュー画像あり）",
+    "integration": "link",
+    "unclear": [
+      "CC0のため素材単体の再配布も法的には可能と考えられるが、support原文で再配布について明記を確認できず",
+      "サイトへの自動一括DLについての記載は未確認"
+    ],
+    "contact": "https://kenney.nl/support（問い合わせ先の具体URLは未確認）",
+    "checkedUrls": [
+      "https://kenney.nl/support",
+      "https://x.com/KenneyNL/status/1939336549684183078",
+      "https://twitter.com/KenneyNL/status/1363191196693237760"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "CC0なので shareable プロジェクトにも入れられる唯一級の大手。パック内 License.txt を保存すること。"
+  },
+  {
+    "id": "opengameart",
+    "name": "OpenGameArt.org",
+    "url": "https://opengameart.org/",
+    "kinds": [
+      "image",
+      "tileset",
+      "character",
+      "bgm",
+      "sfx",
+      "font"
+    ],
+    "commercial": "素材ごと（FAQ: サイトは商用不可ライセンスを受け付けない方針）",
+    "bundleInGame": "素材ごと（CC0/CC-BY可。CC-BY-SA/GPLは派生物の同ライセンス公開・DRM禁止の義務）",
+    "modify": "ライセンスによる",
+    "credit": "素材ごと。FAQは『特記なき限り全てクレジット必要と想定せよ』。書式: 作品名・作者名・ライセンス名・URL",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIなし。非公式Pythonクライアント oga（PyPI）あり"
+    },
+    "automation": "unspecified",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://opengameart.org/content/<slug>（試聴プレイヤー/画像プレビューあり）",
+    "integration": "link",
+    "unclear": [
+      "規約原文でのスクレイピング可否は未確認。フォーラムでは『スクレイピングは自動IP制限される』とのスタッフ発言の伝聞あり（非公式）"
+    ],
+    "contact": "未確認（サイト内フォーラム/コンタクト）",
+    "checkedUrls": [
+      "https://opengameart.org/content/faq",
+      "https://opengameart.org/forumtopic/commercial-usage-of-oga-assets-and-more",
+      "https://www.pypi.org/project/oga/"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "一括自動DLは避け、AIは個別ページURLを提示。ライセンス欄（CC0/CC-BY/CC-BY-SA/GPL/OGA-BY）を必ず記録。"
+  },
+  {
+    "id": "itchio",
+    "name": "itch.io（アセットストア）",
+    "url": "https://itch.io/game-assets",
+    "kinds": [
+      "image",
+      "tileset",
+      "character",
+      "bgm",
+      "sfx",
+      "font"
+    ],
+    "commercial": "商品ごと（作者のライセンス表記に従う）",
+    "bundleInGame": "商品ごと",
+    "modify": "商品ごと",
+    "credit": "商品ごと",
+    "api": {
+      "exists": true,
+      "url": "https://itch.io/docs/api/oauth",
+      "auth": "サーバーサイドAPIキー（自分のアカウント用）/ OAuth 2.0（implicit、2026年10月から authorization code + PKCE、デバイスログインは要承認）",
+      "notes": "スコープ profile:owned で購入・入手済み一覧（https://api.itch.io/profile/owned-keys）を取得可。検索APIやアセットのダウンロードAPIは公式ドキュメントで確認できず。OAuthアクセストークンはAPIキー扱い（Bearer）"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": true,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://<creator>.itch.io/<project-slug>",
+    "integration": "link",
+    "unclear": [
+      "利用規約のスクレイピング・自動アクセス条項を抜粋で確認できず",
+      "OAuthで取得した所有一覧をもとに、ファイル本体をツールがDLしてよいか（アップロードDL用の公開APIがあるか）未確認",
+      "デバイスログインは itch.io の承認が必要"
+    ],
+    "contact": "https://itch.io/support（未確認）",
+    "checkedUrls": [
+      "https://itch.io/docs/api/serverside",
+      "https://itch.io/docs/api/oauth",
+      "https://itch.io/t/7114687/oauth-updates-authorization-code-flow-device-login-new-scopes",
+      "https://itch.io/about/terms"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "OAuthで『購入済み素材の一覧』を取り込む連携は公式に想定された範囲。DLはユーザーがブラウザで。"
+  },
+  {
+    "id": "freesound",
+    "name": "Freesound",
+    "url": "https://freesound.org/",
+    "kinds": [
+      "sfx",
+      "bgm",
+      "voice"
+    ],
+    "commercial": "音ごと（CC0 / CC-BY / CC-BY-NC等。NCは商用不可）",
+    "bundleInGame": "音ごと",
+    "modify": "音ごと",
+    "credit": "音ごと（CC-BYは作者名・音名・URL・ライセンス）",
+    "api": {
+      "exists": true,
+      "url": "https://freesound.org/docs/api/overview.html",
+      "auth": "APIキー（トークン認証: 検索・メタデータ・低音質プレビュー）/ OAuth2（オリジナル音源DL・アップロード等。アクセストークン24h、リフレッシュトークン毎回更新、public client扱いでsecret任意）",
+      "notes": "公式: 通常 60req/分・2000req/日、オリジナルDL等は 30req/分・500req/日（超過は429、増枠は管理者に相談）。API規約: 無料は非商用目的のみ・商用は要ライセンス相談（mtg at upf.edu）。Freesoundの機能を複製するサービス禁止、複数キー取得で制限回避禁止。クエリ/帯域節約のキャッシュはスタッフがフォーラムで『legit』と回答（非公式）"
+    },
+    "automation": "allowed（API経由。API規約の範囲内）",
+    "login": {
+      "required": true,
+      "tokenByThirdParty": "unspecified（OAuth2で第三者アプリがユーザーの代わりにDLする設計自体が公式に用意されている）"
+    },
+    "previewUrlPattern": "https://freesound.org/people/<user>/sounds/<id>/（APIの previews フィールドにMP3/OGGプレビューURLあり）",
+    "integration": "api",
+    "unclear": [
+      "本ツールを無料・OSSで配布する場合も『非商用』扱いか。モバイルアプリの例ではスタッフが『無料でも商用扱い』と回答した事例あり → 要問い合わせ",
+      "ユーザーごとに自分でAPIクレデンシャルを発行させる方式なら問題ないか"
+    ],
+    "contact": "mtg@upf.edu（API規約記載の連絡先。https://freesound.org/contact/ も存在）",
+    "checkedUrls": [
+      "https://freesound.org/docs/api/overview.html",
+      "https://freesound.org/docs/api/terms_of_use.html",
+      "https://freesound.org/help/tos_api",
+      "https://freesound.org/docs/api/authentication.html",
+      "https://groups.google.com/g/freesound-api/c/R_shemawHsE"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "公式OAuth2がある唯一の主要音素材サイト。ただし商用判定が要確認のため、まずは『ユーザー自身のAPIキー』方式＋NCライセンス除外フィルタを推奨。"
+  },
+  {
+    "id": "pixabay",
+    "name": "Pixabay（画像・音楽・効果音）",
+    "url": "https://pixabay.com/",
+    "kinds": [
+      "image",
+      "bgm",
+      "sfx"
+    ],
+    "commercial": "可（Pixabay Content License）",
+    "bundleInGame": "可（素材単体での再配布・販売は不可）",
+    "modify": "可",
+    "credit": "不要（任意: \"by [Contributor] via Pixabay\"）",
+    "api": {
+      "exists": true,
+      "url": "https://pixabay.com/api/docs/",
+      "auth": "APIキー",
+      "notes": "画像・動画のみ。音楽/効果音のAPIエンドポイントは見つからず。100req/分（キー単位）、結果は24時間キャッシュ必須、永続ホットリンク禁止（DLして自前保存）、系統的な大量DL禁止"
+    },
+    "automation": "forbidden（系統的な大量DLは禁止。API規約）",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://pixabay.com/music/<slug>-<id>/ ・ https://pixabay.com/sound-effects/<slug>-<id>/ ・ 画像 https://pixabay.com/(illustrations|vectors)/<slug>-<id>/",
+    "integration": "link",
+    "unclear": [
+      "機械学習・データベース構築目的の再配布禁止条項が、素材管理ツールのローカルカタログに当たらないか（個人のプロジェクト内保存なら通常は問題ないと思われるが原文未確認）",
+      "一部楽曲にContent ID登録がありYouTube等で申し立てが起こりうる",
+      "2019年以前の素材はCC0のまま"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://pixabay.com/api/docs/",
+      "https://pixabay.com/service/license",
+      "https://pixabay.com/service/faq/",
+      "https://pixabay.com/service/terms/"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "画像は api（キー＋24hキャッシュ遵守）も可。音は link。"
+  },
+  {
+    "id": "unity-asset-store",
+    "name": "Unity Asset Store",
+    "url": "https://assetstore.unity.com/",
+    "kinds": [
+      "image",
+      "tileset",
+      "character",
+      "bgm",
+      "sfx",
+      "font"
+    ],
+    "commercial": "可（有料/無料、Standard EULA）",
+    "bundleInGame": "可（ゲームに組み込んだ形で。Unity以外のエンジンでも可と公式サポート記事）",
+    "modify": "可（SDKは不可の場合あり）",
+    "credit": "不要（商品による）",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "購入者向け公開APIなし"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": true,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://assetstore.unity.com/packages/<category>/<slug>-<id>",
+    "integration": "manual",
+    "unclear": [
+      "Unity社製アセットは Unity Companion License で Unity 前提の場合あり",
+      "含まれるOSS部品は別ライセンス優先"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://support.unity.com/hc/en-us/articles/34387186019988-Can-I-use-assets-from-the-Asset-Store-with-other-engines",
+      "https://unity.com/legal/as_terms",
+      "https://assetstore.unity.com/browse/eula-faq"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "DLはUnityエディタ経由が基本で本ツール向きではない。"
+  },
+  {
+    "id": "game-icons",
+    "name": "Game-icons.net",
+    "url": "https://game-icons.net/",
+    "kinds": [
+      "image"
+    ],
+    "commercial": "可（CC BY 3.0）",
+    "bundleInGame": "可",
+    "modify": "可",
+    "credit": "必須（アイコンごとの作者名＋game-icons.net。例: Icon by Lorc / Delapouite, CC BY 3.0, https://game-icons.net）",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIなし。SVG一括はGitHubリポジトリ/zipで配布、Iconify経由でも入手可"
+    },
+    "automation": "unspecified",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://game-icons.net/1x1/<author>/<icon-name>.html",
+    "integration": "link",
+    "unclear": [
+      "作者が複数のときの表記テンプレートは未記載"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://game-icons.net/about.html",
+      "https://icon-sets.iconify.design/game-icons/"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "CC BYなので shareable にも入れられる（クレジット必須）。"
+  },
+  {
+    "id": "craftpix",
+    "name": "CraftPix.net",
+    "url": "https://craftpix.net/",
+    "kinds": [
+      "image",
+      "tileset",
+      "character"
+    ],
+    "commercial": "可（無料素材も商用ライセンス）",
+    "bundleInGame": "可",
+    "modify": "可（推定）",
+    "credit": "無料素材は不要（任意）",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": true,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://craftpix.net/freebies/<slug>/ ・ https://craftpix.net/product/<slug>/",
+    "integration": "link",
+    "unclear": [
+      "ライセンス原文（craftpix.net/file-licenses）を直接読めず、内容はスタッフのitch.ioフォーラム回答経由",
+      "素材ファイル単体の再配布・転売は禁止"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://craftpix.net/file-licenses/（未取得）",
+      "https://itch.io/post/12956572"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": ""
+  },
+  {
+    "id": "gamedev-market",
+    "name": "GameDev Market",
+    "url": "https://www.gamedevmarket.net/",
+    "kinds": [
+      "image",
+      "tileset",
+      "character",
+      "bgm",
+      "sfx",
+      "font"
+    ],
+    "commercial": "可（購入ライセンス）",
+    "bundleInGame": "可",
+    "modify": "未確認",
+    "credit": "未確認",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": true,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://www.gamedevmarket.net/asset/<slug>",
+    "integration": "manual",
+    "unclear": [
+      "標準ライセンス本文を取得できず",
+      "NFT利用は禁止と明記"
+    ],
+    "contact": "https://www.gamedevmarket.net/support",
+    "checkedUrls": [
+      "https://www.gamedevmarket.net/about/licences",
+      "https://www.gamedevmarket.net/support"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": ""
+  },
+  {
+    "id": "rpgmaker-official",
+    "name": "RPGツクール公式素材（RTP・DLC / Komodo, Gotcha Gotcha Games）",
+    "url": "https://rpgmakerofficial.com/",
+    "kinds": [
+      "image",
+      "tileset",
+      "character",
+      "bgm",
+      "sfx"
+    ],
+    "commercial": "ツクール製ゲーム内なら可",
+    "bundleInGame": "RTPはツクール製品以外のエンジンでの使用不可とする情報が多数（公式条文は未取得）",
+    "modify": "ツクール内で可",
+    "credit": "製品による",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": true,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "—",
+    "integration": "avoid",
+    "unclear": [
+      "本ツールはツクール以外のエンジンなので RTP は使用不可と扱うのが安全。DLCはパックごと（他エンジン可のものもある）"
+    ],
+    "contact": "Gotcha Gotcha Games サポート（URL未確認）",
+    "checkedUrls": [
+      "https://rpgmakerofficial.com/en/?p=1248",
+      "https://gamefromscratch.com/?p=10474"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "他エンジン可と明記されたパックのみ個別に manual 登録。"
+  },
+  {
+    "id": "incompetech",
+    "name": "Incompetech（Kevin MacLeod）",
+    "url": "https://incompetech.com/music/royalty-free/",
+    "kinds": [
+      "bgm"
+    ],
+    "commercial": "可（CC BY 4.0。有料ライセンスでクレジット不要化）",
+    "bundleInGame": "可",
+    "modify": "可",
+    "credit": "必須: \"<曲名>\" Kevin MacLeod (incompetech.com) Licensed under Creative Commons: By Attribution 4.0 License http://creativecommons.org/licenses/by/4.0/",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "unspecified",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://incompetech.com/music/royalty-free/index.html?isrc=<ISRC>（曲ページ。要確認）",
+    "integration": "link",
+    "unclear": [
+      "曲ごとにライセンス表記を確認（NC表記がないか）",
+      "Content ID登録の扱い"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://incompetech.com/music/royalty-free/faq.html"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": ""
+  },
+  {
+    "id": "ccmixter",
+    "name": "ccMixter / dig.ccMixter",
+    "url": "https://dig.ccmixter.org/",
+    "kinds": [
+      "bgm"
+    ],
+    "commercial": "曲ごと（CC BY / CC0 は可、NC系は不可）",
+    "bundleInGame": "曲ごと",
+    "modify": "曲ごと",
+    "credit": "曲ごと（CCの表示義務）",
+    "api": {
+      "exists": true,
+      "url": "https://ccmixter.org/query-api",
+      "auth": "不要（公開Query API）",
+      "notes": "第三者サイト・アプリ向けに公開と説明。licenseフィルタ（open=商用可）あり。レート制限の記載は未確認"
+    },
+    "automation": "allowed（公開Query APIとして第三者利用を想定。規約原文は未確認）",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://ccmixter.org/files/<user>/<id>",
+    "integration": "api",
+    "unclear": [
+      "一部の曲は『サンプリング等の変形時のみ商用可』など特殊条件",
+      "レート制限・キャッシュ条件未確認"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://ccmixter.org/query-api",
+      "https://ccmixter.org/about"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "検索はAPI、DL・登録時に曲ページのライセンスを記録。"
+  },
+  {
+    "id": "fma",
+    "name": "Free Music Archive",
+    "url": "https://freemusicarchive.org/",
+    "kinds": [
+      "bgm"
+    ],
+    "commercial": "曲ごと（CC各種）",
+    "bundleInGame": "曲ごと",
+    "modify": "曲ごと",
+    "credit": "曲ごと",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "旧API（/api/get/）の現状は未確認。2018年に閉鎖告知→Tribe of Noiseが買収して継続"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://freemusicarchive.org/music/<artist>/<album>/<track>",
+    "integration": "link",
+    "unclear": [
+      "現在のAPI提供状況・規約"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://www.hypebot.com/tribe-of-noise-acquires-free-music-archive.md",
+      "https://techradar.com/news/the-free-music-archive-is-shutting-down-due-to-lack-of-funds"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "優先度低。"
+  },
+  {
+    "id": "youtube-audio-library",
+    "name": "YouTube オーディオライブラリ",
+    "url": "https://studio.youtube.com/",
+    "kinds": [
+      "bgm",
+      "sfx"
+    ],
+    "commercial": "YouTube動画向け。YouTube外の利用は公式に明示なし",
+    "bundleInGame": "未確認（YouTube外利用は保証されない）",
+    "modify": "—",
+    "credit": "曲ごと",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": true,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "（YouTube Studio内。公開URLなし）",
+    "integration": "avoid",
+    "unclear": [
+      "YouTube外（ゲーム同梱）での利用可否が公式に明示されていない"
+    ],
+    "contact": "—",
+    "checkedUrls": [
+      "https://medium.com/creators-x-music-x-tech/youtube-audio-library-the-ultimate-guide-to-usage-merits-and-demerits-53920430dbf8"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": ""
+  },
+  {
+    "id": "google-fonts",
+    "name": "Google Fonts",
+    "url": "https://fonts.google.com/",
+    "kinds": [
+      "font"
+    ],
+    "commercial": "可（主にSIL OFL 1.1 / Apache 2.0）",
+    "bundleInGame": "可（OFLはライセンス文の同梱が必要。フォント単体販売は不可）",
+    "modify": "可（OFLの予約フォント名に注意）",
+    "credit": "クレジット不要だがOFL全文を同梱",
+    "api": {
+      "exists": true,
+      "url": "https://developers.google.com/fonts/docs/developer_api",
+      "auth": "APIキー",
+      "notes": "webfonts一覧とバリアントごとのファイルURLを取得可。レート制限は未確認。github.com/google/fonts でも配布"
+    },
+    "automation": "allowed（Developer API）",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://fonts.google.com/specimen/<Family+Name>",
+    "integration": "api",
+    "unclear": [
+      "ファミリーごとにライセンス（OFL/Apache/UFL）を記録すること"
+    ],
+    "contact": "—",
+    "checkedUrls": [
+      "https://developers.google.com/fonts/docs/developer_api"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "日本語は Noto Sans JP / M PLUS / DotGothic16 等。shareable 可。"
+  },
+  {
+    "id": "fontfree",
+    "name": "フォントフリー（FONT FREE）",
+    "url": "https://fontfree.me/",
+    "kinds": [
+      "font"
+    ],
+    "commercial": "フォントごと",
+    "bundleInGame": "フォントごと（ゲームへの埋め込み可否は各フォントの規約）",
+    "modify": "フォントごと",
+    "credit": "フォントごと",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://fontfree.me/<id>",
+    "integration": "link",
+    "unclear": [
+      "投稿サイトのため規約はフォント作者ごと。埋め込み（=再配布扱い）可否を個別確認"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://fontfree.me/554"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "文字を画像化して使えばフォントファイルを配布しない方法もある。"
+  },
+  {
+    "id": "soundeffect-lab",
+    "name": "効果音ラボ",
+    "url": "https://soundeffect-lab.info/",
+    "kinds": [
+      "sfx",
+      "voice"
+    ],
+    "commercial": "可（個人・法人・公共、無料）",
+    "bundleInGame": "可（FAQ: アプリ/ゲームへの組み込みは音源ファイルむき出しでも可。可能なら隠す措置を『お願い』）",
+    "modify": "可（改変版の再配布は不可）",
+    "credit": "不要（報告・リンクも不要）",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認（直リンク禁止。音源ページへのリンクは可）",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://soundeffect-lab.info/sound/<category>/（カテゴリページ内で試聴）",
+    "integration": "link",
+    "unclear": [
+      "『効果音が重要な役割を果たすコンテンツ』は再配布扱い（効果音を自由に鳴らすアプリ等）",
+      "GitHubの公開リポジトリに音源ファイルを置くことが再配布に当たるか → 要問い合わせ",
+      "ニコニ・コモンズ版、ポン出し（AI学習禁止）は別規約",
+      "自動一括DLの記載は見つからず"
+    ],
+    "contact": "https://soundeffect-lab.info/faq/（問い合わせフォームURLは未確認）",
+    "checkedUrls": [
+      "https://soundeffect-lab.info/agreement/",
+      "https://soundeffect-lab.info/faq/",
+      "https://soundeffect-lab.info/agreement/choku-link.html",
+      "https://soundeffect-lab.info/agreement/niconico.html"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": ""
+  },
+  {
+    "id": "maou-audio",
+    "name": "魔王魂",
+    "url": "https://maou.audio/",
+    "kinds": [
+      "bgm",
+      "sfx"
+    ],
+    "commercial": "可（個人・商用問わず、報告・登録不要）",
+    "bundleInGame": "可",
+    "modify": "未確認",
+    "credit": "表記が基本とされる（例『音楽：魔王魂』）。二次配布時は著作表記＋リンク/URL必須",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://maou.audio/<category>-<id>/（曲ページで試聴）",
+    "integration": "link",
+    "unclear": [
+      "ゲーム同梱時のクレジット要否の原文確認",
+      "他の素材サイトへの再登録・配信サービスでの販売・JASRAC等登録・生成AI学習は禁止（二次情報）"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://maou.audio/rule/",
+      "https://x.com/koichi_maou/status/1494278634814976004"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "著作権は作曲者に帰属（CC0ではない）。"
+  },
+  {
+    "id": "opentracks",
+    "name": "OpenTracks（旧DOVA-SYNDROME、2026-09-15改称）",
+    "url": "https://opentracks.com/",
+    "kinds": [
+      "bgm",
+      "sfx"
+    ],
+    "commercial": "可（無料。音源利用ライセンス範囲内）",
+    "bundleInGame": "条件付き可: ゲームが主コンテンツで、ユーザーが通常操作で音源だけを取り出し保存できない形で組み込む（暗号化は推奨・必須でない）。取り出せる場合も条件付きで可と2026-11-13に公式X案内（規約で抽出・転用禁止を明記等）。音ゲー/リズムゲームは範囲外",
+    "modify": "作曲者ごと（大幅改変禁止の例あり）",
+    "credit": "任意（作曲者ごとに異なる場合あり）",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://opentracks.com/bgm/detail/<id>（試聴ページ）",
+    "integration": "link",
+    "unclear": [
+      "Webブラウザ版ゲーム（ファイルがURLで取得可能）での具体的な3条件の内容",
+      "AI学習・Content ID等の指紋登録は禁止",
+      "作曲者の個別条件"
+    ],
+    "contact": "https://opentracks.com/help/（問い合わせ先URL未確認）",
+    "checkedUrls": [
+      "https://opentracks.com/help/articles/game_trpg/",
+      "https://opentracks.com/en/help/articles/license/",
+      "https://opentracks.com/en/help/articles/license-prohibitions/",
+      "https://www.gamespark.jp/article/2026/11/13/174826.html",
+      "https://www.gamebusiness.jp/article/2026/11/12/28655.html"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "dova-s.jp から移転。カタログのURL・名称・条件の更新が必要。HTML5公開を想定する本ツールでは要注意。"
+  },
+  {
+    "id": "otologic",
+    "name": "OtoLogic",
+    "url": "https://otologic.jp/",
+    "kinds": [
+      "bgm",
+      "sfx"
+    ],
+    "commercial": "可（CC BY 4.0。有償ライセンスでクレジット不要）",
+    "bundleInGame": "可",
+    "modify": "可",
+    "credit": "必須（OtoLogic由来と分かればよい。推奨: \"BGM by OtoLogic (CC BY 4.0) https://otologic.jp\"）",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "unspecified",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://otologic.jp/free/bgm/<category>.html 等（カテゴリページで試聴）",
+    "integration": "link",
+    "unclear": [
+      "ニコニ・コモンズ版は別ライセンス"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://otologic.jp/free/license.html",
+      "https://otologic.jp/free/faq.html"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "CC BY 4.0 なので素材の再配布もライセンス上可能（shareable可、要クレジット）。"
+  },
+  {
+    "id": "booth",
+    "name": "BOOTH（pixiv）",
+    "url": "https://booth.pm/",
+    "kinds": [
+      "image",
+      "tileset",
+      "character",
+      "bgm",
+      "sfx",
+      "voice",
+      "font"
+    ],
+    "commercial": "商品ごと",
+    "bundleInGame": "商品ごと",
+    "modify": "商品ごと",
+    "credit": "商品ごと",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "購入者向け公開APIなし"
+    },
+    "automation": "2025-10改定で『常識的な範囲のスクレイピング』は許容。サーバ負荷・悪質なものは制限。ログインが必要な購入履歴等の非公開情報は対象外との解説あり",
+    "login": {
+      "required": true,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://booth.pm/ja/items/<id> ・ https://<shop>.booth.pm/items/<id>",
+    "integration": "manual",
+    "unclear": [
+      "購入済み一覧（ライブラリ）をツールがユーザーのログイン情報で取得してよいか → 規約上不明。Cookie/パスワード保持は避けるべき"
+    ],
+    "contact": "https://booth.pm/guidelines（問い合わせはBOOTHヘルプ）",
+    "checkedUrls": [
+      "https://booth.pm/announcements/863",
+      "https://booth.pm/guidelines",
+      "https://www.itmedia.co.jp/news/articles/2510/10/news119.html"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "ユーザーがDLしたzipと商品URLを登録。商品ページの規約をAIが要約して notes に。"
+  },
+  {
+    "id": "pixiv-fanbox",
+    "name": "pixivFANBOX",
+    "url": "https://www.fanbox.cc/",
+    "kinds": [
+      "image",
+      "bgm",
+      "sfx"
+    ],
+    "commercial": "クリエイターごと",
+    "bundleInGame": "クリエイターごと",
+    "modify": "クリエイターごと",
+    "credit": "クリエイターごと",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": true,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://<creator>.fanbox.cc/posts/<id>",
+    "integration": "manual",
+    "unclear": [
+      "支援者特典素材の利用条件はプラットフォーム規約に一律の定めが見当たらない"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://policies.pixiv.net/#fanbox"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": ""
+  },
+  {
+    "id": "pipoya",
+    "name": "ぴぽや倉庫（ぴぽや）",
+    "url": "https://pipoya.net/sozai/",
+    "kinds": [
+      "image",
+      "tileset",
+      "character",
+      "sfx"
+    ],
+    "commercial": "可（無料・有料とも個人/法人の営利利用可）",
+    "bundleInGame": "可（ブラウザゲーム等サーバー設置は二次配布とみなさない素材あり）",
+    "modify": "可（素材による）",
+    "credit": "不要（する場合『ぴぽや』https://pipoya.net/）",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://pipoya.net/sozai/assets/<category>/<slug>/",
+    "integration": "link",
+    "unclear": [
+      "無料素材は『無償の再配布は許可』とする記述あり（素材ごと・規約改定あり）→ shareable可否は素材ごと",
+      "有料素材は転売不可"
+    ],
+    "contact": "https://pipoya.net/sozai/news/support/",
+    "checkedUrls": [
+      "https://pipoya.net/sozai/terms-of-use/",
+      "https://pipoya.net/sozai/news/support/"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "BOOTHでも販売（pipoya.booth.pm）。"
+  },
+  {
+    "id": "shiraneji",
+    "name": "白螺子屋",
+    "url": "（公式サイトURL未確認。BOOTH: booth.pm/ja/items/1703548 等）",
+    "kinds": [
+      "image",
+      "tileset",
+      "character"
+    ],
+    "commercial": "未確認",
+    "bundleInGame": "条件付き: ゲームデータを暗号化し素材ファイルを取り出せない状態にすること、同梱テキストにサイト名とアドレス記載（BOOTH商品ページの規約）",
+    "modify": "可（加工・修正可）",
+    "credit": "必要（同梱テキストにサイト名・URL）",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://booth.pm/ja/items/<id>",
+    "integration": "manual",
+    "unclear": [
+      "『暗号化して取り出せない状態』は暗号化機能のないHTML5ゲームでは満たしにくい → 本ツールでは実質使えない可能性",
+      "ツクール/ウディタ以外での利用可否の明記なし"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://booth.pm/ja/items/1703548",
+      "https://booth.pm/ja/items/2763146",
+      "https://booth.pm/ja/items/5795505"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "BOOTHで活動継続（2026年時点でも商品あり）。"
+  },
+  {
+    "id": "r-do",
+    "name": "Rド",
+    "url": "未確認",
+    "kinds": [
+      "image",
+      "character"
+    ],
+    "commercial": "未確認",
+    "bundleInGame": "未確認",
+    "modify": "未確認",
+    "credit": "未確認",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "未確認"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "未確認",
+    "integration": "avoid",
+    "unclear": [
+      "検索で現行サイト・移転先を確認できず（閉鎖/移転の有無も未確認）"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "確認できるまでカタログに載せない。"
+  },
+  {
+    "id": "amacha",
+    "name": "甘茶の音楽工房",
+    "url": "https://amachamusic.chagasi.com/",
+    "kinds": [
+      "bgm"
+    ],
+    "commercial": "可",
+    "bundleInGame": "可（BGMとして。ゲーム明記）",
+    "modify": "可（加工自由、著作権は作者）",
+    "credit": "不要（する場合サイト名・作曲者名・URLのいずれか）",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://amachamusic.chagasi.com/music_<name>.html（曲ページで試聴）",
+    "integration": "link",
+    "unclear": [
+      "音楽だけの販売・二次配布は禁止"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://amachamusic.chagasi.com/terms.html"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": ""
+  },
+  {
+    "id": "musmus",
+    "name": "MusMus",
+    "url": "https://musmus.main.jp/",
+    "kinds": [
+      "bgm",
+      "sfx"
+    ],
+    "commercial": "可（BGM用途）",
+    "bundleInGame": "可（2026-10からループ対応OGG約258曲も配布）",
+    "modify": "未確認",
+    "credit": "必須（MusMusの楽曲と分かる表記）",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://musmus.main.jp/music_<category>.html 等",
+    "integration": "link",
+    "unclear": [
+      "規約本文（info.html）を取得できず。二次配布・BGM以外目的の公開禁止は二次情報"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://musmus.main.jp/about.html",
+      "https://musmus.main.jp/blog/term-of-use/",
+      "https://gamemakers.jp/article/2026_10_21_147803/"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": ""
+  },
+  {
+    "id": "pocket-se",
+    "name": "ポケットサウンド",
+    "url": "https://pocket-se.info/",
+    "kinds": [
+      "bgm",
+      "sfx",
+      "voice"
+    ],
+    "commercial": "可",
+    "bundleInGame": "可（Unityゲーム・18禁ゲームもOKと一覧に明記）",
+    "modify": "未確認",
+    "credit": "必須（作品内クレジットまたはサイトへのリンク）。不可の場合は有償（効果音550円/点、BGM1,100円〜）またはサブスク",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://pocket-se.info/archives/<id>/",
+    "integration": "link",
+    "unclear": [
+      "素材単品のアップロード・再配布・販売は禁止"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://pocket-se.info/rules/",
+      "https://pocket-se.info/rules/compensation-plan/"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": ""
+  },
+  {
+    "id": "on-jin",
+    "name": "On-Jin ～音人～",
+    "url": "https://on-jin.com/",
+    "kinds": [
+      "sfx"
+    ],
+    "commercial": "可（事業での利用は連絡が必要との二次情報）",
+    "bundleInGame": "可（ファイルがむき出しなら著作表記必須との二次情報）",
+    "modify": "未確認",
+    "credit": "任意（ゲームで音源ファイルむき出しの場合は必須との解説あり）",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認（直リンク厳禁）",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://on-jin.com/sound/listshow.php?pagename=<cat>（推定・未確認）",
+    "integration": "link",
+    "unclear": [
+      "事業利用時の連絡要否",
+      "HTML5ゲームでのクレジット要否"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://on-jin.com/kiyaku.php"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": ""
+  },
+  {
+    "id": "voicevox",
+    "name": "VOICEVOX（音声合成。キャラクター別規約）",
+    "url": "https://voicevox.hiroshiba.jp/",
+    "kinds": [
+      "voice"
+    ],
+    "commercial": "キャラクターごと（多くは商用可）",
+    "bundleInGame": "キャラクターごと",
+    "modify": "—",
+    "credit": "必須（例『VOICEVOX:ずんだもん』。キャラごとに確認）。クレジットなし商用は有償契約が必要なキャラあり",
+    "api": {
+      "exists": true,
+      "url": "https://github.com/VOICEVOX/voicevox_engine",
+      "auth": "不要（ローカルエンジンのHTTP API）",
+      "notes": "ローカルで動くエンジンなので外部サイトへの自動アクセス問題はない。生成音声はキャラ規約に従う"
+    },
+    "automation": "allowed（ローカルエンジン）",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "（ローカル生成。キャラ規約URL: https://voicevox.hiroshiba.jp/term/ と各キャラ公式）",
+    "integration": "api",
+    "unclear": [
+      "キャラごとに禁止用途（政治・宗教等）や企業利用の事前確認がある",
+      "ゲーム同梱（音声ファイル配布）の扱いはキャラ規約次第"
+    ],
+    "contact": "各キャラクター権利者",
+    "checkedUrls": [
+      "https://voicevox.hiroshiba.jp/term/",
+      "https://github.com/VOICEVOX/voicevox/issues/1561"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "『生成』枠として扱い、キャラ名とクレジット文言を必須記録に。"
+  },
+  {
+    "id": "irasutoya",
+    "name": "いらすとや",
+    "url": "https://www.irasutoya.com/",
+    "kinds": [
+      "image"
+    ],
+    "commercial": "商用は1制作物20点まで無料（21点以上は有償、目安1点1,100円税込）",
+    "bundleInGame": "未確認（ゲーム固有の記載なし）",
+    "modify": "可（二次情報）",
+    "credit": "不要（二次情報）",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": false,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://www.irasutoya.com/<yyyy>/<mm>/blog-post_<n>.html",
+    "integration": "link",
+    "unclear": [
+      "ゲーム内（UI・キャラ）利用時の点数の数え方",
+      "素材そのものの販売・配布は不可"
+    ],
+    "contact": "https://www.irasutoya.com/p/faq.html",
+    "checkedUrls": [
+      "https://www.irasutoya.com/p/faq.html"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "画風がドット絵RPGと合わないため優先度低。"
+  },
+  {
+    "id": "coconala",
+    "name": "ココナラ",
+    "url": "https://coconala.com/",
+    "kinds": [
+      "image",
+      "character",
+      "bgm",
+      "sfx",
+      "voice"
+    ],
+    "commercial": "出品者が明示した範囲（規約: 明示がなければ自ら使用するためにのみ利用可）",
+    "bundleInGame": "出品者と合意",
+    "modify": "出品者と合意",
+    "credit": "出品者と合意",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": true,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://coconala.com/services/<id>",
+    "integration": "manual",
+    "unclear": [
+      "著作権譲渡は一律の定めなし（出品者ごと）"
+    ],
+    "contact": "ココナラヘルプ",
+    "checkedUrls": [
+      "https://coconala.com/pages/terms_user",
+      "https://coconala.com/news/1159"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "取引メッセージの合意要点を notes に。"
+  },
+  {
+    "id": "skima",
+    "name": "SKIMA",
+    "url": "https://skima.jp/",
+    "kinds": [
+      "image",
+      "character"
+    ],
+    "commercial": "出品ごと（商用はオプション料金の例が多い）",
+    "bundleInGame": "出品ごと",
+    "modify": "出品ごと",
+    "credit": "出品ごと",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": true,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "https://skima.jp/item/detail?item_id=<id>",
+    "integration": "manual",
+    "unclear": [
+      "opt販売（著作権売買）では著作権は購入者へ譲渡・著作者人格権は制作者に残る"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://skima.jp/rule/agreement"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": ""
+  },
+  {
+    "id": "skeb",
+    "name": "Skeb",
+    "url": "https://skeb.jp/",
+    "kinds": [
+      "image",
+      "bgm",
+      "voice"
+    ],
+    "commercial": "原則不可（納品物の権利はクリエイター、クライアントは個人鑑賞・SNS等に限定）",
+    "bundleInGame": "不可（楽曲リクエストでゲーム収録は規約上対応不可との案内）",
+    "modify": "不可",
+    "credit": "—",
+    "api": {
+      "exists": false,
+      "url": null,
+      "auth": null,
+      "notes": "公式APIは見つからず"
+    },
+    "automation": "未確認",
+    "login": {
+      "required": true,
+      "tokenByThirdParty": "unspecified"
+    },
+    "previewUrlPattern": "—",
+    "integration": "avoid",
+    "unclear": [
+      "クリエイター承認があれば商用可とする解説もあり、規約と運用の差は不明確"
+    ],
+    "contact": "未確認",
+    "checkedUrls": [
+      "https://fcdn.skeb.jp/assets/documents/20231201-rev2_skeb_terms.pdf",
+      "https://x.com/skeb_jp/status/1134691597931536389"
+    ],
+    "checkedAt": "2026-11-15",
+    "verification": "web-search-snippet（WebFetchはこのセッションのネットワーク制限で全外部サイトに接続不可。検索エンジンの抜粋と二次情報から作成。原文の直接閲覧は未実施）",
+    "notes": "ゲーム素材の依頼先としては使わない。"
+  }
+]

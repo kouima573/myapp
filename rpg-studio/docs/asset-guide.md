@@ -140,3 +140,25 @@ pnpm rpg art generate [--out library] [--only tiles,characters,monsters,backgrou
 - **タイルシート**を取り込むと、`tiles.json` に各タイルの定義（名前・通行可否・代替色・`atlas` にシートID）を、空いている1文字コードで追記します（英数字 → 記号 → ギリシャ文字 → かな → 漢字の順）。既存のタイル・コード・番号は変えません。`--tiles` で一部だけ、`--no-tiles` で画像だけにできます。追加されたコードは実行結果に表示されます（`0=草地 ε=石畳 …`）。
 - 物（木・宝箱・樽・家具など）のタイルは、下の地面込みの1枚です（タイルは1マス1枚のため）。草地用・石畳用・床用など、置き場所に合った地面のものを選んでください。
 - 絵柄を変えたいときは `packages/cli/src/artgen/` の数値や配色（`paint.ts` の `P`）を変えて `pnpm rpg art generate` し、`library/` の差分を確認してください。描画を変えたら `ARTGEN_VERSION` を上げます。`pnpm test` は `library/` が今のコードの出力と一致するかを確かめます。
+
+## 8. チャットだけで素材を決める（Codex／Claude Code）
+
+工房を開かなくても、AIとの会話で完結します（AIへの約束は AGENTS.md「素材はチャットの中で決める」）。
+
+| やりたいこと | AIが実行するコマンド | あなたがすること |
+| --- | --- | --- |
+| 候補を出す | `pnpm rpg asset find --kind bgm --words "森 穏やか" --project <dir>` | 出てきたURLを開いて聴く・見る |
+| 内蔵の絵から選ぶ | `pnpm rpg library preview --kind tile --query 宝箱` | 番号つき見本画像を見て番号で答える |
+| 選んだ絵を入れる | `pnpm rpg library add <id> --project <dir>` | — |
+| 買った・DLしたパックをまとめる | `pnpm rpg packs add --id … --name … --source booth --folder <展開先> --license … --url … --terms-checked YYYY-MM-DD` | ブラウザでログイン・購入・DLして、フォルダの場所を伝える |
+| パックから使う | `pnpm rpg packs files <パック>` → `pnpm rpg packs use <パック> --file … --id … --kind … --project <dir>` | 使うファイルを選ぶ |
+
+### 取得元カタログ（2026-11-15 更新・37件）
+
+`packages/schema/src/asset-sources.json`。各取得元に、AIとの連携方式（`integration`: api / link / manual / avoid）、検索URL（`searchUrl`）、見本・試聴の仕方（`preview`）、注意点（`cautions`）、調べ方（`research`）が入っています。
+
+- 今回の調査はネットワーク制限のため**検索の抜粋と解説記事（二次情報）**から作りました（調査メモ: `docs/research/asset-sources-2026-11-15.json`）。`verifiedAt` は、規約の原文を人が読んだときだけ入れてください。
+- **ログインの代行はしません。** パスワードやCookieを預かってよいと明記しているサイトは見つかりませんでした。公式のOAuth・APIがあるのは Freesound（API の無料利用は非商用に限るとの記載あり）・itch.io（購入済み一覧の取得まで）・ccMixter・Google Fonts などで、どれも利用者ごとにキーを発行する形になります。現時点では「台帳（`rpg packs`）＋ブラウザでの手動DL」を標準にしています。
+- 規約上はっきりしない4件（OpenTracks の HTML5 組み込み条件、効果音ラボの公開リポジトリの扱い、Freesound API の商用利用、itch.io OAuth の範囲）は、問い合わせ文を `docs/asset-source-inquiries.md` に用意しました。送るかどうかはあなたが決めてください。
+- 名前の変更: DOVA-SYNDROME は 2026-09-15 に OpenTracks（opentracks.com）へ改称（カタログIDは互換のため `dova-syndrome` のまま）。
+
