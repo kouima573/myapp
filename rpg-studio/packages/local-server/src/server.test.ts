@@ -57,8 +57,15 @@ describe("local server security", () => {
       const res = await request("GET", `/api/asset?path=${encodeURIComponent(bad)}`, { headers: api });
       expect([400, 415]).toContain(res.status);
     }
-    await fs.symlink(path.join(dir, "assets/tilesets/sample-village.png"), path.join(dir, "assets/link.png"));
-    expect((await request("GET", "/api/asset?path=assets/link.png", { headers: api })).status).toBe(403);
+    // A directory junction (Windows: needs no privilege; elsewhere a directory symlink).
+    await fs.symlink(path.join(dir, "assets/tilesets"), path.join(dir, "assets/linked"), "junction");
+    expect((await request("GET", "/api/asset?path=assets/linked/sample-village.png", { headers: api })).status).toBe(403);
+    // A file symlink. Windows refuses to create one without admin rights / developer mode: then only the junction is checked.
+    const fileLink = await fs.symlink(path.join(dir, "assets/tilesets/sample-village.png"), path.join(dir, "assets/link.png")).then(() => true, (error: NodeJS.ErrnoException) => {
+      if (process.platform === "win32" && error.code === "EPERM") return false;
+      throw error;
+    });
+    if (fileLink) expect((await request("GET", "/api/asset?path=assets/link.png", { headers: api })).status).toBe(403);
     expect((await request("GET", "/api/asset?path=assets/tilesets/sample-village.png", { headers: api })).status).toBe(200);
   });
 
