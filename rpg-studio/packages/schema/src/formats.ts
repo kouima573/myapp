@@ -188,7 +188,8 @@ export type Effect =
   | { type: "useVerb"; verb: string; target?: string }
   | { type: "setPlayer"; name?: string | null; sprite?: string | null }
   | { type: "if"; when: Condition; then: Effect[]; else?: Effect[] }
-  | { type: "system"; system: string; action: string; args?: Record<string, unknown> };
+  | { type: "system"; system: string; action: string; args?: Record<string, unknown> }
+  | { type: "script"; script: string; call?: string; args?: Record<string, unknown> };
 
 const ChoiceOptionSchema: z.ZodType<ChoiceOption> = z.lazy(() => z.object({
   id: IdSchema.optional(), label: z.string().min(1), when: ConditionSchema.optional(), effects: z.array(EffectSchema),
@@ -247,6 +248,8 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("setPlayer"), name: z.string().min(1).max(40).nullable().optional(), sprite: IdSchema.nullable().optional() }).strict(),
   z.object({ type: z.literal("if"), when: ConditionSchema, then: z.array(EffectSchema), else: z.array(EffectSchema).optional() }).strict(),
   z.object({ type: z.literal("system"), system: IdSchema, action: IdSchema, args: z.record(z.string(), z.unknown()).optional() }).strict(),
+  /** Run code from scripts/<script>.ts: its `use` (or `actions[call]`). Anything the data cannot express. */
+  z.object({ type: z.literal("script"), script: IdSchema, call: IdSchema.optional(), args: z.record(z.string(), z.unknown()).optional() }).strict(),
 ]));
 
 /* ------------------------------------------------------------------ Rules (data-driven triggers) */
@@ -280,6 +283,14 @@ export type Rule = z.infer<typeof RuleSchema>;
 
 export const StatModsSchema = z.object({ maxHp: ExprSchema.optional(), attack: ExprSchema.optional(), defense: ExprSchema.optional() }).strict();
 export type StatMods = z.infer<typeof StatModsSchema>;
+
+/**
+ * Code attached to a piece of data: scripts/<id>.ts. While the owner is active (ability known, item carried or
+ * equipped, trait held, enemy in battle, companion in the party, current map, entity state shown) every hook of
+ * the script runs — damage, movement, actions, drawing, HUD, extra commands… See docs/scripting.md.
+ */
+export const ScriptRefSchema = z.union([IdSchema, z.object({ id: IdSchema, args: z.record(z.string(), z.unknown()).default({}) }).strict()]);
+export type ScriptRef = z.infer<typeof ScriptRefSchema>;
 
 export const UseSchema = z.object({
   where: z.enum(["battle", "field", "both"]).default("battle"),
@@ -581,6 +592,8 @@ export const EntityStateSchema = z.object({
   carryable: z.boolean().optional(),
   /** Effects after it was pushed or put down (check { "entityAt": … } here for switches). */
   onMoved: z.array(EffectSchema).optional(),
+  /** Code active while this state is shown on the current map. */
+  script: ScriptRefSchema.optional(),
 }).strict();
 export type EntityState = z.infer<typeof EntityStateSchema>;
 
@@ -627,6 +640,8 @@ export const GameMapSchema = z.object({
   bgm: IdSchema.optional(),
   /** Battle background image (background asset) for fights on this map. */
   battleBackground: IdSchema.optional(),
+  /** Code active while the player is on this map. */
+  script: ScriptRefSchema.optional(),
   /** Tiles that change while a condition holds (bridge built, rubble cleared…). Later overlays win. */
   overlays: z.array(z.object({
     when: ConditionSchema,
@@ -721,6 +736,7 @@ export const AbilitySchema = z.object({
   rules: z.array(RuleSchema).default([]),
   /** Makes it a usable skill (battle command "わざ" / field menu). */
   use: UseSchema.optional(),
+  script: ScriptRefSchema.optional(),
 }).strict();
 export type Ability = z.infer<typeof AbilitySchema>;
 
@@ -737,6 +753,7 @@ export const TraitSchema = z.object({
   rules: z.array(RuleSchema).default([]),
   /** Run once when the trait is granted. */
   onGrant: z.array(EffectSchema).default([]),
+  script: ScriptRefSchema.optional(),
 }).strict();
 export type Trait = z.infer<typeof TraitSchema>;
 
@@ -754,6 +771,7 @@ export const ItemSchema = z.object({
   slot: IdSchema.optional(),
   rules: z.array(RuleSchema).default([]),
   key: z.boolean().default(false),
+  script: ScriptRefSchema.optional(),
 }).strict();
 export type Item = z.infer<typeof ItemSchema>;
 
@@ -786,6 +804,8 @@ export const EnemySchema = z.object({
   /** Rules active during battles with this enemy. */
   rules: z.array(RuleSchema).default([]),
   canFlee: z.boolean().default(true),
+  /** Code active while this enemy is in the battle (its `enemyTurn` can replace how it acts). */
+  script: ScriptRefSchema.optional(),
 }).strict();
 export type Enemy = z.infer<typeof EnemySchema>;
 
@@ -803,6 +823,8 @@ export const CompanionSchema = z.object({
     when: ConditionSchema.optional(),
     message: z.string().optional(),
   }).strict()).min(1).default([{ name: "攻撃", kind: "attack", power: 0 }]),
+  /** Code active while it is in the party (its `companionTurn` can replace how it acts). */
+  script: ScriptRefSchema.optional(),
 }).strict();
 export type Companion = z.infer<typeof CompanionSchema>;
 
@@ -922,8 +944,14 @@ export interface GameContent {
   /** Global rules (rulesPath). */
   rules: Rule[];
   /** Parsed .song.json files (when their text was available to the loader). */
-  songs: Record<string, Song>;
+  songs: Record<string, Song>;  /** Ids of scripts/*.ts (code attachable to data with "script"). */
+  scripts?: string[];
 }
+
+/** scripts/<id>.ts — found automatically, no registration. */
+export const SCRIPT_PATH = /^scripts\/([a-z0-9][a-z0-9_-]*)\.ts$/i;
+export const scriptIdsOf = (paths: Iterable<string>): string[] => [...paths].map(p => SCRIPT_PATH.exec(p)?.[1]).filter((x): x is string => Boolean(x)).sort();
+
 
 /* ------------------------------------------------------------------ Runtime state & saves */
 

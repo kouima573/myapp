@@ -152,3 +152,8 @@
 ## 画像シート
 
 `tileWidth`・`tileHeight`・`columns`・`rows`（・`margin`・`spacing`）で寸法を宣言し、`rpg validate` がPNGの実寸と照合します。キャラクターは行＝向き（下・左・右・上）、列＝歩行フレーム。ソース64pxセルを32pxで、補間なしで描画します。
+
+## スクリプト（`scripts/*.ts`）
+
+`abilities[]`・`items[]`・`traits[]`・`enemies[]`・`companions[]`・マップ・エンティティの状態に `"script": "名前"` または `"script": { "id": "名前", "args": {...} }` を書くと、`scripts/名前.ts` のコードが付け先の有効な間だけ動きます。効果 `{ "type": "script", "script": "名前", "call"?: "アクション", "args"?: {} }` でも呼べます。詳しくは [scripting.md](scripting.md)。
+

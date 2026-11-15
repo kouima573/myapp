@@ -1,3 +1,4 @@
+import { nextRandom } from "./conditions";
 import type { BattleState, Effect, Enemy, GameContent, GameMap, GameState, TileDef } from "../../schema/src/formats";
 
 /**
@@ -11,6 +12,34 @@ import type { BattleState, Effect, Enemy, GameContent, GameMap, GameState, TileD
 export interface SystemContext {
   content: GameContent;
   state: GameState;
+  /**
+   * For scripts attached to data: what the script is attached to and the `args` written next to it
+   * (`"script": { "id": "meteor", "args": { "power": 9 } }`). Undefined for project-wide systems.
+   */
+  self?: ScriptSelf;
+}
+
+/** What an attached script belongs to. `index` = position of the enemy in the battle (0 = first). */
+export interface ScriptSelf {
+  kind: "ability" | "item" | "trait" | "enemy" | "companion" | "map" | "entity" | "effect" | "command";
+  id: string;
+  args: Record<string, unknown>;
+  index?: number;
+  /** Storage key of this attachment (state.systemData / battle.systemData). */
+  key?: string;
+}
+
+/** An extra command a script adds to the battle menu and/or the field menu. */
+export interface ScriptCommand {
+  /** Name of the script's action to run (`actions[id]`), or "use" for `use`. */
+  id: string;
+  label: string;
+  where?: "battle" | "field" | "both";
+  /** Shown greyed out with this reason. */
+  blocked?: string;
+  /** Battle: whether it uses the hero's turn (default true). */
+  endsTurn?: boolean;
+  args?: Record<string, unknown>;
 }
 
 export interface DamageContext extends SystemContext {
@@ -142,6 +171,25 @@ export interface OverlayContext extends SystemContext {
 export interface GameSystem {
   id: string;
   priority?: number;
+  /**
+   * "attached" (scripts/*.ts): hooks run only while something that names the script in `script` is active.
+   * Default "global" (systems listed in project.json): always active.
+   */
+  scope?: "global" | "attached";
+  /** Ability / item use, or the data effect { "type": "script", "script": id }. Runs after the data `use.effects`. */
+  use?(ctx: SystemContext, args: Record<string, unknown>): SystemActionResult | void;
+  /** Extra commands for the battle menu / field menu (spells nobody planned for, combos, transformations…). */
+  commands?(ctx: SystemContext & { where: "battle" | "field" }): ScriptCommand[];
+  /** Replace one enemy's turn (it is the first enemy while acting). Return a result to replace the default action. */
+  enemyTurn?(ctx: SystemContext & { battle: BattleState; enemy: Enemy }): SystemActionResult | void;
+  /** Replace a companion's turn. `ctx.companion` is its id. */
+  companionTurn?(ctx: SystemContext & { battle: BattleState; companion: string }): SystemActionResult | void;
+  /** After every battle turn (after enemies acted). */
+  onTurnEnd?(ctx: SystemContext & { battle: BattleState }): SystemActionResult | void;
+  /** When a battle ends (victory / defeat / fled), before the result is applied. */
+  onBattleEnd?(ctx: SystemContext & { battle: BattleState }): SystemActionResult | void;
+  /** After entering a map (warp, door, start). */
+  onMapEnter?(ctx: SystemContext): SystemActionResult | void;
   /** Step ②: adjust the computed damage (buffs, resistances). Return a number to replace it. */
   modifyDamage?(ctx: DamageContext): number | void;
   /** Step ③: called only when the damage would bring the player to 0 HP. First outcome wins. */
@@ -172,6 +220,71 @@ export interface GameSystem {
   drawOverlay?(ctx2d: CanvasRenderingContext2D, ctx: OverlayContext): void;
   /** Extra HUD lines in the field. */
   hud?(ctx: SystemContext): string[];
+}
+
+/** For scripts/*.ts: the id defaults to the file name. Every GameSystem hook is available. */
+export type ScriptDefinition = Omit<GameSystem, "id" | "scope"> & { id?: string };
+export function defineScript<T extends ScriptDefinition>(script: T): T & { scope: "attached" } {
+  return { ...script, scope: "attached" as const };
+}
+
+const HOOKS = ["modifyDamage", "onLethalDamage", "canPass", "onBattleStart", "onAction", "onStep", "onTick", "hud", "use", "commands", "enemyTurn", "companionTurn", "onTurnEnd", "onBattleEnd", "onMapEnter"] as const;
+
+/** A copy of an attached script whose hooks see `ctx.self` (and keep their own per-battle data under `key`). */
+export function bindScript(system: GameSystem, self: ScriptSelf, key: string): GameSystem {
+  self = { ...self, key };
+  const out: Record<string, unknown> = { ...system, id: key, scope: "attached" };
+  const src = system as unknown as Record<string, unknown>;
+  for (const hook of HOOKS) {
+    const fn = src[hook];
+    if (typeof fn === "function") out[hook] = (ctx: object, ...rest: unknown[]) => (fn as (...a: unknown[]) => unknown).call(system, { ...ctx, self }, ...rest);
+  }
+  if (typeof system.drawOverlay === "function") out.drawOverlay = (g: CanvasRenderingContext2D, ctx: OverlayContext) => system.drawOverlay!.call(system, g, { ...ctx, self });
+  if (system.actions) out.actions = Object.fromEntries(Object.entries(system.actions).map(([name, fn]) => [name, (ctx: SystemContext, args: Record<string, unknown>) => fn.call(system, { ...ctx, self }, args)]));
+  return out as unknown as GameSystem;
+}
+
+/* ------------------------------------------------------------------ memory helpers for scripts and systems */
+const keyOf = (ctx: SystemContext, id?: string) => id ?? ctx.self?.key ?? ctx.self?.id ?? "script";
+/** Saved with the game (state.systemData). */
+export function memory<T>(ctx: SystemContext, fallback: T, id?: string): T {
+  const value = ctx.state.systemData[keyOf(ctx, id)];
+  return value === undefined ? fallback : (value as T);
+}
+export function remember(ctx: SystemContext, value: unknown, id?: string): GameState {
+  return { ...ctx.state, systemData: { ...ctx.state.systemData, [keyOf(ctx, id)]: value } };
+}
+/** Reset every battle (battle.systemData). Outside a battle returns the fallback / unchanged state. */
+export function battleMemory<T>(ctx: SystemContext, fallback: T, id?: string): T {
+  const scene = ctx.state.scene;
+  if (scene.kind !== "battle") return fallback;
+  const value = scene.battle.systemData[keyOf(ctx, id)];
+  return value === undefined ? fallback : (value as T);
+}
+export function rememberInBattle(ctx: SystemContext, value: unknown, id?: string): GameState {
+  const scene = ctx.state.scene;
+  if (scene.kind !== "battle") return ctx.state;
+  return { ...ctx.state, scene: { ...scene, battle: { ...scene.battle, systemData: { ...scene.battle.systemData, [keyOf(ctx, id)]: value } } } };
+}
+/** Deterministic random number in [0, 1) and the state with the advanced seed. */
+export function roll(state: GameState): [number, GameState] {
+  const [value, rng] = nextRandom(state.rng);
+  return [value, { ...state, rng }];
+}
+/** Change the HP of an enemy in the current battle (index 0 = first). Negative = damage. Victory is checked by the engine afterwards. */
+export function changeEnemyHp(state: GameState, delta: number, index = 0): GameState {
+  const scene = state.scene;
+  if (scene.kind !== "battle") return state;
+  const b = scene.battle;
+  if (index === 0) return { ...state, scene: { ...scene, battle: { ...b, enemyHp: Math.max(0, b.enemyHp + delta) } } };
+  const foes = (b.foes ?? []).map((f, i) => (i === index - 1 ? { ...f, hp: Math.max(0, f.hp + delta) } : f));
+  return { ...state, scene: { ...scene, battle: { ...b, foes } } };
+}
+/** Add a line to the battle log. */
+export function battleSay(state: GameState, line: string): GameState {
+  const scene = state.scene;
+  if (scene.kind !== "battle") return state;
+  return { ...state, scene: { ...scene, battle: { ...scene.battle, log: [...scene.battle.log, line] } } };
 }
 
 /** Identity helper that gives project code full type checking. */

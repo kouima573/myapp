@@ -11,7 +11,7 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { watch, type FSWatcher } from "chokidar";
-import { formatDiagnostic } from "../../schema/src/index";
+import { formatDiagnostic, SCRIPT_PATH } from "../../schema/src/index";
 import { buildProject, REPO_ROOT } from "../../cli/src/build";
 import { loadSystems, runProjectScenarios, systemRefDiagnostics } from "../../cli/src/index";
 import { loadProjectFromDisk, readProjectTexts } from "../../cli/src/load";
@@ -195,6 +195,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     const creating = body.expectedHash === "";
     const target = await securePath(root, body.path, { allowMissing: creating });
     if (creating) {
+      // The scripts/ folder (code attached to data) may be created on demand, one level directly under the project.
+      if (SCRIPT_PATH.test(body.path)) await fs.mkdir(path.join(await fs.realpath(root), "scripts")).catch((error: NodeJS.ErrnoException) => { if (error.code !== "EEXIST") throw error; });
       const parent = await fs.lstat(path.dirname(target)).catch(() => null);
       if (!parent?.isDirectory() || parent.isSymbolicLink()) throw new HttpError(400, "新しいファイルは既存のフォルダの中にだけ作れます");
     }

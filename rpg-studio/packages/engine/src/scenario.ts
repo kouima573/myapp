@@ -66,6 +66,8 @@ const StepSchema = z.union([
   z.object({ equip: IdSchema, companion: IdSchema.optional() }).strict(),
   /** Tell a companion which of its actions to use this turn (index in its actions). */
   z.object({ battleOrder: z.object({ companion: IdSchema, action: z.number().int().min(0) }).strict() }).strict(),
+  /** A command added by a script (battle or field menu), by its id (and label or source when ids clash). */
+  z.object({ command: z.string().min(1), source: z.string().optional() }).strict(),
   /** Use a self-made verb (project.json › verbs). */
   z.object({ verb: IdSchema }).strict(),
   /** Realtime scenes (shooting): run up to `frames` simulation steps holding these buttons; stops when the scene ends. */
@@ -271,6 +273,14 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
       else if ("equip" in s) {
         if (state.scene.kind !== "field") throw new ScenarioError(`equip: フィールドではありません (scene=${state.scene.kind})`);
         step({ type: "equip", item: s.equip, ...(s.companion ? { companion: s.companion } : {}) });
+      }
+      else if ("command" in s) {
+        const where = state.scene.kind === "battle" ? "battle" : "field";
+        const all = engine.commands(state, where);
+        const cmd = all.find(x => (x.id === s.command || x.label === s.command) && (!s.source || x.source === s.source || x.source.startsWith(`${s.source}@`)));
+        if (!cmd) throw new ScenarioError(`command: '${s.command}' がありません（今あるコマンド: ${all.map(x => `${x.label}(${x.id})`).join("、") || "なし"}）`);
+        if (cmd.blocked) throw new ScenarioError(`command: '${s.command}' は使えません: ${cmd.blocked}`);
+        step(where === "battle" ? { type: "battle", command: "script", source: cmd.source, id: cmd.id } : { type: "command", source: cmd.source, id: cmd.id });
       }
       else if ("battleOrder" in s) step({ type: "battle", command: "order", companion: s.battleOrder.companion, action: s.battleOrder.action });
       else if ("verb" in s) {

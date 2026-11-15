@@ -160,6 +160,26 @@
           ]
         }
       ]
+    },
+    {
+      "id": "time-sand",
+      "name": "時の砂",
+      "description": "戦闘で「時を止める」が使える（気力3・1戦闘1回）。敵が2ターン動けない。",
+      "kind": "battle",
+      "script": {
+        "id": "time-stop",
+        "args": {
+          "turns": 2,
+          "cost": 3
+        }
+      }
+    },
+    {
+      "id": "gamble-card",
+      "name": "賭け札",
+      "description": "表なら攻撃力の3倍のダメージ、裏ならHPが半分に。",
+      "kind": "battle",
+      "script": "gamble"
     }
   ],
   "items": [
@@ -201,6 +221,13 @@
         "defense": 1,
         "maxHp": 2
       }
+    },
+    {
+      "id": "echo-mirror",
+      "name": "こだまの鏡",
+      "description": "装備すると受けるダメージ-1。受けた分をターンの終わりに敵へ返す。",
+      "slot": "accessory",
+      "script": "echo-mirror"
     }
   ],
   "enemies": [
@@ -408,6 +435,37 @@
         "mode": "cards.battle",
         "args": {
           "hpScale": 2
+        }
+      }
+    },
+    {
+      "id": "yuragi",
+      "name": "ゆらぎ",
+      "sprite": "cave-bat",
+      "tags": [
+        "monster"
+      ],
+      "stats": {
+        "maxHp": 24,
+        "attack": 4,
+        "defense": 1
+      },
+      "actions": [
+        {
+          "name": "ゆらめき",
+          "power": 0
+        }
+      ],
+      "drops": [],
+      "canFlee": true,
+      "script": {
+        "id": "shapeshifter",
+        "args": {
+          "forms": [
+            "stone",
+            "fire",
+            "mist"
+          ]
         }
       }
     }

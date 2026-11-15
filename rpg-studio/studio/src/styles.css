@@ -302,3 +302,5 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 .story-editor .form-row > input, .story-editor .form-row > select { width: auto; max-width: 100%; }
 .story-editor .form-row > .grow, .story-editor .form-row > textarea { flex: 1; width: auto; }
 .story-editor .form-nested, .story-editor .form-raw { width: 100%; }
+.error-text { color: #e59a8c; }
+.script-card .code-editor { width: 100%; min-height: 420px; }

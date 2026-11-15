@@ -78,6 +78,14 @@ export async function loadSystems(root: string, content: GameContent): Promise<G
     }
     systems.push(system);
   }
+  for (const id of content.scripts ?? []) {
+    const file = `scripts/${id}.ts`;
+    let module: { default?: object };
+    try { module = await importSystemModule(resolveInside(root, file)) as { default?: object }; }
+    catch (error) { throw new Error(`${file}: 読み込めません: ${String(error)}`); }
+    if (!module.default || typeof module.default !== "object") throw new Error(`${file}: default export に defineScript({...}) を書いてください`);
+    systems.push({ ...module.default, id, scope: "attached" } as GameSystem);
+  }
   const { withModules } = await import("../../modules/src/index");
   return withModules(content, systems);
 }

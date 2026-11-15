@@ -3,6 +3,7 @@ import { Plus, ScrollText, Sparkles, Trash2 } from "lucide-react";
 import { RULE_TRIGGERS, StatModsSchema, type GameContent, type Rule, type Trait } from "@rpg/schema";
 import { Field, JsonField, TextInput } from "./Inspector";
 import { ConditionEditor, EffectListEditor } from "./forms";
+import { ScriptField } from "./ScriptsPanel";
 import type { ProjectStore } from "../lib/useProject";
 
 interface Props { store: ProjectStore; content: GameContent }
@@ -74,6 +75,7 @@ export default function RulesPanel({ store, content }: Props) {
           <Field label="分類"><TextInput value={trait.category} onCommit={v => editTrait(trait.id, t => { t.category = v || t.category; })} /></Field>
         </div>
         <Field label="説明"><TextInput value={trait.description} onCommit={v => editTrait(trait.id, t => { t.description = v; })} /></Field>
+        <ScriptField key={`script-${trait.id}`} value={trait.script} content={content} store={store} ownerId={trait.id} templateFor="command" onChange={r => editTrait(trait.id, t => { if (r) t.script = r; else delete t.script; })} />
         <Field label="能力値の補正" hint='例 {"maxHp": 4, "defense": 1}（式も可）'><JsonField value={trait.statMods} schema={StatModsSchema} onCommit={v => editTrait(trait.id, t => { if (v) t.statMods = v; else delete t.statMods; })} rows={1} /></Field>
         <div className="field"><span className="field-label">持っている間に使える能力</span>
           <div className="chips">{content.database.abilities.map(a => <button key={a.id} className={`chip ${trait.abilities.includes(a.id) ? "is-on" : ""}`} onClick={() => editTrait(trait.id, t => { t.abilities = t.abilities.includes(a.id) ? t.abilities.filter(x => x !== a.id) : [...t.abilities, a.id]; })}>{a.name}</button>)}</div>

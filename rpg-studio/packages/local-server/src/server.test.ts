@@ -100,6 +100,10 @@ describe("local server security", () => {
     expect(again.status).toBe(409);
     expect((await request("PUT", "/api/file", { headers: write, body: JSON.stringify({ path: "nowhere/new.json", content: "{}", expectedHash: "" }) })).status).toBe(400);
     expect((await request("PUT", "/api/file", { headers: write, body: JSON.stringify({ path: "IDEA.md", content: "# idea", expectedHash: "" }) })).status).toBe(200);
+    // Scripts: scripts/<id>.ts can be created (the folder too), deeper paths cannot.
+    const script = 'import { defineScript } from "@rpg/engine";\nexport default defineScript({});\n';
+    expect((await request("PUT", "/api/file", { headers: write, body: JSON.stringify({ path: "scripts/brand-new.ts", content: script, expectedHash: "" }) })).status).toBe(200);
+    expect((await request("PUT", "/api/file", { headers: write, body: JSON.stringify({ path: "scripts/deep/new.ts", content: script, expectedHash: "" }) })).status).toBe(400);
   });
 
   it("exposes no command execution endpoints", async () => {

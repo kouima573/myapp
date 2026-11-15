@@ -27,6 +27,7 @@
 | `{ "tick": 10 }` | 世界の時間を進める（エンティティの移動・tickルール）。フィールド以外になったら止まる |
 | `{ "sceneInput": "up" }` / `{ "sceneInput": { "custom": 値 } }` | 独自画面に入力を送る |
 | `{ "equip": "bronze-sword" }` / `{ "equip": "squire-blade", "companion": "emma" }` | 装備する（装備中なら外す）。`companion` で仲間に装備させる |
+| `{ "command": "stop" }` | スクリプトが足したコマンド（戦闘・メニュー「とくしゅ」）を id か表示名で押す。`source` でスクリプトを絞れる |
 | `{ "battleOrder": { "companion": "emma", "action": 1 } }` | 戦闘中、仲間にこのターン使う行動（actions の何番目か）を指示する。ターンは消費しない |
 | `{ "battle": "attack", "target": 1 }` | 複数の敵のうち、何番目を攻撃するか（0 = 最初の敵） |
 | `{ "verb": "listen" }` | 自作の動詞を使う（project.json の verbs）。対象を選ぶ動詞は続けて `{ "choose": "対象ID" }` |

@@ -112,6 +112,92 @@
           ]
         }
       ]
+    },
+    {
+      "id": "odd-lectern",
+      "name": "ふしぎな書見台",
+      "x": 8,
+      "y": 1,
+      "states": [
+        {
+          "name": "ふしぎな書見台",
+          "marker": "sparkle",
+          "trigger": "action",
+          "solid": true,
+          "effects": [
+            {
+              "type": "choice",
+              "speaker": "書見台",
+              "prompt": "古い本が開いている。どのページを読む？",
+              "options": [
+                {
+                  "id": "time",
+                  "label": "砂時計の章",
+                  "effects": [
+                    {
+                      "type": "unlockAbility",
+                      "ability": "time-sand"
+                    },
+                    {
+                      "type": "message",
+                      "text": "「時の砂」を覚えた。戦闘で時を止められる。"
+                    }
+                  ]
+                },
+                {
+                  "id": "gamble",
+                  "label": "賭け札の章",
+                  "effects": [
+                    {
+                      "type": "unlockAbility",
+                      "ability": "gamble-card"
+                    },
+                    {
+                      "type": "message",
+                      "text": "「賭け札」を覚えた。"
+                    }
+                  ]
+                },
+                {
+                  "id": "mirror",
+                  "label": "鏡の章",
+                  "when": {
+                    "not": {
+                      "item": "echo-mirror"
+                    }
+                  },
+                  "effects": [
+                    {
+                      "type": "giveItem",
+                      "item": "echo-mirror"
+                    },
+                    {
+                      "type": "message",
+                      "text": "ページの間から「こだまの鏡」が出てきた。"
+                    }
+                  ]
+                },
+                {
+                  "id": "fight",
+                  "label": "ゆらぎの章（戦う）",
+                  "effects": [
+                    {
+                      "type": "battle",
+                      "enemy": "yuragi",
+                      "onDefeat": "continue"
+                    }
+                  ]
+                },
+                {
+                  "id": "close",
+                  "label": "閉じる",
+                  "effects": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
     }
   ]
 }

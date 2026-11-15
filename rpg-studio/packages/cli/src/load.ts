@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
+  SCRIPT_PATH,
   detectProjectFormat, loadProjectContent, referencedJsonFiles,
   type AssetEntry, type Diagnostic, type GameContent, type ProjectFileTexts, type ProjectManifest,
 } from "../../schema/src/index";
@@ -68,6 +69,17 @@ export async function readProjectTexts(root: string): Promise<{ texts: ProjectFi
       }
     } catch { /* schema reports broken assets.json */ }
   }
+  // scripts/*.ts: code attachable to data, found without registration.
+  try {
+    const dir = await fs.lstat(path.join(root, "scripts"));
+    if (dir.isSymbolicLink() || !dir.isDirectory()) throw new Error("scripts is not a plain folder");
+    for (const name of (await fs.readdir(path.join(root, "scripts"))).sort()) {
+      const relative = `scripts/${name}`;
+      if (!SCRIPT_PATH.test(relative)) continue;
+      const text = await readTextIfExists(root, relative).catch(() => undefined);
+      if (text !== undefined) texts[relative] = text;
+    }
+  } catch { /* no scripts folder */ }
   // Art requirements (not game data, but shown in the studio and validated by the CLI).
   for (const relative of ["art/requests.json", "art/style-guide.md", "IDEA.md", "README.md", "mods.json"]) {
     const text = await readTextIfExists(root, relative);

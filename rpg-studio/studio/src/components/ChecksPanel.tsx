@@ -26,7 +26,7 @@ function agentPrompt(task: string, projectDir: string) {
 - まず AGENTS.md（Claude Codeは CLAUDE.md）と docs/customization-guide.md・docs/project-format.md を読む。
 - pnpm rpg catalog --project ${projectDir} で既存のID・フラグ・変数・特性を確認する。
 - 対象プロジェクト: ${projectDir}
-- 種族・効果・仕組みはデータ（特性・能力・ルール・効果・条件・式）で作る。ノベル・パズル・弾幕・育成・カードなどの場面は組み込みジャンルモジュール（docs/genre-modules.md）を使う。表現できないものだけ systems/*.ts の defineSystem で実装する。
+- 種族・効果・仕組みはデータ（特性・能力・ルール・効果・条件・式）で作る。ノベル・パズル・弾幕・育成・カードなどの場面は組み込みジャンルモジュール（docs/genre-modules.md）を使う。表現できないものだけコードで書く: 特定の技・アイテム・敵・マップなどの処理は scripts/<名前>.ts（defineScript、データの "script" で付ける。docs/scripting.md）、全体の仕組みは systems/*.ts の defineSystem。
 - 新しいフラグ・変数は project.json の flags / variables に宣言する。素材は assets.json に出典・寸法つきで登録する。
 - 変更を確かめる自動プレイテストを tests/*.scenario.json に追加する。
 - 最後に次を実行し、すべて OK になるまで直す:

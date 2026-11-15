@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, XCircle, AlertTriangle, Save } from "lucide-react";
+import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, XCircle, AlertTriangle, Save } from "lucide-react";
 import { GameMapSchema, TilesetSchema, type GameContent, type GameMap } from "@rpg/schema";
 import { loadImages, type ImageMap } from "../../packages/runtime/src/render";
 import MapEditor, { type Selection } from "./components/MapEditor";
@@ -12,17 +12,19 @@ import IdeaPanel from "./components/IdeaPanel";
 import StoryPanel from "./components/StoryPanel";
 import RulesPanel from "./components/RulesPanel";
 import DatabasePanel from "./components/DatabasePanel";
+import ScriptsPanel from "./components/ScriptsPanel";
 import ConflictDialog from "./components/ConflictDialog";
 import { useProject } from "./lib/useProject";
 import type { ProjectSource } from "./lib/source";
 
-type Section = "idea" | "map" | "story" | "rules" | "database" | "play" | "data" | "assets" | "checks";
+type Section = "idea" | "map" | "story" | "rules" | "database" | "scripts" | "play" | "data" | "assets" | "checks";
 const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
   { id: "idea", label: "発想", icon: Lightbulb },
   { id: "map", label: "マップ", icon: MapIcon },
   { id: "story", label: "会話・イベント", icon: MessageSquare },
   { id: "rules", label: "ルール・特性", icon: ScrollText },
   { id: "database", label: "敵・アイテム・仲間", icon: Swords },
+  { id: "scripts", label: "スクリプト（コード）", icon: Code2 },
   { id: "play", label: "試遊", icon: Gamepad2 },
   { id: "data", label: "データ", icon: Database },
   { id: "assets", label: "素材", icon: ImageIcon },
@@ -128,6 +130,7 @@ export default function App({ source }: { source: ProjectSource }) {
       {section === "story" && playContent && <StoryPanel store={store} content={playContent} />}
       {section === "rules" && playContent && <RulesPanel store={store} content={playContent} />}
       {section === "database" && playContent && <DatabasePanel store={store} content={playContent} />}
+      {section === "scripts" && playContent && <ScriptsPanel store={store} content={playContent} />}
       {section === "map" && editContent && activeMapId && <div className="map-workspace">
         <MapEditor store={store} content={editContent} mapId={activeMapId} images={images} imageRevision={imageRevision} selection={selection} onSelect={setSelection} onPlayFrom={playFrom} />
         <aside className="inspector-pane"><Inspector store={store} content={editContent} mapId={activeMapId} selection={selection} onSelect={setSelection} onPlayFrom={playFrom} /></aside>

@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import { assetCategory, isSourceEnabled, sourcesFor } from "./sources";
 import {
+  scriptIdsOf, type ScriptRef,
   AssetManifestSchema, BATTLE_TRIGGERS, DatabaseSchema, IMAGE_KINDS, parseNotes, RuleBundleSchema, SongSchema, DialogueBundleSchema, EventBundleSchema, GameMapSchema, PROJECT_FORMAT_VERSION,
   ProjectManifestSchema, TilesetSchema,
   type Condition, type Effect, type Expr, type Song, type GameContent, type GameMap, type ProjectManifest, type Rule, type StatMods, type Use,
@@ -116,6 +117,9 @@ export function loadProjectContent(texts: ProjectFileTexts): LoadResult {
     if (texts[system.path] === undefined) diagnostics.push({ severity: "error", file: system.path, message: "システムのソースファイルが見つかりません" });
   });
 
+  const scripts = scriptIdsOf(Object.keys(texts));
+  for (const id of scripts) if (systemIds.has(id)) diagnostics.push({ severity: "error", file: `scripts/${id}.ts`, message: `スクリプト '${id}' と同じIDのシステムが project.json の systems にあります` });
+
   if (!tileset || !dialogueBundle || !eventBundle || !database || !assets || !ruleBundle || Object.keys(maps).length !== project.maps.length || diagnostics.some(d => d.severity === "error")) {
     return { content: null, diagnostics };
   }
@@ -129,6 +133,7 @@ export function loadProjectContent(texts: ProjectFileTexts): LoadResult {
     assets,
     rules: ruleBundle.rules,
     songs: {},
+    scripts,
   };
   for (const asset of assets.assets) {
     if (asset.kind !== "song" || texts[asset.path] === undefined) continue;
@@ -173,7 +178,12 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   const itemIds = new Set(database.items.map(i => i.id));
   const enemyIds = new Set(database.enemies.map(e => e.id));
   const enemyTags = new Set(database.enemies.flatMap(e => e.tags));
-  const systemIds = new Set([...project.systems.map(s => s.id), ...Object.keys(project.modules)]);
+  const scriptIds = new Set(content.scripts ?? []);
+  const systemIds = new Set([...project.systems.map(s => s.id), ...Object.keys(project.modules), ...scriptIds]);
+  const checkScript = (file: string, at: string, ref: ScriptRef | undefined) => {
+    const id = ref === undefined ? undefined : typeof ref === "string" ? ref : ref.id;
+    if (id && !scriptIds.has(id)) err(file, `${at}.script`, `スクリプト '${id}' がありません（scripts/${id}.ts を作ってください）`);
+  };
   const assetById = new Map(assets.assets.map(a => [a.id, a]));
   const tileByCode = new Map(tileset.tiles.map(t => [t.code, t]));
   const flagIds = new Set(Object.keys(project.flags));
@@ -310,6 +320,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
           if (effect.else) checkEffects(file, `${here}.else`, effect.else, ctxAllowed);
           break;
         case "system": if (!systemIds.has(effect.system)) err(file, here, `project.jsonのsystemsにないシステム '${effect.system}'`); break;
+        case "script": if (!scriptIds.has(effect.script)) err(file, here, `スクリプト '${effect.script}' がありません（scripts/${effect.script}.ts）`); break;
         case "playSfx": checkAudio(file, here, effect.sound, SOUND, "効果音"); break;
         case "addToSet": case "removeFromSet": case "clearSet": if (!setIds.has(effect.set)) err(file, here, `未宣言の集合 '${effect.set}'`); break;
         case "moveEntity": {
@@ -536,6 +547,15 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   }
 
   // Database.
+  database.abilities.forEach(a => checkScript(DB, `abilities[${a.id}]`, a.script));
+  database.traits.forEach(a => checkScript(DB, `traits[${a.id}]`, a.script));
+  database.items.forEach(a => checkScript(DB, `items[${a.id}]`, a.script));
+  database.enemies.forEach(a => checkScript(DB, `enemies[${a.id}]`, a.script));
+  database.companions.forEach(a => checkScript(DB, `companions[${a.id}]`, a.script));
+  for (const [id, map] of Object.entries(maps)) {
+    checkScript(mapFiles[id] ?? id, "", map.script);
+    map.entities.forEach(e => e.states.forEach((st, i) => checkScript(mapFiles[id] ?? id, `entities[${e.id}].states[${i}]`, st.script)));
+  }
   database.abilities.forEach(a => { const at = `abilities[${a.id}]`; checkStatMods(DB, at, a.statMods); checkRules(DB, at, a.rules); checkUse(DB, at, a.use); });
   database.traits.forEach(t => {
     const at = `traits[${t.id}]`;

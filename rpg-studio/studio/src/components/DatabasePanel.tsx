@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { ScriptField } from "./ScriptsPanel";
 import { z } from "zod";
 import { Plus, Shield, Sword, Trash2, Users, Wand2 } from "lucide-react";
-import { StatModsSchema, type Ability, type Companion, type Enemy, type GameContent, type Item, type Use } from "@rpg/schema";
+import { StatModsSchema, type Ability, type Companion, type Enemy, type GameContent, type Item, type Use, type ScriptRef } from "@rpg/schema";
 import { MODULES } from "../../../packages/modules/src/index";
 import { Field, JsonField, TextInput } from "./Inspector";
 import { ConditionEditor, EffectListEditor } from "./forms";
@@ -85,6 +86,9 @@ export default function DatabasePanel({ store, content }: Props) {
           <Field label="名前"><TextInput value={current.name} onCommit={v => v && edit(tab, current.id, x => { x.name = v; })} /></Field>
           {"description" in current && <Field label="説明"><TextInput value={String((current as { description?: string }).description ?? "")} onCommit={v => edit(tab, current.id, x => { (x as { description: string }).description = v; })} /></Field>}
         </div>
+        <ScriptField key={`script-${tab}-${current.id}`} value={(current as { script?: ScriptRef }).script} content={content} store={store} ownerId={current.id}
+          templateFor={tab === "enemies" ? "enemy" : tab === "companions" ? "command" : "skill"}
+          onChange={r => edit(tab, current.id, x => { const o = x as { script?: ScriptRef }; if (r) o.script = r; else delete o.script; })} />
 
         {tab === "enemies" && (() => { const e = current as Enemy; const set = (r: (x: Enemy) => void) => edit("enemies", e.id, r); return <>
           <StatsRow stats={e.stats} onChange={s => set(x => { x.stats = s; })} />

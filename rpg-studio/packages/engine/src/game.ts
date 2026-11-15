@@ -1,9 +1,9 @@
 import type {
   BattleState, Direction, Effect, Enemy, Entity, EntityState, GameContent, GameEvent, GameMap, GameState, Interactable, Npc, Rule, RuleTrigger,
-  Stats, TileDef, Use,
+  ScriptRef, Stats, TileDef, Use,
 } from "../../schema/src/formats";
 import { abilitiesOf, effectiveStats, evalExpr, evaluate, interpolate, itemActive, nextRandom, regionsAt, type EvalEnv, type FrontInfo } from "./conditions";
-import { sortSystems, type GameSystem, type PlayerAction, type SceneInput, type SystemActionResult } from "./systems";
+import { bindScript, sortSystems, type GameSystem, type PlayerAction, type SceneInput, type ScriptCommand, type ScriptSelf, type SystemActionResult } from "./systems";
 
 /** Values that survive a new cycle (meta-scoped flags, variables, sets, endings seen, cycle number). */
 export interface MetaState {
@@ -29,7 +29,9 @@ export type BattleCommand =
   | { command: "item"; item: string }
   | { command: "skill"; ability: string }
   /** Tell a companion what to do this turn (does not use the hero's turn). */
-  | { command: "order"; companion: string; action: number };
+  | { command: "order"; companion: string; action: number }
+  /** A command added by a script (engine.commands(state, "battle")). */
+  | { command: "script"; source: string; id: string };
 
 export type Action =
   | { type: "move"; direction: Direction }
@@ -46,7 +48,9 @@ export type Action =
   /** A self-made verb from project.json › verbs. */
   | { type: "verb"; verb: string }
   /** Equip an item (or take it off if it is already equipped). Field only. */
-  | { type: "equip"; item: string; companion?: string };
+  | { type: "equip"; item: string; companion?: string }
+  /** A field command added by a script (engine.commands(state, "field")). */
+  | { type: "command"; source: string; id: string };
 
 /** Presentation hints for the runtime (sound, animation). Never needed for correctness. */
 export type Cue =
@@ -97,6 +101,10 @@ export interface Engine {
   regions(state: GameState): string[];
   /** HUD lines from systems. */
   hudLines(state: GameState): string[];
+  /** Project systems plus the scripts attached to whatever is active right now (abilities, items, enemies, map…). */
+  activeSystems(state: GameState): GameSystem[];
+  /** Commands that active scripts add to the battle or field menu. `source` identifies the script for the action. */
+  commands(state: GameState, where: "battle" | "field"): Array<ScriptCommand & { source: string }>;
   /** Self-made verbs usable right now (known / learned, not forgotten, `when` holds). */
   usableVerbs(state: GameState): string[];
   /** A companion's stats including its equipment. */
@@ -225,6 +233,93 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     return { ...state, entities: { ...state.entities, [home]: { ...state.entities[home], [id]: pos } } };
   }
 
+  /* ---------------------------------------------------------------- attached scripts */
+  const globalSystems = sorted.filter(s => s.scope !== "attached");
+  const byId = new Map(sorted.map(s => [s.id, s]));
+  const hasAttached = sorted.some(s => s.scope === "attached");
+  const boundCache = new Map<string, GameSystem>();
+  const activeCache = new WeakMap<GameState, GameSystem[]>();
+  const refOf = (ref: ScriptRef | undefined) => (ref === undefined ? undefined : typeof ref === "string" ? { id: ref, args: {} as Record<string, unknown> } : { id: ref.id, args: ref.args ?? {} });
+  function attach(out: GameSystem[], ref: ScriptRef | undefined, kind: ScriptSelf["kind"], id: string, index?: number) {
+    const r = refOf(ref);
+    const system = r && byId.get(r.id);
+    if (!r || !system) return;
+    const key = `${r.id}@${kind}:${id}`;
+    if (out.some(s => s.id === key)) return;
+    let bound = boundCache.get(key);
+    if (!bound) { bound = bindScript(system, { kind, id, args: r.args, ...(index !== undefined ? { index } : {}) }, key); boundCache.set(key, bound); }
+    out.push(bound);
+  }
+  /** Global systems + scripts attached to what is active in this state (cached per state object). */
+  function active(state: GameState): GameSystem[] {
+    if (!hasAttached) return globalSystems;
+    const cached = activeCache.get(state);
+    if (cached) return cached;
+    const extra: GameSystem[] = [];
+    for (const id of abilitiesOf(state, content)) attach(extra, db.abilities.find(a => a.id === id)?.script, "ability", id);
+    for (const id of state.traits ?? []) attach(extra, db.traits.find(t => t.id === id)?.script, "trait", id);
+    for (const id of Object.keys(state.items)) { const item = db.items.find(i => i.id === id); if (item && itemActive(state, item)) attach(extra, item.script, "item", id); }
+    for (const member of state.party ?? []) attach(extra, db.companions.find(x => x.id === member.id)?.script, "companion", member.id);
+    attach(extra, content.maps[state.mapId]?.script, "map", state.mapId);
+    for (const view of visibleEntities(state)) attach(extra, view.state.script, "entity", view.entity.id);
+    const battle = state.scene.kind === "battle" ? state.scene.battle : undefined;
+    if (battle) {
+      const ids = [battle.enemyId, ...(battle.foes ?? []).map(f => f.enemyId)];
+      ids.forEach((eid, i) => attach(extra, db.enemies.find(e => e.id === eid)?.script, "enemy", eid, i));
+    }
+    const list = extra.length ? sortSystems([...globalSystems, ...extra]) : globalSystems;
+    activeCache.set(state, list);
+    return list;
+  }
+  /** Scripts attached to an enemy / companion only steer their own turns. */
+  const steers = (system: GameSystem, kind: "enemy" | "companion", id: string) => {
+    const self = system.scope === "attached" ? boundSelf(system) : undefined;
+    return !self || (self.kind !== "enemy" && self.kind !== "companion") || (self.kind === kind && self.id === id);
+  };
+  const boundSelf = (system: GameSystem): ScriptSelf | undefined => {
+    const at = system.id.indexOf("@");
+    if (at < 0) return undefined;
+    const [kind, ...rest] = system.id.slice(at + 1).split(":");
+    return { kind: kind as ScriptSelf["kind"], id: rest.join(":"), args: {} };
+  };
+  function scriptCommands(state: GameState, where: "battle" | "field"): Array<ScriptCommand & { source: string }> {
+    const out: Array<ScriptCommand & { source: string }> = [];
+    for (const system of active(state)) {
+      for (const cmd of system.commands?.({ content, state, where }) ?? []) {
+        const w = cmd.where ?? "both";
+        if (w === "both" || w === where) out.push({ ...cmd, source: system.id });
+      }
+    }
+    return out;
+  }
+  /** Runs a script command. Returns undefined when it does not exist or is blocked (with a message for the player). */
+  function runCommand(c: Ctx, state: GameState, source: string, id: string, where: "battle" | "field"): [GameState, ScriptCommand] | string {
+    const cmd = scriptCommands(state, where).find(x => x.source === source && x.id === id);
+    if (!cmd) return "そのコマンドは使えない。";
+    if (cmd.blocked) return cmd.blocked;
+    const system = active(state).find(s => s.id === source)!;
+    const fn = id === "use" ? system.use : system.actions?.[id];
+    if (!fn) throw new Error(`スクリプト '${source}' に '${id}' がありません`);
+    const result = fn({ content, state }, cmd.args ?? {});
+    if (result) { c.log.push(...(result.log ?? [])); state = result.state ?? state; state = runNow(c, state, result.effects ?? []); }
+    return [state, cmd];
+  }
+  /** Applies a hook result right away (battle: effects must happen inside the turn). */
+  function applyNow(c: Ctx, state: GameState, result: SystemActionResult | void): GameState {
+    if (!result) return state;
+    c.log.push(...(result.log ?? []));
+    return runNow(c, result.state ?? state, result.effects ?? []);
+  }
+  /** Ability / item that has a script with `use`: usable even without data effects. */
+  const scriptUse = (ref: ScriptRef | undefined): Use | undefined => {
+    const r = refOf(ref);
+    return r && byId.get(r.id)?.use ? { where: "both", cost: [], effects: [], consume: false } : undefined;
+  };
+  const useEffectOf = (ref: ScriptRef | undefined, kind: "ability" | "item", id: string): Effect[] => {
+    const r = refOf(ref);
+    return r && byId.get(r.id)?.use ? [{ type: "script", script: r.id, args: r.args, from: { kind, id, args: r.args } } as unknown as Effect] : [];
+  };
+
   /** Tile-only passability (no actors). */
   function tilePassable(state: GameState, map: GameMap, x: number, y: number): boolean {
     if (x < 0 || y < 0 || x >= map.width || y >= map.height) return false;
@@ -239,7 +334,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     if (passable && visibleNpcs(state, map).some(npc => npc.x === x && npc.y === y)) passable = false;
     if (passable && visibleEntities(state, map).some(e => e.state.solid && e.x === x && e.y === y)) passable = false;
     if (passable && visibleInteractables(state, map).some(item => item.solid && item.trigger === "action" && item.x === x && item.y === y)) passable = false;
-    for (const system of sorted) {
+    for (const system of active(state)) {
       const override = system.canPass?.({ content, state, map, x, y, tile, passable });
       if (typeof override === "boolean") passable = override;
     }
@@ -596,6 +691,17 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         state = result.state ?? state;
         return immediate ? runNow(c, state, result.effects ?? [], ctxValues) : enqueue(state, result.effects ?? []);
       }
+      case "script": {
+        const system = byId.get(effect.script);
+        const from = (effect as { from?: ScriptSelf }).from;
+        const self: ScriptSelf = from ? { ...from, key: `${effect.script}@${from.kind}:${from.id}` } : { kind: "effect", id: effect.script, args: effect.args ?? {}, key: `${effect.script}@effect` };
+        const fn = effect.call ? system?.actions?.[effect.call] : system?.use;
+        if (!system || !fn) throw new Error(`スクリプト '${effect.script}' に ${effect.call ? `actions.${effect.call}` : "use"} がありません（scripts/${effect.script}.ts）`);
+        const result = fn.call(system, { content, state, self }, effect.args ?? {}) ?? {};
+        c.log.push(...(result.log ?? []));
+        state = result.state ?? state;
+        return immediate ? runNow(c, state, result.effects ?? [], ctxValues) : enqueue(state, result.effects ?? []);
+      }
       case "addToSet": {
         const list = state.sets[effect.set] ?? [];
         if (list.includes(effect.value)) return state;
@@ -667,6 +773,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
             c.cues.push({ kind: "mapChanged", from });
             state = { ...state, fired: state.fired.filter(k => !k.startsWith("map:")), regions: [] };
             state = fireFieldRules(c, state, "mapEnter");
+            for (const system of active(state)) state = applySystemResult(c, state, system.onMapEnter?.({ content, state }));
           }
           return updateRegions(c, state, false);
         }
@@ -693,7 +800,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       ...(others.length ? { foes: others.map(o => ({ enemyId: o.id, hp: o.stats.maxHp })) } : {}),
     };
     state = setBattle(state, battle);
-    for (const system of sorted) {
+    for (const system of active(state)) {
       const data = system.onBattleStart?.({ content, state, battle: battleOf(state)!, enemy });
       if (data !== undefined) { const b = battleOf(state)!; state = setBattle(state, { ...b, systemData: { ...b.systemData, [system.id]: data } }); }
     }
@@ -749,7 +856,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       if (entry.rule.modify?.damage !== undefined) amount = Math.max(0, ex(entry.rule.modify.damage, state, { damage: amount }));
       state = runNow(c, state, entry.rule.effects, { damage: amount });
     }
-    for (const system of sorted) {
+    for (const system of active(state)) {
       const battle = battleOf(state)!;
       const changed = system.modifyDamage?.({ content, state, battle, enemy, target, amount, battleData: battle.systemData[system.id] });
       if (typeof changed === "number" && Number.isFinite(changed)) amount = Math.max(0, Math.floor(changed));
@@ -770,7 +877,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         if (entry.rule.modify?.hp !== undefined) { hp = Math.max(0, Math.min(stats(state).maxHp, ex(entry.rule.modify.hp, state, { damage: amount }))); saved = true; break; }
       }
       if (!saved) {
-        for (const system of sorted) {
+        for (const system of active(state)) {
           const battle = battleOf(state)!;
           const outcome = system.onLethalDamage?.({ content, state, battle, enemy, target, amount, battleData: battle.systemData[system.id], hpBefore });
           if (!outcome) continue;
@@ -830,6 +937,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const item = db.items.find(i => i.id === id);
     if (!item) return undefined;
     if (item.use) return item.use;
+    if (item.script && scriptUse(item.script)) return scriptUse(item.script);
     if (item.heal) return { where: "both", cost: [], effects: [{ type: "heal", amount: item.heal }], consume: true };
     return undefined;
   }
@@ -838,8 +946,9 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const out: Usable[] = [];
     for (const id of abilitiesOf(state, content)) {
       const a = db.abilities.find(x => x.id === id);
-      if (!a?.use || (a.use.where !== "both" && a.use.where !== where)) continue;
-      out.push({ id, name: a.use.label ?? a.name, kind: "ability", use: a.use, blocked: usableBlock(state, a.use, where) });
+      const use = a?.use ?? scriptUse(a?.script);
+      if (!a || !use || (use.where !== "both" && use.where !== where)) continue;
+      out.push({ id, name: use.label ?? a.name, kind: "ability", use, blocked: usableBlock(state, use, where) });
     }
     for (const [id, count] of Object.entries(state.items)) {
       const use = itemUse(id);
@@ -851,7 +960,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
 
   /** Pays costs and returns the effects to run, or a reason it can't be used. */
   function payForUse(c: Ctx, state: GameState, kind: "ability" | "item", id: string, where: "battle" | "field"): [GameState, Effect[]] | string {
-    const use = kind === "item" ? ((state.items[id] ?? 0) > 0 ? itemUse(id) : undefined) : abilitiesOf(state, content).includes(id) ? db.abilities.find(a => a.id === id)?.use : undefined;
+    const ability = kind === "ability" ? db.abilities.find(a => a.id === id) : undefined;
+    const use = kind === "item" ? ((state.items[id] ?? 0) > 0 ? itemUse(id) : undefined) : abilitiesOf(state, content).includes(id) ? ability?.use ?? scriptUse(ability?.script) : undefined;
     if (!use) return "使えない";
     const blocked = usableBlock(state, use, where);
     if (blocked) return blocked;
@@ -863,7 +973,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       state = { ...state, items };
     }
     c.log.push(`${kind === "item" ? itemName(id) : abilityName(id)}を使用`);
-    return [state, use.effects];
+    const ref = kind === "item" ? db.items.find(i => i.id === id)?.script : ability?.script;
+    return [state, [...use.effects, ...useEffectOf(ref, kind, id)]];
   }
 
   /** All enemies in the battle: index 0 is the primary (battle.enemyId), then battle.foes. */
@@ -925,6 +1036,13 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       const comp = companionOf(member.id);
       const current = state.party?.find(m => m.id === member.id);
       if (!comp || !current || current.hp <= 0 || battleOf(state)!.outcome !== "ongoing") continue;
+      let replaced = false;
+      for (const system of active(state)) {
+        if (!system.companionTurn || !steers(system, "companion", comp.id)) continue;
+        const result = system.companionTurn({ content, state, battle: battleOf(state)!, companion: comp.id });
+        if (result) { state = applyNow(c, state, result); replaced = true; break; }
+      }
+      if (replaced) { state = checkBattleEnd(c, state); continue; }
       const actions = comp.actions.filter(a => ev(a.when, state));
       const cs = companionStats(state, comp.id);
       // An order from the hero for this turn wins (if its condition holds).
@@ -961,6 +1079,11 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   function enemyTurn(c: Ctx, state: GameState): GameState {
     const battle = battleOf(state)!;
     const enemy = enemyOf(battle.enemyId);
+    for (const system of active(state)) {
+      if (!system.enemyTurn || !steers(system, "enemy", enemy.id)) continue;
+      const result = system.enemyTurn({ content, state, battle: battleOf(state)!, enemy });
+      if (result) return applyNow(c, state, result);
+    }
     const available = enemy.actions.filter(action => ev(action.when, state));
     const action = available.length ? available[battle.turn % available.length]! : null;
     if (!action) return state;
@@ -999,19 +1122,29 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       const b = battleOf(state)!;
       return battleLog(setBattle(state, { ...b, orders: { ...b.orders, [comp.id]: command.action } }), `${comp.name}に「${comp.actions[command.action]!.name}」を指示した。`);
     }
+    let scripted = false;
+    if (command.command === "script") {
+      const ran = runCommand(c, state, command.source, command.id, "battle");
+      if (typeof ran === "string") return battleLog(state, ran);
+      state = checkBattleEnd(c, ran[0]);
+      if (ran[1].endsTurn === false || battleOf(state)!.outcome !== "ongoing") return state;
+      scripted = true;
+    }
     const allowed = content.project.battle.commands;
     const commandKey = command.command === "skill" ? "skills" : command.command === "item" ? "items" : command.command;
-    if (!allowed[commandKey]) return battleLog(state, "そのコマンドは使えない。");
+    if (!scripted && !allowed[commandKey as keyof typeof allowed]) return battleLog(state, "そのコマンドは使えない。");
     // Target: the chosen enemy if it still stands, otherwise the first one standing.
     const requested = command.command === "attack" ? command.target : undefined;
     const target = requested !== undefined && requested < enemyCount(battle) && enemyHpAt(battle, requested) > 0 ? requested : firstAlive(battle);
-    state = swapEnemy(state, target);
-    const acted = playerAction(c, state, command);
-    if (acted === "done") return state;
-    state = swapEnemy(acted, target);
-    if (battleOf(state)!.outcome !== "ongoing") return state;
-    state = checkBattleEnd(c, state);
-    if (battleOf(state)!.outcome !== "ongoing") return state;
+    if (!scripted) {
+      state = swapEnemy(state, target);
+      const acted = playerAction(c, state, command);
+      if (acted === "done") return state;
+      state = swapEnemy(acted, target);
+      if (battleOf(state)!.outcome !== "ongoing") return state;
+      state = checkBattleEnd(c, state);
+      if (battleOf(state)!.outcome !== "ongoing") return state;
+    }
 
     state = companionTurns(c, state);
     if (battleOf(state)!.outcome !== "ongoing") return state;
@@ -1029,6 +1162,10 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       const next = tryRule(c, state, entry);
       if (next) state = runNow(c, next, entry.rule.effects);
     }
+    for (const system of active(state)) {
+      if (battleOf(state)!.outcome !== "ongoing") break;
+      state = applyNow(c, state, system.onTurnEnd?.({ content, state, battle: battleOf(state)! }));
+    }
     state = checkBattleEnd(c, state);
     battle = battleOf(state)!;
     const { orders: _done, ...rest } = battle;
@@ -1036,8 +1173,10 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   }
 
   function closeBattle(c: Ctx, state: GameState): GameState {
+    if (!battleOf(state) || battleOf(state)!.outcome === "ongoing") return state;
+    for (const system of active(state)) state = applyNow(c, state, system.onBattleEnd?.({ content, state, battle: battleOf(state)! }));
     const battle = battleOf(state);
-    if (!battle || battle.outcome === "ongoing") return state;
+    if (!battle) return state;
     if (battle.outcome === "victory") {
       return runQueue(c, enqueue({ ...state, scene: { kind: "field" } }, [...battle.onVictory, ...battle.after]));
     }
@@ -1139,7 +1278,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     state = fireFieldRules(c, state, "step");
     state = fireTimers(c, state);
     state = updateRegions(c, state, true);
-    for (const system of sorted) state = applySystemResult(c, state, system.onStep?.({ content, state }));
+    for (const system of active(state)) state = applySystemResult(c, state, system.onStep?.({ content, state }));
     const walkedOn = visibleEntities(state, map).find(e => !e.state.solid && e.state.trigger === "touch" && e.x === to.x && e.y === to.y);
     if (walkedOn) state = enqueue(state, entityEffects(c, state, walkedOn.state));
     const touch = visibleInteractables(state, map).find(item => item.trigger === "touch" && item.x === to.x && item.y === to.y);
@@ -1316,7 +1455,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       }
     }
     state = fireFieldRules(c, state, "tick");
-    for (const system of sorted) state = applySystemResult(c, state, system.onTick?.({ content, state }));
+    for (const system of active(state)) state = applySystemResult(c, state, system.onTick?.({ content, state }));
     return runQueue(c, state);
   }
 
@@ -1406,7 +1545,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   function step(state: GameState, action: Action): StepResult {
     const c: Ctx = { log: [], cues: [] };
     // Systems may rewrite or swallow the action first (changing the rules of control itself).
-    for (const system of sorted) {
+    for (const system of active(state)) {
       if (!system.onAction) continue;
       const result = system.onAction({ content, state }, action as unknown as PlayerAction);
       if (!result) continue;
@@ -1454,6 +1593,12 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       case "sceneInput":
         next = sceneInput(c, state, action.input);
         break;
+      case "command": {
+        if (scene.kind !== "field") break;
+        const ran = runCommand(c, state, action.source, action.id, "field");
+        next = typeof ran === "string" ? { ...state, scene: { kind: "message", text: ran } } : runQueue(c, ran[0]);
+        break;
+      }
       case "advance":
         if (scene.kind === "message") next = runQueue(c, { ...state, scene: { kind: "field" } });
         else if (scene.kind === "dialogue") {
@@ -1510,7 +1655,9 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     companionStats,
     visibleEntities: (state, map) => visibleEntities(state, map),
     regions: state => regionsAt(state, content, env),
-    hudLines: state => sorted.flatMap(sys => sys.hud?.({ content, state }) ?? []),
+    hudLines: state => active(state).flatMap(sys => sys.hud?.({ content, state }) ?? []),
+    activeSystems: state => active(state),
+    commands: (state, where) => scriptCommands(state, where),
     step,
     run,
     isPassable: (state, x, y) => isPassable(state, x, y),

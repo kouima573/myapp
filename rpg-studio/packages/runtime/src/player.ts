@@ -565,6 +565,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         ...(skills.length ? [navButton("わざ", () => { battlePicker = "skills"; selection = 0; renderUI(); })] : []),
         navButton("どうぐ", () => { battlePicker = "items"; selection = 0; renderUI(); }, { hint: "3", disabled: !items.length }),
         ...((state.party ?? []).some(m => m.hp > 0) ? [navButton("なかま", () => { battlePicker = "orders"; orderCompanion = null; selection = 0; renderUI(); }, { hint: "指示" })] : []),
+        ...engine.commands(state, "battle").map(cmd => navButton(cmd.label, () => { if (cmd.blocked) showToast(cmd.blocked); else dispatch({ type: "battle", command: "script", source: cmd.source, id: cmd.id }); }, { hint: cmd.blocked ?? "", disabled: Boolean(cmd.blocked) })),
         navButton("にげる", () => dispatch({ type: "battle", command: "flee" }), { hint: "4", disabled: !battle.canFlee }),
       );
     }
@@ -685,6 +686,11 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       const row = el("div", "rpg-menu-ability");
       row.append(el("strong", undefined, ability?.name ?? id), el("span", undefined, ability?.description ?? ""));
       menu.appendChild(row);
+    }
+    const scriptCommands = engine.commands(state, "field");
+    if (scriptCommands.length) {
+      section("とくしゅ");
+      for (const cmd of scriptCommands) menu.appendChild(navButton(cmd.label, () => { if (cmd.blocked) showToast(cmd.blocked); else { menuOpen = false; dispatch({ type: "command", source: cmd.source, id: cmd.id }); } }, { hint: cmd.blocked ?? "" }));
     }
     const verbList = availableVerbs();
     if (verbList.length) {
@@ -857,7 +863,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
           { id: "player", kind: "player", x: renderPos.x, y: renderPos.y, facing: state.player.facing, sprite: state.player.sprite ?? content.project.player.sprite, frame: walkFrame },
         ],
       });
-      for (const system of engine.systems) {
+      for (const system of engine.activeSystems(state)) {
         if (!system.drawOverlay) continue;
         try {
           ctx.save();

@@ -2,12 +2,14 @@ import { Plus, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { BehaviorSchema, type Entity, type EntityState, type GameContent } from "@rpg/schema";
 import { Field, JsonField, TextInput } from "./Inspector";
 import { ConditionEditor, EffectListEditor } from "./forms";
+import { ScriptField } from "./ScriptsPanel";
+import type { ProjectStore } from "../lib/useProject";
 
 const TRIGGERS: Array<[EntityState["trigger"], string]> = [["action", "調べる"], ["touch", "触れる"], ["auto", "その状態になった時"], ["none", "なし（背景）"]];
 const MARKERS: EntityState["marker"][] = ["none", "sign", "chest", "sparkle", "statue"];
 
 /** Entity states as forms: the first state whose condition holds is the active one. */
-export default function EntityForm({ entity, content, onChange }: { entity: Entity; content: GameContent; onChange: (e: Entity) => void }) {
+export default function EntityForm({ entity, content, onChange, store }: { entity: Entity; content: GameContent; onChange: (e: Entity) => void; store: ProjectStore }) {
   const sprites = content.assets.assets.filter(a => a.kind === "character").map(a => a.id);
   const setState = (i: number, patch: Partial<EntityState>) => onChange({ ...entity, states: entity.states.map((s, j) => (j === i ? { ...s, ...patch } : s)) });
   const move = (i: number, d: number) => { const st = [...entity.states]; const [x] = st.splice(i, 1); st.splice(i + d, 0, x!); onChange({ ...entity, states: st }); };
@@ -38,6 +40,7 @@ export default function EntityForm({ entity, content, onChange }: { entity: Enti
       </div>
       <div className="field"><span className="field-label">起きること</span><EffectListEditor value={s.effects} content={content} onChange={v => setState(i, { effects: v })} /></div>
       {(s.pushable || s.carryable) && <div className="field"><span className="field-label">動かされた後</span><EffectListEditor value={s.onMoved ?? []} content={content} onChange={v => setState(i, { onMoved: v.length ? v : undefined })} /></div>}
+      <ScriptField key={`script-${entity.id}-${i}`} value={s.script} content={content} store={store} ownerId={entity.id} templateFor="world" onChange={r => setState(i, { script: r })} />
       <Field label="動き" hint='例 {"type":"wander"} / {"type":"chase","speed":2}'><JsonField value={s.behavior} schema={BehaviorSchema} rows={1} onCommit={v => setState(i, { behavior: v ?? { type: "still" } })} /></Field>
     </div>)}
     <button className="button" onClick={() => onChange({ ...entity, states: [...entity.states, { marker: "none", solid: true, trigger: "action", effects: [], behavior: { type: "still" } }] })}><Plus size={12} />状態を足す</button>

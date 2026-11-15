@@ -5,6 +5,7 @@ import type { z } from "zod";
 import type { ProjectStore } from "../lib/useProject";
 import type { Selection } from "./MapEditor";
 import EntityForm from "./EntityForm";
+import { ScriptField } from "./ScriptsPanel";
 
 interface Props {
   store: ProjectStore;
@@ -91,6 +92,7 @@ export default function Inspector({ store, content, mapId, selection, onSelect, 
           })}</div>
         </Field>
       </>}
+      <ScriptField key={`script-map-${mapId}`} value={map.script} content={content} store={store} ownerId={`map-${mapId}`} templateFor="world" onChange={r => edit(d => { if (r) d.script = r; else delete d.script; })} />
       <p className="muted small">マップ上をクリックするとタイルや配置物の詳細を表示します。</p>
     </div>;
   }
@@ -130,7 +132,7 @@ export default function Inspector({ store, content, mapId, selection, onSelect, 
       <p className="muted small">{isEntity
         ? "states は上から順に、when（条件）を満たす最初の状態が有効になります。どれも満たさなければ消えます。trigger: action（調べる）/ touch（触れる・追いつかれる）/ auto（その状態になった時に1回）/ none。behavior: still / wander / patrol / chase / flee。"
         : "プレイヤーがこの範囲に入る・出る・中を歩く・中で調べる時に効果を実行します。when で有効になる条件を付けられます。条件 inRegion でも参照できます。"}</p>
-      {isEntity && <EntityForm entity={item as Entity} content={content} onChange={v => edit(d => { const i = d.entities.findIndex(e => e.id === item.id); if (i >= 0) d.entities[i] = v; })} />}
+      {isEntity && <EntityForm store={store} entity={item as Entity} content={content} onChange={v => edit(d => { const i = d.entities.findIndex(e => e.id === item.id); if (i >= 0) d.entities[i] = v; })} />}
       {isEntity && <div className="side-heading">JSONで直接編集</div>}
       <JsonField<unknown> value={item} schema={(isEntity ? EntitySchema : RegionSchema) as never} rows={18} onCommit={v => { if (!v) return; edit(d => { const list = d[key] as Array<{ id: string }>; const i = list.findIndex(e => e.id === item.id); if (i >= 0) list[i] = v as never; }); const next = v as { id: string; x: number; y: number }; onSelect({ kind: selection.kind, id: next.id, x: next.x, y: next.y }); }} />
       <p className="muted small">フォーカスを外すと検証して保存します。詳しくは docs/customization-guide.md。</p>

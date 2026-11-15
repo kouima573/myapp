@@ -25,6 +25,8 @@ export async function bootStandalone(options: { systems: GameSystem[]; host?: HT
     await Promise.all(files.map(async path => { texts[path] = await fetchText(path); }));
     // System sources are compiled into the bundle; mark them present for validation.
     for (const system of manifest.systems ?? []) texts[system.path] = "";
+    // Scripts are bundled into game.js; their files only need to exist for validation.
+    for (const system of options.systems) if (system.scope === "attached") texts[`scripts/${system.id}.ts`] = "";
     const result = loadProjectContent(texts);
     if (!result.content) throw new Error(result.diagnostics.filter(d => d.severity === "error").map(formatDiagnostic).join("\n"));
     const content = result.content;

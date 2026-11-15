@@ -10,7 +10,7 @@
    `docs/genre-atlas.md`（`pnpm rpg genres --query <言葉>`）— 111ジャンルそれぞれをこの工房でどう作るか
    `docs/genre-modules.md` — ノベル・アクション・格闘・タクティクス・防衛・落ちもの・リズム・脱出・推理・3Dダンジョン・工場など25種の他ジャンルの遊びをRPGに組み込むモジュール（作れるのはRPGのみ）
    `docs/innovation-guide.md` — 新しい遊びを発明するための部品（エンティティ・領域・集合・周回・独自画面・描画レイヤー）と発想集
-3. `docs/extension-api.md` — データで書けないものだけ使うTypeScriptフック（`defineSystem`）
+3. `docs/scripting.md` — データで書けない処理を、技・アイテム・特性・敵・仲間・マップ・エンティティに付けるスクリプト（`scripts/*.ts` の `defineScript`）。`docs/extension-api.md` — プロジェクト全体に効くシステム（`defineSystem`）
 4. `docs/scenario-tests.md` — 自動プレイテスト
 5. 対象プロジェクトの `README.md` と `pnpm rpg catalog --project projects/<id>`（定義済みIDの一覧）
 6. ほかのプロジェクトや作り手が作った仕組みを使うときは `pnpm rpg mod list` / `pnpm rpg mod add <id> --project …`（出どころは mods.json に残る）。自分の仕組みを共有するときは `pnpm rpg mod export <systemId> --project … --author … --license …`
@@ -20,7 +20,7 @@
 
 - **作り手の発想が最優先。** 作りやすさのために発想の核を「よくある形」に置き換えない。データで書けなければ拡張、拡張でも足りなければエンジンを広げる（形式・検証・テストを一緒に）。好みの問題だけを作り手に聞き、決めたことは `IDEA.md` に記録する。
 - 新しい仕組みを頼まれたら、既存の型に押し込めず、innovation-guide の4層（データ → 世界の仕組み → 拡張 → エンジン改造）から最も素直な実現方法を選ぶ。拡張の処理（input・conditions・actions・onStep・onTick）では `Math.random()` や現在時刻を使わない（決定性を保つ）。
-- **データで書けることはデータで**（`projects/<id>/*.json`）。種族・職業などは特性(traits)、効果は能力のstatMods・rules・use、全体の仕組みは `rules.json` のルールで書く。条件・効果・式・ルールで表せないものだけを `systems/*.ts` に書く。
+- **データで書けることはデータで**（`projects/<id>/*.json`）。種族・職業などは特性(traits)、効果は能力のstatMods・rules・use、全体の仕組みは `rules.json` のルールで書く。条件・効果・式・ルールで表せないものだけをコードで書く。特定の技・アイテム・敵などの処理は `scripts/<名前>.ts`（`defineScript`、データの `"script"` で付ける）、プロジェクト全体の仕組みは `systems/*.ts`（`defineSystem`）。
 - 種族や効果の**内容**（仕様書）はユーザーが用意する。仕様にない効果を推測で作らない。不明点は質問する。
 - 新しいフラグ・変数は必ず `project.json` の `flags`・`variables` に宣言する（未宣言は検証エラー）。
 - ID（マップ・NPC・会話・イベント・能力・アイテム・敵・素材）はセーブや参照に使う安定ID。リネームするなら参照もすべて直す。

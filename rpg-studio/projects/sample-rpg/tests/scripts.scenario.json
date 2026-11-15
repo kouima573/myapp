@@ -1,0 +1,153 @@
+{
+  "name": "スクリプト: 技・装飾品・敵にコードを付ける（時止め・賭け札・こだまの鏡・姿を変える敵）",
+  "seed": 7,
+  "steps": [
+    {
+      "advance": "all"
+    },
+    {
+      "choose": "human"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "effects": [
+        {
+          "type": "teleport",
+          "mapId": "elder-house",
+          "x": 8,
+          "y": 2,
+          "facing": "up"
+        },
+        {
+          "type": "setVar",
+          "var": "spirit",
+          "value": 9
+        }
+      ]
+    },
+    {
+      "interact": true
+    },
+    {
+      "expect": {
+        "scene": "prompt"
+      }
+    },
+    {
+      "choose": "time"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "interact": true
+    },
+    {
+      "choose": "gamble"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "interact": true
+    },
+    {
+      "choose": "mirror"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "abilities": [
+          "time-sand",
+          "gamble-card"
+        ],
+        "items": {
+          "echo-mirror": 1
+        }
+      }
+    },
+    {
+      "equip": "echo-mirror"
+    },
+    {
+      "expect": {
+        "equipped": {
+          "accessory": "echo-mirror"
+        }
+      }
+    },
+    {
+      "interact": true
+    },
+    {
+      "choose": "fight"
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "scene": "battle",
+        "textIncludes": "ゆらぎ"
+      }
+    },
+    {
+      "command": "stop"
+    },
+    {
+      "expect": {
+        "textIncludes": "止まった時の中で動けない",
+        "vars": {
+          "spirit": 6
+        }
+      }
+    },
+    {
+      "battle": "guard"
+    },
+    {
+      "expect": {
+        "textIncludes": "時が再び流れ出した"
+      }
+    },
+    {
+      "battle": "attack"
+    },
+    {
+      "expect": {
+        "textIncludes": "石のように固まっている"
+      }
+    },
+    {
+      "battle": "guard"
+    },
+    {
+      "expect": {
+        "textIncludes": "炎になって"
+      }
+    },
+    {
+      "expect": {
+        "textIncludes": "跳ね返した"
+      }
+    },
+    {
+      "skill": "gamble-card"
+    },
+    {
+      "fight": "auto"
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    }
+  ]
+}

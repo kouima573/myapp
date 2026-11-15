@@ -40,9 +40,13 @@ export interface BuildResult {
 const posix = (p: string) => p.split(path.sep).join("/");
 
 /** Generated entry: imports the runtime and each project system, then boots the game. */
-function entrySource(systemFiles: string[], mode: "game" | "systems", moduleIds: string[] = []): string {
-  const imports = systemFiles.map((file, i) => `import system${i} from ${JSON.stringify(posix(file))};`).join("\n");
-  const list = `[${systemFiles.map((_, i) => `system${i}`).join(", ")}]`;
+function entrySource(systemFiles: string[], mode: "game" | "systems", moduleIds: string[] = [], scripts: Array<{ id: string; file: string }> = []): string {
+  const imports = [
+    ...systemFiles.map((file, i) => `import system${i} from ${JSON.stringify(posix(file))};`),
+    ...scripts.map((s, i) => `import script${i} from ${JSON.stringify(posix(s.file))};`),
+  ].join("\n");
+  // Scripts take their id from the file name and only run while attached to something active.
+  const list = `[${[...systemFiles.map((_, i) => `system${i}`), ...scripts.map((s, i) => `{ ...(script${i} as object), id: ${JSON.stringify(s.id)}, scope: "attached" } as GameSystem`)].join(", ")}]`;
   // Only the genre modules the project enables are bundled into the game.
   const moduleImports = moduleIds.map((id, i) => `import module${i} from ${JSON.stringify(posix(path.join(REPO_ROOT, "packages/modules/src", `${id}.ts`)))};`).join("\n");
   const moduleList = `[${moduleIds.map((_, i) => `module${i}`).join(", ")}]`;
@@ -145,8 +149,9 @@ export async function buildProject(projectRoot: string, options: BuildOptions = 
     const gameEntry = path.join(work, "entry.ts");
     const systemsEntry = path.join(work, "systems-entry.ts");
     const moduleIds = Object.keys(content.project.modules).filter(id => /^[a-z0-9]+$/.test(id) && MODULES[id]);
-    await fs.writeFile(gameEntry, entrySource(systemFiles, "game", moduleIds));
-    await fs.writeFile(systemsEntry, entrySource(systemFiles, "systems"));
+    const scripts = (content.scripts ?? []).map(id => ({ id, file: resolveInside(projectRoot, `scripts/${id}.ts`) }));
+    await fs.writeFile(gameEntry, entrySource(systemFiles, "game", moduleIds, scripts));
+    await fs.writeFile(systemsEntry, entrySource(systemFiles, "systems", [], scripts));
     const typeErrors = typecheck(gameEntry, projectRoot);
     if (typeErrors.length) return { ok: false, diagnostics: [...diagnostics, ...typeErrors] };
 
