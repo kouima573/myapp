@@ -304,3 +304,14 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 .story-editor .form-nested, .story-editor .form-raw { width: 100%; }
 .error-text { color: #e59a8c; }
 .script-card .code-editor { width: 100%; min-height: 420px; }
+.pixel-editor { display: grid; grid-template-columns: 280px 1fr; gap: 12px; padding: 12px; align-items: start; }
+.pixel-side { display: flex; flex-direction: column; gap: 10px; }
+.pixel-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.pixel-stage { overflow: auto; max-width: 100%; }
+.pixel-canvas { display: block; image-rendering: pixelated; cursor: crosshair; touch-action: none; max-width: 100%; height: auto; border: 1px solid var(--line); }
+.pixel-overview { display: block; image-rendering: pixelated; cursor: pointer; border: 1px solid var(--line); max-width: 100%; }
+.pixel-frames { display: flex; flex-direction: column; gap: 6px; }
+.palette { display: grid; grid-template-columns: repeat(9, 1fr); gap: 3px; }
+.swatch { aspect-ratio: 1; border: 1px solid rgba(255,255,255,.15); border-radius: 3px; padding: 0; min-width: 0; }
+.swatch.is-on { outline: 2px solid #f0b450; outline-offset: 1px; }
+@media (max-width: 760px) { .pixel-editor { grid-template-columns: 1fr; } }

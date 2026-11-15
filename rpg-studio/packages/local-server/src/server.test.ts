@@ -106,6 +106,21 @@ describe("local server security", () => {
     expect((await request("PUT", "/api/file", { headers: write, body: JSON.stringify({ path: "scripts/deep/new.ts", content: script, expectedHash: "" }) })).status).toBe(400);
   });
 
+  it("saves PNGs from the pixel editor only under assets/<folder>/, only real PNGs, with conflict detection", async () => {
+    const png = await fs.readFile(path.join(dir, "assets/characters/elf-ranger.png"));
+    const put = (body: unknown) => request("PUT", "/api/image", { headers: write, body: JSON.stringify(body) });
+    const created = await put({ path: "assets/drawn/hero.png", base64: png.toString("base64"), expectedHash: "" });
+    expect(created.status).toBe(200);
+    expect((await fs.readFile(path.join(dir, "assets/drawn/hero.png"))).equals(png)).toBe(true);
+    expect((await put({ path: "assets/drawn/hero.png", base64: png.toString("base64"), expectedHash: "" })).status).toBe(409);
+    expect((await put({ path: "assets/drawn/hero.png", base64: png.toString("base64"), expectedHash: "stale" })).status).toBe(409);
+    expect((await put({ path: "assets/drawn/hero.png", base64: png.toString("base64"), expectedHash: JSON.parse(created.body).hash })).status).toBe(200);
+    expect((await put({ path: "maps/evil.png", base64: png.toString("base64"), expectedHash: "" })).status).toBe(400);
+    expect((await put({ path: "assets/a/b/c.png", base64: png.toString("base64"), expectedHash: "" })).status).toBe(400);
+    expect((await put({ path: "assets/drawn/fake.png", base64: Buffer.from("not a png at all, really").toString("base64"), expectedHash: "" })).status).toBe(422);
+    expect((await request("PUT", "/api/image", { headers: api, body: JSON.stringify({ path: "assets/drawn/x.png", base64: png.toString("base64"), expectedHash: "" }) })).status).toBe(403);
+  });
+
   it("exposes no command execution endpoints", async () => {
     for (const route of ["/api/exec", "/api/run", "/api/shell"]) expect((await request("POST", route, { headers: write, body: "{}" })).status).toBe(404);
   });

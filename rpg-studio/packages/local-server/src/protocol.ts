@@ -12,6 +12,9 @@ export interface ProjectSnapshot {
 
 export interface SaveRequest { path: string; content: string; expectedHash: string }
 export interface SaveResponse { path: string; hash: string }
+/** PNG drawn in the studio (pixel editor). Only assets/<folder>/<name>.png; expectedHash "" creates, otherwise sha256 of the current bytes. */
+export interface ImageSaveRequest { path: string; base64: string; expectedHash: string }
+export interface ImageConflictResponse { error: "conflict"; path: string; latestHash: string }
 export interface ConflictResponse { error: "conflict"; path: string; latestContent: string; latestHash: string }
 
 export interface ChangeEvent { seq: number; path: string; kind: "add" | "change" | "unlink"; hash?: string }

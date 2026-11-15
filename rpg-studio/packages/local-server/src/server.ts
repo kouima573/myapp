@@ -17,13 +17,15 @@ import { loadSystems, runProjectScenarios, systemRefDiagnostics } from "../../cl
 import { loadProjectFromDisk, readProjectTexts } from "../../cli/src/load";
 import {
   LOCAL_TOKEN_HEADER, LOCAL_TOKEN_META,
-  type BuildStatus, type ChangeEvent, type ProjectSnapshot, type SaveRequest, type TestResponse,
+  type BuildStatus, type ChangeEvent, type ProjectSnapshot, type ImageSaveRequest, type SaveRequest, type TestResponse,
 } from "./protocol";
 
 const TEXT_EXT = new Set([".json", ".ts", ".md"]);
 const BINARY_EXT: Record<string, string> = { ".png": "image/png", ".ogg": "audio/ogg", ".mp3": "audio/mpeg", ".wav": "audio/wav" };
 const MAX_TEXT = 4 * 1024 * 1024;
 const MAX_BINARY = 20 * 1024 * 1024;
+const MAX_IMAGE = 3 * 1024 * 1024;
+const IMAGE_PATH = /^assets\/[a-z0-9][a-z0-9_-]*\/[a-z0-9][a-z0-9_.-]*\.png$/i;
 const IGNORED = /(^|\/)(\.git|node_modules|dist|\.rpg-backup|\.rpg-studio)(\/|$)/;
 
 class HttpError extends Error {
@@ -238,6 +240,44 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     });
   }
 
+  /** PNG from the studio's pixel editor: assets/<folder>/<name>.png only, real PNG, bounded size, atomic replace. */
+  async function saveImage(body: ImageSaveRequest) {
+    if (!body || typeof body.path !== "string" || typeof body.base64 !== "string" || typeof body.expectedHash !== "string") throw new HttpError(400, "{path, base64, expectedHash} が必要です");
+    if (!IMAGE_PATH.test(body.path)) throw new HttpError(400, "画像は assets/<フォルダ>/<名前>.png にだけ保存できます");
+    const bytes = Buffer.from(body.base64, "base64");
+    if (bytes.length > MAX_IMAGE) throw new HttpError(413, "画像が大きすぎます（3MBまで）");
+    if (bytes.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a" || bytes.subarray(12, 16).toString("latin1") !== "IHDR") throw new HttpError(422, "PNG画像ではありません");
+    const width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20);
+    if (!width || !height || width > 4096 || height > 4096) throw new HttpError(422, "画像の大きさは4096×4096までです");
+    const creating = body.expectedHash === "";
+    if (creating) {
+      const folder = path.join(await fs.realpath(root), ...body.path.split("/").slice(0, 2));
+      await fs.mkdir(folder).catch((error: NodeJS.ErrnoException) => { if (error.code !== "EEXIST") throw error; });
+    }
+    const target = await securePath(root, body.path, { allowMissing: creating });
+    return withLock(target, async () => {
+      if (creating) {
+        const handle = await fs.open(target, "wx", 0o644).catch((error: NodeJS.ErrnoException) => { if (error.code === "EEXIST") throw new HttpError(409, "同じ名前の画像があります"); throw error; });
+        try { await handle.writeFile(bytes); await handle.sync(); } finally { await handle.close(); }
+      } else {
+        const currentHash = sha256(await readNoFollow(await securePath(root, body.path), MAX_BINARY));
+        if (currentHash !== body.expectedHash) return { status: 409, json: { error: "conflict", path: body.path, latestHash: currentHash } };
+        const temp = path.join(path.dirname(target), `.${path.basename(target)}.${crypto.randomBytes(6).toString("hex")}.tmp`);
+        try {
+          const handle = await fs.open(temp, "wx", 0o644);
+          try { await handle.writeFile(bytes); await handle.sync(); } finally { await handle.close(); }
+          await securePath(root, body.path);
+          await fs.rename(temp, target);
+        } catch (error) { await fs.rm(temp, { force: true }).catch(() => {}); throw error; }
+      }
+      const hash = sha256(bytes);
+      revision++;
+      pushChange(body.path, creating ? "add" : "change", hash);
+      requestBuild();
+      return { status: 200, json: { path: body.path, hash, bytes: bytes.length } };
+    });
+  }
+
   async function runTests(): Promise<TestResponse> {
     const loaded = await loadProjectFromDisk(root);
     const diagnostics = loaded.diagnostics.map(formatDiagnostic);
@@ -327,6 +367,10 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
           res.writeHead(200, { "content-type": BINARY_EXT[ext]!, "cache-control": "no-store", "x-content-type-options": "nosniff" });
           res.end(bytes);
           return;
+        }
+        case "PUT /api/image": {
+          const result = await saveImage(await readBody(req) as ImageSaveRequest);
+          return json(res, result.status, result.json);
         }
         case "PUT /api/file": {
           const result = await save(await readBody(req) as SaveRequest);

@@ -22,6 +22,15 @@ export interface ProjectSource {
   requestBuild?(): Promise<BuildStatus>;
   loadSystems(version: string | null): Promise<GameSystem[]>;
   runTests?(): Promise<TestResponse>;
+  /** PNG from the pixel editor (assets/<folder>/<name>.png). expectedHash "" = new file. */
+  saveImage?(path: string, png: Blob, expectedHash: string): Promise<{ ok: true; hash: string; bytes: number } | { ok: false; error: string; conflict?: boolean }>;
+  /** sha256 of an asset's current bytes (for saveImage). */
+  assetHash?(path: string): Promise<string>;
+}
+
+export async function sha256Bytes(bytes: ArrayBuffer): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
 }
 
 export async function sha256Hex(text: string): Promise<string> {
@@ -79,6 +88,27 @@ export class LocalSource implements ProjectSource {
     this.assetCache.delete(path);
   }
 
+  async saveImage(path: string, png: Blob, expectedHash: string) {
+    const bytes = new Uint8Array(await png.arrayBuffer());
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    try {
+      const { status, json } = await this.call<{ hash?: string; bytes?: number; error?: string }>("PUT", "/api/image", { path, base64: btoa(binary), expectedHash });
+      if (status === 409) return { ok: false as const, conflict: true, error: "画像が外部で変更されています（読み込み直してから描いてください）" };
+      if (status !== 200) return { ok: false as const, error: json.error ?? `保存できません (${status})` };
+      this.forgetAsset(path);
+      return { ok: true as const, hash: json.hash!, bytes: json.bytes ?? bytes.length };
+    } catch (error) {
+      return { ok: false as const, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  async assetHash(path: string): Promise<string> {
+    const response = await fetch(`/api/asset?path=${encodeURIComponent(path)}`, { headers: { [LOCAL_TOKEN_HEADER]: this.token }, cache: "no-store" });
+    if (!response.ok) throw new Error(`素材を読めません: ${path}`);
+    return sha256Bytes(await response.arrayBuffer());
+  }
+
   async changes(after: number) { return (await this.call<ChangesResponse>("GET", `/api/changes?after=${after}`)).json; }
   async requestBuild() { return (await this.call<BuildStatus>("POST", "/api/build", {})).json; }
   async runTests() { return (await this.call<TestResponse>("POST", "/api/test", {})).json; }
@@ -102,6 +132,7 @@ const SAMPLE_ROOT = "../../../projects/sample-rpg/";
 const sampleTexts = import.meta.glob("../../../projects/sample-rpg/**/*.{json,ts,md}", { query: "?raw", import: "default", eager: true }) as Record<string, string>;
 const sampleAssets = import.meta.glob("../../../projects/sample-rpg/assets/**/*.{png,wav,ogg,mp3,json}", { query: "?url", import: "default", eager: true }) as Record<string, string>;
 const sampleSystems = import.meta.glob("../../../projects/sample-rpg/systems/*.ts", { eager: true }) as Record<string, { default?: GameSystem }>;
+const sampleScripts = import.meta.glob("../../../projects/sample-rpg/scripts/*.ts", { eager: true }) as Record<string, { default?: object }>;
 
 export class PreviewSource implements ProjectSource {
   readonly kind = "preview" as const;
@@ -124,7 +155,9 @@ export class PreviewSource implements ProjectSource {
     return url;
   }
   async loadSystems(): Promise<GameSystem[]> {
-    return Object.values(sampleSystems).map(module => module.default).filter((s): s is GameSystem => Boolean(s));
+    const systems = Object.values(sampleSystems).map(module => module.default).filter((s): s is GameSystem => Boolean(s));
+    const scripts = Object.entries(sampleScripts).flatMap(([file, module]) => module.default ? [{ ...module.default, id: file.split("/").pop()!.replace(/\.ts$/, ""), scope: "attached" } as GameSystem] : []);
+    return [...systems, ...scripts];
   }
 }
 
