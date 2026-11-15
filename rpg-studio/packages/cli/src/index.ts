@@ -16,6 +16,7 @@ import { cmdArt, cmdAsset } from "./assets";
 import { loadProjectFromDisk, readProjectTexts, resolveInside } from "./load";
 import { newProject } from "./scaffold";
 import { cmdMod } from "./mods";
+import { cmdLibrary } from "./library";
 import { genreAtlasMarkdown, GENRES, LEVEL_LABEL, searchGenres } from "../../modules/src/genres";
 
 const USAGE = `RPG Studio CLI
@@ -32,6 +33,8 @@ const USAGE = `RPG Studio CLI
   rpg schema   [--check]                schema/*.schema.json（エディター・AI向けJSON Schema）を生成／最新か確認
   rpg asset    <sources|enable|disable|add|gen-sfx|report|credits> --project <dir>   素材の取得元・追加・生成・容量・クレジット
   rpg art      <list|prompt|check> --project <dir>                                   画像の要件定義（art/requests.json）から生成用プロンプト・納品チェック
+  rpg art      generate [--out library] [--only tiles,characters,monsters,backgrounds] [--no-previews]   内蔵ジェネレーターで共有素材ライブラリを（再）生成
+  rpg library  <list|add> [<id...>] [--kind …] [--query …] --project <dir>          共有素材ライブラリを探す・プロジェクトに取り込む（タイル定義も追加）
 `;
 
 function parseArgs(argv: string[]) {
@@ -43,12 +46,12 @@ function parseArgs(argv: string[]) {
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]!;
     if (arg === "--") continue;
-    if (!arg.startsWith("--")) { if (positional.length || !sub) throw new Error(`不明な引数: ${arg}`); positional.push(arg); continue; }
+    if (!arg.startsWith("--")) { if ((positional.length && command !== "library") || !sub) throw new Error(`不明な引数: ${arg}`); positional.push(arg); continue; }
     const key = arg.slice(2);
     const next = rest[i + 1];
     if (next !== undefined && !next.startsWith("--")) { flags[key] = next; i++; } else flags[key] = true;
   }
-  return { command, sub, flags, arg: positional[0] };
+  return { command, sub, flags, arg: positional[0], args: positional };
 }
 
 function projectDir(flags: Record<string, string | boolean>): string {
@@ -314,7 +317,18 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "catalog": return cmdCatalog(parsed.flags);
     case "schema": return cmdSchema(parsed.flags);
     case "asset": return cmdAsset(parsed.sub, projectDir(parsed.flags), parsed.flags);
-    case "art": return cmdArt(parsed.sub, projectDir(parsed.flags), parsed.flags);
+    case "art": {
+      if (parsed.sub !== "generate") return cmdArt(parsed.sub, projectDir(parsed.flags), parsed.flags);
+      const { generateLibrary } = await import("./artgen/library");
+      const out = typeof parsed.flags.out === "string" ? path.resolve(process.cwd(), parsed.flags.out) : path.join(REPO_ROOT, "library");
+      const kinds = ["tiles", "characters", "monsters", "backgrounds"] as const;
+      const only = typeof parsed.flags.only === "string" ? parsed.flags.only.split(",").map(s => s.trim()) : [];
+      const bad = only.filter(k => !(kinds as readonly string[]).includes(k));
+      if (bad.length) { console.log(`ERROR --only は ${kinds.join(",")} から選んでください: ${bad.join(",")}`); return 2; }
+      await generateLibrary(out, { only: only as Array<(typeof kinds)[number]>, previews: !parsed.flags["no-previews"], log: line => console.log(line) });
+      return 0;
+    }
+    case "library": return cmdLibrary(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
     default: console.log(USAGE); return parsed.command && parsed.command !== "help" && parsed.command !== "--help" ? 2 : 0;
   }
 }

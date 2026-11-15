@@ -60,7 +60,7 @@ export async function cmdAsset(sub: string | undefined, root: string, flags: Fla
   switch (sub) {
     case "sources": return sources(root);
     case "enable": case "disable": return toggle(root, str(flags, "source") ?? str(flags, "id"), sub === "enable");
-    case "add": return add(root, flags);
+    case "add": return addAsset(root, flags);
     case "gen-sfx": return genSfx(root, flags);
     case "report": return report(root);
     case "credits": { const loaded = await loadProjectFromDisk(root); if (!loaded.content) { console.log("FAILED: validate のエラーを直してください"); return 1; } console.log(creditLines(loaded.content).join("\n")); return 0; }
@@ -104,7 +104,11 @@ async function toggle(root: string, id: string | undefined, enabled: boolean): P
   return 0;
 }
 
-async function add(root: string, flags: Flags): Promise<number> {
+/**
+ * `rpg asset add`: copies a file into the project and registers it with provenance, after the budget,
+ * source and schema checks. `extra` lets other commands (rpg library add) record more manifest fields.
+ */
+export async function addAsset(root: string, flags: Flags, extra: Partial<AssetEntry> = {}): Promise<number> {
   const file = str(flags, "file"), id = str(flags, "id"), kind = str(flags, "kind") as AssetEntry["kind"] | undefined;
   if (!file || !id || !kind) { console.log("ERROR --file, --id, --kind が必要です"); return 2; }
   if (!IdSchema.safeParse(id).success) { console.log("ERROR --id は英数字と ._- で指定してください"); return 2; }
@@ -154,6 +158,7 @@ async function add(root: string, flags: Flags): Promise<number> {
     raw.loop = kind === "bgm" ? !flags["no-loop"] : false;
     if (str(flags, "volume")) raw.initialVolume = Number(str(flags, "volume"));
   }
+  Object.assign(raw, extra);
   const parsedEntry = AssetEntrySchema.safeParse(raw);
   const checked = AssetManifestSchema.safeParse({ formatVersion: 1, assets: [raw] });
   if (parsedEntry.success && !checked.success) { for (const issue of checked.error.issues) console.log(`ERROR ${issue.path.slice(2).join(".")}: ${issue.message}`); console.log("FAILED asset add: 何も書き込んでいません"); return 1; }

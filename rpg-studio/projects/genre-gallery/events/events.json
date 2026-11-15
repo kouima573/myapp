@@ -1,4 +1,21 @@
 {
   "formatVersion": 2,
-  "events": []
+  "events": [
+    {
+      "id": "garden-ruin-guardian",
+      "label": "遺跡の番人",
+      "once": true,
+      "effects": [
+        {
+          "type": "message",
+          "text": "魔法陣が光り、骸骨兵が現れた！"
+        },
+        {
+          "type": "battle",
+          "enemy": "garden-skeleton",
+          "onDefeat": "continue"
+        }
+      ]
+    }
+  ]
 }

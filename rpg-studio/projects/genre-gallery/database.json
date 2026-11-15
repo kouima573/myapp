@@ -45,7 +45,8 @@
           "every": 2,
           "hpScale": 1.5
         }
-      }
+      },
+      "sprite": "mon-elemental-fire"
     },
     {
       "id": "gem-golem",
@@ -72,7 +73,8 @@
           "hpScale": 1.5,
           "enemyEvery": 3
         }
-      }
+      },
+      "sprite": "mon-golem-crystal"
     },
     {
       "id": "riddler",
@@ -124,7 +126,8 @@
             }
           ]
         }
-      }
+      },
+      "sprite": "mon-eye"
     },
     {
       "id": "slime-king",
@@ -160,7 +163,8 @@
             "####################"
           ]
         }
-      }
+      },
+      "sprite": "mon-slime-king"
     },
     {
       "id": "gallery-slime",
@@ -180,6 +184,95 @@
       "canFlee": true,
       "tags": [
         "gallery"
+      ],
+      "sprite": "mon-slime-green"
+    },
+    {
+      "id": "garden-slime",
+      "name": "庭のスライム",
+      "sprite": "mon-slime-green",
+      "background": "bg-field",
+      "stats": {
+        "maxHp": 6,
+        "attack": 3,
+        "defense": 0
+      },
+      "actions": [
+        {
+          "name": "体当たり",
+          "power": 1
+        }
+      ],
+      "drops": [],
+      "canFlee": true,
+      "tags": [
+        "garden"
+      ]
+    },
+    {
+      "id": "garden-bat",
+      "name": "庭のコウモリ",
+      "sprite": "mon-bat",
+      "background": "bg-forest",
+      "stats": {
+        "maxHp": 5,
+        "attack": 4,
+        "defense": 0
+      },
+      "actions": [
+        {
+          "name": "かみつき",
+          "power": 1
+        }
+      ],
+      "drops": [],
+      "canFlee": true,
+      "tags": [
+        "garden"
+      ]
+    },
+    {
+      "id": "garden-wolf",
+      "name": "灰色狼",
+      "sprite": "mon-wolf",
+      "background": "bg-field",
+      "stats": {
+        "maxHp": 9,
+        "attack": 4,
+        "defense": 1
+      },
+      "actions": [
+        {
+          "name": "かみつき",
+          "power": 2
+        }
+      ],
+      "drops": [],
+      "canFlee": true,
+      "tags": [
+        "garden"
+      ]
+    },
+    {
+      "id": "garden-skeleton",
+      "name": "遺跡の骸骨兵",
+      "sprite": "mon-skeleton",
+      "background": "bg-cave",
+      "stats": {
+        "maxHp": 12,
+        "attack": 5,
+        "defense": 1
+      },
+      "actions": [
+        {
+          "name": "斬りつけ",
+          "power": 2
+        }
+      ],
+      "drops": [],
+      "canFlee": true,
+      "tags": [
+        "garden"
       ]
     }
   ],

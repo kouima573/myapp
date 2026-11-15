@@ -1,0 +1,4205 @@
+{
+  "formatVersion": 1,
+  "generator": {
+    "tool": "rpg art generate",
+    "version": 1
+  },
+  "license": "MIT（rpg-studio リポジトリのライセンス。内蔵ジェネレーターによるオリジナル生成物）",
+  "origin": "generated",
+  "note": "すべて packages/cli/src/artgen のコードが手続き的に描いたオリジナル素材です（第三者素材・既存作品の模写なし）。pnpm rpg art generate で同じ結果を再生成できます。プロジェクトへは pnpm rpg library add <id...> --project <dir> で取り込みます。",
+  "items": [
+    {
+      "id": "lib-tiles-field",
+      "kind": "tileset",
+      "title": "野外（地面・木・水辺）",
+      "path": "tilesets/lib-tiles-field.png",
+      "tags": [
+        "field",
+        "nature",
+        "outdoor"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 8,
+      "rows": 6,
+      "tiles": [
+        {
+          "key": "grass",
+          "name": "草地",
+          "index": 0,
+          "passable": true,
+          "color": "#659e45",
+          "tags": [
+            "grass",
+            "ground"
+          ]
+        },
+        {
+          "key": "grass-2",
+          "name": "草地2",
+          "index": 1,
+          "passable": true,
+          "color": "#659d46",
+          "tags": [
+            "grass",
+            "ground"
+          ]
+        },
+        {
+          "key": "grass-dark",
+          "name": "濃い草地",
+          "index": 2,
+          "passable": true,
+          "color": "#4e873a",
+          "tags": [
+            "grass",
+            "ground"
+          ]
+        },
+        {
+          "key": "tall-grass",
+          "name": "背の高い草",
+          "index": 3,
+          "passable": true,
+          "color": "#407536",
+          "tags": [
+            "grass",
+            "encounter"
+          ]
+        },
+        {
+          "key": "flowers-red",
+          "name": "草花（赤・黄）",
+          "index": 4,
+          "passable": true,
+          "color": "#689e46",
+          "tags": [
+            "grass",
+            "flower"
+          ]
+        },
+        {
+          "key": "flowers-blue",
+          "name": "草花（青・白）",
+          "index": 5,
+          "passable": true,
+          "color": "#5f9945",
+          "tags": [
+            "grass",
+            "flower"
+          ]
+        },
+        {
+          "key": "dirt",
+          "name": "土の道",
+          "index": 6,
+          "passable": true,
+          "color": "#9b744d",
+          "tags": [
+            "path",
+            "ground"
+          ]
+        },
+        {
+          "key": "dirt-2",
+          "name": "土の道2",
+          "index": 7,
+          "passable": true,
+          "color": "#a07d53",
+          "tags": [
+            "path",
+            "ground"
+          ]
+        },
+        {
+          "key": "sand",
+          "name": "砂地",
+          "index": 8,
+          "passable": true,
+          "color": "#dbc282",
+          "tags": [
+            "sand",
+            "desert",
+            "beach"
+          ]
+        },
+        {
+          "key": "sand-shells",
+          "name": "貝殻の砂浜",
+          "index": 9,
+          "passable": true,
+          "color": "#dabd7d",
+          "tags": [
+            "sand",
+            "beach"
+          ]
+        },
+        {
+          "key": "snow",
+          "name": "雪原",
+          "index": 10,
+          "passable": true,
+          "color": "#e9f1f7",
+          "tags": [
+            "snow",
+            "winter"
+          ]
+        },
+        {
+          "key": "snow-2",
+          "name": "雪原2",
+          "index": 11,
+          "passable": true,
+          "color": "#e9f1f7",
+          "tags": [
+            "snow",
+            "winter"
+          ]
+        },
+        {
+          "key": "ice",
+          "name": "氷の床",
+          "index": 12,
+          "passable": true,
+          "color": "#8dc6e7",
+          "tags": [
+            "ice",
+            "winter"
+          ]
+        },
+        {
+          "key": "mud",
+          "name": "ぬかるみ",
+          "index": 13,
+          "passable": true,
+          "color": "#725436",
+          "tags": [
+            "mud"
+          ]
+        },
+        {
+          "key": "swamp",
+          "name": "沼",
+          "index": 14,
+          "passable": true,
+          "color": "#3c552c",
+          "tags": [
+            "swamp",
+            "encounter"
+          ]
+        },
+        {
+          "key": "soil",
+          "name": "耕した畑",
+          "index": 15,
+          "passable": true,
+          "color": "#704a2f",
+          "tags": [
+            "farm",
+            "ground"
+          ]
+        },
+        {
+          "key": "water",
+          "name": "浅い水",
+          "index": 16,
+          "passable": false,
+          "color": "#3666ae",
+          "tags": [
+            "water"
+          ]
+        },
+        {
+          "key": "water-deep",
+          "name": "深い水",
+          "index": 17,
+          "passable": false,
+          "color": "#26478e",
+          "tags": [
+            "water"
+          ]
+        },
+        {
+          "key": "lava",
+          "name": "溶岩",
+          "index": 18,
+          "passable": false,
+          "color": "#a66b44",
+          "tags": [
+            "lava",
+            "volcano"
+          ]
+        },
+        {
+          "key": "shore-n",
+          "name": "岸辺（上が陸）",
+          "index": 19,
+          "passable": false,
+          "color": "#5b8e83",
+          "tags": [
+            "water",
+            "shore"
+          ]
+        },
+        {
+          "key": "shore-s",
+          "name": "岸辺（下が陸）",
+          "index": 20,
+          "passable": false,
+          "color": "#568a87",
+          "tags": [
+            "water",
+            "shore"
+          ]
+        },
+        {
+          "key": "shore-w",
+          "name": "岸辺（左が陸）",
+          "index": 21,
+          "passable": false,
+          "color": "#5e918a",
+          "tags": [
+            "water",
+            "shore"
+          ]
+        },
+        {
+          "key": "shore-e",
+          "name": "岸辺（右が陸）",
+          "index": 22,
+          "passable": false,
+          "color": "#54827f",
+          "tags": [
+            "water",
+            "shore"
+          ]
+        },
+        {
+          "key": "lily",
+          "name": "蓮の葉の水面",
+          "index": 23,
+          "passable": false,
+          "color": "#386ea3",
+          "tags": [
+            "water"
+          ]
+        },
+        {
+          "key": "reeds",
+          "name": "葦の水辺",
+          "index": 24,
+          "passable": false,
+          "color": "#45719d",
+          "tags": [
+            "water",
+            "swamp"
+          ]
+        },
+        {
+          "key": "tree",
+          "name": "広葉樹",
+          "index": 25,
+          "passable": false,
+          "color": "#528740",
+          "tags": [
+            "tree",
+            "forest"
+          ]
+        },
+        {
+          "key": "tree-fruit",
+          "name": "実のなる木",
+          "index": 26,
+          "passable": false,
+          "color": "#598a42",
+          "tags": [
+            "tree",
+            "forest"
+          ]
+        },
+        {
+          "key": "tree-autumn",
+          "name": "紅葉の木",
+          "index": 27,
+          "passable": false,
+          "color": "#797439",
+          "tags": [
+            "tree",
+            "forest",
+            "autumn"
+          ]
+        },
+        {
+          "key": "pine",
+          "name": "針葉樹",
+          "index": 28,
+          "passable": false,
+          "color": "#43763d",
+          "tags": [
+            "tree",
+            "forest"
+          ]
+        },
+        {
+          "key": "pine-snow",
+          "name": "雪の針葉樹",
+          "index": 29,
+          "passable": false,
+          "color": "#adbdbd",
+          "tags": [
+            "tree",
+            "winter"
+          ]
+        },
+        {
+          "key": "palm",
+          "name": "ヤシの木",
+          "index": 30,
+          "passable": false,
+          "color": "#aca16a",
+          "tags": [
+            "tree",
+            "beach",
+            "desert"
+          ]
+        },
+        {
+          "key": "dead-tree",
+          "name": "枯れ木",
+          "index": 31,
+          "passable": false,
+          "color": "#88694a",
+          "tags": [
+            "tree",
+            "wasteland"
+          ]
+        },
+        {
+          "key": "bush",
+          "name": "茂み",
+          "index": 32,
+          "passable": false,
+          "color": "#538d40",
+          "tags": [
+            "bush"
+          ]
+        },
+        {
+          "key": "bush-berry",
+          "name": "木の実の茂み",
+          "index": 33,
+          "passable": false,
+          "color": "#558d43",
+          "tags": [
+            "bush"
+          ]
+        },
+        {
+          "key": "hedge",
+          "name": "生け垣",
+          "index": 34,
+          "passable": false,
+          "color": "#3e773f",
+          "tags": [
+            "hedge",
+            "town"
+          ]
+        },
+        {
+          "key": "rock",
+          "name": "小岩",
+          "index": 35,
+          "passable": false,
+          "color": "#65954a",
+          "tags": [
+            "rock"
+          ]
+        },
+        {
+          "key": "boulder",
+          "name": "大岩",
+          "index": 36,
+          "passable": false,
+          "color": "#638950",
+          "tags": [
+            "rock",
+            "pushable"
+          ]
+        },
+        {
+          "key": "stump",
+          "name": "切り株",
+          "index": 37,
+          "passable": false,
+          "color": "#597d38",
+          "tags": [
+            "tree"
+          ]
+        },
+        {
+          "key": "log",
+          "name": "倒木",
+          "index": 38,
+          "passable": false,
+          "color": "#65843d",
+          "tags": [
+            "tree"
+          ]
+        },
+        {
+          "key": "mushrooms",
+          "name": "キノコの群生",
+          "index": 39,
+          "passable": true,
+          "color": "#5b733c",
+          "tags": [
+            "forest"
+          ]
+        },
+        {
+          "key": "cactus",
+          "name": "サボテン",
+          "index": 40,
+          "passable": false,
+          "color": "#aeaa6f",
+          "tags": [
+            "desert"
+          ]
+        },
+        {
+          "key": "desert-rock",
+          "name": "砂岩",
+          "index": 41,
+          "passable": false,
+          "color": "#c4a46e",
+          "tags": [
+            "desert",
+            "rock"
+          ]
+        },
+        {
+          "key": "snow-rock",
+          "name": "雪をかぶった岩",
+          "index": 42,
+          "passable": false,
+          "color": "#bec7d2",
+          "tags": [
+            "winter",
+            "rock"
+          ]
+        },
+        {
+          "key": "crops-wheat",
+          "name": "麦畑",
+          "index": 43,
+          "passable": false,
+          "color": "#a47e49",
+          "tags": [
+            "farm"
+          ]
+        },
+        {
+          "key": "crops-cabbage",
+          "name": "キャベツ畑",
+          "index": 44,
+          "passable": false,
+          "color": "#566132",
+          "tags": [
+            "farm"
+          ]
+        },
+        {
+          "key": "cliff",
+          "name": "崖",
+          "index": 45,
+          "passable": false,
+          "color": "#7a685a",
+          "tags": [
+            "cliff",
+            "rock"
+          ]
+        },
+        {
+          "key": "cliff-top",
+          "name": "崖の上（草）",
+          "index": 46,
+          "passable": false,
+          "color": "#68724a",
+          "tags": [
+            "cliff"
+          ]
+        }
+      ],
+      "bytes": 37512
+    },
+    {
+      "id": "lib-tiles-town",
+      "kind": "tileset",
+      "title": "町（道・壁・屋根・建具）",
+      "path": "tilesets/lib-tiles-town.png",
+      "tags": [
+        "town",
+        "village",
+        "building"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 8,
+      "rows": 6,
+      "tiles": [
+        {
+          "key": "cobble",
+          "name": "石畳",
+          "index": 0,
+          "passable": true,
+          "color": "#8c887f",
+          "tags": [
+            "path",
+            "town"
+          ]
+        },
+        {
+          "key": "cobble-warm",
+          "name": "石畳（暖色）",
+          "index": 1,
+          "passable": true,
+          "color": "#9f876f",
+          "tags": [
+            "path",
+            "town"
+          ]
+        },
+        {
+          "key": "brick-road",
+          "name": "レンガ道",
+          "index": 2,
+          "passable": true,
+          "color": "#996658",
+          "tags": [
+            "path",
+            "town"
+          ]
+        },
+        {
+          "key": "plaza",
+          "name": "広場の敷石",
+          "index": 3,
+          "passable": true,
+          "color": "#a79f8f",
+          "tags": [
+            "path",
+            "town"
+          ]
+        },
+        {
+          "key": "brick-wall",
+          "name": "レンガ壁",
+          "index": 4,
+          "passable": false,
+          "color": "#955848",
+          "tags": [
+            "wall"
+          ]
+        },
+        {
+          "key": "stone-wall",
+          "name": "石壁",
+          "index": 5,
+          "passable": false,
+          "color": "#8c8b87",
+          "tags": [
+            "wall",
+            "castle"
+          ]
+        },
+        {
+          "key": "sandstone-wall",
+          "name": "砂岩の壁",
+          "index": 6,
+          "passable": false,
+          "color": "#bb9463",
+          "tags": [
+            "wall",
+            "desert"
+          ]
+        },
+        {
+          "key": "plank-wall",
+          "name": "板壁",
+          "index": 7,
+          "passable": false,
+          "color": "#9d643a",
+          "tags": [
+            "wall"
+          ]
+        },
+        {
+          "key": "plaster-wall",
+          "name": "漆喰と木組みの壁",
+          "index": 8,
+          "passable": false,
+          "color": "#c1a982",
+          "tags": [
+            "wall"
+          ]
+        },
+        {
+          "key": "roof-red",
+          "name": "屋根（赤）",
+          "index": 9,
+          "passable": false,
+          "color": "#98453f",
+          "tags": [
+            "roof"
+          ]
+        },
+        {
+          "key": "roof-blue",
+          "name": "屋根（青）",
+          "index": 10,
+          "passable": false,
+          "color": "#3c5291",
+          "tags": [
+            "roof"
+          ]
+        },
+        {
+          "key": "roof-green",
+          "name": "屋根（緑）",
+          "index": 11,
+          "passable": false,
+          "color": "#487b4b",
+          "tags": [
+            "roof"
+          ]
+        },
+        {
+          "key": "roof-brown",
+          "name": "屋根（茶）",
+          "index": 12,
+          "passable": false,
+          "color": "#7d4f36",
+          "tags": [
+            "roof"
+          ]
+        },
+        {
+          "key": "roof-slate",
+          "name": "屋根（灰）",
+          "index": 13,
+          "passable": false,
+          "color": "#565c6c",
+          "tags": [
+            "roof"
+          ]
+        },
+        {
+          "key": "roof-purple",
+          "name": "屋根（紫）",
+          "index": 14,
+          "passable": false,
+          "color": "#654a7e",
+          "tags": [
+            "roof"
+          ]
+        },
+        {
+          "key": "roof-thatch",
+          "name": "わら屋根",
+          "index": 15,
+          "passable": false,
+          "color": "#caa556",
+          "tags": [
+            "roof"
+          ]
+        },
+        {
+          "key": "door-wood",
+          "name": "木の扉",
+          "index": 16,
+          "passable": true,
+          "color": "#8c6749",
+          "tags": [
+            "door"
+          ]
+        },
+        {
+          "key": "door-brick",
+          "name": "レンガ壁の扉",
+          "index": 17,
+          "passable": true,
+          "color": "#8c6048",
+          "tags": [
+            "door"
+          ]
+        },
+        {
+          "key": "door-arch",
+          "name": "アーチの扉",
+          "index": 18,
+          "passable": true,
+          "color": "#816f60",
+          "tags": [
+            "door",
+            "castle"
+          ]
+        },
+        {
+          "key": "window",
+          "name": "窓",
+          "index": 19,
+          "passable": false,
+          "color": "#938069",
+          "tags": [
+            "window"
+          ]
+        },
+        {
+          "key": "window-lit",
+          "name": "明かりの窓",
+          "index": 20,
+          "passable": false,
+          "color": "#a48458",
+          "tags": [
+            "window",
+            "night"
+          ]
+        },
+        {
+          "key": "window-brick",
+          "name": "レンガ壁の窓",
+          "index": 21,
+          "passable": false,
+          "color": "#835e56",
+          "tags": [
+            "window"
+          ]
+        },
+        {
+          "key": "stairs-up",
+          "name": "上り階段",
+          "index": 22,
+          "passable": true,
+          "color": "#878681",
+          "tags": [
+            "stairs"
+          ]
+        },
+        {
+          "key": "stairs-down",
+          "name": "下り階段",
+          "index": 23,
+          "passable": true,
+          "color": "#676463",
+          "tags": [
+            "stairs"
+          ]
+        },
+        {
+          "key": "bridge-h",
+          "name": "橋（横）",
+          "index": 24,
+          "passable": true,
+          "color": "#806151",
+          "tags": [
+            "bridge",
+            "water"
+          ]
+        },
+        {
+          "key": "bridge-v",
+          "name": "橋（縦）",
+          "index": 25,
+          "passable": true,
+          "color": "#826352",
+          "tags": [
+            "bridge",
+            "water"
+          ]
+        },
+        {
+          "key": "fence",
+          "name": "木の柵",
+          "index": 26,
+          "passable": false,
+          "color": "#727d41",
+          "tags": [
+            "fence"
+          ]
+        },
+        {
+          "key": "fence-iron",
+          "name": "鉄柵",
+          "index": 27,
+          "passable": false,
+          "color": "#656468",
+          "tags": [
+            "fence",
+            "town"
+          ]
+        },
+        {
+          "key": "well",
+          "name": "井戸",
+          "index": 28,
+          "passable": false,
+          "color": "#596a42",
+          "tags": [
+            "town"
+          ]
+        },
+        {
+          "key": "signpost",
+          "name": "立て札",
+          "index": 29,
+          "passable": false,
+          "color": "#6d8742",
+          "tags": [
+            "sign"
+          ]
+        },
+        {
+          "key": "lamp",
+          "name": "街灯",
+          "index": 30,
+          "passable": false,
+          "color": "#79756d",
+          "tags": [
+            "town",
+            "light"
+          ]
+        },
+        {
+          "key": "fountain",
+          "name": "噴水",
+          "index": 31,
+          "passable": false,
+          "color": "#777c82",
+          "tags": [
+            "town",
+            "water"
+          ]
+        },
+        {
+          "key": "bench",
+          "name": "ベンチ",
+          "index": 32,
+          "passable": false,
+          "color": "#83705f",
+          "tags": [
+            "town"
+          ]
+        },
+        {
+          "key": "planter",
+          "name": "花壇",
+          "index": 33,
+          "passable": false,
+          "color": "#807461",
+          "tags": [
+            "town",
+            "flower"
+          ]
+        },
+        {
+          "key": "market-stall",
+          "name": "露店",
+          "index": 34,
+          "passable": false,
+          "color": "#8f7161",
+          "tags": [
+            "town",
+            "shop"
+          ]
+        },
+        {
+          "key": "hay",
+          "name": "干し草",
+          "index": 35,
+          "passable": false,
+          "color": "#839547",
+          "tags": [
+            "farm"
+          ]
+        },
+        {
+          "key": "gravestone",
+          "name": "墓石",
+          "index": 36,
+          "passable": false,
+          "color": "#5e8153",
+          "tags": [
+            "grave",
+            "graveyard"
+          ]
+        },
+        {
+          "key": "statue",
+          "name": "石像",
+          "index": 37,
+          "passable": false,
+          "color": "#85837c",
+          "tags": [
+            "statue"
+          ]
+        },
+        {
+          "key": "banner-wall",
+          "name": "旗のかかった壁",
+          "index": 38,
+          "passable": false,
+          "color": "#747886",
+          "tags": [
+            "wall",
+            "castle"
+          ]
+        },
+        {
+          "key": "barrel-out",
+          "name": "樽（屋外）",
+          "index": 39,
+          "passable": false,
+          "color": "#88786c",
+          "tags": [
+            "container"
+          ]
+        },
+        {
+          "key": "crate-out",
+          "name": "木箱（屋外）",
+          "index": 40,
+          "passable": false,
+          "color": "#98836e",
+          "tags": [
+            "container",
+            "pushable"
+          ]
+        },
+        {
+          "key": "anvil",
+          "name": "金床",
+          "index": 41,
+          "passable": false,
+          "color": "#7c7a77",
+          "tags": [
+            "town",
+            "shop"
+          ]
+        }
+      ],
+      "bytes": 28696
+    },
+    {
+      "id": "lib-tiles-interior",
+      "kind": "tileset",
+      "title": "屋内（床・家具）",
+      "path": "tilesets/lib-tiles-interior.png",
+      "tags": [
+        "interior",
+        "house",
+        "shop"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 8,
+      "rows": 5,
+      "tiles": [
+        {
+          "key": "floor-wood",
+          "name": "板張りの床",
+          "index": 0,
+          "passable": true,
+          "color": "#9b6138",
+          "tags": [
+            "floor"
+          ]
+        },
+        {
+          "key": "floor-wood-dark",
+          "name": "濃い板張りの床",
+          "index": 1,
+          "passable": true,
+          "color": "#75462a",
+          "tags": [
+            "floor"
+          ]
+        },
+        {
+          "key": "floor-wood-light",
+          "name": "白木の床",
+          "index": 2,
+          "passable": true,
+          "color": "#bd8c61",
+          "tags": [
+            "floor"
+          ]
+        },
+        {
+          "key": "carpet-red",
+          "name": "赤い絨毯",
+          "index": 3,
+          "passable": true,
+          "color": "#c44e3d",
+          "tags": [
+            "floor",
+            "carpet"
+          ]
+        },
+        {
+          "key": "carpet-blue",
+          "name": "青い絨毯",
+          "index": 4,
+          "passable": true,
+          "color": "#506dad",
+          "tags": [
+            "floor",
+            "carpet"
+          ]
+        },
+        {
+          "key": "carpet-green",
+          "name": "緑の絨毯",
+          "index": 5,
+          "passable": true,
+          "color": "#4e9149",
+          "tags": [
+            "floor",
+            "carpet"
+          ]
+        },
+        {
+          "key": "floor-checker",
+          "name": "市松模様の床",
+          "index": 6,
+          "passable": true,
+          "color": "#9a9695",
+          "tags": [
+            "floor"
+          ]
+        },
+        {
+          "key": "floor-tile",
+          "name": "タイルの床",
+          "index": 7,
+          "passable": true,
+          "color": "#c6c2b5",
+          "tags": [
+            "floor"
+          ]
+        },
+        {
+          "key": "tatami",
+          "name": "畳",
+          "index": 8,
+          "passable": true,
+          "color": "#aaa76a",
+          "tags": [
+            "floor",
+            "japanese"
+          ]
+        },
+        {
+          "key": "wall-wallpaper",
+          "name": "壁紙の壁",
+          "index": 9,
+          "passable": false,
+          "color": "#b39873",
+          "tags": [
+            "wall"
+          ]
+        },
+        {
+          "key": "wall-stone-in",
+          "name": "石造りの内壁",
+          "index": 10,
+          "passable": false,
+          "color": "#8e867c",
+          "tags": [
+            "wall"
+          ]
+        },
+        {
+          "key": "table",
+          "name": "テーブル",
+          "index": 11,
+          "passable": false,
+          "color": "#976540",
+          "tags": [
+            "furniture"
+          ]
+        },
+        {
+          "key": "table-cloth",
+          "name": "クロスのテーブル",
+          "index": 12,
+          "passable": false,
+          "color": "#b08c74",
+          "tags": [
+            "furniture"
+          ]
+        },
+        {
+          "key": "chair",
+          "name": "椅子",
+          "index": 13,
+          "passable": false,
+          "color": "#925d38",
+          "tags": [
+            "furniture"
+          ]
+        },
+        {
+          "key": "stool",
+          "name": "丸椅子",
+          "index": 14,
+          "passable": false,
+          "color": "#945d38",
+          "tags": [
+            "furniture"
+          ]
+        },
+        {
+          "key": "bed",
+          "name": "ベッド",
+          "index": 15,
+          "passable": false,
+          "color": "#816c6d",
+          "tags": [
+            "furniture",
+            "rest"
+          ]
+        },
+        {
+          "key": "bed-red",
+          "name": "ベッド（赤）",
+          "index": 16,
+          "passable": false,
+          "color": "#9a5b45",
+          "tags": [
+            "furniture",
+            "rest"
+          ]
+        },
+        {
+          "key": "bookshelf",
+          "name": "本棚",
+          "index": 17,
+          "passable": false,
+          "color": "#7d644f",
+          "tags": [
+            "furniture",
+            "book"
+          ]
+        },
+        {
+          "key": "counter",
+          "name": "カウンター",
+          "index": 18,
+          "passable": false,
+          "color": "#9d663e",
+          "tags": [
+            "furniture",
+            "shop"
+          ]
+        },
+        {
+          "key": "cupboard",
+          "name": "食器棚",
+          "index": 19,
+          "passable": false,
+          "color": "#8a6a55",
+          "tags": [
+            "furniture"
+          ]
+        },
+        {
+          "key": "wardrobe",
+          "name": "衣装箪笥",
+          "index": 20,
+          "passable": false,
+          "color": "#875532",
+          "tags": [
+            "furniture"
+          ]
+        },
+        {
+          "key": "fireplace",
+          "name": "暖炉",
+          "index": 21,
+          "passable": false,
+          "color": "#6f5f57",
+          "tags": [
+            "furniture",
+            "light"
+          ]
+        },
+        {
+          "key": "stove",
+          "name": "かまど",
+          "index": 22,
+          "passable": false,
+          "color": "#6d5143",
+          "tags": [
+            "furniture",
+            "kitchen"
+          ]
+        },
+        {
+          "key": "pot",
+          "name": "壺",
+          "index": 23,
+          "passable": false,
+          "color": "#945937",
+          "tags": [
+            "container"
+          ]
+        },
+        {
+          "key": "barrel",
+          "name": "樽",
+          "index": 24,
+          "passable": false,
+          "color": "#905c3b",
+          "tags": [
+            "container"
+          ]
+        },
+        {
+          "key": "crate",
+          "name": "木箱",
+          "index": 25,
+          "passable": false,
+          "color": "#9d663f",
+          "tags": [
+            "container",
+            "pushable"
+          ]
+        },
+        {
+          "key": "chest",
+          "name": "宝箱",
+          "index": 26,
+          "passable": false,
+          "color": "#9b5b35",
+          "tags": [
+            "chest",
+            "container"
+          ]
+        },
+        {
+          "key": "chest-open",
+          "name": "開いた宝箱",
+          "index": 27,
+          "passable": false,
+          "color": "#965534",
+          "tags": [
+            "chest",
+            "container"
+          ]
+        },
+        {
+          "key": "rug",
+          "name": "敷物",
+          "index": 28,
+          "passable": true,
+          "color": "#a36347",
+          "tags": [
+            "floor",
+            "carpet"
+          ]
+        },
+        {
+          "key": "plant",
+          "name": "鉢植え",
+          "index": 29,
+          "passable": false,
+          "color": "#836439",
+          "tags": [
+            "furniture",
+            "plant"
+          ]
+        },
+        {
+          "key": "candle-table",
+          "name": "燭台の小卓",
+          "index": 30,
+          "passable": false,
+          "color": "#95603c",
+          "tags": [
+            "furniture",
+            "light"
+          ]
+        },
+        {
+          "key": "clock",
+          "name": "柱時計",
+          "index": 31,
+          "passable": false,
+          "color": "#855a3c",
+          "tags": [
+            "furniture"
+          ]
+        },
+        {
+          "key": "desk",
+          "name": "書き物机",
+          "index": 32,
+          "passable": false,
+          "color": "#8b5b3c",
+          "tags": [
+            "furniture",
+            "book"
+          ]
+        },
+        {
+          "key": "stairs-up-in",
+          "name": "上り階段（屋内）",
+          "index": 33,
+          "passable": true,
+          "color": "#9d6e48",
+          "tags": [
+            "stairs"
+          ]
+        },
+        {
+          "key": "stairs-down-in",
+          "name": "下り階段（屋内）",
+          "index": 34,
+          "passable": true,
+          "color": "#75533a",
+          "tags": [
+            "stairs"
+          ]
+        },
+        {
+          "key": "door-in",
+          "name": "部屋の扉",
+          "index": 35,
+          "passable": true,
+          "color": "#9e7e60",
+          "tags": [
+            "door"
+          ]
+        },
+        {
+          "key": "window-in",
+          "name": "屋内の窓",
+          "index": 36,
+          "passable": false,
+          "color": "#a69880",
+          "tags": [
+            "window"
+          ]
+        }
+      ],
+      "bytes": 22161
+    },
+    {
+      "id": "lib-tiles-dungeon",
+      "kind": "tileset",
+      "title": "ダンジョン（洞窟・遺跡・城）",
+      "path": "tilesets/lib-tiles-dungeon.png",
+      "tags": [
+        "dungeon",
+        "cave",
+        "ruins",
+        "castle"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 8,
+      "rows": 5,
+      "tiles": [
+        {
+          "key": "dungeon-floor",
+          "name": "ダンジョンの床",
+          "index": 0,
+          "passable": true,
+          "color": "#63646a",
+          "tags": [
+            "floor"
+          ]
+        },
+        {
+          "key": "dungeon-floor-cracked",
+          "name": "ひび割れた床",
+          "index": 1,
+          "passable": true,
+          "color": "#56575d",
+          "tags": [
+            "floor"
+          ]
+        },
+        {
+          "key": "moss-floor",
+          "name": "苔むした床",
+          "index": 2,
+          "passable": true,
+          "color": "#70825b",
+          "tags": [
+            "floor",
+            "ruins"
+          ]
+        },
+        {
+          "key": "cave-floor",
+          "name": "洞窟の床",
+          "index": 3,
+          "passable": true,
+          "color": "#6d6059",
+          "tags": [
+            "floor",
+            "cave"
+          ]
+        },
+        {
+          "key": "cave-floor-2",
+          "name": "洞窟の床2",
+          "index": 4,
+          "passable": true,
+          "color": "#746961",
+          "tags": [
+            "floor",
+            "cave"
+          ]
+        },
+        {
+          "key": "castle-floor",
+          "name": "城の床",
+          "index": 5,
+          "passable": true,
+          "color": "#9f9990",
+          "tags": [
+            "floor",
+            "castle"
+          ]
+        },
+        {
+          "key": "cave-wall",
+          "name": "洞窟の壁",
+          "index": 6,
+          "passable": false,
+          "color": "#62544e",
+          "tags": [
+            "wall",
+            "cave"
+          ]
+        },
+        {
+          "key": "dungeon-wall",
+          "name": "ダンジョンの壁",
+          "index": 7,
+          "passable": false,
+          "color": "#4f4f57",
+          "tags": [
+            "wall"
+          ]
+        },
+        {
+          "key": "ice-wall",
+          "name": "氷の壁",
+          "index": 8,
+          "passable": false,
+          "color": "#7ab3db",
+          "tags": [
+            "wall",
+            "ice"
+          ]
+        },
+        {
+          "key": "wall-torch",
+          "name": "松明の壁",
+          "index": 9,
+          "passable": false,
+          "color": "#504d51",
+          "tags": [
+            "wall",
+            "light"
+          ]
+        },
+        {
+          "key": "pillar",
+          "name": "石柱",
+          "index": 10,
+          "passable": false,
+          "color": "#978f86",
+          "tags": [
+            "pillar",
+            "ruins",
+            "castle"
+          ]
+        },
+        {
+          "key": "pillar-broken",
+          "name": "崩れた石柱",
+          "index": 11,
+          "passable": false,
+          "color": "#788263",
+          "tags": [
+            "pillar",
+            "ruins"
+          ]
+        },
+        {
+          "key": "altar",
+          "name": "祭壇",
+          "index": 12,
+          "passable": false,
+          "color": "#8d7e81",
+          "tags": [
+            "altar",
+            "temple"
+          ]
+        },
+        {
+          "key": "statue-dungeon",
+          "name": "守護像",
+          "index": 13,
+          "passable": false,
+          "color": "#5f5f67",
+          "tags": [
+            "statue"
+          ]
+        },
+        {
+          "key": "crystal-blue",
+          "name": "青い結晶",
+          "index": 14,
+          "passable": false,
+          "color": "#6e7d81",
+          "tags": [
+            "crystal",
+            "cave"
+          ]
+        },
+        {
+          "key": "crystal-purple",
+          "name": "紫の結晶",
+          "index": 15,
+          "passable": false,
+          "color": "#7b657e",
+          "tags": [
+            "crystal",
+            "cave"
+          ]
+        },
+        {
+          "key": "crystal-red",
+          "name": "赤い結晶",
+          "index": 16,
+          "passable": false,
+          "color": "#8b6665",
+          "tags": [
+            "crystal",
+            "cave"
+          ]
+        },
+        {
+          "key": "chest-dungeon",
+          "name": "宝箱（ダンジョン）",
+          "index": 17,
+          "passable": false,
+          "color": "#68544e",
+          "tags": [
+            "chest"
+          ]
+        },
+        {
+          "key": "chest-dungeon-open",
+          "name": "開いた宝箱（ダンジョン）",
+          "index": 18,
+          "passable": false,
+          "color": "#705b59",
+          "tags": [
+            "chest"
+          ]
+        },
+        {
+          "key": "chest-iron",
+          "name": "鉄の宝箱",
+          "index": 19,
+          "passable": false,
+          "color": "#6b6966",
+          "tags": [
+            "chest"
+          ]
+        },
+        {
+          "key": "stairs-down-stone",
+          "name": "下り階段（石）",
+          "index": 20,
+          "passable": true,
+          "color": "#4b4b51",
+          "tags": [
+            "stairs"
+          ]
+        },
+        {
+          "key": "stairs-up-stone",
+          "name": "上り階段（石）",
+          "index": 21,
+          "passable": true,
+          "color": "#626368",
+          "tags": [
+            "stairs"
+          ]
+        },
+        {
+          "key": "door-iron",
+          "name": "鉄の扉",
+          "index": 22,
+          "passable": true,
+          "color": "#5d5f68",
+          "tags": [
+            "door"
+          ]
+        },
+        {
+          "key": "gate",
+          "name": "鉄格子",
+          "index": 23,
+          "passable": false,
+          "color": "#575b67",
+          "tags": [
+            "door",
+            "gate"
+          ]
+        },
+        {
+          "key": "gate-open",
+          "name": "開いた鉄格子",
+          "index": 24,
+          "passable": true,
+          "color": "#575960",
+          "tags": [
+            "door",
+            "gate"
+          ]
+        },
+        {
+          "key": "pit",
+          "name": "穴",
+          "index": 25,
+          "passable": false,
+          "color": "#2c2b31",
+          "tags": [
+            "hole"
+          ]
+        },
+        {
+          "key": "chasm",
+          "name": "奈落",
+          "index": 26,
+          "passable": false,
+          "color": "#0b0a11",
+          "tags": [
+            "hole"
+          ]
+        },
+        {
+          "key": "spikes",
+          "name": "とげの罠",
+          "index": 27,
+          "passable": true,
+          "color": "#5a5b63",
+          "tags": [
+            "trap"
+          ]
+        },
+        {
+          "key": "pressure-plate",
+          "name": "感圧板",
+          "index": 28,
+          "passable": true,
+          "color": "#656363",
+          "tags": [
+            "trap",
+            "switch"
+          ]
+        },
+        {
+          "key": "lever",
+          "name": "レバー",
+          "index": 29,
+          "passable": false,
+          "color": "#4d4c52",
+          "tags": [
+            "switch"
+          ]
+        },
+        {
+          "key": "bones",
+          "name": "骨の散らばる床",
+          "index": 30,
+          "passable": true,
+          "color": "#72635a",
+          "tags": [
+            "floor",
+            "graveyard"
+          ]
+        },
+        {
+          "key": "cobweb",
+          "name": "クモの巣",
+          "index": 31,
+          "passable": true,
+          "color": "#68696e",
+          "tags": [
+            "floor"
+          ]
+        },
+        {
+          "key": "rubble",
+          "name": "瓦礫",
+          "index": 32,
+          "passable": false,
+          "color": "#676465",
+          "tags": [
+            "ruins",
+            "rock"
+          ]
+        },
+        {
+          "key": "magic-circle",
+          "name": "魔法陣",
+          "index": 33,
+          "passable": true,
+          "color": "#65767d",
+          "tags": [
+            "magic",
+            "warp"
+          ]
+        },
+        {
+          "key": "sealed-door",
+          "name": "封印の扉",
+          "index": 34,
+          "passable": false,
+          "color": "#605f6c",
+          "tags": [
+            "door",
+            "magic"
+          ]
+        },
+        {
+          "key": "water-pool",
+          "name": "地底の泉",
+          "index": 35,
+          "passable": false,
+          "color": "#3f5c7a",
+          "tags": [
+            "water",
+            "cave"
+          ]
+        },
+        {
+          "key": "lava-crack",
+          "name": "溶岩の裂け目",
+          "index": 36,
+          "passable": false,
+          "color": "#7b6a5d",
+          "tags": [
+            "lava",
+            "volcano"
+          ]
+        },
+        {
+          "key": "sarcophagus",
+          "name": "石棺",
+          "index": 37,
+          "passable": false,
+          "color": "#716d6a",
+          "tags": [
+            "graveyard",
+            "ruins"
+          ]
+        },
+        {
+          "key": "brazier",
+          "name": "かがり火",
+          "index": 38,
+          "passable": false,
+          "color": "#615c5e",
+          "tags": [
+            "light"
+          ]
+        }
+      ],
+      "bytes": 29329
+    },
+    {
+      "id": "chr-hero-swordsman",
+      "kind": "character",
+      "title": "剣士の若者",
+      "path": "characters/chr-hero-swordsman.png",
+      "tags": [
+        "hero",
+        "fighter"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3705
+    },
+    {
+      "id": "chr-hero-heroine",
+      "kind": "character",
+      "title": "旅の少女",
+      "path": "characters/chr-hero-heroine.png",
+      "tags": [
+        "hero"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3496
+    },
+    {
+      "id": "chr-knight",
+      "kind": "character",
+      "title": "騎士",
+      "path": "characters/chr-knight.png",
+      "tags": [
+        "knight",
+        "guard",
+        "fighter"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3692
+    },
+    {
+      "id": "chr-knight-dark",
+      "kind": "character",
+      "title": "黒騎士",
+      "path": "characters/chr-knight-dark.png",
+      "tags": [
+        "knight",
+        "villain"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3729
+    },
+    {
+      "id": "chr-guard",
+      "kind": "character",
+      "title": "門番",
+      "path": "characters/chr-guard.png",
+      "tags": [
+        "guard",
+        "town"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3649
+    },
+    {
+      "id": "chr-mage",
+      "kind": "character",
+      "title": "魔法使い",
+      "path": "characters/chr-mage.png",
+      "tags": [
+        "mage",
+        "magic"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3625
+    },
+    {
+      "id": "chr-mage-red",
+      "kind": "character",
+      "title": "炎の魔導士",
+      "path": "characters/chr-mage-red.png",
+      "tags": [
+        "mage",
+        "magic"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3561
+    },
+    {
+      "id": "chr-witch",
+      "kind": "character",
+      "title": "森の魔女",
+      "path": "characters/chr-witch.png",
+      "tags": [
+        "mage",
+        "witch"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3319
+    },
+    {
+      "id": "chr-priest",
+      "kind": "character",
+      "title": "司祭",
+      "path": "characters/chr-priest.png",
+      "tags": [
+        "priest",
+        "church",
+        "healer"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3038
+    },
+    {
+      "id": "chr-nun",
+      "kind": "character",
+      "title": "修道女",
+      "path": "characters/chr-nun.png",
+      "tags": [
+        "priest",
+        "church",
+        "healer"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 2927
+    },
+    {
+      "id": "chr-thief",
+      "kind": "character",
+      "title": "盗賊",
+      "path": "characters/chr-thief.png",
+      "tags": [
+        "thief",
+        "rogue"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3483
+    },
+    {
+      "id": "chr-hunter",
+      "kind": "character",
+      "title": "狩人",
+      "path": "characters/chr-hunter.png",
+      "tags": [
+        "hunter",
+        "ranger"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3673
+    },
+    {
+      "id": "chr-merchant",
+      "kind": "character",
+      "title": "商人",
+      "path": "characters/chr-merchant.png",
+      "tags": [
+        "merchant",
+        "shop",
+        "town"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3228
+    },
+    {
+      "id": "chr-shopkeeper",
+      "kind": "character",
+      "title": "道具屋",
+      "path": "characters/chr-shopkeeper.png",
+      "tags": [
+        "merchant",
+        "shop",
+        "town"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3153
+    },
+    {
+      "id": "chr-innkeeper",
+      "kind": "character",
+      "title": "宿屋の主人",
+      "path": "characters/chr-innkeeper.png",
+      "tags": [
+        "town",
+        "inn"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 2537
+    },
+    {
+      "id": "chr-elder",
+      "kind": "character",
+      "title": "長老",
+      "path": "characters/chr-elder.png",
+      "tags": [
+        "elder",
+        "village"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3509
+    },
+    {
+      "id": "chr-old-woman",
+      "kind": "character",
+      "title": "おばあさん",
+      "path": "characters/chr-old-woman.png",
+      "tags": [
+        "elder",
+        "village"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3153
+    },
+    {
+      "id": "chr-villager-man",
+      "kind": "character",
+      "title": "村の男",
+      "path": "characters/chr-villager-man.png",
+      "tags": [
+        "villager",
+        "village"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3111
+    },
+    {
+      "id": "chr-villager-woman",
+      "kind": "character",
+      "title": "村の女",
+      "path": "characters/chr-villager-woman.png",
+      "tags": [
+        "villager",
+        "village"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3149
+    },
+    {
+      "id": "chr-farmer",
+      "kind": "character",
+      "title": "農夫",
+      "path": "characters/chr-farmer.png",
+      "tags": [
+        "villager",
+        "farm"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3536
+    },
+    {
+      "id": "chr-child-boy",
+      "kind": "character",
+      "title": "男の子",
+      "path": "characters/chr-child-boy.png",
+      "tags": [
+        "child",
+        "village"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 2929
+    },
+    {
+      "id": "chr-child-girl",
+      "kind": "character",
+      "title": "女の子",
+      "path": "characters/chr-child-girl.png",
+      "tags": [
+        "child",
+        "village"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 2964
+    },
+    {
+      "id": "chr-noble",
+      "kind": "character",
+      "title": "貴族",
+      "path": "characters/chr-noble.png",
+      "tags": [
+        "noble",
+        "castle"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3282
+    },
+    {
+      "id": "chr-princess",
+      "kind": "character",
+      "title": "王女",
+      "path": "characters/chr-princess.png",
+      "tags": [
+        "noble",
+        "castle",
+        "royal"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3101
+    },
+    {
+      "id": "chr-king",
+      "kind": "character",
+      "title": "王",
+      "path": "characters/chr-king.png",
+      "tags": [
+        "noble",
+        "castle",
+        "royal"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3277
+    },
+    {
+      "id": "chr-elf-archer",
+      "kind": "character",
+      "title": "エルフの弓使い",
+      "path": "characters/chr-elf-archer.png",
+      "tags": [
+        "elf",
+        "ranger"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3571
+    },
+    {
+      "id": "chr-elf-sage",
+      "kind": "character",
+      "title": "エルフの賢者",
+      "path": "characters/chr-elf-sage.png",
+      "tags": [
+        "elf",
+        "mage"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3361
+    },
+    {
+      "id": "chr-dwarf",
+      "kind": "character",
+      "title": "ドワーフの鍛冶師",
+      "path": "characters/chr-dwarf.png",
+      "tags": [
+        "dwarf",
+        "smith"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3422
+    },
+    {
+      "id": "chr-miner",
+      "kind": "character",
+      "title": "鉱夫",
+      "path": "characters/chr-miner.png",
+      "tags": [
+        "dwarf",
+        "mine"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3568
+    },
+    {
+      "id": "chr-catfolk",
+      "kind": "character",
+      "title": "猫の獣人",
+      "path": "characters/chr-catfolk.png",
+      "tags": [
+        "beastfolk",
+        "cat"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3455
+    },
+    {
+      "id": "chr-wolffolk",
+      "kind": "character",
+      "title": "狼の獣人",
+      "path": "characters/chr-wolffolk.png",
+      "tags": [
+        "beastfolk",
+        "wolf",
+        "fighter"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3854
+    },
+    {
+      "id": "chr-rabbitfolk",
+      "kind": "character",
+      "title": "兎の獣人",
+      "path": "characters/chr-rabbitfolk.png",
+      "tags": [
+        "beastfolk",
+        "rabbit"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3053
+    },
+    {
+      "id": "chr-dogfolk",
+      "kind": "character",
+      "title": "犬の獣人",
+      "path": "characters/chr-dogfolk.png",
+      "tags": [
+        "beastfolk",
+        "dog"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3553
+    },
+    {
+      "id": "chr-oni",
+      "kind": "character",
+      "title": "鬼の若者",
+      "path": "characters/chr-oni.png",
+      "tags": [
+        "demon",
+        "oni"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3236
+    },
+    {
+      "id": "chr-demon",
+      "kind": "character",
+      "title": "魔族",
+      "path": "characters/chr-demon.png",
+      "tags": [
+        "demon",
+        "villain"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3489
+    },
+    {
+      "id": "chr-ninja",
+      "kind": "character",
+      "title": "忍び",
+      "path": "characters/chr-ninja.png",
+      "tags": [
+        "ninja",
+        "rogue"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3395
+    },
+    {
+      "id": "chr-samurai",
+      "kind": "character",
+      "title": "侍",
+      "path": "characters/chr-samurai.png",
+      "tags": [
+        "samurai",
+        "fighter"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3296
+    },
+    {
+      "id": "chr-sailor",
+      "kind": "character",
+      "title": "船乗り",
+      "path": "characters/chr-sailor.png",
+      "tags": [
+        "sailor",
+        "port"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3270
+    },
+    {
+      "id": "chr-pirate",
+      "kind": "character",
+      "title": "海賊",
+      "path": "characters/chr-pirate.png",
+      "tags": [
+        "pirate",
+        "villain",
+        "port"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3548
+    },
+    {
+      "id": "chr-bard",
+      "kind": "character",
+      "title": "吟遊詩人",
+      "path": "characters/chr-bard.png",
+      "tags": [
+        "bard",
+        "town"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3216
+    },
+    {
+      "id": "chr-scholar",
+      "kind": "character",
+      "title": "学者",
+      "path": "characters/chr-scholar.png",
+      "tags": [
+        "scholar",
+        "library"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3165
+    },
+    {
+      "id": "chr-dancer",
+      "kind": "character",
+      "title": "踊り子",
+      "path": "characters/chr-dancer.png",
+      "tags": [
+        "dancer",
+        "town"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 2990
+    },
+    {
+      "id": "chr-monk",
+      "kind": "character",
+      "title": "武闘家",
+      "path": "characters/chr-monk.png",
+      "tags": [
+        "monk",
+        "fighter"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 2529
+    },
+    {
+      "id": "chr-traveler",
+      "kind": "character",
+      "title": "フードの旅人",
+      "path": "characters/chr-traveler.png",
+      "tags": [
+        "traveler",
+        "mystery"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3570
+    },
+    {
+      "id": "chr-robot",
+      "kind": "character",
+      "title": "からくり人形",
+      "path": "characters/chr-robot.png",
+      "tags": [
+        "robot",
+        "machine"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3290
+    },
+    {
+      "id": "chr-ghost",
+      "kind": "character",
+      "title": "幽霊",
+      "path": "characters/chr-ghost.png",
+      "tags": [
+        "ghost",
+        "undead"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 2162
+    },
+    {
+      "id": "chr-skeleton-npc",
+      "kind": "character",
+      "title": "骸骨の住人",
+      "path": "characters/chr-skeleton-npc.png",
+      "tags": [
+        "undead",
+        "skeleton"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 2649
+    },
+    {
+      "id": "chr-doctor",
+      "kind": "character",
+      "title": "医者",
+      "path": "characters/chr-doctor.png",
+      "tags": [
+        "doctor",
+        "town",
+        "healer"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3256
+    },
+    {
+      "id": "chr-chef",
+      "kind": "character",
+      "title": "料理人",
+      "path": "characters/chr-chef.png",
+      "tags": [
+        "chef",
+        "inn"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3047
+    },
+    {
+      "id": "chr-fairy-kid",
+      "kind": "character",
+      "title": "妖精の子",
+      "path": "characters/chr-fairy-kid.png",
+      "tags": [
+        "fairy",
+        "child"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 2762
+    },
+    {
+      "id": "chr-blue-haired-mage",
+      "kind": "character",
+      "title": "青髪の魔術師",
+      "path": "characters/chr-blue-haired-mage.png",
+      "tags": [
+        "mage",
+        "hero"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3238
+    },
+    {
+      "id": "chr-pink-healer",
+      "kind": "character",
+      "title": "癒し手",
+      "path": "characters/chr-pink-healer.png",
+      "tags": [
+        "healer",
+        "hero"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3724
+    },
+    {
+      "id": "chr-soldier",
+      "kind": "character",
+      "title": "兵士",
+      "path": "characters/chr-soldier.png",
+      "tags": [
+        "soldier",
+        "guard"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 4,
+      "frameDurationMs": 160,
+      "frameOrder": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "loop": true,
+      "bytes": 3504
+    },
+    {
+      "id": "mon-slime-green",
+      "kind": "enemy",
+      "title": "スライム",
+      "path": "enemies/mon-slime-green.png",
+      "tags": [
+        "slime",
+        "weak"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1654
+    },
+    {
+      "id": "mon-slime-blue",
+      "kind": "enemy",
+      "title": "アオスライム",
+      "path": "enemies/mon-slime-blue.png",
+      "tags": [
+        "slime",
+        "water"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1654
+    },
+    {
+      "id": "mon-slime-red",
+      "kind": "enemy",
+      "title": "ヒノスライム",
+      "path": "enemies/mon-slime-red.png",
+      "tags": [
+        "slime",
+        "fire"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1654
+    },
+    {
+      "id": "mon-slime-metal",
+      "kind": "enemy",
+      "title": "メタルスライム",
+      "path": "enemies/mon-slime-metal.png",
+      "tags": [
+        "slime",
+        "rare"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1654
+    },
+    {
+      "id": "mon-slime-gold",
+      "kind": "enemy",
+      "title": "コガネスライム",
+      "path": "enemies/mon-slime-gold.png",
+      "tags": [
+        "slime",
+        "rare"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1654
+    },
+    {
+      "id": "mon-slime-poison",
+      "kind": "enemy",
+      "title": "ドクスライム",
+      "path": "enemies/mon-slime-poison.png",
+      "tags": [
+        "slime",
+        "poison"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1654
+    },
+    {
+      "id": "mon-slime-king",
+      "kind": "enemy",
+      "title": "スライムの王",
+      "path": "enemies/mon-slime-king.png",
+      "tags": [
+        "slime",
+        "boss"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1812
+    },
+    {
+      "id": "mon-bat",
+      "kind": "enemy",
+      "title": "コウモリ",
+      "path": "enemies/mon-bat.png",
+      "tags": [
+        "bat",
+        "cave",
+        "flying"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1598
+    },
+    {
+      "id": "mon-bat-vampire",
+      "kind": "enemy",
+      "title": "吸血コウモリ",
+      "path": "enemies/mon-bat-vampire.png",
+      "tags": [
+        "bat",
+        "night",
+        "flying"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1598
+    },
+    {
+      "id": "mon-bat-ice",
+      "kind": "enemy",
+      "title": "氷のコウモリ",
+      "path": "enemies/mon-bat-ice.png",
+      "tags": [
+        "bat",
+        "ice",
+        "flying"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1598
+    },
+    {
+      "id": "mon-wolf",
+      "kind": "enemy",
+      "title": "灰色狼",
+      "path": "enemies/mon-wolf.png",
+      "tags": [
+        "wolf",
+        "beast",
+        "forest"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1625
+    },
+    {
+      "id": "mon-wolf-fire",
+      "kind": "enemy",
+      "title": "炎の狼",
+      "path": "enemies/mon-wolf-fire.png",
+      "tags": [
+        "wolf",
+        "beast",
+        "fire"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1686
+    },
+    {
+      "id": "mon-wolf-snow",
+      "kind": "enemy",
+      "title": "雪狼",
+      "path": "enemies/mon-wolf-snow.png",
+      "tags": [
+        "wolf",
+        "beast",
+        "ice"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1625
+    },
+    {
+      "id": "mon-wolf-shadow",
+      "kind": "enemy",
+      "title": "影の獣",
+      "path": "enemies/mon-wolf-shadow.png",
+      "tags": [
+        "wolf",
+        "beast",
+        "dark"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1686
+    },
+    {
+      "id": "mon-boar",
+      "kind": "enemy",
+      "title": "大猪",
+      "path": "enemies/mon-boar.png",
+      "tags": [
+        "wolf",
+        "beast",
+        "forest"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1662
+    },
+    {
+      "id": "mon-bird-blue",
+      "kind": "enemy",
+      "title": "青い鳥",
+      "path": "enemies/mon-bird-blue.png",
+      "tags": [
+        "bird",
+        "flying"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 2073
+    },
+    {
+      "id": "mon-bird-fire",
+      "kind": "enemy",
+      "title": "火の鳥",
+      "path": "enemies/mon-bird-fire.png",
+      "tags": [
+        "bird",
+        "fire",
+        "flying"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 2073
+    },
+    {
+      "id": "mon-crow",
+      "kind": "enemy",
+      "title": "大ガラス",
+      "path": "enemies/mon-crow.png",
+      "tags": [
+        "bird",
+        "dark",
+        "flying"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 2073
+    },
+    {
+      "id": "mon-golem-stone",
+      "kind": "enemy",
+      "title": "石の巨人",
+      "path": "enemies/mon-golem-stone.png",
+      "tags": [
+        "golem",
+        "ruins"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1589
+    },
+    {
+      "id": "mon-golem-iron",
+      "kind": "enemy",
+      "title": "鉄の巨人",
+      "path": "enemies/mon-golem-iron.png",
+      "tags": [
+        "golem",
+        "machine"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1676
+    },
+    {
+      "id": "mon-golem-crystal",
+      "kind": "enemy",
+      "title": "水晶の巨人",
+      "path": "enemies/mon-golem-crystal.png",
+      "tags": [
+        "golem",
+        "crystal",
+        "cave"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1676
+    },
+    {
+      "id": "mon-golem-mud",
+      "kind": "enemy",
+      "title": "泥人形",
+      "path": "enemies/mon-golem-mud.png",
+      "tags": [
+        "golem",
+        "swamp"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1589
+    },
+    {
+      "id": "mon-skeleton",
+      "kind": "enemy",
+      "title": "骸骨兵",
+      "path": "enemies/mon-skeleton.png",
+      "tags": [
+        "skeleton",
+        "undead"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1546
+    },
+    {
+      "id": "mon-skeleton-guard",
+      "kind": "enemy",
+      "title": "骸骨の盾兵",
+      "path": "enemies/mon-skeleton-guard.png",
+      "tags": [
+        "skeleton",
+        "undead"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1604
+    },
+    {
+      "id": "mon-lich",
+      "kind": "enemy",
+      "title": "死霊術師",
+      "path": "enemies/mon-lich.png",
+      "tags": [
+        "skeleton",
+        "undead",
+        "mage",
+        "boss"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1491
+    },
+    {
+      "id": "mon-ghost",
+      "kind": "enemy",
+      "title": "ゴースト",
+      "path": "enemies/mon-ghost.png",
+      "tags": [
+        "ghost",
+        "undead"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1592
+    },
+    {
+      "id": "mon-ghost-purple",
+      "kind": "enemy",
+      "title": "怨霊",
+      "path": "enemies/mon-ghost-purple.png",
+      "tags": [
+        "ghost",
+        "undead",
+        "dark"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1592
+    },
+    {
+      "id": "mon-ghost-lantern",
+      "kind": "enemy",
+      "title": "灯火の亡霊",
+      "path": "enemies/mon-ghost-lantern.png",
+      "tags": [
+        "ghost",
+        "undead"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1663
+    },
+    {
+      "id": "mon-maneater",
+      "kind": "enemy",
+      "title": "人喰い花",
+      "path": "enemies/mon-maneater.png",
+      "tags": [
+        "plant",
+        "forest"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 2285
+    },
+    {
+      "id": "mon-maneater-blue",
+      "kind": "enemy",
+      "title": "夜咲き花",
+      "path": "enemies/mon-maneater-blue.png",
+      "tags": [
+        "plant",
+        "night"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 2285
+    },
+    {
+      "id": "mon-vine",
+      "kind": "enemy",
+      "title": "絡みつる",
+      "path": "enemies/mon-vine.png",
+      "tags": [
+        "plant",
+        "forest"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 2442
+    },
+    {
+      "id": "mon-mandrake",
+      "kind": "enemy",
+      "title": "マンドラゴラ",
+      "path": "enemies/mon-mandrake.png",
+      "tags": [
+        "plant",
+        "rare"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1345
+    },
+    {
+      "id": "mon-beetle",
+      "kind": "enemy",
+      "title": "甲虫",
+      "path": "enemies/mon-beetle.png",
+      "tags": [
+        "beetle",
+        "insect",
+        "forest"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1283
+    },
+    {
+      "id": "mon-beetle-gold",
+      "kind": "enemy",
+      "title": "黄金虫",
+      "path": "enemies/mon-beetle-gold.png",
+      "tags": [
+        "beetle",
+        "insect",
+        "rare"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1306
+    },
+    {
+      "id": "mon-bee",
+      "kind": "enemy",
+      "title": "大蜂",
+      "path": "enemies/mon-bee.png",
+      "tags": [
+        "bee",
+        "insect",
+        "flying"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1634
+    },
+    {
+      "id": "mon-spider",
+      "kind": "enemy",
+      "title": "大蜘蛛",
+      "path": "enemies/mon-spider.png",
+      "tags": [
+        "spider",
+        "insect",
+        "cave"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1629
+    },
+    {
+      "id": "mon-spider-ice",
+      "kind": "enemy",
+      "title": "氷蜘蛛",
+      "path": "enemies/mon-spider-ice.png",
+      "tags": [
+        "spider",
+        "insect",
+        "ice"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1628
+    },
+    {
+      "id": "mon-eye",
+      "kind": "enemy",
+      "title": "浮遊眼",
+      "path": "enemies/mon-eye.png",
+      "tags": [
+        "eye",
+        "magic"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 2076
+    },
+    {
+      "id": "mon-eye-blue",
+      "kind": "enemy",
+      "title": "凍てつく眼",
+      "path": "enemies/mon-eye-blue.png",
+      "tags": [
+        "eye",
+        "ice"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 2076
+    },
+    {
+      "id": "mon-eye-bat",
+      "kind": "enemy",
+      "title": "邪眼",
+      "path": "enemies/mon-eye-bat.png",
+      "tags": [
+        "eye",
+        "dark",
+        "flying"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1848
+    },
+    {
+      "id": "mon-dragon-green",
+      "kind": "enemy",
+      "title": "森の竜",
+      "path": "enemies/mon-dragon-green.png",
+      "tags": [
+        "dragon",
+        "boss"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 2447
+    },
+    {
+      "id": "mon-dragon-red",
+      "kind": "enemy",
+      "title": "火竜",
+      "path": "enemies/mon-dragon-red.png",
+      "tags": [
+        "dragon",
+        "fire",
+        "boss"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 2447
+    },
+    {
+      "id": "mon-dragon-blue",
+      "kind": "enemy",
+      "title": "氷竜",
+      "path": "enemies/mon-dragon-blue.png",
+      "tags": [
+        "dragon",
+        "ice",
+        "boss"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 2447
+    },
+    {
+      "id": "mon-mushroom",
+      "kind": "enemy",
+      "title": "おばけキノコ",
+      "path": "enemies/mon-mushroom.png",
+      "tags": [
+        "mushroom",
+        "forest"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1965
+    },
+    {
+      "id": "mon-mushroom-blue",
+      "kind": "enemy",
+      "title": "眠りキノコ",
+      "path": "enemies/mon-mushroom-blue.png",
+      "tags": [
+        "mushroom",
+        "cave"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1965
+    },
+    {
+      "id": "mon-mushroom-purple",
+      "kind": "enemy",
+      "title": "毒キノコ",
+      "path": "enemies/mon-mushroom-purple.png",
+      "tags": [
+        "mushroom",
+        "poison"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1965
+    },
+    {
+      "id": "mon-elemental-fire",
+      "kind": "enemy",
+      "title": "火の精",
+      "path": "enemies/mon-elemental-fire.png",
+      "tags": [
+        "elemental",
+        "fire"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1608
+    },
+    {
+      "id": "mon-elemental-water",
+      "kind": "enemy",
+      "title": "水の精",
+      "path": "enemies/mon-elemental-water.png",
+      "tags": [
+        "elemental",
+        "water"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1639
+    },
+    {
+      "id": "mon-elemental-wind",
+      "kind": "enemy",
+      "title": "風の精",
+      "path": "enemies/mon-elemental-wind.png",
+      "tags": [
+        "elemental",
+        "wind"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 2325
+    },
+    {
+      "id": "mon-elemental-thunder",
+      "kind": "enemy",
+      "title": "雷の精",
+      "path": "enemies/mon-elemental-thunder.png",
+      "tags": [
+        "elemental",
+        "thunder"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1741
+    },
+    {
+      "id": "mon-elemental-earth",
+      "kind": "enemy",
+      "title": "岩の精",
+      "path": "enemies/mon-elemental-earth.png",
+      "tags": [
+        "elemental",
+        "earth"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1313
+    },
+    {
+      "id": "mon-snake",
+      "kind": "enemy",
+      "title": "大蛇",
+      "path": "enemies/mon-snake.png",
+      "tags": [
+        "snake",
+        "swamp"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1362
+    },
+    {
+      "id": "mon-snake-purple",
+      "kind": "enemy",
+      "title": "毒蛇",
+      "path": "enemies/mon-snake-purple.png",
+      "tags": [
+        "snake",
+        "poison"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1362
+    },
+    {
+      "id": "mon-goblin",
+      "kind": "enemy",
+      "title": "ゴブリン",
+      "path": "enemies/mon-goblin.png",
+      "tags": [
+        "goblin",
+        "humanoid"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 1832
+    },
+    {
+      "id": "mon-goblin-chief",
+      "kind": "enemy",
+      "title": "ゴブリンの長",
+      "path": "enemies/mon-goblin-chief.png",
+      "tags": [
+        "goblin",
+        "humanoid",
+        "boss"
+      ],
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true,
+      "bytes": 2031
+    },
+    {
+      "id": "bg-field",
+      "kind": "background",
+      "title": "草原",
+      "path": "backgrounds/bg-field.png",
+      "tags": [
+        "field",
+        "day",
+        "grass"
+      ],
+      "tileWidth": 640,
+      "tileHeight": 448,
+      "columns": 1,
+      "rows": 1,
+      "bytes": 21690
+    },
+    {
+      "id": "bg-forest",
+      "kind": "background",
+      "title": "深い森",
+      "path": "backgrounds/bg-forest.png",
+      "tags": [
+        "forest",
+        "day"
+      ],
+      "tileWidth": 640,
+      "tileHeight": 448,
+      "columns": 1,
+      "rows": 1,
+      "bytes": 29587
+    },
+    {
+      "id": "bg-cave",
+      "kind": "background",
+      "title": "洞窟",
+      "path": "backgrounds/bg-cave.png",
+      "tags": [
+        "cave",
+        "dungeon",
+        "dark"
+      ],
+      "tileWidth": 640,
+      "tileHeight": 448,
+      "columns": 1,
+      "rows": 1,
+      "bytes": 16711
+    },
+    {
+      "id": "bg-ruins",
+      "kind": "background",
+      "title": "古代遺跡",
+      "path": "backgrounds/bg-ruins.png",
+      "tags": [
+        "ruins",
+        "day"
+      ],
+      "tileWidth": 640,
+      "tileHeight": 448,
+      "columns": 1,
+      "rows": 1,
+      "bytes": 23869
+    },
+    {
+      "id": "bg-snow",
+      "kind": "background",
+      "title": "雪山",
+      "path": "backgrounds/bg-snow.png",
+      "tags": [
+        "snow",
+        "winter",
+        "mountain"
+      ],
+      "tileWidth": 640,
+      "tileHeight": 448,
+      "columns": 1,
+      "rows": 1,
+      "bytes": 15798
+    },
+    {
+      "id": "bg-desert",
+      "kind": "background",
+      "title": "砂漠",
+      "path": "backgrounds/bg-desert.png",
+      "tags": [
+        "desert",
+        "day",
+        "hot"
+      ],
+      "tileWidth": 640,
+      "tileHeight": 448,
+      "columns": 1,
+      "rows": 1,
+      "bytes": 10914
+    },
+    {
+      "id": "bg-castle",
+      "kind": "background",
+      "title": "城の広間",
+      "path": "backgrounds/bg-castle.png",
+      "tags": [
+        "castle",
+        "indoor",
+        "throne"
+      ],
+      "tileWidth": 640,
+      "tileHeight": 448,
+      "columns": 1,
+      "rows": 1,
+      "bytes": 8556
+    },
+    {
+      "id": "bg-night",
+      "kind": "background",
+      "title": "月夜の丘",
+      "path": "backgrounds/bg-night.png",
+      "tags": [
+        "night",
+        "field"
+      ],
+      "tileWidth": 640,
+      "tileHeight": 448,
+      "columns": 1,
+      "rows": 1,
+      "bytes": 13017
+    },
+    {
+      "id": "bg-swamp",
+      "kind": "background",
+      "title": "霧の沼地",
+      "path": "backgrounds/bg-swamp.png",
+      "tags": [
+        "swamp",
+        "fog"
+      ],
+      "tileWidth": 640,
+      "tileHeight": 448,
+      "columns": 1,
+      "rows": 1,
+      "bytes": 15271
+    },
+    {
+      "id": "bg-volcano",
+      "kind": "background",
+      "title": "火山",
+      "path": "backgrounds/bg-volcano.png",
+      "tags": [
+        "volcano",
+        "fire",
+        "lava"
+      ],
+      "tileWidth": 640,
+      "tileHeight": 448,
+      "columns": 1,
+      "rows": 1,
+      "bytes": 13077
+    },
+    {
+      "id": "bg-beach",
+      "kind": "background",
+      "title": "海辺",
+      "path": "backgrounds/bg-beach.png",
+      "tags": [
+        "beach",
+        "sea",
+        "day"
+      ],
+      "tileWidth": 640,
+      "tileHeight": 448,
+      "columns": 1,
+      "rows": 1,
+      "bytes": 8904
+    },
+    {
+      "id": "bg-dungeon",
+      "kind": "background",
+      "title": "地下迷宮",
+      "path": "backgrounds/bg-dungeon.png",
+      "tags": [
+        "dungeon",
+        "indoor",
+        "dark"
+      ],
+      "tileWidth": 640,
+      "tileHeight": 448,
+      "columns": 1,
+      "rows": 1,
+      "bytes": 8083
+    }
+  ]
+}

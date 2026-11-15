@@ -16,7 +16,7 @@
     "T..................T",
     "T::::::::::::::::::T",
     "T..................T",
-    "T..................T",
+    "T..................:",
     "T::::::::::::::::::T",
     "T..................T",
     "T..................T",
@@ -26,7 +26,17 @@
     "TTTTTTTTTTTTTTTTTTTT"
   ],
   "npcs": [],
-  "portals": [],
+  "portals": [
+    {
+      "id": "start-to-garden",
+      "x": 19,
+      "y": 11,
+      "targetMapId": "garden",
+      "targetX": 1,
+      "targetY": 5,
+      "facing": "right"
+    }
+  ],
   "interactables": [],
   "entities": [
     {
@@ -1696,5 +1706,6 @@
         }
       ]
     }
-  ]
+  ],
+  "battleBackground": "bg-castle"
 }

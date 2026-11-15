@@ -29,6 +29,19 @@
       "defaultEnabled": true
     },
     {
+      "id": "builtin-art",
+      "name": "内蔵ドット絵ジェネレーター（rpg art generate ／ library/）",
+      "categories": ["image"],
+      "origin": "generated",
+      "summary": "このリポジトリのコード（packages/cli/src/artgen）が手続き的に描くオリジナルのタイル・キャラ・敵・戦闘背景。第三者の素材や既存作品の模写を含まないため、商用・再配布・改変すべて自由（リポジトリのライセンス MIT に従う）。",
+      "checklist": [],
+      "creditRequired": "no",
+      "redistribution": "allowed",
+      "automatedDownload": "allowed",
+      "verifiedAt": "2026-11-15",
+      "defaultEnabled": true
+    },
+    {
       "id": "ai-image",
       "name": "AI画像生成（Codex等、art/requests.json の要件から生成）",
       "categories": ["image"],

@@ -1,4 +1,85 @@
 {
   "formatVersion": 2,
-  "dialogues": []
+  "dialogues": [
+    {
+      "id": "garden-guard",
+      "speaker": "門番",
+      "lines": [
+        "ここは「素材の庭」。床も壁も木も、この工房のジェネレーターが描いた絵だ。",
+        "左へ戻れば回廊に帰れる。"
+      ]
+    },
+    {
+      "id": "garden-knight",
+      "speaker": "騎士",
+      "lines": [
+        "タイルは library/ に165種類ある。pnpm rpg library list --kind tile で探せるぞ。"
+      ]
+    },
+    {
+      "id": "garden-mage",
+      "speaker": "魔法使い",
+      "lines": [
+        "噴水も井戸も露店も、同じ光源（左上）と輪郭線で描かれている。",
+        "だから混ぜて使っても、ひとつの世界に見えるのさ。"
+      ]
+    },
+    {
+      "id": "garden-merchant",
+      "speaker": "商人",
+      "lines": [
+        "キャラは50人以上、敵は50体以上。取り込みは pnpm rpg library add <id> --project <dir> だよ。"
+      ]
+    },
+    {
+      "id": "garden-girl",
+      "speaker": "女の子",
+      "lines": [
+        "北の草むらには、スライムやコウモリが出るんだって！"
+      ]
+    },
+    {
+      "id": "garden-catfolk",
+      "speaker": "猫の獣人",
+      "lines": [
+        "背の高い草は気をつけて。何か飛び出してくるにゃ。"
+      ]
+    },
+    {
+      "id": "garden-dwarf",
+      "speaker": "ドワーフ",
+      "lines": [
+        "あの遺跡の結晶、掘りたいんだがな。魔法陣が光っていて近寄れん。"
+      ]
+    },
+    {
+      "id": "garden-ghost",
+      "speaker": "幽霊",
+      "lines": [
+        "……墓の下は、静かでいいよ。"
+      ]
+    },
+    {
+      "id": "house-elder",
+      "speaker": "長老",
+      "lines": [
+        "家の中の家具も、みな同じ道具で描いたものじゃ。",
+        "本棚・暖炉・柱時計・宝箱……好きに並べるとよい。"
+      ]
+    },
+    {
+      "id": "house-priest",
+      "speaker": "司祭",
+      "lines": [
+        "旅の無事を祈りましょう。"
+      ]
+    },
+    {
+      "id": "house-woman",
+      "speaker": "村の女",
+      "lines": [
+        "台所のかまどは、まだ温かいのよ。"
+      ]
+    }
+  ]
 }

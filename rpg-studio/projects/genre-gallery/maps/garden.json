@@ -1,0 +1,181 @@
+{
+  "formatVersion": 2,
+  "id": "garden",
+  "title": "素材の庭",
+  "width": 30,
+  "height": 20,
+  "battleBackground": "bg-field",
+  "rows": [
+    "//////////////////////////////",
+    "/0ξξξξξ00οοοοοο00,0+03333330-/",
+    "/0ξξξξξ00οοοοοο0+0,0033333330/",
+    "/0νωνφν00ιあιχあι0000043333330[/",
+    "/0ぎ0ε0ぎ00ご0さε00お004503333300>/",
+    "εεεεεεεεεεεεεεεεεεεε54033300+/",
+    "/0か000ε00き000ε00か00005400000-/",
+    "/00000ε0く0が0ぉε00げ00+00000`00+/",
+    "/+0>00ε0000000ε0000,000>00^00/",
+    "$$$$$$$$$$$$$$う$$$$$$$$$$$$$$$",
+    "zzz(zzzzzzzzzzうzzzzzzz)zzzzzzz",
+    "!!!!!!!!!!!!!!う!!!!!!!!!!!!!!!",
+    "%%%%%%%%%%%%%%う%%%%%%%%%%%%%%%",
+    "/ぇぇぇぇぇぇぇぇ00006600000ゃゃゃゃゃゃゃゃ0/",
+    "/ぇαααyααぇ00066000000ゃままゆまりゆゃ0/",
+    "/ぇβββyββぇ0ぐ06000け0け0ゃまオまろままゃ0/",
+    "/ぇαααyααぇさ06600け0け00ゃょまゐまままゃ0/",
+    "/ぇぇぇぇ0ぇぇぇ0060000000>ゃゃゃままゃゃゃ0/",
+    "/+00>000+00600-00+00000600>0+/",
+    "//////////////////////////////"
+  ],
+  "npcs": [
+    {
+      "id": "garden-knight",
+      "name": "騎士",
+      "x": 6,
+      "y": 6,
+      "facing": "down",
+      "sprite": "chr-knight",
+      "dialogues": [
+        {
+          "dialogue": "garden-knight"
+        }
+      ]
+    },
+    {
+      "id": "garden-mage",
+      "name": "魔法使い",
+      "x": 11,
+      "y": 8,
+      "facing": "left",
+      "sprite": "chr-mage",
+      "dialogues": [
+        {
+          "dialogue": "garden-mage"
+        }
+      ]
+    },
+    {
+      "id": "garden-merchant",
+      "name": "商人",
+      "x": 8,
+      "y": 8,
+      "facing": "up",
+      "sprite": "chr-merchant",
+      "dialogues": [
+        {
+          "dialogue": "garden-merchant"
+        }
+      ]
+    },
+    {
+      "id": "garden-girl",
+      "name": "女の子",
+      "x": 21,
+      "y": 7,
+      "facing": "right",
+      "sprite": "chr-child-girl",
+      "dialogues": [
+        {
+          "dialogue": "garden-girl"
+        }
+      ]
+    },
+    {
+      "id": "garden-catfolk",
+      "name": "猫の獣人",
+      "x": 25,
+      "y": 4,
+      "facing": "left",
+      "sprite": "chr-catfolk",
+      "dialogues": [
+        {
+          "dialogue": "garden-catfolk"
+        }
+      ]
+    },
+    {
+      "id": "garden-dwarf",
+      "name": "ドワーフ",
+      "x": 25,
+      "y": 18,
+      "facing": "up",
+      "sprite": "chr-dwarf",
+      "dialogues": [
+        {
+          "dialogue": "garden-dwarf"
+        }
+      ]
+    },
+    {
+      "id": "garden-ghost",
+      "name": "幽霊",
+      "x": 17,
+      "y": 14,
+      "facing": "down",
+      "sprite": "chr-ghost",
+      "dialogues": [
+        {
+          "dialogue": "garden-ghost"
+        }
+      ]
+    },
+    {
+      "id": "garden-guard",
+      "name": "門番",
+      "x": 1,
+      "y": 6,
+      "facing": "right",
+      "sprite": "chr-guard",
+      "dialogues": [
+        {
+          "dialogue": "garden-guard"
+        }
+      ]
+    }
+  ],
+  "portals": [
+    {
+      "id": "garden-to-start",
+      "x": 0,
+      "y": 5,
+      "targetMapId": "start",
+      "targetX": 18,
+      "targetY": 11,
+      "facing": "left"
+    },
+    {
+      "id": "garden-to-house",
+      "x": 5,
+      "y": 3,
+      "targetMapId": "garden-house",
+      "targetX": 3,
+      "targetY": 7,
+      "facing": "up"
+    }
+  ],
+  "interactables": [
+    {
+      "id": "garden-circle",
+      "x": 22,
+      "y": 15,
+      "label": "光る魔法陣",
+      "event": "garden-ruin-guardian",
+      "trigger": "touch",
+      "marker": "sparkle"
+    }
+  ],
+  "entities": [],
+  "regions": [],
+  "overlays": [],
+  "encounters": {
+    "rate": 0.12,
+    "enemies": [
+      "garden-slime",
+      "garden-bat",
+      "garden-wolf"
+    ],
+    "tiles": [
+      "3"
+    ]
+  }
+}

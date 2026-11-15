@@ -99,6 +99,16 @@
       "id": "start",
       "path": "maps/start.json",
       "title": "ジャンルの回廊"
+    },
+    {
+      "id": "garden",
+      "path": "maps/garden.json",
+      "title": "素材の庭"
+    },
+    {
+      "id": "garden-house",
+      "path": "maps/garden-house.json",
+      "title": "庭の家"
     }
   ],
   "tilesetPath": "tiles.json",
@@ -163,6 +173,7 @@
   },
   "credits": [
     "企画: RPGシステム工房 サンプル（ジャンルの回廊）",
-    "タイル・主人公・効果音: RPGシステム工房 サンプル素材（MIT）"
+    "タイル・主人公・効果音: RPGシステム工房 サンプル素材（MIT）",
+    "素材の庭のタイル・キャラ・敵・戦闘背景: 内蔵ドット絵ジェネレーター（rpg art generate、MIT）"
   ]
 }

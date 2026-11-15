@@ -1,0 +1,74 @@
+{
+  "formatVersion": 2,
+  "id": "garden-house",
+  "title": "庭の家",
+  "width": 12,
+  "height": 9,
+  "rows": [
+    "だだだだだだだだだだだだ",
+    "だとほとぬぶだほなにねだ",
+    "だししししだしししししだ",
+    "だしぢししだしぢぢふしだ",
+    "だしつしししずつつししだ",
+    "だししししずずずずししだ",
+    "だてしぴしだししびしぱだ",
+    "だてししぷだばしはしひだ",
+    "だだだぺだだだだだだだだ"
+  ],
+  "npcs": [
+    {
+      "id": "house-elder",
+      "name": "長老",
+      "x": 3,
+      "y": 3,
+      "facing": "down",
+      "sprite": "chr-elder",
+      "dialogues": [
+        {
+          "dialogue": "house-elder"
+        }
+      ]
+    },
+    {
+      "id": "house-priest",
+      "name": "司祭",
+      "x": 9,
+      "y": 5,
+      "facing": "left",
+      "sprite": "chr-priest",
+      "dialogues": [
+        {
+          "dialogue": "house-priest"
+        }
+      ]
+    },
+    {
+      "id": "house-woman",
+      "name": "村の女",
+      "x": 8,
+      "y": 2,
+      "facing": "down",
+      "sprite": "chr-villager-woman",
+      "dialogues": [
+        {
+          "dialogue": "house-woman"
+        }
+      ]
+    }
+  ],
+  "portals": [
+    {
+      "id": "house-to-garden",
+      "x": 3,
+      "y": 8,
+      "targetMapId": "garden",
+      "targetX": 5,
+      "targetY": 4,
+      "facing": "down"
+    }
+  ],
+  "interactables": [],
+  "entities": [],
+  "regions": [],
+  "overlays": []
+}

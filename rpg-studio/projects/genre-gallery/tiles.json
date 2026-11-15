@@ -344,6 +344,1326 @@
       "index": 47,
       "passable": true,
       "color": "#9b684b"
+    },
+    {
+      "code": "0",
+      "name": "草地",
+      "atlas": "lib-tiles-field",
+      "index": 0,
+      "passable": true,
+      "color": "#659e45"
+    },
+    {
+      "code": "1",
+      "name": "草地2",
+      "atlas": "lib-tiles-field",
+      "index": 1,
+      "passable": true,
+      "color": "#659d46"
+    },
+    {
+      "code": "2",
+      "name": "濃い草地",
+      "atlas": "lib-tiles-field",
+      "index": 2,
+      "passable": true,
+      "color": "#4e873a"
+    },
+    {
+      "code": "3",
+      "name": "背の高い草",
+      "atlas": "lib-tiles-field",
+      "index": 3,
+      "passable": true,
+      "color": "#407536"
+    },
+    {
+      "code": "4",
+      "name": "草花（赤・黄）",
+      "atlas": "lib-tiles-field",
+      "index": 4,
+      "passable": true,
+      "color": "#689e46"
+    },
+    {
+      "code": "5",
+      "name": "草花（青・白）",
+      "atlas": "lib-tiles-field",
+      "index": 5,
+      "passable": true,
+      "color": "#5f9945"
+    },
+    {
+      "code": "6",
+      "name": "土の道",
+      "atlas": "lib-tiles-field",
+      "index": 6,
+      "passable": true,
+      "color": "#9b744d"
+    },
+    {
+      "code": "7",
+      "name": "土の道2",
+      "atlas": "lib-tiles-field",
+      "index": 7,
+      "passable": true,
+      "color": "#a07d53"
+    },
+    {
+      "code": "8",
+      "name": "砂地",
+      "atlas": "lib-tiles-field",
+      "index": 8,
+      "passable": true,
+      "color": "#dbc282"
+    },
+    {
+      "code": "9",
+      "name": "貝殻の砂浜",
+      "atlas": "lib-tiles-field",
+      "index": 9,
+      "passable": true,
+      "color": "#dabd7d"
+    },
+    {
+      "code": "q",
+      "name": "雪原",
+      "atlas": "lib-tiles-field",
+      "index": 10,
+      "passable": true,
+      "color": "#e9f1f7"
+    },
+    {
+      "code": "t",
+      "name": "雪原2",
+      "atlas": "lib-tiles-field",
+      "index": 11,
+      "passable": true,
+      "color": "#e9f1f7"
+    },
+    {
+      "code": "u",
+      "name": "氷の床",
+      "atlas": "lib-tiles-field",
+      "index": 12,
+      "passable": true,
+      "color": "#8dc6e7"
+    },
+    {
+      "code": "v",
+      "name": "ぬかるみ",
+      "atlas": "lib-tiles-field",
+      "index": 13,
+      "passable": true,
+      "color": "#725436"
+    },
+    {
+      "code": "x",
+      "name": "沼",
+      "atlas": "lib-tiles-field",
+      "index": 14,
+      "passable": true,
+      "color": "#3c552c"
+    },
+    {
+      "code": "y",
+      "name": "耕した畑",
+      "atlas": "lib-tiles-field",
+      "index": 15,
+      "passable": true,
+      "color": "#704a2f"
+    },
+    {
+      "code": "z",
+      "name": "浅い水",
+      "atlas": "lib-tiles-field",
+      "index": 16,
+      "passable": false,
+      "color": "#3666ae"
+    },
+    {
+      "code": "!",
+      "name": "深い水",
+      "atlas": "lib-tiles-field",
+      "index": 17,
+      "passable": false,
+      "color": "#26478e"
+    },
+    {
+      "code": "#",
+      "name": "溶岩",
+      "atlas": "lib-tiles-field",
+      "index": 18,
+      "passable": false,
+      "color": "#a66b44"
+    },
+    {
+      "code": "$",
+      "name": "岸辺（上が陸）",
+      "atlas": "lib-tiles-field",
+      "index": 19,
+      "passable": false,
+      "color": "#5b8e83"
+    },
+    {
+      "code": "%",
+      "name": "岸辺（下が陸）",
+      "atlas": "lib-tiles-field",
+      "index": 20,
+      "passable": false,
+      "color": "#568a87"
+    },
+    {
+      "code": "&",
+      "name": "岸辺（左が陸）",
+      "atlas": "lib-tiles-field",
+      "index": 21,
+      "passable": false,
+      "color": "#5e918a"
+    },
+    {
+      "code": "'",
+      "name": "岸辺（右が陸）",
+      "atlas": "lib-tiles-field",
+      "index": 22,
+      "passable": false,
+      "color": "#54827f"
+    },
+    {
+      "code": "(",
+      "name": "蓮の葉の水面",
+      "atlas": "lib-tiles-field",
+      "index": 23,
+      "passable": false,
+      "color": "#386ea3"
+    },
+    {
+      "code": ")",
+      "name": "葦の水辺",
+      "atlas": "lib-tiles-field",
+      "index": 24,
+      "passable": false,
+      "color": "#45719d"
+    },
+    {
+      "code": "+",
+      "name": "広葉樹",
+      "atlas": "lib-tiles-field",
+      "index": 25,
+      "passable": false,
+      "color": "#528740"
+    },
+    {
+      "code": ",",
+      "name": "実のなる木",
+      "atlas": "lib-tiles-field",
+      "index": 26,
+      "passable": false,
+      "color": "#598a42"
+    },
+    {
+      "code": "-",
+      "name": "紅葉の木",
+      "atlas": "lib-tiles-field",
+      "index": 27,
+      "passable": false,
+      "color": "#797439"
+    },
+    {
+      "code": "/",
+      "name": "針葉樹",
+      "atlas": "lib-tiles-field",
+      "index": 28,
+      "passable": false,
+      "color": "#43763d"
+    },
+    {
+      "code": ";",
+      "name": "雪の針葉樹",
+      "atlas": "lib-tiles-field",
+      "index": 29,
+      "passable": false,
+      "color": "#adbdbd"
+    },
+    {
+      "code": "<",
+      "name": "ヤシの木",
+      "atlas": "lib-tiles-field",
+      "index": 30,
+      "passable": false,
+      "color": "#aca16a"
+    },
+    {
+      "code": "=",
+      "name": "枯れ木",
+      "atlas": "lib-tiles-field",
+      "index": 31,
+      "passable": false,
+      "color": "#88694a"
+    },
+    {
+      "code": ">",
+      "name": "茂み",
+      "atlas": "lib-tiles-field",
+      "index": 32,
+      "passable": false,
+      "color": "#538d40"
+    },
+    {
+      "code": "?",
+      "name": "木の実の茂み",
+      "atlas": "lib-tiles-field",
+      "index": 33,
+      "passable": false,
+      "color": "#558d43"
+    },
+    {
+      "code": "@",
+      "name": "生け垣",
+      "atlas": "lib-tiles-field",
+      "index": 34,
+      "passable": false,
+      "color": "#3e773f"
+    },
+    {
+      "code": "[",
+      "name": "小岩",
+      "atlas": "lib-tiles-field",
+      "index": 35,
+      "passable": false,
+      "color": "#65954a"
+    },
+    {
+      "code": "]",
+      "name": "大岩",
+      "atlas": "lib-tiles-field",
+      "index": 36,
+      "passable": false,
+      "color": "#638950"
+    },
+    {
+      "code": "^",
+      "name": "切り株",
+      "atlas": "lib-tiles-field",
+      "index": 37,
+      "passable": false,
+      "color": "#597d38"
+    },
+    {
+      "code": "_",
+      "name": "倒木",
+      "atlas": "lib-tiles-field",
+      "index": 38,
+      "passable": false,
+      "color": "#65843d"
+    },
+    {
+      "code": "`",
+      "name": "キノコの群生",
+      "atlas": "lib-tiles-field",
+      "index": 39,
+      "passable": true,
+      "color": "#5b733c"
+    },
+    {
+      "code": "{",
+      "name": "サボテン",
+      "atlas": "lib-tiles-field",
+      "index": 40,
+      "passable": false,
+      "color": "#aeaa6f"
+    },
+    {
+      "code": "|",
+      "name": "砂岩",
+      "atlas": "lib-tiles-field",
+      "index": 41,
+      "passable": false,
+      "color": "#c4a46e"
+    },
+    {
+      "code": "}",
+      "name": "雪をかぶった岩",
+      "atlas": "lib-tiles-field",
+      "index": 42,
+      "passable": false,
+      "color": "#bec7d2"
+    },
+    {
+      "code": "α",
+      "name": "麦畑",
+      "atlas": "lib-tiles-field",
+      "index": 43,
+      "passable": false,
+      "color": "#a47e49"
+    },
+    {
+      "code": "β",
+      "name": "キャベツ畑",
+      "atlas": "lib-tiles-field",
+      "index": 44,
+      "passable": false,
+      "color": "#566132"
+    },
+    {
+      "code": "γ",
+      "name": "崖",
+      "atlas": "lib-tiles-field",
+      "index": 45,
+      "passable": false,
+      "color": "#7a685a"
+    },
+    {
+      "code": "δ",
+      "name": "崖の上（草）",
+      "atlas": "lib-tiles-field",
+      "index": 46,
+      "passable": false,
+      "color": "#68724a"
+    },
+    {
+      "code": "ε",
+      "name": "石畳",
+      "atlas": "lib-tiles-town",
+      "index": 0,
+      "passable": true,
+      "color": "#8c887f"
+    },
+    {
+      "code": "ζ",
+      "name": "石畳（暖色）",
+      "atlas": "lib-tiles-town",
+      "index": 1,
+      "passable": true,
+      "color": "#9f876f"
+    },
+    {
+      "code": "η",
+      "name": "レンガ道",
+      "atlas": "lib-tiles-town",
+      "index": 2,
+      "passable": true,
+      "color": "#996658"
+    },
+    {
+      "code": "θ",
+      "name": "広場の敷石",
+      "atlas": "lib-tiles-town",
+      "index": 3,
+      "passable": true,
+      "color": "#a79f8f"
+    },
+    {
+      "code": "ι",
+      "name": "レンガ壁",
+      "atlas": "lib-tiles-town",
+      "index": 4,
+      "passable": false,
+      "color": "#955848"
+    },
+    {
+      "code": "κ",
+      "name": "石壁",
+      "atlas": "lib-tiles-town",
+      "index": 5,
+      "passable": false,
+      "color": "#8c8b87"
+    },
+    {
+      "code": "λ",
+      "name": "砂岩の壁",
+      "atlas": "lib-tiles-town",
+      "index": 6,
+      "passable": false,
+      "color": "#bb9463"
+    },
+    {
+      "code": "μ",
+      "name": "板壁",
+      "atlas": "lib-tiles-town",
+      "index": 7,
+      "passable": false,
+      "color": "#9d643a"
+    },
+    {
+      "code": "ν",
+      "name": "漆喰と木組みの壁",
+      "atlas": "lib-tiles-town",
+      "index": 8,
+      "passable": false,
+      "color": "#c1a982"
+    },
+    {
+      "code": "ξ",
+      "name": "屋根（赤）",
+      "atlas": "lib-tiles-town",
+      "index": 9,
+      "passable": false,
+      "color": "#98453f"
+    },
+    {
+      "code": "ο",
+      "name": "屋根（青）",
+      "atlas": "lib-tiles-town",
+      "index": 10,
+      "passable": false,
+      "color": "#3c5291"
+    },
+    {
+      "code": "π",
+      "name": "屋根（緑）",
+      "atlas": "lib-tiles-town",
+      "index": 11,
+      "passable": false,
+      "color": "#487b4b"
+    },
+    {
+      "code": "ρ",
+      "name": "屋根（茶）",
+      "atlas": "lib-tiles-town",
+      "index": 12,
+      "passable": false,
+      "color": "#7d4f36"
+    },
+    {
+      "code": "σ",
+      "name": "屋根（灰）",
+      "atlas": "lib-tiles-town",
+      "index": 13,
+      "passable": false,
+      "color": "#565c6c"
+    },
+    {
+      "code": "τ",
+      "name": "屋根（紫）",
+      "atlas": "lib-tiles-town",
+      "index": 14,
+      "passable": false,
+      "color": "#654a7e"
+    },
+    {
+      "code": "υ",
+      "name": "わら屋根",
+      "atlas": "lib-tiles-town",
+      "index": 15,
+      "passable": false,
+      "color": "#caa556"
+    },
+    {
+      "code": "φ",
+      "name": "木の扉",
+      "atlas": "lib-tiles-town",
+      "index": 16,
+      "passable": true,
+      "color": "#8c6749"
+    },
+    {
+      "code": "χ",
+      "name": "レンガ壁の扉",
+      "atlas": "lib-tiles-town",
+      "index": 17,
+      "passable": true,
+      "color": "#8c6048"
+    },
+    {
+      "code": "ψ",
+      "name": "アーチの扉",
+      "atlas": "lib-tiles-town",
+      "index": 18,
+      "passable": true,
+      "color": "#816f60"
+    },
+    {
+      "code": "ω",
+      "name": "窓",
+      "atlas": "lib-tiles-town",
+      "index": 19,
+      "passable": false,
+      "color": "#938069"
+    },
+    {
+      "code": "ぁ",
+      "name": "明かりの窓",
+      "atlas": "lib-tiles-town",
+      "index": 20,
+      "passable": false,
+      "color": "#a48458"
+    },
+    {
+      "code": "あ",
+      "name": "レンガ壁の窓",
+      "atlas": "lib-tiles-town",
+      "index": 21,
+      "passable": false,
+      "color": "#835e56"
+    },
+    {
+      "code": "ぃ",
+      "name": "上り階段",
+      "atlas": "lib-tiles-town",
+      "index": 22,
+      "passable": true,
+      "color": "#878681"
+    },
+    {
+      "code": "い",
+      "name": "下り階段",
+      "atlas": "lib-tiles-town",
+      "index": 23,
+      "passable": true,
+      "color": "#676463"
+    },
+    {
+      "code": "ぅ",
+      "name": "橋（横）",
+      "atlas": "lib-tiles-town",
+      "index": 24,
+      "passable": true,
+      "color": "#806151"
+    },
+    {
+      "code": "う",
+      "name": "橋（縦）",
+      "atlas": "lib-tiles-town",
+      "index": 25,
+      "passable": true,
+      "color": "#826352"
+    },
+    {
+      "code": "ぇ",
+      "name": "木の柵",
+      "atlas": "lib-tiles-town",
+      "index": 26,
+      "passable": false,
+      "color": "#727d41"
+    },
+    {
+      "code": "え",
+      "name": "鉄柵",
+      "atlas": "lib-tiles-town",
+      "index": 27,
+      "passable": false,
+      "color": "#656468"
+    },
+    {
+      "code": "ぉ",
+      "name": "井戸",
+      "atlas": "lib-tiles-town",
+      "index": 28,
+      "passable": false,
+      "color": "#596a42"
+    },
+    {
+      "code": "お",
+      "name": "立て札",
+      "atlas": "lib-tiles-town",
+      "index": 29,
+      "passable": false,
+      "color": "#6d8742"
+    },
+    {
+      "code": "か",
+      "name": "街灯",
+      "atlas": "lib-tiles-town",
+      "index": 30,
+      "passable": false,
+      "color": "#79756d"
+    },
+    {
+      "code": "が",
+      "name": "噴水",
+      "atlas": "lib-tiles-town",
+      "index": 31,
+      "passable": false,
+      "color": "#777c82"
+    },
+    {
+      "code": "き",
+      "name": "ベンチ",
+      "atlas": "lib-tiles-town",
+      "index": 32,
+      "passable": false,
+      "color": "#83705f"
+    },
+    {
+      "code": "ぎ",
+      "name": "花壇",
+      "atlas": "lib-tiles-town",
+      "index": 33,
+      "passable": false,
+      "color": "#807461"
+    },
+    {
+      "code": "く",
+      "name": "露店",
+      "atlas": "lib-tiles-town",
+      "index": 34,
+      "passable": false,
+      "color": "#8f7161"
+    },
+    {
+      "code": "ぐ",
+      "name": "干し草",
+      "atlas": "lib-tiles-town",
+      "index": 35,
+      "passable": false,
+      "color": "#839547"
+    },
+    {
+      "code": "け",
+      "name": "墓石",
+      "atlas": "lib-tiles-town",
+      "index": 36,
+      "passable": false,
+      "color": "#5e8153"
+    },
+    {
+      "code": "げ",
+      "name": "石像",
+      "atlas": "lib-tiles-town",
+      "index": 37,
+      "passable": false,
+      "color": "#85837c"
+    },
+    {
+      "code": "こ",
+      "name": "旗のかかった壁",
+      "atlas": "lib-tiles-town",
+      "index": 38,
+      "passable": false,
+      "color": "#747886"
+    },
+    {
+      "code": "ご",
+      "name": "樽（屋外）",
+      "atlas": "lib-tiles-town",
+      "index": 39,
+      "passable": false,
+      "color": "#88786c"
+    },
+    {
+      "code": "さ",
+      "name": "木箱（屋外）",
+      "atlas": "lib-tiles-town",
+      "index": 40,
+      "passable": false,
+      "color": "#98836e"
+    },
+    {
+      "code": "ざ",
+      "name": "金床",
+      "atlas": "lib-tiles-town",
+      "index": 41,
+      "passable": false,
+      "color": "#7c7a77"
+    },
+    {
+      "code": "し",
+      "name": "板張りの床",
+      "atlas": "lib-tiles-interior",
+      "index": 0,
+      "passable": true,
+      "color": "#9b6138"
+    },
+    {
+      "code": "じ",
+      "name": "濃い板張りの床",
+      "atlas": "lib-tiles-interior",
+      "index": 1,
+      "passable": true,
+      "color": "#75462a"
+    },
+    {
+      "code": "す",
+      "name": "白木の床",
+      "atlas": "lib-tiles-interior",
+      "index": 2,
+      "passable": true,
+      "color": "#bd8c61"
+    },
+    {
+      "code": "ず",
+      "name": "赤い絨毯",
+      "atlas": "lib-tiles-interior",
+      "index": 3,
+      "passable": true,
+      "color": "#c44e3d"
+    },
+    {
+      "code": "せ",
+      "name": "青い絨毯",
+      "atlas": "lib-tiles-interior",
+      "index": 4,
+      "passable": true,
+      "color": "#506dad"
+    },
+    {
+      "code": "ぜ",
+      "name": "緑の絨毯",
+      "atlas": "lib-tiles-interior",
+      "index": 5,
+      "passable": true,
+      "color": "#4e9149"
+    },
+    {
+      "code": "そ",
+      "name": "市松模様の床",
+      "atlas": "lib-tiles-interior",
+      "index": 6,
+      "passable": true,
+      "color": "#9a9695"
+    },
+    {
+      "code": "ぞ",
+      "name": "タイルの床",
+      "atlas": "lib-tiles-interior",
+      "index": 7,
+      "passable": true,
+      "color": "#c6c2b5"
+    },
+    {
+      "code": "た",
+      "name": "畳",
+      "atlas": "lib-tiles-interior",
+      "index": 8,
+      "passable": true,
+      "color": "#aaa76a"
+    },
+    {
+      "code": "だ",
+      "name": "壁紙の壁",
+      "atlas": "lib-tiles-interior",
+      "index": 9,
+      "passable": false,
+      "color": "#b39873"
+    },
+    {
+      "code": "ち",
+      "name": "石造りの内壁",
+      "atlas": "lib-tiles-interior",
+      "index": 10,
+      "passable": false,
+      "color": "#8e867c"
+    },
+    {
+      "code": "ぢ",
+      "name": "テーブル",
+      "atlas": "lib-tiles-interior",
+      "index": 11,
+      "passable": false,
+      "color": "#976540"
+    },
+    {
+      "code": "っ",
+      "name": "クロスのテーブル",
+      "atlas": "lib-tiles-interior",
+      "index": 12,
+      "passable": false,
+      "color": "#b08c74"
+    },
+    {
+      "code": "つ",
+      "name": "椅子",
+      "atlas": "lib-tiles-interior",
+      "index": 13,
+      "passable": false,
+      "color": "#925d38"
+    },
+    {
+      "code": "づ",
+      "name": "丸椅子",
+      "atlas": "lib-tiles-interior",
+      "index": 14,
+      "passable": false,
+      "color": "#945d38"
+    },
+    {
+      "code": "て",
+      "name": "ベッド",
+      "atlas": "lib-tiles-interior",
+      "index": 15,
+      "passable": false,
+      "color": "#816c6d"
+    },
+    {
+      "code": "で",
+      "name": "ベッド（赤）",
+      "atlas": "lib-tiles-interior",
+      "index": 16,
+      "passable": false,
+      "color": "#9a5b45"
+    },
+    {
+      "code": "と",
+      "name": "本棚",
+      "atlas": "lib-tiles-interior",
+      "index": 17,
+      "passable": false,
+      "color": "#7d644f"
+    },
+    {
+      "code": "ど",
+      "name": "カウンター",
+      "atlas": "lib-tiles-interior",
+      "index": 18,
+      "passable": false,
+      "color": "#9d663e"
+    },
+    {
+      "code": "な",
+      "name": "食器棚",
+      "atlas": "lib-tiles-interior",
+      "index": 19,
+      "passable": false,
+      "color": "#8a6a55"
+    },
+    {
+      "code": "に",
+      "name": "衣装箪笥",
+      "atlas": "lib-tiles-interior",
+      "index": 20,
+      "passable": false,
+      "color": "#875532"
+    },
+    {
+      "code": "ぬ",
+      "name": "暖炉",
+      "atlas": "lib-tiles-interior",
+      "index": 21,
+      "passable": false,
+      "color": "#6f5f57"
+    },
+    {
+      "code": "ね",
+      "name": "かまど",
+      "atlas": "lib-tiles-interior",
+      "index": 22,
+      "passable": false,
+      "color": "#6d5143"
+    },
+    {
+      "code": "の",
+      "name": "壺",
+      "atlas": "lib-tiles-interior",
+      "index": 23,
+      "passable": false,
+      "color": "#945937"
+    },
+    {
+      "code": "は",
+      "name": "樽",
+      "atlas": "lib-tiles-interior",
+      "index": 24,
+      "passable": false,
+      "color": "#905c3b"
+    },
+    {
+      "code": "ば",
+      "name": "木箱",
+      "atlas": "lib-tiles-interior",
+      "index": 25,
+      "passable": false,
+      "color": "#9d663f"
+    },
+    {
+      "code": "ぱ",
+      "name": "宝箱",
+      "atlas": "lib-tiles-interior",
+      "index": 26,
+      "passable": false,
+      "color": "#9b5b35"
+    },
+    {
+      "code": "ひ",
+      "name": "開いた宝箱",
+      "atlas": "lib-tiles-interior",
+      "index": 27,
+      "passable": false,
+      "color": "#965534"
+    },
+    {
+      "code": "び",
+      "name": "敷物",
+      "atlas": "lib-tiles-interior",
+      "index": 28,
+      "passable": true,
+      "color": "#a36347"
+    },
+    {
+      "code": "ぴ",
+      "name": "鉢植え",
+      "atlas": "lib-tiles-interior",
+      "index": 29,
+      "passable": false,
+      "color": "#836439"
+    },
+    {
+      "code": "ふ",
+      "name": "燭台の小卓",
+      "atlas": "lib-tiles-interior",
+      "index": 30,
+      "passable": false,
+      "color": "#95603c"
+    },
+    {
+      "code": "ぶ",
+      "name": "柱時計",
+      "atlas": "lib-tiles-interior",
+      "index": 31,
+      "passable": false,
+      "color": "#855a3c"
+    },
+    {
+      "code": "ぷ",
+      "name": "書き物机",
+      "atlas": "lib-tiles-interior",
+      "index": 32,
+      "passable": false,
+      "color": "#8b5b3c"
+    },
+    {
+      "code": "へ",
+      "name": "上り階段（屋内）",
+      "atlas": "lib-tiles-interior",
+      "index": 33,
+      "passable": true,
+      "color": "#9d6e48"
+    },
+    {
+      "code": "べ",
+      "name": "下り階段（屋内）",
+      "atlas": "lib-tiles-interior",
+      "index": 34,
+      "passable": true,
+      "color": "#75533a"
+    },
+    {
+      "code": "ぺ",
+      "name": "部屋の扉",
+      "atlas": "lib-tiles-interior",
+      "index": 35,
+      "passable": true,
+      "color": "#9e7e60"
+    },
+    {
+      "code": "ほ",
+      "name": "屋内の窓",
+      "atlas": "lib-tiles-interior",
+      "index": 36,
+      "passable": false,
+      "color": "#a69880"
+    },
+    {
+      "code": "ぼ",
+      "name": "ダンジョンの床",
+      "atlas": "lib-tiles-dungeon",
+      "index": 0,
+      "passable": true,
+      "color": "#63646a"
+    },
+    {
+      "code": "ぽ",
+      "name": "ひび割れた床",
+      "atlas": "lib-tiles-dungeon",
+      "index": 1,
+      "passable": true,
+      "color": "#56575d"
+    },
+    {
+      "code": "ま",
+      "name": "苔むした床",
+      "atlas": "lib-tiles-dungeon",
+      "index": 2,
+      "passable": true,
+      "color": "#70825b"
+    },
+    {
+      "code": "み",
+      "name": "洞窟の床",
+      "atlas": "lib-tiles-dungeon",
+      "index": 3,
+      "passable": true,
+      "color": "#6d6059"
+    },
+    {
+      "code": "む",
+      "name": "洞窟の床2",
+      "atlas": "lib-tiles-dungeon",
+      "index": 4,
+      "passable": true,
+      "color": "#746961"
+    },
+    {
+      "code": "め",
+      "name": "城の床",
+      "atlas": "lib-tiles-dungeon",
+      "index": 5,
+      "passable": true,
+      "color": "#9f9990"
+    },
+    {
+      "code": "も",
+      "name": "洞窟の壁",
+      "atlas": "lib-tiles-dungeon",
+      "index": 6,
+      "passable": false,
+      "color": "#62544e"
+    },
+    {
+      "code": "ゃ",
+      "name": "ダンジョンの壁",
+      "atlas": "lib-tiles-dungeon",
+      "index": 7,
+      "passable": false,
+      "color": "#4f4f57"
+    },
+    {
+      "code": "や",
+      "name": "氷の壁",
+      "atlas": "lib-tiles-dungeon",
+      "index": 8,
+      "passable": false,
+      "color": "#7ab3db"
+    },
+    {
+      "code": "ゅ",
+      "name": "松明の壁",
+      "atlas": "lib-tiles-dungeon",
+      "index": 9,
+      "passable": false,
+      "color": "#504d51"
+    },
+    {
+      "code": "ゆ",
+      "name": "石柱",
+      "atlas": "lib-tiles-dungeon",
+      "index": 10,
+      "passable": false,
+      "color": "#978f86"
+    },
+    {
+      "code": "ょ",
+      "name": "崩れた石柱",
+      "atlas": "lib-tiles-dungeon",
+      "index": 11,
+      "passable": false,
+      "color": "#788263"
+    },
+    {
+      "code": "よ",
+      "name": "祭壇",
+      "atlas": "lib-tiles-dungeon",
+      "index": 12,
+      "passable": false,
+      "color": "#8d7e81"
+    },
+    {
+      "code": "ら",
+      "name": "守護像",
+      "atlas": "lib-tiles-dungeon",
+      "index": 13,
+      "passable": false,
+      "color": "#5f5f67"
+    },
+    {
+      "code": "り",
+      "name": "青い結晶",
+      "atlas": "lib-tiles-dungeon",
+      "index": 14,
+      "passable": false,
+      "color": "#6e7d81"
+    },
+    {
+      "code": "る",
+      "name": "紫の結晶",
+      "atlas": "lib-tiles-dungeon",
+      "index": 15,
+      "passable": false,
+      "color": "#7b657e"
+    },
+    {
+      "code": "れ",
+      "name": "赤い結晶",
+      "atlas": "lib-tiles-dungeon",
+      "index": 16,
+      "passable": false,
+      "color": "#8b6665"
+    },
+    {
+      "code": "ろ",
+      "name": "宝箱（ダンジョン）",
+      "atlas": "lib-tiles-dungeon",
+      "index": 17,
+      "passable": false,
+      "color": "#68544e"
+    },
+    {
+      "code": "ゎ",
+      "name": "開いた宝箱（ダンジョン）",
+      "atlas": "lib-tiles-dungeon",
+      "index": 18,
+      "passable": false,
+      "color": "#705b59"
+    },
+    {
+      "code": "わ",
+      "name": "鉄の宝箱",
+      "atlas": "lib-tiles-dungeon",
+      "index": 19,
+      "passable": false,
+      "color": "#6b6966"
+    },
+    {
+      "code": "ゐ",
+      "name": "下り階段（石）",
+      "atlas": "lib-tiles-dungeon",
+      "index": 20,
+      "passable": true,
+      "color": "#4b4b51"
+    },
+    {
+      "code": "ゑ",
+      "name": "上り階段（石）",
+      "atlas": "lib-tiles-dungeon",
+      "index": 21,
+      "passable": true,
+      "color": "#626368"
+    },
+    {
+      "code": "を",
+      "name": "鉄の扉",
+      "atlas": "lib-tiles-dungeon",
+      "index": 22,
+      "passable": true,
+      "color": "#5d5f68"
+    },
+    {
+      "code": "ん",
+      "name": "鉄格子",
+      "atlas": "lib-tiles-dungeon",
+      "index": 23,
+      "passable": false,
+      "color": "#575b67"
+    },
+    {
+      "code": "ァ",
+      "name": "開いた鉄格子",
+      "atlas": "lib-tiles-dungeon",
+      "index": 24,
+      "passable": true,
+      "color": "#575960"
+    },
+    {
+      "code": "ア",
+      "name": "穴",
+      "atlas": "lib-tiles-dungeon",
+      "index": 25,
+      "passable": false,
+      "color": "#2c2b31"
+    },
+    {
+      "code": "ィ",
+      "name": "奈落",
+      "atlas": "lib-tiles-dungeon",
+      "index": 26,
+      "passable": false,
+      "color": "#0b0a11"
+    },
+    {
+      "code": "イ",
+      "name": "とげの罠",
+      "atlas": "lib-tiles-dungeon",
+      "index": 27,
+      "passable": true,
+      "color": "#5a5b63"
+    },
+    {
+      "code": "ゥ",
+      "name": "感圧板",
+      "atlas": "lib-tiles-dungeon",
+      "index": 28,
+      "passable": true,
+      "color": "#656363"
+    },
+    {
+      "code": "ウ",
+      "name": "レバー",
+      "atlas": "lib-tiles-dungeon",
+      "index": 29,
+      "passable": false,
+      "color": "#4d4c52"
+    },
+    {
+      "code": "ェ",
+      "name": "骨の散らばる床",
+      "atlas": "lib-tiles-dungeon",
+      "index": 30,
+      "passable": true,
+      "color": "#72635a"
+    },
+    {
+      "code": "エ",
+      "name": "クモの巣",
+      "atlas": "lib-tiles-dungeon",
+      "index": 31,
+      "passable": true,
+      "color": "#68696e"
+    },
+    {
+      "code": "ォ",
+      "name": "瓦礫",
+      "atlas": "lib-tiles-dungeon",
+      "index": 32,
+      "passable": false,
+      "color": "#676465"
+    },
+    {
+      "code": "オ",
+      "name": "魔法陣",
+      "atlas": "lib-tiles-dungeon",
+      "index": 33,
+      "passable": true,
+      "color": "#65767d"
+    },
+    {
+      "code": "カ",
+      "name": "封印の扉",
+      "atlas": "lib-tiles-dungeon",
+      "index": 34,
+      "passable": false,
+      "color": "#605f6c"
+    },
+    {
+      "code": "ガ",
+      "name": "地底の泉",
+      "atlas": "lib-tiles-dungeon",
+      "index": 35,
+      "passable": false,
+      "color": "#3f5c7a"
+    },
+    {
+      "code": "キ",
+      "name": "溶岩の裂け目",
+      "atlas": "lib-tiles-dungeon",
+      "index": 36,
+      "passable": false,
+      "color": "#7b6a5d"
+    },
+    {
+      "code": "ギ",
+      "name": "石棺",
+      "atlas": "lib-tiles-dungeon",
+      "index": 37,
+      "passable": false,
+      "color": "#716d6a"
+    },
+    {
+      "code": "ク",
+      "name": "かがり火",
+      "atlas": "lib-tiles-dungeon",
+      "index": 38,
+      "passable": false,
+      "color": "#615c5e"
     }
   ]
 }
