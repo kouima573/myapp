@@ -147,6 +147,230 @@
       },
       "openIndex": 1,
       "color": "#83785d"
+    },
+    {
+      "code": "A",
+      "name": "ひび割れた石の床",
+      "index": 16,
+      "passable": true,
+      "color": "#77766b"
+    },
+    {
+      "code": "B",
+      "name": "苔むした石の床",
+      "index": 17,
+      "passable": true,
+      "color": "#66745c"
+    },
+    {
+      "code": "C",
+      "name": "石の床の継ぎ目",
+      "index": 18,
+      "passable": true,
+      "color": "#858276"
+    },
+    {
+      "code": "D",
+      "name": "遺跡の壁（上端）",
+      "index": 19,
+      "passable": false,
+      "color": "#67665b"
+    },
+    {
+      "code": "E",
+      "name": "遺跡の壁（正面）",
+      "index": 20,
+      "passable": false,
+      "color": "#57584e"
+    },
+    {
+      "code": "F",
+      "name": "崩れた柱",
+      "index": 21,
+      "passable": false,
+      "color": "#6f7068"
+    },
+    {
+      "code": "G",
+      "name": "岩の隙間（閉）",
+      "index": 22,
+      "passable": false,
+      "color": "#655f55"
+    },
+    {
+      "code": "H",
+      "name": "岩の隙間（開・獣道）",
+      "index": 23,
+      "passable": true,
+      "color": "#725d45"
+    },
+    {
+      "code": "I",
+      "name": "木の床",
+      "index": 24,
+      "passable": true,
+      "color": "#8b5635"
+    },
+    {
+      "code": "J",
+      "name": "木の壁（腰板と漆喰）",
+      "index": 25,
+      "passable": false,
+      "color": "#a39173"
+    },
+    {
+      "code": "K",
+      "name": "本棚",
+      "index": 26,
+      "passable": false,
+      "color": "#65462f"
+    },
+    {
+      "code": "L",
+      "name": "かまど",
+      "index": 27,
+      "passable": false,
+      "color": "#665d52"
+    },
+    {
+      "code": "M",
+      "name": "ベッド",
+      "index": 28,
+      "passable": false,
+      "color": "#a18b74"
+    },
+    {
+      "code": "N",
+      "name": "テーブル",
+      "index": 29,
+      "passable": false,
+      "color": "#805536"
+    },
+    {
+      "code": "O",
+      "name": "樽",
+      "index": 30,
+      "passable": false,
+      "color": "#795437"
+    },
+    {
+      "code": "P",
+      "name": "宝箱（閉）",
+      "index": 31,
+      "passable": false,
+      "color": "#97643e"
+    },
+    {
+      "code": "Q",
+      "name": "石垣",
+      "index": 32,
+      "passable": false,
+      "color": "#6e6f64"
+    },
+    {
+      "code": "S",
+      "name": "井戸",
+      "index": 33,
+      "passable": false,
+      "color": "#7a7568"
+    },
+    {
+      "code": "U",
+      "name": "畑",
+      "index": 34,
+      "passable": true,
+      "color": "#73563b"
+    },
+    {
+      "code": "V",
+      "name": "麦畑",
+      "index": 35,
+      "passable": true,
+      "color": "#b18835"
+    },
+    {
+      "code": "W",
+      "name": "花壇",
+      "index": 36,
+      "passable": false,
+      "color": "#617a43"
+    },
+    {
+      "code": "X",
+      "name": "石の階段",
+      "index": 37,
+      "passable": true,
+      "color": "#8a8677"
+    },
+    {
+      "code": "Y",
+      "name": "木の柵（縦）",
+      "index": 38,
+      "passable": false,
+      "color": "#88613e"
+    },
+    {
+      "code": "Z",
+      "name": "立て看板",
+      "index": 39,
+      "passable": false,
+      "color": "#8d603c"
+    },
+    {
+      "code": "a",
+      "name": "街灯",
+      "index": 40,
+      "passable": false,
+      "color": "#55564b"
+    },
+    {
+      "code": "e",
+      "name": "岩場",
+      "index": 41,
+      "passable": false,
+      "color": "#79624b"
+    },
+    {
+      "code": "j",
+      "name": "砂地",
+      "index": 42,
+      "passable": true,
+      "color": "#c5a06a"
+    },
+    {
+      "code": "k",
+      "name": "浅瀬",
+      "index": 43,
+      "passable": true,
+      "color": "#4d8790"
+    },
+    {
+      "code": "l",
+      "name": "深い水",
+      "index": 44,
+      "passable": false,
+      "color": "#285766"
+    },
+    {
+      "code": "m",
+      "name": "橋（縦）",
+      "index": 45,
+      "passable": true,
+      "color": "#9b7248"
+    },
+    {
+      "code": "n",
+      "name": "洞窟の入口",
+      "index": 46,
+      "passable": true,
+      "color": "#42382e"
+    },
+    {
+      "code": "p",
+      "name": "きのこ",
+      "index": 47,
+      "passable": true,
+      "color": "#9b684b"
     }
   ]
 }

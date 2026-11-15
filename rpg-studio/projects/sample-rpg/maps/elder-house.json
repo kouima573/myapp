@@ -22,7 +22,7 @@
       "x": 4,
       "y": 2,
       "facing": "down",
-      "sprite": "village-herbalist",
+      "sprite": "village-elder",
       "dialogues": [
         {
           "when": {

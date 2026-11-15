@@ -5,6 +5,7 @@
   "width": 20,
   "height": 14,
   "bgm": "song-ruins",
+  "battleBackground": "bg-ruins",
   "rows": [
     "TTTTTTTTTTTTTTTTTTTT",
     "T...*..........*...T",
