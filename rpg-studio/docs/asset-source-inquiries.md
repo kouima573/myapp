@@ -1,6 +1,6 @@
 # 素材サイトへの問い合わせ文（4通・送信はあなたが行います）
 
-**送る前に置き換えるのは2か所だけ**: `【公開URL】`（`pnpm deploy:site` で表示されるURL。例: https://rpg-studio.pages.dev）と、末尾の名前・連絡先。
+**送る前に書き換えるのは、末尾の名前・連絡先だけです。** 公開URL（https://rpg-studio-2k3.pages.dev）は記入済み。
 
 | # | 宛先 | 送り方 | 何がはっきりするか |
 | --- | --- | --- | --- |
@@ -22,7 +22,7 @@
 > OpenTracks ご担当者様
 >
 > いつも素敵な音源を公開していただき、ありがとうございます。
-> 個人で、RPGを作るための無料ツール「RPGシステム工房」（【公開URL】）を開発しています。このツールで作ったゲームはブラウザ向けのHTML5形式で書き出し、itch.io などで公開する想定です。
+> 個人で、RPGを作るための無料ツール「RPGシステム工房」（https://rpg-studio-2k3.pages.dev）を開発しています。このツールで作ったゲームはブラウザ向けのHTML5形式で書き出し、itch.io などで公開する想定です。
 >
 > 「ゲーム・TRPGでの利用」のページと、2026年11月13日の公式Xでのご案内を拝見しました。そのうえで、次の3点を教えていただけますでしょうか。
 >
@@ -44,7 +44,7 @@
 > 効果音ラボ ご担当者様
 >
 > いつも効果音を使わせていただき、ありがとうございます。
-> 個人で、RPGを作るための無料ツール「RPGシステム工房」（【公開URL】）を開発しています。利用者が効果音ラボからダウンロードした効果音を、自分のゲームに組み込むための記録（入手元URL・規約確認日など）をつける機能があります。ツール自体には効果音ラボの音源を含めず、サイトへの自動アクセスや一括ダウンロードも行いません。
+> 個人で、RPGを作るための無料ツール「RPGシステム工房」（https://rpg-studio-2k3.pages.dev）を開発しています。利用者が効果音ラボからダウンロードした効果音を、自分のゲームに組み込むための記録（入手元URL・規約確認日など）をつける機能があります。ツール自体には効果音ラボの音源を含めず、サイトへの自動アクセスや一括ダウンロードも行いません。
 >
 > 利用規約とFAQを拝見したうえで、次の2点を教えていただけますでしょうか。
 >
@@ -64,7 +64,7 @@ To: mtg@upf.edu (the contact named in the Freesound API terms of use)
 >
 > Dear Freesound team,
 >
-> Thank you for running Freesound. I am developing "RPG System Studio (RPGシステム工房)" (【公開URL】), a free tool for making small 2D RPGs. I would like to let its users search Freesound and add sounds to their own games, and I want to make sure this fits the API Terms of Use.
+> Thank you for running Freesound. I am developing "RPG System Studio (RPGシステム工房)" (https://rpg-studio-2k3.pages.dev), a free tool for making small 2D RPGs. I would like to let its users search Freesound and add sounds to their own games, and I want to make sure this fits the API Terms of Use.
 >
 > Planned design:
 > - Each user requests their own API credential and signs in with OAuth2. The tool stores the user's token only on the user's own machine; we run no server.
@@ -90,7 +90,7 @@ To: itch.io support (https://itch.io/support — not verified during research)
 >
 > Hello itch.io team,
 >
-> I am developing "RPG System Studio (RPGシステム工房)" (【公開URL】), a free tool for making small 2D RPGs. Many of our users buy asset packs on itch.io, and I would like to help them keep correct license and credit records.
+> I am developing "RPG System Studio (RPGシステム工房)" (https://rpg-studio-2k3.pages.dev), a free tool for making small 2D RPGs. Many of our users buy asset packs on itch.io, and I would like to help them keep correct license and credit records.
 >
 > Planned design: the user signs in with itch.io OAuth (authorization code + PKCE). The tool reads `profile:owned` to list the asset packs the user owns, and links to each pack's page so the user can read the license. The token is stored only on the user's own machine.
 >

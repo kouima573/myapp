@@ -78,7 +78,7 @@ pnpm rpg dev                     # 完成版ゲームだけを試遊: http://127
 pnpm deploy:site
 ```
 
-工房のPreview版（見本プロジェクトで操作できる。変更はブラウザ内だけ）と見本ゲーム2本を `dist/site/` にまとめ、Cloudflare Pages の `rpg-studio` プロジェクトへ公開します。初回はブラウザで Cloudflare へのログインを求められ、プロジェクトがなければ作成を聞かれます（本番ブランチは `main`）。中身だけ作るなら `pnpm build:site`。見本の素材はすべて内蔵生成・AI生成で、第三者サイトの素材は含みません。
+公開中: https://rpg-studio-2k3.pages.dev 。工房のPreview版（見本プロジェクトで操作できる。変更はブラウザ内だけ）と見本ゲーム2本を `dist/site/` にまとめ、Cloudflare Pages の `rpg-studio` プロジェクトへ公開します。初回はブラウザで Cloudflare へのログインを求められ、プロジェクトがなければ作成を聞かれます（本番ブランチは `main`）。中身だけ作るなら `pnpm build:site`。見本の素材はすべて内蔵生成・AI生成で、第三者サイトの素材は含みません。
 
 ## v1.3の変更（AIとの会話で完結・取得元の見直し・コードを探す）
 
