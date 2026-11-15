@@ -1,0 +1,8 @@
+# Keep LF on every OS: asset sizes and hashes (assets.json, mods.json, conflict checks) are measured on the exact bytes.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.wav binary
+*.ogg binary
+*.mp3 binary
+*.webp binary
