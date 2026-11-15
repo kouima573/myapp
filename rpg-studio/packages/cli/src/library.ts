@@ -87,7 +87,7 @@ async function list(dir: string, flags: Flags): Promise<number> {
   return 0;
 }
 
-async function add(dir: string, flags: Flags, ids: string[], root: string): Promise<number> {
+export async function add(dir: string, flags: Flags, ids: string[], root: string): Promise<number> {
   if (!ids.length) { console.log("ERROR 取り込む素材IDを指定してください（rpg library list で一覧）"); return 2; }
   const catalog = await loadLibrary(dir);
   const byId = new Map(catalog.items.map(item => [item.id, item]));

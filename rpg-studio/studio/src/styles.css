@@ -315,3 +315,12 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 .swatch { aspect-ratio: 1; border: 1px solid rgba(255,255,255,.15); border-radius: 3px; padding: 0; min-width: 0; }
 .swatch.is-on { outline: 2px solid #f0b450; outline-offset: 1px; }
 @media (max-width: 760px) { .pixel-editor { grid-template-columns: 1fr; } }
+.library-panel { display: flex; flex-direction: column; gap: 12px; padding: 12px; position: relative; }
+.library-head input { min-width: 220px; }
+.library-grid { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; }
+.lib-item { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; cursor: pointer; border: 1px solid var(--line); text-align: center; }
+.lib-item.is-on { outline: 2px solid #f0b450; }
+.lib-item.is-owned { opacity: .6; }
+.lib-thumb { image-rendering: pixelated; background-repeat: no-repeat; background-position: 0 0; background-color: #1a1d1a; }
+.lib-detail { position: fixed; inset: 60px 40px; z-index: 50; overflow: auto; background: var(--surface, #151915); display: flex; flex-direction: column; gap: 10px; }
+.lib-full { image-rendering: pixelated; max-width: 100%; width: 640px; }

@@ -26,7 +26,15 @@ export interface ProjectSource {
   saveImage?(path: string, png: Blob, expectedHash: string): Promise<{ ok: true; hash: string; bytes: number } | { ok: false; error: string; conflict?: boolean }>;
   /** sha256 of an asset's current bytes (for saveImage). */
   assetHash?(path: string): Promise<string>;
+  /** Shared generated asset library (library/library.json). */
+  library?(): Promise<LibraryCatalogView>;
+  libraryImageUrl?(path: string): Promise<string>;
+  libraryAdd?(ids: string[]): Promise<boolean>;
 }
+
+export interface LibraryTileView { key: string; name: string; index: number; passable: boolean; color: string; tags: string[] }
+export interface LibraryItemView { id: string; kind: "tileset" | "character" | "enemy" | "background"; title: string; path: string; tags: string[]; tileWidth: number; tileHeight: number; columns: number; rows: number; tiles?: LibraryTileView[] }
+export interface LibraryCatalogView { license: string; items: LibraryItemView[] }
 
 export async function sha256Bytes(bytes: ArrayBuffer): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -101,6 +109,22 @@ export class LocalSource implements ProjectSource {
     } catch (error) {
       return { ok: false as const, error: error instanceof Error ? error.message : String(error) };
     }
+  }
+
+  async library() { return (await this.call<LibraryCatalogView>("GET", "/api/library")).json; }
+  async libraryImageUrl(path: string): Promise<string> {
+    const key = `library:${path}`;
+    const cached = this.assetCache.get(key);
+    if (cached) return cached;
+    const response = await fetch(`/api/library/image?path=${encodeURIComponent(path)}`, { headers: { [LOCAL_TOKEN_HEADER]: this.token } });
+    if (!response.ok) throw new Error(`ライブラリの画像を読めません: ${path}`);
+    const url = URL.createObjectURL(await response.blob());
+    this.assetCache.set(key, url);
+    return url;
+  }
+  async libraryAdd(ids: string[]) {
+    const { status } = await this.call<{ ok: boolean }>("POST", "/api/library/add", { ids }).catch(() => ({ status: 500 }));
+    return status === 200;
   }
 
   async assetHash(path: string): Promise<string> {

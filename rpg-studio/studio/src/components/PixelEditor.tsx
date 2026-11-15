@@ -92,10 +92,12 @@ export default function PixelEditor({ store, content, images }: Props) {
       const tw = atlas?.tileWidth ?? 64, th = atlas?.tileHeight ?? 64;
       blank = new ImageData(tw, th);
       const base = target.base ? content.tileset.tiles.find(t => t.code === target.base) : undefined;
-      const img = atlas ? images[atlas.id] : undefined;
-      if (base && img?.complete && img.naturalWidth && atlas?.columns) {
+      // The base tile may live on another sheet (tiles can name their own atlas).
+      const sheet = base ? content.assets.assets.find(a => a.id === (base.atlas ?? content.tileset.atlas)) : undefined;
+      const img = sheet ? images[sheet.id] : undefined;
+      if (base && sheet && img?.complete && img.naturalWidth && sheet.columns && (sheet.tileWidth ?? tw) === tw && (sheet.tileHeight ?? th) === th) {
         const all = imageToData(img);
-        const sx = (base.index % atlas.columns) * tw, sy = Math.floor(base.index / atlas.columns) * th;
+        const sx = (base.index % sheet.columns) * tw, sy = Math.floor(base.index / sheet.columns) * th;
         for (let y = 0; y < th; y++) for (let x = 0; x < tw; x++) for (let k = 0; k < 4; k++) blank.data[(y * tw + x) * 4 + k] = all.data[((sy + y) * all.width + sx + x) * 4 + k]!;
       }
       setFrame({ w: tw, h: th });
@@ -299,7 +301,7 @@ export default function PixelEditor({ store, content, images }: Props) {
     const img = images[atlas.id];
     if (!img?.complete || !img.naturalWidth) { store.log("error", "タイルセット画像を読み込み中です。少し待ってからもう一度"); return; }
     const hash = await store.source.assetHash!(atlas.path);
-    const used = content.tileset.tiles.flatMap(t => [t.index, ...(t.openIndex !== undefined ? [t.openIndex] : [])]);
+    const used = content.tileset.tiles.filter(t => !t.atlas || t.atlas === atlas.id).flatMap(t => [t.index, ...(t.openIndex !== undefined ? [t.openIndex] : [])]);
     const index = Math.max(-1, ...used) + 1;
     const tw = atlas.tileWidth, th = atlas.tileHeight;
     const rowsNow = atlas.rows ?? Math.ceil(img.naturalHeight / th);

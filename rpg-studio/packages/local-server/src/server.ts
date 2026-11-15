@@ -15,6 +15,7 @@ import { formatDiagnostic, SCRIPT_PATH } from "../../schema/src/index";
 import { buildProject, REPO_ROOT } from "../../cli/src/build";
 import { loadSystems, runProjectScenarios, systemRefDiagnostics } from "../../cli/src/index";
 import { loadProjectFromDisk, readProjectTexts } from "../../cli/src/load";
+import { add as libraryAdd, DEFAULT_LIBRARY, loadLibrary } from "../../cli/src/library";
 import {
   LOCAL_TOKEN_HEADER, LOCAL_TOKEN_META,
   type BuildStatus, type ChangeEvent, type ProjectSnapshot, type ImageSaveRequest, type SaveRequest, type TestResponse,
@@ -367,6 +368,24 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
           res.writeHead(200, { "content-type": BINARY_EXT[ext]!, "cache-control": "no-store", "x-content-type-options": "nosniff" });
           res.end(bytes);
           return;
+        }
+        case "GET /api/library": return json(res, 200, await loadLibrary());
+        case "GET /api/library/image": {
+          // Only files the catalogue lists (and their previews) — never arbitrary paths.
+          const wanted = url.searchParams.get("path") ?? "";
+          const catalog = await loadLibrary();
+          if (!catalog.items.some(item => item.path === wanted)) throw new HttpError(404, "ライブラリにない画像です");
+          const bytes = await fs.readFile(path.join(DEFAULT_LIBRARY, ...wanted.split("/")));
+          res.writeHead(200, { "content-type": "image/png", "cache-control": "max-age=3600", "x-content-type-options": "nosniff" });
+          res.end(bytes);
+          return;
+        }
+        case "POST /api/library/add": {
+          const body = await readBody(req) as { ids?: unknown; tiles?: unknown };
+          const ids = Array.isArray(body?.ids) ? body.ids.filter((x): x is string => typeof x === "string" && /^[a-z0-9][a-z0-9_-]*$/i.test(x)) : [];
+          if (!ids.length || ids.length > 50) throw new HttpError(400, "ids（1〜50件）が必要です");
+          const code = await libraryAdd(DEFAULT_LIBRARY, {}, ids, root);
+          return json(res, code === 0 ? 200 : 422, { ok: code === 0 });
         }
         case "PUT /api/image": {
           const result = await saveImage(await readBody(req) as ImageSaveRequest);

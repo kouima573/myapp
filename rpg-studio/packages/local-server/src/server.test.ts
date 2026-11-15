@@ -121,6 +121,18 @@ describe("local server security", () => {
     expect((await request("PUT", "/api/image", { headers: api, body: JSON.stringify({ path: "assets/drawn/x.png", base64: png.toString("base64"), expectedHash: "" }) })).status).toBe(403);
   });
 
+  it("lists the shared library, serves only catalogued images and copies chosen items into the project", async () => {
+    const catalog = JSON.parse((await request("GET", "/api/library", { headers: api })).body) as { items: Array<{ id: string; path: string; kind: string }> };
+    expect(catalog.items.length).toBeGreaterThan(50);
+    const enemy = catalog.items.find(i => i.kind === "enemy")!;
+    expect((await request("GET", `/api/library/image?path=${encodeURIComponent(enemy.path)}`, { headers: api })).status).toBe(200);
+    expect((await request("GET", `/api/library/image?path=${encodeURIComponent("../package.json")}`, { headers: api })).status).toBe(404);
+    expect((await request("POST", "/api/library/add", { headers: api, body: JSON.stringify({ ids: [enemy.id] }) })).status).toBe(403);
+    expect((await request("POST", "/api/library/add", { headers: write, body: JSON.stringify({ ids: [enemy.id] }) })).status).toBe(200);
+    const assets = JSON.parse(await fs.readFile(path.join(dir, "assets.json"), "utf8")) as { assets: Array<{ id: string }> };
+    expect(assets.assets.some(a => a.id === enemy.id)).toBe(true);
+  }, 30000);
+
   it("exposes no command execution endpoints", async () => {
     for (const route of ["/api/exec", "/api/run", "/api/shell"]) expect((await request("POST", route, { headers: write, body: "{}" })).status).toBe(404);
   });
