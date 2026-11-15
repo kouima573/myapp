@@ -1860,6 +1860,10 @@
       }
     },
     {
+      "equip": "squire-blade",
+      "companion": "emma"
+    },
+    {
       "effects": [
         {
           "type": "teleport",
@@ -1881,6 +1885,12 @@
           6,
           6
         ]
+      }
+    },
+    {
+      "battleOrder": {
+        "companion": "emma",
+        "action": 1
       }
     },
     {

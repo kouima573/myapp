@@ -7,6 +7,15 @@
       "name": "錆びた鍵",
       "description": "地下倉庫の扉の鍵。",
       "key": true
+    },
+    {
+      "id": "squire-blade",
+      "name": "見習いの剣",
+      "description": "仲間にも装備させられる。攻撃+2。",
+      "slot": "weapon",
+      "statMods": {
+        "attack": 2
+      }
     }
   ],
   "enemies": [

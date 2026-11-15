@@ -268,3 +268,37 @@ describe("several enemies and companions", () => {
     expect(s.party).toEqual([]);
   });
 });
+
+describe("companion orders and equipment", () => {
+  const rio = { id: "rio", name: "リオ", description: "", stats: { maxHp: 12, attack: 4, defense: 1 }, actions: [{ name: "斬る", kind: "attack" as const, power: 0 }, { name: "手当て", kind: "heal" as const, power: 5 }, { name: "構え", kind: "guard" as const, power: 0 }] };
+  const sword = { id: "test-sword", name: "試しの剣", description: "", slot: "weapon", statMods: { attack: 3 }, rules: [], key: false };
+  const make = () => createEngine({ ...content, database: { ...content.database, companions: [rio], items: [...content.database.items, sword] } }, systems);
+
+  it("an order replaces the companion's own choice for one turn and does not use the hero's turn", () => {
+    const engine = make();
+    let s = begin(engine, { mapId: "village", x: 3, y: 9 });
+    s = engine.run(s, [{ type: "joinParty", companion: "rio" }, { type: "battle", enemy: "moss-slime" }]).state;
+    const turn0 = (s.scene as { battle: { turn: number } }).battle.turn;
+    s = engine.step(s, { type: "battle", command: "order", companion: "rio", action: 2 }).state;
+    expect((s.scene as { battle: { turn: number; orders?: Record<string, number> } }).battle).toMatchObject({ turn: turn0, orders: { rio: 2 } });
+    s = engine.step(s, { type: "battle", command: "guard" }).state;
+    const b = (s.scene as { battle: { log: string[]; orders?: unknown } }).battle;
+    expect(b.log.some(l => l.includes("リオは身構えている"))).toBe(true);
+    expect(b.orders).toBeUndefined();
+  });
+
+  it("companions wear equipment; one copy is worn by one person; giving it away takes it off", () => {
+    const engine = make();
+    let s = begin(engine, { mapId: "village", x: 3, y: 9 });
+    s = engine.run(s, [{ type: "joinParty", companion: "rio" }, { type: "giveItem", item: "test-sword" }]).state;
+    s = engine.step(s, { type: "equip", item: "test-sword", companion: "rio" }).state;
+    expect(engine.companionStats(s, "rio").attack).toBe(7);
+    s = engine.step(s, { type: "equip", item: "test-sword" }).state;
+    expect(s.equipment).toEqual({ weapon: "test-sword" });
+    expect(engine.companionStats(s, "rio").attack).toBe(4);
+    s = engine.step(s, { type: "equip", item: "test-sword", companion: "rio" }).state;
+    expect(s.equipment).toEqual({});
+    s = engine.run(s, [{ type: "takeItem", item: "test-sword" }]).state;
+    expect(s.party![0]!.equipment).toEqual({});
+  });
+});

@@ -6,21 +6,22 @@
       "path": "assets/tilesets/sample-village.png",
       "kind": "tileset",
       "mimeType": "image/png",
-      "bytes": 153184,
-      "source": "AI画像生成（Manus）",
-      "license": "Custom AI-generated sample distributed under repository LICENSE (MIT)",
+      "bytes": 601428,
+      "source": "AI画像生成（Codex等、art/requests.json の要件から生成）",
+      "license": "プロジェクト内素材",
+      "origin": "generated",
+      "sourceId": "ai-image",
+      "creditRequired": false,
+      "redistributable": true,
+      "termsCheckedAt": "2026-11-15",
+      "notes": "Combined the original 16 sample-village tiles with the generated interior and town sheets; the original 16 tile pixels are unchanged. Tool: OpenAI image_gen; OpenAI Terms of Use checked 2026-11-15.",
+      "generator": {
+        "tool": "OpenAI image_gen + System.Drawing"
+      },
       "tileWidth": 64,
       "tileHeight": 64,
       "columns": 4,
-      "rows": 4,
-      "margin": 0,
-      "spacing": 0,
-      "origin": "generated",
-      "sourceId": "ai-image",
-      "generator": {
-        "tool": "Manus image generation",
-        "note": "Manus image generation, original commissioned artwork (/manus-storage/async-images/AjzbZ4Z9hGdfnuwWjCGdRl/image-1.webp)"
-      }
+      "rows": 12
     },
     {
       "id": "adventurer",

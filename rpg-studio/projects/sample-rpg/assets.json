@@ -735,52 +735,6 @@
       "rows": 1
     },
     {
-      "id": "interior-tiles",
-      "path": "assets/tilesets/interior-tiles.png",
-      "kind": "tileset",
-      "mimeType": "image/png",
-      "bytes": 189526,
-      "source": "AI画像生成（Codex等、art/requests.json の要件から生成）",
-      "license": "プロジェクト内素材",
-      "origin": "generated",
-      "sourceId": "ai-image",
-      "creditRequired": false,
-      "redistributable": true,
-      "termsCheckedAt": "2026-11-15",
-      "notes": "Tool: OpenAI image_gen. OpenAI Terms of Use checked 2026-11-15; output ownership assigned to the user as between user and OpenAI, to the extent permitted by law. Original prompt, no external image reference.",
-      "request": "tiles-ruins-interior",
-      "generator": {
-        "tool": "OpenAI image_gen"
-      },
-      "tileWidth": 64,
-      "tileHeight": 64,
-      "columns": 4,
-      "rows": 4
-    },
-    {
-      "id": "town-tiles",
-      "path": "assets/tilesets/town-tiles.png",
-      "kind": "tileset",
-      "mimeType": "image/png",
-      "bytes": 207723,
-      "source": "AI画像生成（Codex等、art/requests.json の要件から生成）",
-      "license": "プロジェクト内素材",
-      "origin": "generated",
-      "sourceId": "ai-image",
-      "creditRequired": false,
-      "redistributable": true,
-      "termsCheckedAt": "2026-11-15",
-      "notes": "Tool: OpenAI image_gen. OpenAI Terms of Use checked 2026-11-15; output ownership assigned to the user as between user and OpenAI, to the extent permitted by law. Original prompt, no external image reference.",
-      "request": "tiles-town-extra",
-      "generator": {
-        "tool": "OpenAI image_gen"
-      },
-      "tileWidth": 64,
-      "tileHeight": 64,
-      "columns": 4,
-      "rows": 4
-    },
-    {
       "id": "bg-ruins",
       "path": "assets/backgrounds/bg-ruins.png",
       "kind": "background",

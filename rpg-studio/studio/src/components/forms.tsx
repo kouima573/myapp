@@ -79,6 +79,10 @@ const EFFECT_KINDS: Array<[Effect["type"], string, (c: GameContent) => Effect]> 
   ["markDone", "完了にする", () => ({ type: "markDone", id: "" })],
   ["startScene", "ジャンルモジュールを開く", () => ({ type: "startScene", system: "novel", scene: "play", args: { script: [{ speaker: "", text: "……" }] } })],
   ["if", "もし〜なら", c => ({ type: "if", when: { flag: Object.keys(c.project.flags)[0] ?? "" }, then: [], else: [] })],
+  ["choice", "選択肢を出す", () => ({ type: "choice", prompt: "どうする？", options: [{ id: "yes", label: "はい", effects: [] }, { id: "no", label: "いいえ", effects: [] }] })],
+  ["joinParty", "仲間に加える", c => ({ type: "joinParty", companion: c.database.companions[0]?.id ?? "" })],
+  ["leaveParty", "仲間から外す", c => ({ type: "leaveParty", companion: c.database.companions[0]?.id ?? "" })],
+  ["equip", "装備させる", c => ({ type: "equip", item: c.database.items.find(i => i.slot)?.id ?? "" })],
 ];
 
 function EffectForm({ effect, onChange, content }: { effect: Effect; onChange: (e: Effect) => void } & Ctx) {
@@ -97,6 +101,21 @@ function EffectForm({ effect, onChange, content }: { effect: Effect; onChange: (
     case "addToSet": return <><Select value={effect.set} options={ids.sets(content)} onChange={v => set({ set: v })} /><input placeholder="値" value={effect.value} onChange={x => set({ value: x.target.value })} /></>;
     case "markDone": return <input placeholder="完了ID" value={effect.id} onChange={x => set({ id: x.target.value })} />;
     case "startScene": return <SceneArgsForm effect={effect} onChange={onChange} content={content} />;
+    case "joinParty": case "leaveParty": return <Select value={effect.companion} options={content.database.companions.map(x => [x.id, `${x.name}（${x.id}）`] as [string, string])} onChange={v => set({ companion: v })} />;
+    case "equip": return <><Select value={effect.item} options={content.database.items.filter(i => i.slot).map(i => [i.id, `${i.name}（${i.id}）`] as [string, string])} onChange={v => set({ item: v })} /><Select value={effect.companion ?? ""} options={[["", "主人公"], ...content.database.companions.map(x => [x.id, x.name] as [string, string])]} onChange={v => set({ companion: v || undefined })} /></>;
+    case "choice": return <div className="form-nested">
+      <div className="form-row"><input placeholder="話し手（任意）" value={effect.speaker ?? ""} onChange={x => set({ speaker: x.target.value || undefined })} style={{ maxWidth: "8em" }} /><input className="grow" placeholder="問いかけ" value={effect.prompt ?? ""} onChange={x => set({ prompt: x.target.value || undefined })} /></div>
+      {effect.options.map((o, i) => <div key={i} className="effect-item">
+        <div className="form-row">
+          <input placeholder="ID" value={o.id ?? ""} onChange={x => set({ options: effect.options.map((p, j) => (j === i ? { ...p, id: x.target.value || undefined } : p)) })} style={{ maxWidth: "7em" }} />
+          <input className="grow" placeholder="表示" value={o.label} onChange={x => set({ options: effect.options.map((p, j) => (j === i ? { ...p, label: x.target.value || p.label } : p)) })} />
+          <button className="icon-button" disabled={effect.options.length <= 1} onClick={() => set({ options: effect.options.filter((_, j) => j !== i) })}><Trash2 size={12} /></button>
+        </div>
+        <span className="field-label">出す条件</span><ConditionEditor value={o.when} content={content} onChange={w => set({ options: effect.options.map((p, j) => (j === i ? { ...p, when: w } : p)) })} />
+        <span className="field-label">選んだら</span><EffectListEditor value={o.effects} content={content} onChange={v => set({ options: effect.options.map((p, j) => (j === i ? { ...p, effects: v } : p)) })} />
+      </div>)}
+      <button className="button" onClick={() => set({ options: [...effect.options, { id: `option-${effect.options.length + 1}`, label: "選択肢", effects: [] }] })}><Plus size={12} />選択肢を足す</button>
+    </div>;
     case "if": return <div className="form-nested">
       <span className="field-label">条件</span><ConditionEditor value={effect.when} onChange={w => w && set({ when: w })} content={content} />
       <span className="field-label">なら</span><EffectListEditor value={effect.then} onChange={v => set({ then: v })} content={content} />

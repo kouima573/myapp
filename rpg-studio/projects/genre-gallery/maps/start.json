@@ -1527,12 +1527,16 @@
               "companion": "emma"
             },
             {
+              "type": "giveItem",
+              "item": "squire-blade"
+            },
+            {
               "type": "setFlag",
               "flag": "knight-joined"
             },
             {
               "type": "message",
-              "text": "エマが仲間になった。戦闘では自分で戦い、傷ついた仲間を手当てする。"
+              "text": "エマが仲間になった。戦闘では自分で戦い、傷ついた仲間を手当てする。『なかま』で行動を指示でき、見習いの剣はメニューからエマにも装備させられる。"
             }
           ]
         },

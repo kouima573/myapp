@@ -17,7 +17,7 @@ const TRIGGER_LABEL: Record<string, string> = {
 
 const uniqueId = (base: string, taken: string[]) => { if (!taken.includes(base)) return base; for (let i = 2; ; i++) if (!taken.includes(`${base}-${i}`)) return `${base}-${i}`; };
 
-function RuleEditor({ rule, onChange, onDelete, content }: { rule: Rule; onChange: (r: Rule) => void; onDelete: () => void; content: GameContent }) {
+export function RuleEditor({ rule, onChange, onDelete, content }: { rule: Rule; onChange: (r: Rule) => void; onDelete: () => void; content: GameContent }) {
   return <div className="card choice-card">
     <div className="form-row wrap">
       <Field label="ID"><TextInput mono value={rule.id} onCommit={v => /^[a-z0-9][a-z0-9_-]*$/i.test(v) && onChange({ ...rule, id: v })} /></Field>

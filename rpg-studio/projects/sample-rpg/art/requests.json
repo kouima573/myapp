@@ -260,7 +260,7 @@
       "avoid": [
         "既存ゲームのタイルの模写"
       ],
-      "userNotes": "",
+      "userNotes": "結合して village-tiles（assets/tilesets/sample-village.png）の index 16〜31 に収録。元画像は art/interior-tiles.png",
       "spec": {
         "cellWidth": 64,
         "cellHeight": 64,
@@ -269,7 +269,7 @@
         "layout": "左上から行優先で description の順",
         "transparent": false
       },
-      "assetId": "interior-tiles",
+      "assetId": "village-tiles",
       "candidates": []
     },
     {
@@ -284,7 +284,7 @@
         "village シートと並べて違和感がない"
       ],
       "avoid": [],
-      "userNotes": "",
+      "userNotes": "結合して village-tiles（assets/tilesets/sample-village.png）の index 32〜47 に収録。元画像は art/town-tiles.png",
       "spec": {
         "cellWidth": 64,
         "cellHeight": 64,
@@ -293,7 +293,7 @@
         "layout": "左上から行優先で description の順",
         "transparent": false
       },
-      "assetId": "town-tiles",
+      "assetId": "village-tiles",
       "candidates": []
     },
     {

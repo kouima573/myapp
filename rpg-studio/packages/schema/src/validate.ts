@@ -326,8 +326,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         case "ending": if (!endingIds.has(effect.ending)) err(file, here, `未宣言のエンディング '${effect.ending}'（project.json の endings）`); break;
         case "playBgm": checkAudio(file, here, effect.music, MUSIC, "BGM"); break;
         case "joinParty": case "leaveParty": if (!content.database.companions.some(x => x.id === effect.companion)) err(file, here, `未定義の仲間 '${effect.companion}'（database.json の companions）`); break;
-        case "equip": { const it = content.database.items.find(i => i.id === effect.item); if (!it) err(file, here, `未定義のアイテム '${effect.item}'`); else if (!it.slot) err(file, here, `'${effect.item}' は装備品ではありません（slot がない）`); break; }
-        case "unequip": if (!content.project.equipmentSlots[effect.slot]) err(file, here, `未定義の装備枠 '${effect.slot}'（project.json の equipmentSlots）`); break;
+        case "equip": { const it = content.database.items.find(i => i.id === effect.item); if (!it) err(file, here, `未定義のアイテム '${effect.item}'`); else if (!it.slot) err(file, here, `'${effect.item}' は装備品ではありません（slot がない）`); if (effect.companion && !content.database.companions.some(x => x.id === effect.companion)) err(file, here, `未定義の仲間 '${effect.companion}'`); break; }
+        case "unequip": if (effect.companion && !content.database.companions.some(x => x.id === effect.companion)) err(file, here, `未定義の仲間 '${effect.companion}'`); if (!content.project.equipmentSlots[effect.slot]) err(file, here, `未定義の装備枠 '${effect.slot}'（project.json の equipmentSlots）`); break;
         case "learnVerb": case "forgetVerb": case "useVerb": if (!verbIds.has(effect.verb)) err(file, here, `未定義の動詞 '${effect.verb}'（project.json の verbs）`); break;
         case "signal": if (!signalIds.has(effect.signal)) err(file, here, `未宣言のシグナル '${effect.signal}'（project.json の signals）`); break;
         case "setPlayer": if (effect.sprite && assetById.get(effect.sprite)?.kind !== "character") err(file, here, `キャラクター素材 '${effect.sprite}' がassets.jsonにありません`); break;

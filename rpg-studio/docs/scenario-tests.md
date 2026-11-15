@@ -26,7 +26,8 @@
 | `{ "useItem": "herb" }` / `{ "useAbility": "first-aid" }` | フィールドでアイテム・技を使う |
 | `{ "tick": 10 }` | 世界の時間を進める（エンティティの移動・tickルール）。フィールド以外になったら止まる |
 | `{ "sceneInput": "up" }` / `{ "sceneInput": { "custom": 値 } }` | 独自画面に入力を送る |
-| `{ "equip": "bronze-sword" }` | 装備する（装備中なら外す） |
+| `{ "equip": "bronze-sword" }` / `{ "equip": "squire-blade", "companion": "emma" }` | 装備する（装備中なら外す）。`companion` で仲間に装備させる |
+| `{ "battleOrder": { "companion": "emma", "action": 1 } }` | 戦闘中、仲間にこのターン使う行動（actions の何番目か）を指示する。ターンは消費しない |
 | `{ "battle": "attack", "target": 1 }` | 複数の敵のうち、何番目を攻撃するか（0 = 最初の敵） |
 | `{ "verb": "listen" }` | 自作の動詞を使う（project.json の verbs）。対象を選ぶ動詞は続けて `{ "choose": "対象ID" }` |
 | `{ "sceneInputs": ["confirm", "down"], "repeat": 30 }` | 入力の並びを最大 repeat 回くり返す（画面が閉じたら止まる）。カード戦闘など |

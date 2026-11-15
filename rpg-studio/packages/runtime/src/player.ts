@@ -268,7 +268,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (creditsOpen) { creditsOpen = false; selection = 0; renderUI(); return; }
     if (state.scene.kind === "battle" && battlePicker) { battlePicker = null; selection = 0; renderUI(); return; }
     if (state.scene.kind !== "field") return;
-    menuOpen = !menuOpen; selection = 0; held.length = 0;
+    menuOpen = !menuOpen; selection = 0; held.length = 0; equipFor = null;
     audio.cue(menuOpen ? "menu" : "cancel");
     renderUI();
   }
@@ -457,7 +457,11 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     updateTyping(performance.now());
   }
 
-  let battlePicker: "items" | "skills" | "targets" | null = null;
+  let battlePicker: "items" | "skills" | "targets" | "orders" | null = null;
+  /** Companion chosen in the "orders" picker (then its actions are listed). */
+  let orderCompanion: string | null = null;
+  /** Equipment item waiting for "who wears it?" in the menu. */
+  let equipFor: string | null = null;
 
   function renderCustomScene(scene: Extract<GameState["scene"], { kind: "custom" }>) {
     const def = engine.systems.find(s => s.id === scene.system)?.scenes?.[scene.scene];
@@ -514,7 +518,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     status.append(el("div", "rpg-speaker", `${heroName()}`), el("div", "rpg-battle-hp", `HP ${state.player.hp} / ${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
     for (const member of state.party ?? []) {
       const comp = content.database.companions.find(x => x.id === member.id);
-      if (comp) status.append(el("div", "rpg-battle-var", `${comp.name} HP ${member.hp}/${comp.stats.maxHp}${member.hp <= 0 ? "（倒れている）" : ""}`));
+      if (comp) status.append(el("div", "rpg-battle-var", `${comp.name} HP ${member.hp}/${engine.companionStats(state, comp.id).maxHp}${member.hp <= 0 ? "（倒れている）" : battle.orders?.[comp.id] !== undefined ? `（${comp.actions[battle.orders[comp.id]!]?.name}）` : ""}`));
     }
     for (const [id, decl] of Object.entries(content.project.variables)) if (decl.hud) status.appendChild(el("div", "rpg-battle-var", `${decl.label ?? id} ${state.vars[id] ?? decl.initial}`));
     const log = el("div", "rpg-window rpg-battle-log");
@@ -528,6 +532,15 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       battlePicker = null;
       const label = battle.outcome === "victory" ? "勝利！ 次へ" : battle.outcome === "fled" ? "フィールドへ戻る" : "次へ";
       commands.appendChild(navButton(label, () => dispatch({ type: "advance" })));
+    } else if (battlePicker === "orders") {
+      const standing = (state.party ?? []).filter(m => m.hp > 0);
+      const comp = orderCompanion ? content.database.companions.find(x => x.id === orderCompanion) : undefined;
+      if (!comp) {
+        for (const m of standing) { const c = content.database.companions.find(x => x.id === m.id); if (c) commands.appendChild(navButton(c.name, () => { orderCompanion = c.id; selection = 0; renderUI(); }, { hint: `HP ${m.hp}` })); }
+      } else {
+        comp.actions.forEach((a, i) => commands.appendChild(navButton(a.name, () => { battlePicker = null; orderCompanion = null; dispatch({ type: "battle", command: "order", companion: comp.id, action: i }); }, { hint: { attack: "攻撃", heal: "手当て", guard: "守り" }[a.kind] })));
+      }
+      commands.appendChild(navButton("もどる", () => { if (orderCompanion) orderCompanion = null; else battlePicker = null; selection = 0; renderUI(); }));
     } else if (battlePicker === "targets") {
       foes.forEach((foe, i) => {
         if (foe.hp <= 0) return;
@@ -551,6 +564,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         navButton("ぼうぎょ", () => dispatch({ type: "battle", command: "guard" }), { hint: "2" }),
         ...(skills.length ? [navButton("わざ", () => { battlePicker = "skills"; selection = 0; renderUI(); })] : []),
         navButton("どうぐ", () => { battlePicker = "items"; selection = 0; renderUI(); }, { hint: "3", disabled: !items.length }),
+        ...((state.party ?? []).some(m => m.hp > 0) ? [navButton("なかま", () => { battlePicker = "orders"; orderCompanion = null; selection = 0; renderUI(); }, { hint: "指示" })] : []),
         navButton("にげる", () => dispatch({ type: "battle", command: "flee" }), { hint: "4", disabled: !battle.canFlee }),
       );
     }
@@ -613,7 +627,9 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       for (const member of state.party) {
         const comp = content.database.companions.find(x => x.id === member.id);
         const row = el("div", "rpg-menu-ability");
-        row.append(el("strong", undefined, comp?.name ?? member.id), el("span", undefined, `HP ${member.hp}/${comp?.stats.maxHp ?? "?"}　攻 ${comp?.stats.attack ?? "?"}　防 ${comp?.stats.defense ?? "?"}${member.hp <= 0 ? "　倒れている" : ""}`));
+        const cs = engine.companionStats(state, member.id);
+        const gear = Object.values(member.equipment ?? {}).map(i => content.database.items.find(x => x.id === i)?.name ?? i).join("・");
+        row.append(el("strong", undefined, comp?.name ?? member.id), el("span", undefined, `HP ${member.hp}/${cs.maxHp}　攻 ${cs.attack}　防 ${cs.defense}${gear ? `　装備: ${gear}` : ""}${member.hp <= 0 ? "　倒れている" : ""}`));
         menu.appendChild(row);
       }
     }
@@ -635,9 +651,23 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       const item = content.database.items.find(i => i.id === id);
       const usable = fieldUsable.find(u => u.kind === "item" && u.id === id);
       if (item?.slot) {
-        const on = state.equipment?.[item.slot] === id;
-        const slotLabel = content.project.equipmentSlots[item.slot]?.label ?? item.slot;
-        menu.appendChild(navButton(`${on ? "Ｅ " : ""}${item.name}`, () => { dispatch({ type: "equip", item: id }); renderUI(); }, { hint: `${slotLabel}　${on ? "外す" : "装備する"}` }));
+        const slot = item.slot;
+        const heroOn = state.equipment?.[slot] === id;
+        const wearers = (state.party ?? []).filter(m => m.equipment?.[slot] === id).map(m => content.database.companions.find(x => x.id === m.id)?.name ?? m.id);
+        const slotLabel = content.project.equipmentSlots[slot]?.label ?? slot;
+        const who = [heroOn ? heroName() : "", ...wearers].filter(Boolean).join("・");
+        if (equipFor === id) {
+          menu.appendChild(el("div", "rpg-menu-empty", `${item.name}を誰が装備する？`));
+          menu.appendChild(navButton(heroName(), () => { equipFor = null; dispatch({ type: "equip", item: id }); renderUI(); }, { hint: heroOn ? "外す" : "装備する" }));
+          for (const m of state.party ?? []) {
+            const c = content.database.companions.find(x => x.id === m.id);
+            const on = m.equipment?.[slot] === id;
+            menu.appendChild(navButton(c?.name ?? m.id, () => { equipFor = null; dispatch({ type: "equip", item: id, companion: m.id }); renderUI(); }, { hint: on ? "外す" : "装備する" }));
+          }
+          menu.appendChild(navButton("やめる", () => { equipFor = null; renderUI(); }));
+          continue;
+        }
+        menu.appendChild(navButton(`${who ? "Ｅ " : ""}${item.name}`, () => { if (state.party?.length) { equipFor = id; selection = 0; renderUI(); } else { dispatch({ type: "equip", item: id }); renderUI(); } }, { hint: `${slotLabel}${who ? `　${who}` : ""}　${!state.party?.length && heroOn ? "外す" : "装備"}` }));
         continue;
       }
       menu.appendChild(navButton(`${item?.name ?? id}`, () => { if (usable && !usable.blocked) { menuOpen = false; dispatch({ type: "useItem", item: id }); } else showToast(usable?.blocked ?? (item?.description || "使えない。")); }, { hint: `×${count}${usable && !usable.blocked ? "　使う" : ""}` }));

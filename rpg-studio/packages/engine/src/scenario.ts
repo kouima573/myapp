@@ -63,7 +63,9 @@ const StepSchema = z.union([
   z.object({ skill: IdSchema }).strict(),
   z.object({ tick: z.number().int().positive() }).strict(),
   /** Equip (or take off) an item from the inventory. */
-  z.object({ equip: IdSchema }).strict(),
+  z.object({ equip: IdSchema, companion: IdSchema.optional() }).strict(),
+  /** Tell a companion which of its actions to use this turn (index in its actions). */
+  z.object({ battleOrder: z.object({ companion: IdSchema, action: z.number().int().min(0) }).strict() }).strict(),
   /** Use a self-made verb (project.json › verbs). */
   z.object({ verb: IdSchema }).strict(),
   /** Realtime scenes (shooting): run up to `frames` simulation steps holding these buttons; stops when the scene ends. */
@@ -268,8 +270,9 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
       }
       else if ("equip" in s) {
         if (state.scene.kind !== "field") throw new ScenarioError(`equip: フィールドではありません (scene=${state.scene.kind})`);
-        step({ type: "equip", item: s.equip });
+        step({ type: "equip", item: s.equip, ...(s.companion ? { companion: s.companion } : {}) });
       }
+      else if ("battleOrder" in s) step({ type: "battle", command: "order", companion: s.battleOrder.companion, action: s.battleOrder.action });
       else if ("verb" in s) {
         if (!content.project.verbs[s.verb]) throw new ScenarioError(`verb: 動詞 '${s.verb}' がありません`);
         if (state.scene.kind !== "field") throw new ScenarioError(`verb: フィールドではありません (scene=${state.scene.kind})`);

@@ -1878,6 +1878,12 @@
               "minLength": 1,
               "maxLength": 96,
               "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "companion": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
             }
           },
           "required": [
@@ -1894,6 +1900,12 @@
               "const": "unequip"
             },
             "slot": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "companion": {
               "type": "string",
               "minLength": 1,
               "maxLength": 96,

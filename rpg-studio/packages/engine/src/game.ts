@@ -27,7 +27,9 @@ export type BattleCommand =
   | { command: "guard" }
   | { command: "flee" }
   | { command: "item"; item: string }
-  | { command: "skill"; ability: string };
+  | { command: "skill"; ability: string }
+  /** Tell a companion what to do this turn (does not use the hero's turn). */
+  | { command: "order"; companion: string; action: number };
 
 export type Action =
   | { type: "move"; direction: Direction }
@@ -44,7 +46,7 @@ export type Action =
   /** A self-made verb from project.json › verbs. */
   | { type: "verb"; verb: string }
   /** Equip an item (or take it off if it is already equipped). Field only. */
-  | { type: "equip"; item: string };
+  | { type: "equip"; item: string; companion?: string };
 
 /** Presentation hints for the runtime (sound, animation). Never needed for correctness. */
 export type Cue =
@@ -97,6 +99,8 @@ export interface Engine {
   hudLines(state: GameState): string[];
   /** Self-made verbs usable right now (known / learned, not forgotten, `when` holds). */
   usableVerbs(state: GameState): string[];
+  /** A companion's stats including its equipment. */
+  companionStats(state: GameState, id: string): Stats;
   step(state: GameState, action: Action): StepResult;
   /** Run arbitrary effects (tests, studio debug console, system code). */
   run(state: GameState, effects: Effect[]): StepResult;
@@ -132,6 +136,24 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   const text = (template: string, state: GameState, extra?: EvalEnv["ctx"]) => interpolate(template, state, extra ? { ...env, ctx: extra } : env);
   const stats = (state: GameState) => effectiveStats(state, content);
   const companionOf = (id: string) => db.companions.find(x => x.id === id);
+  /** A companion's stats with its equipment (items' statMods, evaluated like the hero's). */
+  function companionStats(state: GameState, id: string): Stats {
+    const comp = companionOf(id);
+    const base = { ...(comp?.stats ?? { maxHp: 1, attack: 0, defense: 0 }) };
+    const member = state.party?.find(m => m.id === id);
+    for (const itemId of Object.values(member?.equipment ?? {})) {
+      const mods = db.items.find(i => i.id === itemId)?.statMods;
+      if (!mods) continue;
+      for (const key of ["maxHp", "attack", "defense"] as const) if (mods[key] !== undefined) base[key] += evalExpr(mods[key]!, state, { content, baseStats: true });
+    }
+    return { maxHp: Math.max(1, base.maxHp), attack: Math.max(0, base.attack), defense: Math.max(0, base.defense) };
+  }
+  /** Who holds this item equipped: "hero" and/or companion ids. */
+  const holdersOf = (state: GameState, itemId: string) => [...(Object.values(state.equipment ?? {}).includes(itemId) ? ["hero"] : []), ...(state.party ?? []).filter(m => Object.values(m.equipment ?? {}).includes(itemId)).map(m => m.id)];
+  function takeOff(state: GameState, holder: string, itemId: string): GameState {
+    if (holder === "hero") return { ...state, equipment: Object.fromEntries(Object.entries(state.equipment ?? {}).filter(([, i]) => i !== itemId)) };
+    return { ...state, party: state.party!.map(m => (m.id === holder ? { ...m, equipment: Object.fromEntries(Object.entries(m.equipment ?? {}).filter(([, i]) => i !== itemId)) } : m)) };
+  }
   const enemyOf = (id: string): Enemy => {
     const enemy = db.enemies.find(e => e.id === id);
     if (!enemy) throw new Error(`敵 '${id}' がデータベースにありません`);
@@ -445,7 +467,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
           if (left > 0) items[effect.item] = left; else delete items[effect.item];
           // Giving away the last one takes it off.
           const equipment = left > 0 ? s.equipment : Object.fromEntries(Object.entries(s.equipment ?? {}).filter(([, item]) => item !== effect.item));
-          return { ...s, items, ...(equipment ? { equipment } : {}) };
+          const party = left > 0 || !s.party ? s.party : s.party.map(m => ({ ...m, equipment: Object.fromEntries(Object.entries(m.equipment ?? {}).filter(([, item]) => item !== effect.item)) }));
+          return { ...s, items, ...(equipment ? { equipment } : {}), ...(party ? { party } : {}) };
         });
       case "heal": {
         const max = stats(state).maxHp;
@@ -453,7 +476,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         if (amount > 0) c.cues.push({ kind: "heal" });
         const target = effect.target ?? "player";
         if (target !== "party") state = { ...state, player: { ...state.player, hp: Math.max(0, Math.min(max, state.player.hp + amount)) } };
-        if (target !== "player" && state.party) state = { ...state, party: state.party.map(m => { const cmax = companionOf(m.id)?.stats.maxHp ?? m.hp; return { ...m, hp: Math.max(0, Math.min(cmax, m.hp + (effect.amount === undefined ? cmax : amount))) }; }) };
+        if (target !== "player" && state.party) state = { ...state, party: state.party.map(m => { const cmax = companionStats(state, m.id).maxHp; return { ...m, hp: Math.max(0, Math.min(cmax, m.hp + (effect.amount === undefined ? cmax : amount))) }; }) };
         return state;
       }
       case "joinParty": {
@@ -513,10 +536,19 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         const item = db.items.find(i => i.id === effect.item);
         if (!item?.slot) throw new Error(`アイテム '${effect.item}' は装備品ではありません（slot がない）`);
         if ((state.items[item.id] ?? 0) <= 0) { c.log.push(`${item.name}を持っていないので装備できない`); return state; }
-        c.log.push(`${item.name}を装備した`);
-        return withHpCare(state, s => ({ ...s, equipment: { ...s.equipment, [item.slot!]: item.id } }));
+        const who = effect.companion ?? "hero";
+        if (who !== "hero" && !state.party?.some(m => m.id === who)) { c.log.push(`${who} は仲間にいない`); return state; }
+        // Only as many people can wear it as there are copies: take it off someone else first.
+        const others = holdersOf(state, item.id).filter(h => h !== who);
+        if (others.length >= (state.items[item.id] ?? 0)) state = takeOff(state, others[0]!, item.id);
+        c.log.push(`${who === "hero" ? "" : `${companionOf(who)?.name ?? who}が`}${item.name}を装備した`);
+        if (who === "hero") return withHpCare(state, s => ({ ...s, equipment: { ...s.equipment, [item.slot!]: item.id } }));
+        return { ...state, party: state.party!.map(m => (m.id === who ? { ...m, equipment: { ...m.equipment, [item.slot!]: item.id } } : m)) };
       }
       case "unequip": {
+        if (effect.companion) {
+          return { ...state, party: (state.party ?? []).map(m => (m.id === effect.companion ? { ...m, equipment: Object.fromEntries(Object.entries(m.equipment ?? {}).filter(([slot]) => slot !== effect.slot)) } : m)).map(m => ({ ...m, hp: Math.min(m.hp, companionStats({ ...state, party: state.party }, m.id).maxHp) })) };
+        }
         if (!state.equipment?.[effect.slot]) return state;
         const { [effect.slot]: _removed, ...rest } = state.equipment;
         return withHpCare(state, s => ({ ...s, equipment: rest }));
@@ -894,22 +926,27 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       const current = state.party?.find(m => m.id === member.id);
       if (!comp || !current || current.hp <= 0 || battleOf(state)!.outcome !== "ongoing") continue;
       const actions = comp.actions.filter(a => ev(a.when, state));
-      const hurt = [{ id: "player", hp: state.player.hp, max: stats(state).maxHp }, ...(state.party ?? []).filter(m => m.hp > 0).map(m => ({ id: m.id, hp: m.hp, max: companionOf(m.id)?.stats.maxHp ?? m.hp }))].filter(x => x.hp < x.max / 2).sort((a, b) => a.hp / a.max - b.hp / b.max)[0];
-      const heal = hurt && actions.find(a => a.kind === "heal");
+      const cs = companionStats(state, comp.id);
+      // An order from the hero for this turn wins (if its condition holds).
+      const orderIndex = battleOf(state)!.orders?.[comp.id];
+      const ordered = orderIndex !== undefined && comp.actions[orderIndex] && ev(comp.actions[orderIndex]!.when, state) ? comp.actions[orderIndex] : undefined;
+      const everyone = [{ id: "player", hp: state.player.hp, max: stats(state).maxHp }, ...(state.party ?? []).filter(m => m.hp > 0).map(m => ({ id: m.id, hp: m.hp, max: companionStats(state, m.id).maxHp }))].sort((a, b) => a.hp / a.max - b.hp / b.max);
+      const hurt = ordered?.kind === "heal" ? everyone[0] : ordered ? undefined : everyone.filter(x => x.hp < x.max / 2)[0];
+      const heal = hurt && (ordered?.kind === "heal" ? ordered : actions.find(a => a.kind === "heal"));
       if (heal && hurt) {
-        const amount = Math.max(1, heal.power || Math.ceil(comp.stats.attack * 1.5));
+        const amount = Math.max(1, heal.power || Math.ceil(cs.attack * 1.5));
         if (hurt.id === "player") state = { ...state, player: { ...state.player, hp: Math.min(stats(state).maxHp, state.player.hp + amount) } };
         else state = { ...state, party: state.party!.map(m => (m.id === hurt.id ? { ...m, hp: Math.min(hurt.max, m.hp + amount) } : m)) };
         state = battleLog(state, text(heal.message ?? `${comp.name}の${heal.name}！ ${hurt.id === "player" ? (state.player.name ?? content.project.player.name) : companionOf(hurt.id)?.name}のHPが${amount}回復した。`, state));
         continue;
       }
       const others = actions.filter(a => a.kind !== "heal");
-      const action = others.length ? others[battleOf(state)!.turn % others.length]! : undefined;
+      const action = ordered && ordered.kind !== "heal" ? ordered : others.length ? others[battleOf(state)!.turn % others.length]! : undefined;
       if (!action || action.kind === "guard") { state = battleLog(state, `${comp.name}は身構えている。`); continue; }
       const t = firstAlive(battleOf(state)!);
       state = swapEnemy(state, t);
       const enemy = enemyOf(battleOf(state)!.enemyId);
-      const [raw, next] = rollDamage(state, comp.stats.attack, action.power, enemy.stats.defense);
+      const [raw, next] = rollDamage(state, cs.attack, action.power, enemy.stats.defense);
       const amount = Math.max(1, raw);
       state = setBattle(next, { ...battleOf(next)!, enemyHp: Math.max(0, battleOf(next)!.enemyHp - amount) });
       state = battleLog(state, text(action.message ?? `${comp.name}の${action.name}！ ${enemy.name}に${amount}のダメージ。`, state));
@@ -941,7 +978,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       } else {
         const member = standing[pick - 1]!;
         const comp = companionOf(member.id)!;
-        const [rolled, next] = rollDamage(state, enemy.stats.attack, action.power, comp.stats.defense, "enemy");
+        const [rolled, next] = rollDamage(state, enemy.stats.attack, action.power, companionStats(state, comp.id).defense, "enemy");
         const amount = Math.max(1, rolled);
         state = { ...next, party: next.party!.map(m => (m.id === member.id ? { ...m, hp: Math.max(0, m.hp - amount) } : m)) };
         state = battleLog(state, `${comp.name}に${amount}のダメージ。${state.party!.find(m => m.id === member.id)!.hp <= 0 ? `${comp.name}は倒れた……` : ""}`);
@@ -955,6 +992,13 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     if (!battle || battle.outcome !== "ongoing") return state;
     state = setBattle(state, { ...battle, guarding: false });
 
+    if (command.command === "order") {
+      const comp = companionOf(command.companion);
+      const member = state.party?.find(m => m.id === command.companion);
+      if (!comp || !member || member.hp <= 0 || !comp.actions[command.action]) return state;
+      const b = battleOf(state)!;
+      return battleLog(setBattle(state, { ...b, orders: { ...b.orders, [comp.id]: command.action } }), `${comp.name}に「${comp.actions[command.action]!.name}」を指示した。`);
+    }
     const allowed = content.project.battle.commands;
     const commandKey = command.command === "skill" ? "skills" : command.command === "item" ? "items" : command.command;
     if (!allowed[commandKey]) return battleLog(state, "そのコマンドは使えない。");
@@ -987,7 +1031,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     }
     state = checkBattleEnd(c, state);
     battle = battleOf(state)!;
-    return setBattle(state, { ...battle, turn: battle.turn + 1 });
+    const { orders: _done, ...rest } = battle;
+    return setBattle(state, { ...rest, turn: battle.turn + 1 });
   }
 
   function closeBattle(c: Ctx, state: GameState): GameState {
@@ -1402,7 +1447,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         if (scene.kind !== "field") break;
         const item = db.items.find(i => i.id === action.item);
         if (!item?.slot) break;
-        next = runQueue(c, applyEffect(c, state, state.equipment?.[item.slot] === item.id ? { type: "unequip", slot: item.slot } : { type: "equip", item: item.id }));
+        const worn = action.companion ? state.party?.find(m => m.id === action.companion)?.equipment?.[item.slot] === item.id : state.equipment?.[item.slot] === item.id;
+        next = runQueue(c, applyEffect(c, state, worn ? { type: "unequip", slot: item.slot, ...(action.companion ? { companion: action.companion } : {}) } : { type: "equip", item: item.id, ...(action.companion ? { companion: action.companion } : {}) }));
         break;
       }
       case "sceneInput":
@@ -1461,6 +1507,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     newGame,
     metaOf,
     usableVerbs,
+    companionStats,
     visibleEntities: (state, map) => visibleEntities(state, map),
     regions: state => regionsAt(state, content, env),
     hudLines: state => sorted.flatMap(sys => sys.hud?.({ content, state }) ?? []),

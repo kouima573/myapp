@@ -155,8 +155,8 @@ export type Effect =
   | { type: "grantTrait"; trait: string }
   | { type: "removeTrait"; trait: string }
   | { type: "giveItem"; item: string; count?: number }
-  | { type: "equip"; item: string }
-  | { type: "unequip"; slot: string }
+  | { type: "equip"; item: string; companion?: string }
+  | { type: "unequip"; slot: string; companion?: string }
   | { type: "takeItem"; item: string; count?: number }
   | { type: "heal"; amount?: Expr; target?: "player" | "party" | "all" }
   | { type: "joinParty"; companion: string }
@@ -236,8 +236,8 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   /** Broadcast a self-made event: every rule with on "signal" and match = this id runs right here. */
   z.object({ type: z.literal("signal"), signal: IdSchema }).strict(),
   /** Put on an item you carry (it goes in its slot, replacing what was there) / take off a slot. */
-  z.object({ type: z.literal("equip"), item: IdSchema }).strict(),
-  z.object({ type: z.literal("unequip"), slot: IdSchema }).strict(),
+  z.object({ type: z.literal("equip"), item: IdSchema, /** A party member instead of the hero. */ companion: IdSchema.optional() }).strict(),
+  z.object({ type: z.literal("unequip"), slot: IdSchema, companion: IdSchema.optional() }).strict(),
   /** Teach / take away a verb (verbs with known: false start unlearned). */
   z.object({ type: z.literal("learnVerb"), verb: IdSchema }).strict(),
   z.object({ type: z.literal("forgetVerb"), verb: IdSchema }).strict(),
@@ -930,6 +930,8 @@ export interface GameContent {
 export const BattleStateSchema = z.object({
   enemyId: IdSchema,
   enemyHp: z.number().int().nonnegative(),
+  /** Orders for this turn: companion id → index in its actions. */
+  orders: z.record(z.string(), z.number().int().nonnegative()).optional(),
   /** Other enemies in the same battle (with). */
   foes: z.array(z.object({ enemyId: IdSchema, hp: z.number().int().nonnegative() }).strict()).optional(),
   turn: z.number().int().nonnegative(),
@@ -987,7 +989,7 @@ export const GameStateSchema = z.object({
   /** Moved entities: mapId → entityId → position. */
   entities: z.record(z.string(), z.record(z.string(), z.object({ x: CoordSchema, y: CoordSchema, facing: DirectionSchema, step: z.number().int().nonnegative().optional(), map: z.string().optional() }).strict())).default({}),
   /** Companions with the hero and their HP. */
-  party: z.array(z.object({ id: z.string(), hp: z.number().int().nonnegative() }).strict()).optional(),
+  party: z.array(z.object({ id: z.string(), hp: z.number().int().nonnegative(), /** slot → item id */ equipment: z.record(z.string(), z.string()).optional() }).strict()).optional(),
   /** Equipped items: slot → item id. */
   equipment: z.record(z.string(), z.string()).optional(),
   /** Entity being carried (carryable): its id and the map it was defined on. */
