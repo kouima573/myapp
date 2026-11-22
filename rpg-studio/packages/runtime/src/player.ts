@@ -161,6 +161,12 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   /** Footprints / splashes (tile.stepEffect). */
   let stepEffects: Array<{ x: number; y: number; kind: "dust" | "splash" | "footprints" | "leaves"; at: number; facing?: string }> = [];
   let shakeUntil = 0;
+  let shakePower = 4;
+  /** Where the camera is now (eased toward state.camera / the hero). */
+  let camNow: { x: number; y: number; zoom: number; mapId?: string; at?: number } = { x: 0, y: 0, zoom: 1 };
+  let lastCamMs = 600;
+  /** Battle animations playing (cue "anim"). */
+  let anims: Array<{ name: string; target: "player" | "enemy"; slot?: number | "all"; at: number }> = [];
   let destroyed = false;
   let raf = 0;
   let images: ImageMap = {};
@@ -263,6 +269,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       }
       else if (cue.kind === "bump") audio.cue("bump");
       else if (cue.kind === "battleStart") { audio.cue("encounter"); fadeUntil = performance.now() + (uiPrefs.battleSpeed === "fast" ? 60 : 260); }
+      else if (cue.kind === "shake") { shakeUntil = performance.now() + cue.ms; shakePower = cue.power; }
+      else if (cue.kind === "anim") anims = [...anims.filter(a => performance.now() - a.at < 900), { name: cue.name, target: cue.target, ...(cue.slot !== undefined ? { slot: cue.slot } : {}), at: performance.now() }];
       else if (cue.kind === "achievement") { showToast(`🏆 実績「${cue.title}」を達成！`); audio.cue("item"); }
       else if (cue.kind === "miss") popups.push({ text: "MISS", target: cue.target, at: performance.now(), n: popups.length });
       else if (cue.kind === "critical") popups.push({ text: "会心！", target: cue.target, at: performance.now(), n: popups.length });
@@ -762,9 +770,22 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       enemyInfo.appendChild(row);
     }
     const portraits = el("div", "rpg-portraits");
-    portraitCanvases = foes.map(() => { const c = el("canvas", foes.length > 1 ? "rpg-portrait is-group" : "rpg-portrait"); c.width = 128; c.height = 128; portraits.appendChild(c); return c; });
+    // Battle animations (cue "anim") still playing, as CSS effects over the enemy pictures / the hero's window.
+    const nowFx = performance.now();
+    anims = anims.filter(a => nowFx - a.at < 900);
+    const fx = (name: string, at: number) => { const d = el("div", `rpg-fx rpg-fx-${name}`); d.style.animationDelay = `${-(nowFx - at)}ms`; return d; };
+    portraitCanvases = foes.map(foe => {
+      const c = el("canvas", foes.length > 1 ? "rpg-portrait is-group" : "rpg-portrait"); c.width = 128; c.height = 128;
+      const wrap = el("div", foes.length > 1 ? "rpg-portrait-wrap is-group" : "rpg-portrait-wrap");
+      wrap.appendChild(c);
+      for (const a of anims) if (a.target === "enemy" && (a.slot === "all" || a.slot === foe.slot)) wrap.appendChild(fx(a.name, a.at));
+      portraits.appendChild(wrap);
+      return c;
+    });
+    if (anims.length) window.setTimeout(() => { if (!destroyed && state.scene.kind === "battle") renderUI(); }, 920);
     stage.append(enemyInfo, portraits);
     const status = el("div", "rpg-window rpg-battle-status");
+    for (const a of anims) if (a.target === "player") status.appendChild(fx(a.name, a.at));
     status.append(el("div", "rpg-speaker", `${heroName()}${engine.levelInfo(state) ? `  Lv${engine.levelInfo(state)!.level}` : ""}${statusTags(state.player.statuses)}`), el("div", "rpg-battle-hp", `HP ${state.player.hp} / ${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
     for (const member of (state.party ?? []).filter(m => !m.reserve)) {
       const comp = content.database.companions.find(x => x.id === member.id);
@@ -1287,9 +1308,21 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
 
     const map = content.maps[state.mapId];
     if (map) {
+      // Camera (camera effect): look at a cell or the hero, zoom, eased over `ms`; shake on top.
+      const target = { x: state.camera?.x ?? renderPos.x, y: state.camera?.y ?? renderPos.y, zoom: state.camera?.zoom ?? 1 };
+      const following = !state.camera && Math.abs(camNow.x - target.x) < 0.05 && Math.abs(camNow.y - target.y) < 0.05 && Math.abs(camNow.zoom - 1) < 0.01;
+      if (following || camNow.mapId !== map.id) camNow = { ...target, mapId: map.id };
+      else {
+        const k = 1 - Math.exp(-(now - (camNow.at ?? now)) / Math.max(30, (state.camera?.ms ?? lastCamMs) / 4));
+        camNow = { x: camNow.x + (target.x - camNow.x) * k, y: camNow.y + (target.y - camNow.y) * k, zoom: camNow.zoom + (target.zoom - camNow.zoom) * k, mapId: map.id };
+      }
+      camNow.at = now;
+      if (state.camera) lastCamMs = state.camera.ms;
+      const zoom = camNow.zoom, viewCols = VIEW_COLS / zoom, viewRows = VIEW_ROWS / zoom;
+      const shaking = shakeUntil > now && uiPrefs.shake ? shakePower * ((shakeUntil - now) / 400) : 0;
       const cam = {
-        x: Math.max(0, Math.min(map.width - VIEW_COLS, renderPos.x - (VIEW_COLS - 1) / 2)),
-        y: Math.max(0, Math.min(map.height - VIEW_ROWS, renderPos.y - (VIEW_ROWS - 1) / 2)),
+        x: Math.max(0, Math.min(map.width - viewCols, camNow.x - (viewCols - 1) / 2)) + (shaking ? (Math.random() * 2 - 1) * shaking / TILE : 0),
+        y: Math.max(0, Math.min(map.height - viewRows, camNow.y - (viewRows - 1) / 2)) + (shaking ? (Math.random() * 2 - 1) * shaking / TILE : 0),
       };
       const npcs = engine.visibleNpcs(state, map);
       const rows = engine.rowsFor(state, map.id);
@@ -1307,9 +1340,11 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         const moving = pos.x !== e.x || pos.y !== e.y;
         return { id: e.entity.id, kind: "npc" as const, x: pos.x, y: pos.y, facing: talkFacing[e.entity.id] ?? e.facing, sprite: e.state.sprite, frame: moving ? Math.floor(now / 120) % 4 : 0 };
       });
+      ctx.save();
+      if (zoom !== 1) ctx.scale(zoom, zoom);
       const origin = drawMap(ctx, {
         content, map: rows === map.rows ? map : { ...map, rows }, images, state, time: now,
-        view: { camera: cam, cols: VIEW_COLS, rows: VIEW_ROWS },
+        view: { camera: cam, cols: viewCols, rows: viewRows },
         interactables: engine.visibleInteractables(state, map),
         stepEffects: stepEffects.filter(fx => now - fx.at < 2600),
         markers: entities.filter(e => e.state.marker !== "none").map(e => ({ x: e.x, y: e.y, marker: e.state.marker })),
@@ -1319,6 +1354,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
           { id: "player", kind: "player" as const, x: renderPos.x, y: renderPos.y, facing: state.player.facing, sprite: state.player.sprite ?? content.project.player.sprite, frame: walkFrame },
         ].map(a => { const e = emotes.get(a.id); return e && e.until > now ? { ...a, emote: e.icon } : a; }),
       });
+      ctx.restore();
       for (const system of engine.activeSystems(state)) {
         if (!system.drawOverlay) continue;
         try {

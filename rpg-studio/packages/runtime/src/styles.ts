@@ -69,8 +69,31 @@ export const RUNTIME_CSS = String.raw`
 @keyframes rpg-in { from { opacity:0; transform:scale(1.04); } }
 .rpg-battle-stage { position:relative; flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.4em; min-height:0; }
 .rpg-portraits { display:flex; justify-content:center; align-items:flex-end; gap:2%; width:100%; }
-.rpg-portrait { width:24%; aspect-ratio:1; image-rendering:pixelated; }
-.rpg-portrait.is-group { width:18%; }
+.rpg-portrait-wrap { position:relative; width:24%; aspect-ratio:1; }
+.rpg-portrait-wrap.is-group { width:18%; }
+.rpg-portrait { width:100%; height:100%; image-rendering:pixelated; }
+.rpg-portrait.is-group { width:100%; }
+.rpg-battle-status { position:relative; }
+/* Battle animations (data: animation on weapons, skills, items, enemy actions). */
+.rpg-fx { position:absolute; inset:0; pointer-events:none; animation-duration:.8s; animation-fill-mode:forwards; animation-timing-function:ease-out; }
+.rpg-fx-slash { background:linear-gradient(135deg, transparent 44%, rgba(255,255,255,.95) 48%, rgba(255,255,255,.95) 52%, transparent 56%); animation-name:rpg-fx-slash; }
+.rpg-fx-pierce { background:radial-gradient(circle at 50% 50%, rgba(255,255,255,.95) 0 6%, transparent 8%), linear-gradient(90deg, transparent 30%, rgba(255,255,255,.8) 50%, transparent 70%) center/100% 6% no-repeat; animation-name:rpg-fx-pop; }
+.rpg-fx-hit { background:radial-gradient(circle, rgba(255,240,200,.95) 0 12%, rgba(255,160,80,.6) 20%, transparent 36%); animation-name:rpg-fx-pop; }
+.rpg-fx-magic { background:radial-gradient(circle, rgba(220,180,255,.9) 0 10%, rgba(140,90,255,.55) 30%, transparent 55%); animation-name:rpg-fx-swell; }
+.rpg-fx-fire { background:radial-gradient(ellipse at 50% 70%, rgba(255,240,140,.95) 0 10%, rgba(255,120,40,.8) 28%, rgba(200,40,20,.4) 45%, transparent 60%); animation-name:rpg-fx-flicker; }
+.rpg-fx-ice { background:conic-gradient(from 0deg, rgba(200,240,255,.9) 0 5%, transparent 5% 12.5%, rgba(200,240,255,.9) 12.5% 17.5%, transparent 17.5% 25%, rgba(200,240,255,.9) 25% 30%, transparent 30% 37.5%, rgba(200,240,255,.9) 37.5% 42.5%, transparent 42.5% 50%, rgba(200,240,255,.9) 50% 55%, transparent 55% 62.5%, rgba(200,240,255,.9) 62.5% 67.5%, transparent 67.5% 75%, rgba(200,240,255,.9) 75% 80%, transparent 80% 87.5%, rgba(200,240,255,.9) 87.5% 92.5%, transparent 92.5%); border-radius:50%; animation-name:rpg-fx-swell; }
+.rpg-fx-thunder { background:linear-gradient(100deg, transparent 45%, rgba(255,250,150,1) 47%, transparent 50%), linear-gradient(80deg, transparent 50%, rgba(255,250,150,1) 52%, transparent 55%); animation-name:rpg-fx-flash; }
+.rpg-fx-heal { background:radial-gradient(circle at 30% 80%, rgba(160,255,170,.9) 0 4%, transparent 5%), radial-gradient(circle at 60% 60%, rgba(160,255,170,.9) 0 4%, transparent 5%), radial-gradient(circle at 45% 40%, rgba(200,255,200,.9) 0 3%, transparent 4%), radial-gradient(circle, rgba(120,230,140,.35) 0 30%, transparent 55%); animation-name:rpg-fx-rise; }
+.rpg-fx-explosion { background:radial-gradient(circle, rgba(255,255,220,1) 0 8%, rgba(255,170,60,.9) 20%, rgba(180,60,20,.6) 36%, transparent 52%); animation-name:rpg-fx-boom; }
+.rpg-fx-poison { background:radial-gradient(circle at 35% 60%, rgba(170,90,200,.8) 0 8%, transparent 10%), radial-gradient(circle at 65% 45%, rgba(170,90,200,.8) 0 6%, transparent 8%), radial-gradient(circle, rgba(140,60,170,.4) 0 30%, transparent 50%); animation-name:rpg-fx-rise; }
+@keyframes rpg-fx-slash { 0% { clip-path:inset(0 100% 100% 0); opacity:1; } 45% { clip-path:inset(0 0 0 0); opacity:1; } 100% { clip-path:inset(0 0 0 0); opacity:0; } }
+@keyframes rpg-fx-pop { 0% { transform:scale(.3); opacity:1; } 60% { opacity:1; } 100% { transform:scale(1.25); opacity:0; } }
+@keyframes rpg-fx-swell { 0% { transform:scale(.2) rotate(0); opacity:0; } 30% { opacity:1; } 100% { transform:scale(1.3) rotate(40deg); opacity:0; } }
+@keyframes rpg-fx-flicker { 0%,100% { opacity:0; transform:scale(.6); } 15%,55% { opacity:1; transform:scale(1.05); } 35% { opacity:.7; transform:scale(.95); } }
+@keyframes rpg-fx-flash { 0%,30%,60% { opacity:1; } 15%,45%,100% { opacity:0; } }
+@keyframes rpg-fx-rise { 0% { transform:translateY(20%); opacity:0; } 30% { opacity:1; } 100% { transform:translateY(-25%); opacity:0; } }
+@keyframes rpg-fx-boom { 0% { transform:scale(.1); opacity:1; } 50% { opacity:1; } 100% { transform:scale(1.6); opacity:0; } }
+@media (prefers-reduced-motion: reduce) { .rpg-fx { animation-duration:.01s !important; } }
 .rpg-enemy-info { width:36%; text-align:center; font-size:.85em; display:flex; flex-direction:column; gap:.3em; }
 .rpg-battle-bottom { display:grid; grid-template-columns:1fr 1.6fr 1.2fr; gap:1.5%; padding:0 2.5% 3%; height:38%; }
 .rpg-battle-status, .rpg-battle-log, .rpg-commands { padding:.55em .8em; overflow:hidden; }

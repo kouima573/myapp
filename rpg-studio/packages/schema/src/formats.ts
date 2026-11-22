@@ -200,6 +200,7 @@ export type Effect =
   | { type: "showPicture"; slot?: string; image: string; at?: "center" | "left" | "right" | "full"; x?: number; y?: number; width?: number; opacity?: number; fadeMs?: number }
   | { type: "hidePicture"; slot?: string; fadeMs?: number }
   | { type: "unlockAchievement"; achievement: string }
+  | { type: "camera"; focus?: "player" | { x: number; y: number }; zoom?: number; ms?: number; shake?: { power?: number; ms?: number } }
   | { type: "setFormation"; who: string; row?: "front" | "back"; reserve?: boolean }
   | { type: "input"; prompt?: string; speaker?: string; maxLength?: number; initial?: string; saveAs?: string; answers?: InputAnswer[]; otherwise?: Effect[] }
   | { type: "signal"; signal: string }
@@ -302,6 +303,16 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   }).strict(),
   /** 隊列: put the hero ("hero") or a companion in the front / back row, or into / out of the reserve. */
   z.object({ type: z.literal("setFormation"), who: z.string().min(1), row: z.enum(["front", "back"]).optional(), reserve: z.boolean().optional() }).strict(),
+  /**
+   * Camera (カメラ): `focus` a map cell (or back to "player"), `zoom` 1–3, over `ms`; `shake` the screen (power in pixels).
+   * Stays (and is saved) until changed. A battle or map change keeps it; focus "player" + zoom 1 resets.
+   */
+  z.object({
+    type: z.literal("camera"),
+    focus: z.union([z.literal("player"), z.object({ x: z.number().int().min(0), y: z.number().int().min(0) }).strict()]).optional(),
+    zoom: z.number().min(1).max(3).optional(), ms: z.number().int().min(0).max(10000).optional(),
+    shake: z.object({ power: z.number().min(1).max(24).default(6), ms: z.number().int().min(50).max(5000).default(400) }).strict().optional(),
+  }).strict(),
   /** Unlock an achievement now (project.achievements), even without its `when`. */
   z.object({ type: z.literal("unlockAchievement"), achievement: IdSchema }).strict(),
   /** Hide one picture slot, or every picture without `slot`. */
@@ -366,6 +377,9 @@ export type StatMods = z.infer<typeof StatModsSchema>;
 export const ScriptRefSchema = z.union([IdSchema, z.object({ id: IdSchema, args: z.record(z.string(), z.unknown()).default({}) }).strict()]);
 export type ScriptRef = z.infer<typeof ScriptRefSchema>;
 
+export const BATTLE_ANIMATIONS = ["slash", "pierce", "hit", "magic", "fire", "ice", "thunder", "heal", "explosion", "poison"] as const;
+export type BattleAnimation = (typeof BATTLE_ANIMATIONS)[number];
+
 export const UseSchema = z.object({
   where: z.enum(["battle", "field", "both"]).default("battle"),
   label: z.string().optional(),
@@ -377,6 +391,8 @@ export const UseSchema = z.object({
   effects: z.array(EffectSchema).min(1),
   /** Item only: remove one after use (default true). */
   consume: z.boolean().default(true),
+  /** Battle animation played on the target (戦闘アニメ). */
+  animation: z.enum(BATTLE_ANIMATIONS).optional(),
 }).strict();
 export type Use = z.infer<typeof UseSchema>;
 
@@ -1010,6 +1026,8 @@ export const ItemSchema = z.object({
   /** Price in shops (shop.buy). Selling pays shop.sellRate of it. */
   price: z.number().int().min(0).optional(),
   /** Equipment slot (project.json › equipmentSlots, e.g. weapon / armor / accessory). Its statMods and rules count only while equipped. */
+  /** Weapons: battle animation of the hero's normal attack (default "slash"). */
+  animation: z.enum(BATTLE_ANIMATIONS).optional(),
   slot: IdSchema.optional(),
   rules: z.array(RuleSchema).default([]),
   key: z.boolean().default(false),
@@ -1026,6 +1044,8 @@ export const EnemyActionSchema = z.object({
   when: ConditionSchema.optional(),
   /** Applied after the move (curses, buffs, flags). */
   effects: z.array(EffectSchema).default([]),
+  /** Battle animation on whoever it hits (default: none for 0 power, "hit" otherwise). */
+  animation: z.enum(BATTLE_ANIMATIONS).optional(),
   /** "all" hits the hero and every companion standing (全体攻撃). */
   target: z.enum(["one", "all"]).optional(),
   /** Strikes this many times (連続攻撃). Default 1. */
@@ -1177,6 +1197,8 @@ export const AssetEntrySchema = z.object({
   frameOrder: z.array(z.number().int().nonnegative()).optional(),
   loop: z.boolean().optional(),
   initialVolume: z.number().min(0).max(1).optional(),
+  /** ME (短いジングル): while this sound plays the BGM is turned down, then comes back. */
+  duck: z.boolean().optional(),
   /** BGM with an intro: after the end (or loopEnd) playback jumps back to loopStart (seconds). */
   loopStart: z.number().min(0).optional(),
   loopEnd: z.number().positive().optional(),
@@ -1361,6 +1383,8 @@ export const GameStateSchema = z.object({
   book: z.object({ seen: z.array(IdSchema), defeated: z.record(IdSchema, z.number().int()), items: z.array(IdSchema) }).strict().optional(),
   /** Unlocked achievements, in order (project.achievements). */
   achievements: z.array(IdSchema).optional(),
+  /** Camera set by the camera effect (missing = follow the hero at zoom 1). */
+  camera: z.object({ x: z.number().optional(), y: z.number().optional(), zoom: z.number().optional(), ms: z.number().int() }).strict().optional(),
   /** Texts typed into input windows ({{text.<id>}}). */
   texts: z.record(IdSchema, z.string()).optional(),
   /** Pictures shown by showPicture, by slot (in the order shown). */

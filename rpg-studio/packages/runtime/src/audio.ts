@@ -115,6 +115,15 @@ function pulseWave(ctx: AudioContext, duty: number): PeriodicWave {
 export class AudioManager {
   private ctx: AudioContext | null = null;
   private master: { bgm: GainNode; sfx: GainNode } | null = null;
+  private duckGain: GainNode | null = null;
+  /** Lower the BGM while a jingle plays, then bring it back (ME). */
+  duck(seconds: number) {
+    if (!this.ctx || !this.duckGain) return;
+    const g = this.duckGain.gain, t = this.ctx.currentTime;
+    g.cancelScheduledValues(t);
+    g.setTargetAtTime(0.15, t, 0.06);
+    g.setTargetAtTime(1, t + seconds, 0.4);
+  }
   private cache = new Map<string, Promise<Loaded | null>>();
   private fallback = new Map<SfxPreset, AudioBuffer>();
   private noise: AudioBuffer | null = null;
@@ -134,7 +143,9 @@ export class AudioManager {
       const bgm = this.ctx.createGain(), sfx = this.ctx.createGain();
       bgm.gain.value = this.settings.bgm ? vol.bgm * (this.settings.bgmVolume ?? 1) : 0;
       sfx.gain.value = this.settings.sfx ? vol.sfx * (this.settings.sfxVolume ?? 1) : 0;
-      bgm.connect(this.ctx.destination); sfx.connect(this.ctx.destination);
+      // BGM goes through a "duck" gain that dips while a jingle (ME) plays.
+      this.duckGain = this.ctx.createGain();
+      bgm.connect(this.duckGain).connect(this.ctx.destination); sfx.connect(this.ctx.destination);
       this.master = { bgm, sfx };
       const noise = this.ctx.createBuffer(1, this.ctx.sampleRate, this.ctx.sampleRate);
       const data = noise.getChannelData(0);
@@ -197,6 +208,8 @@ export class AudioManager {
       gain.gain.value = asset?.initialVolume ?? 1;
       src.connect(gain).connect(this.master.sfx);
       src.start();
+      // Jingles (asset.duck, or the victory jingle) dip the BGM while they play.
+      if (asset?.duck || id === this.content.project.audio.victory) this.duck(loaded.buffer.duration);
     });
   }
 

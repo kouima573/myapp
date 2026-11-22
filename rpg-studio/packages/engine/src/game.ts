@@ -1,5 +1,5 @@
 import type {
-  BattleState, Direction, Effect, Expr, Enemy, Entity, EntityState, GameContent, GameEvent, GameMap, GameState, Interactable, Npc, Rule, RuleTrigger,
+  BattleAnimation, BattleState, Direction, Effect, Expr, Enemy, Entity, EntityState, GameContent, GameEvent, GameMap, GameState, Interactable, Npc, Rule, RuleTrigger,
   ScriptRef, Stats, TileDef, Use,
 } from "../../schema/src/formats";
 import { abilitiesOf, effectiveStats, evalExpr, evaluate, interpolate, itemActive, nextRandom, regionsAt, type EvalEnv, type FrontInfo } from "./conditions";
@@ -77,6 +77,10 @@ export type Cue =
   | { kind: "miss"; target: "player" | "enemy" }
   | { kind: "critical"; target: "player" | "enemy" }
   | { kind: "achievement"; id: string; title: string }
+  /** Screen shake (camera effect). */
+  | { kind: "shake"; power: number; ms: number }
+  /** Battle animation on the hero ("player") or an enemy by its start-of-battle slot ("all" = every enemy). */
+  | { kind: "anim"; name: BattleAnimation; target: "player" | "enemy"; slot?: number | "all" }
   /** Speech bubble over "player", an NPC or an entity. */
   | { kind: "emote"; target: string; icon: string };
 
@@ -793,6 +797,16 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       case "playAmbient":
         return { ...state, ambient: effect.sound };
       case "unlockAchievement": return unlockAchievement(c, state, effect.achievement);
+      case "camera": {
+        if (effect.shake) c.cues.push({ kind: "shake", power: effect.shake.power ?? 6, ms: effect.shake.ms ?? 400 });
+        if (effect.focus === undefined && effect.zoom === undefined) return state;
+        const cur = state.camera ?? { ms: 0 };
+        const focus = effect.focus === "player" ? { x: undefined, y: undefined } : effect.focus ? { x: effect.focus.x, y: effect.focus.y } : { x: cur.x, y: cur.y };
+        const zoom = effect.zoom ?? cur.zoom ?? 1;
+        const { camera: _c, ...rest } = state;
+        if (focus.x === undefined && zoom === 1) return rest;
+        return { ...rest, camera: { ...(focus.x !== undefined ? { x: focus.x, y: focus.y } : {}), ...(zoom !== 1 ? { zoom } : {}), ms: effect.ms ?? 600 } };
+      }
       case "showPicture": {
         const preset = { center: { x: 50, y: 45, width: 60 }, left: { x: 25, y: 45, width: 40 }, right: { x: 75, y: 45, width: 40 }, full: { x: 50, y: 50, width: 100 } }[effect.at ?? "center"];
         const slot = effect.slot ?? "main";
@@ -1406,6 +1420,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       const rate = elementRate(rolledState, weaponElement(rolledState), "enemy");
       const raw = Math.floor(rolled * rate / 100 * rowRate(rolledState, "player", "dealt") / 100);
       const next = rate !== 100 ? battleLog(rolledState, elementNote(rate).trim() || `（${rate}%）`) : rolledState;
+      const weapon = Object.values(state.equipment ?? {}).map(i => db.items.find(x => x.id === i)).find(i => i?.animation);
+      c.cues.push({ kind: "anim", name: weapon?.animation ?? "slash", target: "enemy", slot: curSlot(state) });
       const [after, amount] = applyDamage(c, next, "enemy", raw);
       state = battleLog(after, `${name}の攻撃！ ${enemy.name}に${amount}のダメージ。`);
       if (battleOf(state)!.enemyHp <= 0 && enemyCount(battleOf(state)!) > 1) state = battleLog(state, `${enemy.name}を倒した！`);
@@ -1419,6 +1435,11 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       const paid = payForUse(c, state, kind, id, "battle");
       if (typeof paid === "string") return battleLog(state, `${label}: ${paid}。`);
       state = battleLog(paid[0], `${name}は${label}を使った！`);
+      const anim = kind === "item" ? itemUse(id)?.animation : db.abilities.find(a => a.id === id)?.use?.animation;
+      if (anim) {
+        const hitsEnemy = paid[1].some(e => e.type === "damage" && e.target !== "player");
+        c.cues.push({ kind: "anim", name: anim, target: hitsEnemy ? "enemy" : "player", ...(hitsEnemy ? { slot: paid[1].some(e => e.type === "damage" && (e.target === "enemies" || e.target === "randomEnemy")) ? "all" as const : curSlot(state) } : {}) });
+      }
       state = runNow(c, state, paid[1]);
       if (state.player.hp > before) state = battleLog(state, `HPが${state.player.hp - before}回復した。`);
     } else if (command.command === "flee") {
@@ -1500,6 +1521,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const action = available.length ? available[battle.turn % available.length]! : null;
     if (!action) return state;
     state = battleLog(state, text(action.message ?? `${enemy.name}の${action.name}！`, state));
+    const anim = action.animation ?? (action.power > 0 ? "hit" : undefined);
+    if (anim) c.cues.push({ kind: "anim", name: anim, target: "player" });
     if (action.power > 0) {
       const critical = (s: GameState, rolled: number): [number, GameState] => {
         if (!enemy.critical) return [rolled, s];

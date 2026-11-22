@@ -531,3 +531,23 @@ describe("game over (115)", () => {
     expect(state.player.hp).toBe(eng.stats(state).maxHp);
   });
 });
+
+describe("camera and battle animations (035/069)", () => {
+  it("camera focus / zoom are kept in the state; focus player at zoom 1 clears it; shake is a cue", () => {
+    const eng = createEngine(content, systems);
+    let state = start("human");
+    const r = eng.run(state, [{ type: "camera", focus: { x: 3, y: 4 }, zoom: 2, ms: 300, shake: { power: 8, ms: 500 } }]);
+    expect(r.state.camera).toEqual({ x: 3, y: 4, zoom: 2, ms: 300 });
+    expect(r.cues).toContainEqual({ kind: "shake", power: 8, ms: 500 });
+    state = eng.run(r.state, [{ type: "camera", focus: "player", zoom: 1 }]).state;
+    expect(state.camera).toBeUndefined();
+  });
+  it("attacks and enemy actions send animation cues", () => {
+    const eng = createEngine(content, systems);
+    const foe = content.database.enemies.find(e => !e.battle && e.actions.some(a => a.power > 0))!;
+    let state = eng.run(start("dwarf"), [{ type: "battle", enemy: foe.id }]).state;
+    const r = eng.step(state, { type: "battle", command: "attack" });
+    expect(r.cues).toContainEqual({ kind: "anim", name: "slash", target: "enemy", slot: 0 });
+    state = r.state;
+  });
+});
