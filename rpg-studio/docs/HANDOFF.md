@@ -10,7 +10,7 @@
 
 - 公開中: **https://rpg-studio-2k3.pages.dev**（トップ・見本ゲーム `/play/`・ジャンルの回廊 `/gallery/`・工房のPreview版 `/studio/`）
 - リポジトリ: `kouima573/myapp` の **`rpg-studio/` フォルダだけ**が対象
-- 作業ブランチ: `claude/eloquent-knuth-u58z8y`（v1.9 のコミット時点で全チェックOK）
+- 作業ブランチ: `claude/eloquent-knuth-u58z8y`（v2.0 のコミット時点で全チェックOK）
 
 ## 2. 必ず守ること（ユーザーとの約束）
 
@@ -44,7 +44,7 @@
 cd rpg-studio
 pnpm install
 pnpm check                      # 型チェック
-pnpm test                       # vitest（現在160件）
+pnpm test                       # vitest（現在168件）
 pnpm rpg proofread --project <dir>   # 台詞の長さ・誤字らしき所（v1.9）
 pnpm rpg validate --project projects/sample-rpg     # ← フォルダは --project で指定（位置引数は無視される）
 pnpm rpg test     --project projects/sample-rpg
@@ -106,6 +106,10 @@ BGMのループ位置・環境音、配布版の先読みとホーム画面追�
 ## 6.10 v1.9（第5弾）
 
 タイルの `walls`（`edgeBlocked`）、ミニマップ（`minimapCanvas`）、連戦（`BattleState.waves/wave`）、オート戦闘・戦闘の速さ・文字送りの音（遊ぶ人の設定）、合成と倉庫（`packages/modules/src/shop.ts` の `craft`・`storage`。倉庫の中身は `state.systemData.shop.storage`）、`rpg proofread`（`packages/cli/src/proofread.ts`）、`disabled: true`。
+
+## 6.11 v2.0（第6弾）
+
+遠景・霧（`render.ts` の `tiled`）、足元の演出（`drawStepEffect`）、タイルの `encounterRate`・`footstep`、隊列と控え（`activeParty`・`rowRate`・効果 `setFormation`・アクション `formation`）、`project.ui`（CSS変数）、`project.gameOver`（シーン `gameover`・`respawn()`）、マップの範囲コピー（`MapEditor.tsx` の `copyRange`/`pasteRange`）、横断の検索置換（`packages/cli/src/search.ts`。工房と `rpg find` で共用）。
 
 ## 7. 残っている仕事
 

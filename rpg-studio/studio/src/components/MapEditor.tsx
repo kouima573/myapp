@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { Ghost, SquareDashed, Brush, DoorOpen, Eraser, Flag, MousePointer2, PaintBucket, Pipette, Redo2, Sparkles, Undo2, UserRound, Grid3x3, Eye, ZoomIn, ZoomOut } from "lucide-react";
+import { Ghost, SquareDashed, Brush, BoxSelect, Stamp, DoorOpen, Eraser, Flag, MousePointer2, PaintBucket, Pipette, Redo2, Sparkles, Undo2, UserRound, Grid3x3, Eye, ZoomIn, ZoomOut } from "lucide-react";
 import type { GameContent, GameMap, Interactable, Npc, Portal, ProjectManifest } from "@rpg/schema";
 import { drawMap, TILE, type ImageMap } from "../../../packages/runtime/src/render";
 import type { ProjectStore } from "../lib/useProject";
@@ -9,7 +9,7 @@ export type Selection =
   | { kind: "npc" | "portal" | "interactable" | "entity" | "region"; id: string; x: number; y: number }
   | null;
 
-export type Tool = "select" | "paint" | "fill" | "erase" | "pick" | "npc" | "portal" | "interactable" | "entity" | "region" | "start";
+export type Tool = "select" | "paint" | "fill" | "erase" | "pick" | "range" | "stamp" | "npc" | "portal" | "interactable" | "entity" | "region" | "start";
 
 interface Props {
   store: ProjectStore;
@@ -28,6 +28,8 @@ const TOOLS: Array<{ id: Tool; label: string; key: string; icon: typeof Brush }>
   { id: "fill", label: "塗りつぶし", key: "G", icon: PaintBucket },
   { id: "erase", label: "消しゴム（先頭タイル）", key: "E", icon: Eraser },
   { id: "pick", label: "スポイト", key: "I", icon: Pipette },
+  { id: "range", label: "範囲選択（Ctrl+C コピー・Ctrl+X 切り取り・Delete 消す・Ctrl+V 貼り付け）", key: "M", icon: BoxSelect },
+  { id: "stamp", label: "貼り付け（コピーした範囲をクリックした所に置く。別のマップにも）", key: "K", icon: Stamp },
   { id: "npc", label: "NPCを置く", key: "N", icon: UserRound },
   { id: "portal", label: "出入口を置く", key: "P", icon: DoorOpen },
   { id: "interactable", label: "仕掛けを置く", key: "T", icon: Sparkles },
@@ -53,6 +55,26 @@ export function entityAt(map: GameMap, x: number, y: number): Selection {
   return null;
 }
 
+/** Copied tiles (codes of one layer), kept across maps while the studio is open. */
+let mapClipboard: string[][] | null = null;
+type Range = { x0: number; y0: number; x1: number; y1: number };
+const norm = (r: Range) => ({ x: Math.min(r.x0, r.x1), y: Math.min(r.y0, r.y1), w: Math.abs(r.x1 - r.x0) + 1, h: Math.abs(r.y1 - r.y0) + 1 });
+
+/** Pure helpers (tested): copy a rectangle of codes, and paste one onto rows (" " in a non-base paste keeps what is there). */
+export function copyRange(rows: string[], r: Range): string[][] {
+  const { x, y, w, h } = norm(r);
+  return Array.from({ length: h }, (_, j) => Array.from(rows[y + j] ?? "").slice(x, x + w));
+}
+export function pasteRange(rows: string[], clip: string[][], x: number, y: number, keepBlank: boolean): string[] {
+  return rows.map((row, j) => {
+    const line = clip[j - y];
+    if (!line) return row;
+    const cells = Array.from(row);
+    line.forEach((code, i) => { const cx = x + i; if (cx >= 0 && cx < cells.length && !(keepBlank && code === " ")) cells[cx] = code; });
+    return cells.join("");
+  });
+}
+
 export default function MapEditor({ store, content, mapId, images, imageRevision, selection, onSelect, onPlayFrom }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [tool, setTool] = useState<Tool>("paint");
@@ -63,7 +85,9 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
   const [grid, setGrid] = useState(true);
   const [passability, setPassability] = useState(false);
   const [zoom, setZoom] = useState(1.5);
-  const drag = useRef<{ mode: "paint" | "move"; id?: string; kind?: string } | null>(null);
+  const drag = useRef<{ mode: "paint" | "move" | "range"; id?: string; kind?: string } | null>(null);
+  const [range, setRange] = useState<Range | null>(null);
+  const [clipSize, setClipSize] = useState<{ w: number; h: number } | null>(mapClipboard ? { w: mapClipboard[0]?.length ?? 0, h: mapClipboard.length } : null);
   const map = content.maps[mapId]!;
   const mapPath = content.project.maps.find(m => m.id === mapId)!.path;
   const { canUndo, canRedo } = store.historyState(mapPath);
@@ -92,7 +116,11 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
         startPoint: start ? { x: start.x, y: start.y } : null,
       },
     });
-  }, [content, map, mapId, images, grid, passability, hovered, selection]);
+    // Range selection and the paste preview.
+    const box = (x: number, y: number, w: number, h: number, color: string) => { ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.setLineDash([5, 3]); ctx.strokeRect(x * TILE + 1, y * TILE + 1, w * TILE - 2, h * TILE - 2); ctx.fillStyle = color.replace(")", ",.12)").replace("rgb", "rgba"); ctx.fillRect(x * TILE, y * TILE, w * TILE, h * TILE); ctx.restore(); };
+    if (range) { const r = norm(range); box(r.x, r.y, r.w, r.h, "rgb(111,168,220)"); }
+    if (tool === "stamp" && hovered && clipSize) box(hovered.x, hovered.y, clipSize.w, clipSize.h, "rgb(240,195,106)");
+  }, [content, map, mapId, images, grid, passability, hovered, selection, range, tool, clipSize]);
   useEffect(draw, [draw, imageRevision]);
 
   const cellFrom = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -183,6 +211,11 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
         setCell(x, y, tool === "erase" ? eraseCode : tile);
         break;
       case "fill": fill(x, y, tile); break;
+      case "range": setRange({ x0: x, y0: y, x1: x, y1: y }); drag.current = { mode: "range" }; break;
+      case "stamp":
+        if (!mapClipboard) { store.log("warn", "先に範囲選択（M）で範囲を選び、Ctrl+C でコピーしてください"); break; }
+        store.updateJson<GameMap>(mapPath, draft => { const rows = layerRows(draft); const next = pasteRange(rows, mapClipboard!, x, y, layer !== "base"); rows.splice(0, rows.length, ...next); });
+        break;
       case "pick": setTile(code); setTool("paint"); break;
       case "npc": case "portal": case "interactable": case "entity": case "region": addEntity(tool, x, y); break;
       case "start":
@@ -205,6 +238,7 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
     const current = drag.current;
     if (!current || event.buttons !== 1) return;
     if (current.mode === "paint") setCell(cell.x, cell.y, tool === "erase" ? eraseCode : tile);
+    else if (current.mode === "range") setRange(r => (r ? { ...r, x1: cell.x, y1: cell.y } : r));
     else if (current.mode === "move" && current.id && current.kind) {
       if (selection && selection.x === cell.x && selection.y === cell.y) return;
       const key = current.kind === "npc" ? "npcs" : current.kind === "portal" ? "portals" : current.kind === "entity" ? "entities" : current.kind === "region" ? "regions" : "interactables";
@@ -231,6 +265,25 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
       const mod = event.ctrlKey || event.metaKey;
       if (mod && event.key.toLowerCase() === "z") { event.preventDefault(); if (event.shiftKey) store.redo(mapPath); else store.undo(mapPath); return; }
       if (mod && event.key.toLowerCase() === "y") { event.preventDefault(); store.redo(mapPath); return; }
+      // Range copy / cut / paste / delete on the layer being edited.
+      const rowsNow = (): string[] => layer === "base" ? map.rows : map.layers?.find(l => l.id === layer)?.rows ?? Array.from({ length: map.height }, () => " ".repeat(map.width));
+      if (mod && range && (event.key.toLowerCase() === "c" || event.key.toLowerCase() === "x")) {
+        event.preventDefault();
+        mapClipboard = copyRange(rowsNow(), range);
+        const r = norm(range);
+        setClipSize({ w: r.w, h: r.h });
+        if (event.key.toLowerCase() === "x") store.updateJson<GameMap>(mapPath, draft => { const rows = layerRows(draft); const blank = Array.from({ length: r.h }, () => Array.from({ length: r.w }, () => eraseCode)); rows.splice(0, rows.length, ...pasteRange(rows, blank, r.x, r.y, false)); });
+        store.log("info", `${r.w}×${r.h} マスを${event.key.toLowerCase() === "x" ? "切り取り" : "コピー"}しました。貼り付け（K か Ctrl+V）でクリックした所に置けます`);
+        return;
+      }
+      if (mod && event.key.toLowerCase() === "v") { event.preventDefault(); if (mapClipboard) { setTool("stamp"); setRange(null); } return; }
+      if ((event.key === "Delete" || event.key === "Backspace") && range && tool === "range") {
+        event.preventDefault();
+        const r = norm(range);
+        store.updateJson<GameMap>(mapPath, draft => { const rows = layerRows(draft); const blank = Array.from({ length: r.h }, () => Array.from({ length: r.w }, () => eraseCode)); rows.splice(0, rows.length, ...pasteRange(rows, blank, r.x, r.y, false)); });
+        return;
+      }
+      if (event.key === "Escape" && range) { setRange(null); return; }
       if (mod || event.altKey) return;
       if ((event.key === "Delete" || event.key === "Backspace") && selection && selection.kind !== "cell") {
         event.preventDefault();
@@ -245,7 +298,7 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [store, mapPath, selection, onSelect]);
+  }, [store, mapPath, selection, onSelect, range, layer, map, tool, eraseCode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const swatchStyle = (index: number, color: string, sheetId = content.tileset.atlas) => {
     const atlasAsset = content.assets.assets.find(a => a.id === sheetId);

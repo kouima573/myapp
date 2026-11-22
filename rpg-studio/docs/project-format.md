@@ -198,6 +198,15 @@
 - 属性: `project.json › elements: { "fire": { "label": "炎" } }`。敵の `resist: { "fire": 150 }`（150 = 弱点、50 = 半減、0 = 無効）、武器の `element`（通常攻撃の属性）、防具・装飾品の `resist`（受けるダメージ）、効果 `damage` の `element`。弱点・半減は戦闘ログに「弱点！」などと出る。
 - 自動テスト: `expect.statuses` / `expect.lacksStatuses`。見本: `projects/genre-gallery/tests/status.scenario.json`。
 
+## v2.0 の追加
+
+- マップの `parallax: { "image": "<背景>", "speed": 0.3 }`: 遠景。下の層を `" "`（空白）にしたマスから見える（歩けない）。`fog: { "image", "opacity", "speedX", "speedY" }`: 霧・雲が流れる
+- タイルの `stepEffect`（`dust`・`splash`・`footprints`・`leaves`）、`footstep`（効果音）、`encounterRate`（そのマスのエンカウント率。マップの `encounters` が必要）
+- `project.json › party: { "size": 3, "backRowTaken": 50, "backRowDealt": 50 }`: 戦う仲間の人数（超えたら控え）と後列の割合。効果 `{ "type": "setFormation", "who": "hero|<仲間>", "row": "front|back", "reserve": true }`
+- `project.json › ui: { "window", "edge", "text", "accent", "radius", "font": "dot|gothic|mincho|rounded", "frame": "<画像>", "frameSlice": 12 }`
+- `project.json › gameOver: { "mode": "respawn|screen", "message", "respawn": { mapId, x, y }, "title", "text", "image", "music", "retry", "penalty": { "var": "gold", "percent": 50 } }`
+- `pnpm rpg find <文字> --project <dir> [--regex] [--case] [--replace <新しい文字> --write]`: データの文章を横断検索・置換
+
 ## v1.9 の追加
 
 - タイルの `walls: ["down"]` など: その辺に壁がある。そちらへ出られず、反対側からも入れない（崖の縁・柵・カウンター）
