@@ -571,3 +571,41 @@ describe("jobs and optimize equipment (082/097)", () => {
     expect(state.traits).not.toContain("j1");
   });
 });
+
+describe("summon, practice fights and looks (096/151/099)", () => {
+  const comp = { id: "wolf", name: "おおかみ", description: "", stats: { maxHp: 9, attack: 3, defense: 0 }, actions: [{ name: "かみつく", kind: "attack" as const, power: 0 }] };
+  it("a summoned companion fights for the set turns and never stays after the battle", () => {
+    const eng = createEngine({ ...content, database: { ...content.database, companions: [...content.database.companions, comp] } }, systems);
+    const foe = content.database.enemies.find(e => !e.battle && e.stats.maxHp >= 6)!;
+    let state = eng.run(start("dwarf"), [{ type: "battle", enemy: foe.id }]).state;
+    state = eng.run(state, [{ type: "summon", companion: "wolf", turns: 1 }]).state;
+    expect(state.party?.map(m => m.id)).toEqual(["wolf"]);
+    state = eng.step(state, { type: "battle", command: "guard" }).state;
+    const log = state.scene.kind === "battle" ? state.scene.battle.log.join("\n") : "";
+    expect(log).toContain("おおかみのかみつく");
+    expect(log).toContain("去っていった");
+    expect(state.party ?? []).toEqual([]);
+  });
+  it("a practice fight gives nothing for a win and costs nothing for a loss", () => {
+    const eng = createEngine(content, systems);
+    const foe = content.database.enemies.find(e => !e.battle && e.drops.length) ?? content.database.enemies.find(e => !e.battle)!;
+    let state = start("dwarf");
+    const items = JSON.stringify(state.items), hp = state.player.hp;
+    state = eng.run(eng.run(state, [{ type: "battle", enemy: foe.id, practice: true }]).state, [{ type: "damage", target: "enemy", amount: 999 }]).state;
+    state = eng.step(state, { type: "advance" }).state;
+    while (state.scene.kind === "message") state = eng.step(state, { type: "advance" }).state;
+    expect(JSON.stringify(state.items)).toBe(items);
+    state = eng.run(eng.run(state, [{ type: "battle", enemy: foe.id, practice: true }]).state, [{ type: "damage", target: "player", amount: 999 }]).state;
+    state = eng.step(state, { type: "advance" }).state;
+    expect(state.scene.kind === "message" && state.scene.text).toBe("練習試合はここまで。");
+    expect(state.player.hp).toBe(hp);
+  });
+  it("looks are offered first and set the hero's sprite", () => {
+    const sprite = content.assets.assets.find(a => a.kind === "character")!.id;
+    const eng = createEngine({ ...content, project: { ...content.project, player: { ...content.project.player, looks: [{ id: "a", label: "旅人", sprite, effects: [] }], lookPrompt: "どの姿？" } } }, systems);
+    let state = eng.newGame(1);
+    expect(state.scene.kind).toBe("prompt");
+    state = eng.step(state, { type: "choose", choiceId: "look-a" }).state;
+    expect(state.player.sprite).toBe(sprite);
+  });
+});

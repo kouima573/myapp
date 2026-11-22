@@ -894,6 +894,14 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         return { ...state, skills: { ...skills, points } };
       }
       case "resetSkills": return resetSkills(c, state, effect.who ?? "hero");
+      case "summon": {
+        const comp = companionOf(effect.companion);
+        if (!comp || !battleOf(state)) return state;
+        if (state.party?.some(m => m.id === comp.id)) { state = battleLog(state, `${comp.name}はもう一緒に戦っている。`); return state; }
+        c.log.push(`召喚: ${comp.name}`);
+        state = battleLog(state, `${comp.name}が駆けつけた！`);
+        return { ...state, party: [...(state.party ?? []), { id: comp.id, hp: comp.stats.maxHp, summoned: effect.turns ?? 0 }] };
+      }
       case "camera": {
         if (effect.shake) c.cues.push({ kind: "shake", power: effect.shake.power ?? 6, ms: effect.shake.ms ?? 400 });
         if (effect.focus === undefined && effect.zoom === undefined) return state;
@@ -1120,6 +1128,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       log: [others.length ? `${[enemy, ...others].map(e => e.name).join("と")}が現れた！` : `${enemy.name}が現れた！`], systemData: {}, outcome: "ongoing", fired: [], after: [],
       ...(others.length ? { foes: others.map((o, k) => ({ enemyId: o.id, hp: o.stats.maxHp, slot: k + 1 })) } : {}),
       ...(effect.waves?.length ? { waves: effect.waves, wave: 1 } : {}),
+      ...(effect.practice ? { practice: { hp: state.player.hp, party: Object.fromEntries((state.party ?? []).map(m => [m.id, m.hp])) } } : {}),
     };
     state = setBattle(state, battle);
     for (const system of active(state)) {
@@ -1229,11 +1238,11 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         for (const e of all) defeated[e.id] = (defeated[e.id] ?? 0) + 1;
         state = { ...state, book: { ...book, seen: [...book.seen, ...new Set(all.map(e => e.id).filter(id => !book.seen.includes(id)))], defeated } };
       }
-      for (const drop of all.flatMap(e => e.drops)) {
+      for (const drop of battleOf(state)!.practice ? [] : all.flatMap(e => e.drops)) {
         state = { ...state, items: { ...state.items, [drop.item]: (state.items[drop.item] ?? 0) + drop.count } };
         state = battleLog(state, `${itemName(drop.item)}を${drop.count}個手に入れた。`);
       }
-      if (content.project.leveling) {
+      if (content.project.leveling && !battleOf(state)!.practice) {
         const exp = all.reduce((sum, e) => sum + (e.exp ?? Math.max(1, Math.round((e.stats.maxHp + 2 * e.stats.attack + 2 * e.stats.defense) / 3))), 0);
         state = gainExp(c, state, exp, true);
       }
@@ -1746,6 +1755,12 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       if (battleOf(state)!.outcome !== "ongoing") return state;
     }
     state = tickStatuses(c, state);
+    // Summons with a turn limit leave when it runs out.
+    if (state.party?.some(m => m.summoned)) {
+      const gone = state.party.filter(m => m.summoned === 1);
+      state = { ...state, party: state.party.filter(m => m.summoned !== 1).map(m => (m.summoned ? { ...m, summoned: m.summoned - 1 } : m)) };
+      for (const m of gone) state = battleLog(state, `${companionOf(m.id)?.name ?? m.id}は去っていった。`);
+    }
     state = checkBattleEnd(c, state);
     if (battleOf(state)!.outcome !== "ongoing") return state;
     for (const entry of rulesFor(state, "turnEnd")) {
@@ -1764,6 +1779,14 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
 
   function closeBattle(c: Ctx, state: GameState): GameState {
     if (!battleOf(state) || battleOf(state)!.outcome === "ongoing") return state;
+    // Summoned helpers leave with the battle.
+    if (state.party?.some(m => m.summoned !== undefined)) state = { ...state, party: state.party.filter(m => m.summoned === undefined) };
+    // Practice fight: everyone is back as before; a loss is not a game over.
+    const practice = battleOf(state)!.practice;
+    if (practice) {
+      state = { ...state, player: { ...state.player, hp: Math.max(1, practice.hp) }, ...(state.party ? { party: state.party.map(m => ({ ...m, hp: practice.party[m.id] ?? m.hp })) } : {}) };
+      if (battleOf(state)!.outcome === "defeat") return runQueue(c, { ...state, scene: { kind: "message", text: "練習試合はここまで。" }, queue: battleOf(state)!.after });
+    }
     state = setPlayerStatuses(state, (state.player.statuses ?? []).filter(s => statusDef(s.id)?.clearAfterBattle === false));
     for (const system of active(state)) state = applyNow(c, state, system.onBattleEnd?.({ content, state, battle: battleOf(state)! }));
     const battle = battleOf(state);
@@ -2183,7 +2206,12 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     return state;
   }
 
-  const introEffects = (): Effect[] => [...content.project.player.traits.map(trait => ({ type: "grantTrait", trait }) as Effect), ...content.project.intro];
+  /** 見た目を選ぶ (project.player.looks) comes first, then traits and the intro. */
+  const introEffects = (): Effect[] => {
+    const looks = content.project.player.looks;
+    const choose: Effect[] = looks?.length ? [{ type: "choice", prompt: content.project.player.lookPrompt, options: looks.map(l => ({ id: `look-${l.id}`, label: l.label, effects: [{ type: "setPlayer", sprite: l.sprite, ...(l.name ? { name: l.name } : {}) } as Effect, ...l.effects] })) }] : [];
+    return [...choose, ...content.project.player.traits.map(trait => ({ type: "grantTrait", trait }) as Effect), ...content.project.intro];
+  };
 
   function newGame(seed = DEFAULT_SEED, meta?: MetaState): GameState {
     const c: Ctx = { log: [], cues: [] };

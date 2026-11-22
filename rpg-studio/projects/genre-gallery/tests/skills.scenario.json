@@ -1,20 +1,167 @@
 {
-  "name": "スキルボード: 始まりのパネルから隣へ。ポイント不足・隣でない・？の秘密パネル・リセット",
+  "name": "スキルボード・召喚・練習試合: 始まりのパネルから隣へ、ポイント不足・？の秘密パネル・リセット、呼び笛の狐、負けても損しない練習",
   "seed": 6,
   "steps": [
-    { "advance": "all" },
-    { "effects": [{ "type": "giveSkillPoints", "amount": 6 }] },
-    { "learnSkill": "sword/s1" },
-    { "expect": { "skillsLearned": ["sword/s1"], "skillPoints": { "hero": 5 } } },
-    { "learnSkill": "sword/s2" },
-    { "expect": { "abilities": ["power-strike"], "skillPoints": { "hero": 3 } } },
-    { "learnSkill": "sword/s5" },
-    { "expect": { "abilities": ["sweep"], "skillPoints": { "hero": 0 } } },
-    { "effects": [{ "type": "setFlag", "flag": "knight-joined" }, { "type": "giveSkillPoints", "amount": 5 }] },
-    { "learnSkill": "sword/s4" },
-    { "learnSkill": "sword/s7" },
-    { "expect": { "skillsLearned": ["sword/s7"], "skillPoints": { "hero": 0 } } },
-    { "effects": [{ "type": "resetSkills" }] },
-    { "expect": { "skillPoints": { "hero": 11 }, "lacksAbilities": ["power-strike", "sweep"] } }
+    {
+      "advance": "all"
+    },
+    {
+      "effects": [
+        {
+          "type": "giveSkillPoints",
+          "amount": 6
+        }
+      ]
+    },
+    {
+      "learnSkill": "sword/s1"
+    },
+    {
+      "expect": {
+        "skillsLearned": [
+          "sword/s1"
+        ],
+        "skillPoints": {
+          "hero": 5
+        }
+      }
+    },
+    {
+      "learnSkill": "sword/s2"
+    },
+    {
+      "expect": {
+        "abilities": [
+          "power-strike"
+        ],
+        "skillPoints": {
+          "hero": 3
+        }
+      }
+    },
+    {
+      "learnSkill": "sword/s5"
+    },
+    {
+      "expect": {
+        "abilities": [
+          "sweep"
+        ],
+        "skillPoints": {
+          "hero": 0
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "setFlag",
+          "flag": "knight-joined"
+        },
+        {
+          "type": "giveSkillPoints",
+          "amount": 5
+        }
+      ]
+    },
+    {
+      "learnSkill": "sword/s4"
+    },
+    {
+      "learnSkill": "sword/s7"
+    },
+    {
+      "expect": {
+        "skillsLearned": [
+          "sword/s7"
+        ],
+        "skillPoints": {
+          "hero": 0
+        }
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "resetSkills"
+        }
+      ]
+    },
+    {
+      "expect": {
+        "skillPoints": {
+          "hero": 11
+        },
+        "lacksAbilities": [
+          "power-strike",
+          "sweep"
+        ]
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "giveSkillPoints",
+          "amount": 3
+        }
+      ]
+    },
+    {
+      "learnSkill": "heart/h1"
+    },
+    {
+      "learnSkill": "heart/h4"
+    },
+    {
+      "effects": [
+        {
+          "type": "battle",
+          "enemy": "poison-bee",
+          "practice": true
+        }
+      ]
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "skill": "fox-call"
+    },
+    {
+      "expect": {
+        "party": [
+          "forest-fox"
+        ],
+        "textIncludes": "森の狐が駆けつけた"
+      }
+    },
+    {
+      "effects": [
+        {
+          "type": "damage",
+          "target": "player",
+          "amount": 999
+        }
+      ]
+    },
+    {
+      "advance": "once"
+    },
+    {
+      "expect": {
+        "textIncludes": "練習試合はここまで",
+        "lacksParty": [
+          "forest-fox"
+        ]
+      }
+    },
+    {
+      "advance": "all"
+    },
+    {
+      "expect": {
+        "scene": "field"
+      }
+    }
   ]
 }

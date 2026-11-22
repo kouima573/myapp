@@ -181,7 +181,7 @@ export type Effect =
   | { type: "dialogue"; dialogue: string }
   | { type: "choice"; prompt?: string; speaker?: string; options: ChoiceOption[] }
   | { type: "event"; event: string }
-  | { type: "battle"; enemy: string; with?: string[]; waves?: Array<{ enemy: string; with?: string[] }>; onVictory?: Effect[]; onDefeat?: "respawn" | "continue"; canFlee?: boolean; mode?: string; args?: Record<string, unknown> }
+  | { type: "battle"; enemy: string; with?: string[]; waves?: Array<{ enemy: string; with?: string[] }>; practice?: boolean; onVictory?: Effect[]; onDefeat?: "respawn" | "continue"; canFlee?: boolean; mode?: string; args?: Record<string, unknown> }
   | { type: "battleLog"; text: string }
   | { type: "endBattle"; outcome: "victory" | "fled" }
   | { type: "markDone"; id: string }
@@ -201,6 +201,7 @@ export type Effect =
   | { type: "hidePicture"; slot?: string; fadeMs?: number }
   | { type: "unlockAchievement"; achievement: string }
   | { type: "giveSkillPoints"; amount: number; who?: string }
+  | { type: "summon"; companion: string; turns?: number }
   | { type: "resetSkills"; who?: string }
   | { type: "camera"; focus?: "player" | { x: number; y: number }; zoom?: number; ms?: number; shake?: { power?: number; ms?: number } }
   | { type: "setFormation"; who: string; row?: "front" | "back"; reserve?: boolean }
@@ -264,7 +265,9 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("event"), event: IdSchema }).strict(),
   z.object({ type: z.literal("battle"), enemy: IdSchema, /** More enemies in the same battle (built-in battles). */ with: z.array(IdSchema).max(7).optional(),
     /** 連戦: after the first group falls, these groups come in turn (HP and statuses carry on; victory after the last). */
-    waves: z.array(z.object({ enemy: IdSchema, with: z.array(IdSchema).max(7).optional() }).strict()).max(20).optional(), onVictory: z.array(EffectSchema).optional(), onDefeat: z.enum(["respawn", "continue"]).optional(), canFlee: z.boolean().optional(), mode: BattleModeSchema.optional(), args: z.record(z.string(), z.unknown()).optional() }).strict(),
+    waves: z.array(z.object({ enemy: IdSchema, with: z.array(IdSchema).max(7).optional() }).strict()).max(20).optional(),
+    /** 練習試合: losing costs nothing (HP back to before the fight, no game over); winning gives no experience or items. */
+    practice: z.boolean().optional(), onVictory: z.array(EffectSchema).optional(), onDefeat: z.enum(["respawn", "continue"]).optional(), canFlee: z.boolean().optional(), mode: BattleModeSchema.optional(), args: z.record(z.string(), z.unknown()).optional() }).strict(),
   z.object({ type: z.literal("battleLog"), text: z.string().min(1) }).strict(),
   z.object({ type: z.literal("endBattle"), outcome: z.enum(["victory", "fled"]) }).strict(),
   z.object({ type: z.literal("markDone"), id: IdSchema }).strict(),
@@ -315,6 +318,11 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
     zoom: z.number().min(1).max(3).optional(), ms: z.number().int().min(0).max(10000).optional(),
     shake: z.object({ power: z.number().min(1).max(24).default(6), ms: z.number().int().min(50).max(5000).default(400) }).strict().optional(),
   }).strict(),
+  /**
+   * 召喚・お供: a companion fights alongside for this battle only (or `turns` turns), then leaves.
+   * Use in a skill / item (in battle). Outside battle it does nothing.
+   */
+  z.object({ type: z.literal("summon"), companion: IdSchema, turns: z.number().int().min(1).max(99).optional() }).strict(),
   /** Skill points to the hero ("hero", default), a companion, or "all". */
   z.object({ type: z.literal("giveSkillPoints"), amount: z.number().int().min(1).max(9999), who: z.string().min(1).optional() }).strict(),
   /** Forget every learned panel of the hero / a companion / "all" and get the points back (traits from panels are removed). */
@@ -552,6 +560,12 @@ export const ProjectManifestSchema = z.object({
     abilities: z.array(IdSchema).default([]),
     traits: z.array(IdSchema).default([]),
     items: z.record(IdSchema, z.number().int().positive()).default({}),
+    /**
+     * 見た目を選ぶ: offered at the start of a new game (before intro). Each look sets the hero's sprite
+     * (and optionally a default name / extra effects such as grantTrait).
+     */
+    looks: z.array(z.object({ id: IdSchema, label: z.string().min(1), sprite: IdSchema, name: z.string().min(1).max(40).optional(), effects: z.array(EffectSchema).default([]) }).strict()).optional(),
+    lookPrompt: z.string().default("どの姿で旅をしますか？"),
   }).strict(),
   /** Every flag used by data or systems must be declared. Typos then fail validation instead of silently never matching. */
   flags: z.record(IdSchema, FlagDeclSchema).default({}),
@@ -1370,6 +1384,8 @@ export const BattleStateSchema = z.object({
   /** Groups still to come (連戦) and the number of the current one (1 = first). */
   waves: z.array(z.object({ enemy: IdSchema, with: z.array(IdSchema).optional() }).strict()).optional(),
   wave: z.number().int().min(1).optional(),
+  /** Practice fight: HP of the hero and companions before it (restored afterwards). */
+  practice: z.object({ hp: z.number().int(), party: z.record(z.string(), z.number().int()) }).strict().optional(),
 }).strict();
 export type BattleState = z.infer<typeof BattleStateSchema>;
 
@@ -1430,6 +1446,8 @@ export const GameStateSchema = z.object({
     id: z.string(), hp: z.number().int().nonnegative(), /** slot → item id */ equipment: z.record(z.string(), z.string()).optional(),
     /** 隊列 (front / back) and 控え (reserve: travels along but does not fight). */
     row: z.enum(["front", "back"]).optional(), reserve: z.boolean().optional(),
+    /** Called by summon: leaves after the battle (or when the turns run out; 0 = end of battle). */
+    summoned: z.number().int().min(0).optional(),
   }).strict()).optional(),
   /** Equipped items: slot → item id. */
   equipment: z.record(z.string(), z.string()).optional(),

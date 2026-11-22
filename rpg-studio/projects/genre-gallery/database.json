@@ -61,6 +61,23 @@
           }
         ]
       }
+    },
+    {
+      "id": "fox-call",
+      "name": "呼び笛",
+      "description": "森の狐を3ターン呼ぶ。",
+      "kind": "battle",
+      "use": {
+        "where": "battle",
+        "hpCost": 2,
+        "effects": [
+          {
+            "type": "summon",
+            "companion": "forest-fox",
+            "turns": 3
+          }
+        ]
+      }
     }
   ],
   "items": [
@@ -557,6 +574,23 @@
           "power": 6
         }
       ]
+    },
+    {
+      "id": "forest-fox",
+      "name": "森の狐",
+      "description": "呼び笛で3ターンだけ駆けつける。",
+      "stats": {
+        "maxHp": 10,
+        "attack": 4,
+        "defense": 1
+      },
+      "actions": [
+        {
+          "name": "ひっかく",
+          "kind": "attack",
+          "power": 1
+        }
+      ]
     }
   ],
   "statuses": [
@@ -729,6 +763,18 @@
           "statMods": {
             "maxHp": 8
           }
+        },
+        {
+          "id": "h4",
+          "name": "呼び笛",
+          "description": "森の狐を呼ぶ技を覚える",
+          "q": 0,
+          "r": 1,
+          "cost": 2,
+          "icon": "笛",
+          "abilities": [
+            "fox-call"
+          ]
         }
       ]
     },

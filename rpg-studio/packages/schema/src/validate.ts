@@ -349,6 +349,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         case "script": if (!scriptIds.has(effect.script)) err(file, here, `スクリプト '${effect.script}' がありません（scripts/${effect.script}.ts）`); break;
         case "playSfx": checkAudio(file, here, effect.sound, SOUND, "効果音"); break;
         case "setFormation": if (effect.who !== "hero" && !content.database.companions.some(x => x.id === effect.who)) err(file, here, `'${effect.who}' は "hero" でも仲間（companions）でもありません`); break;
+        case "summon": if (!content.database.companions.some(x => x.id === effect.companion)) err(file, here, `未定義の仲間 '${effect.companion}'（database.json の companions）`); break;
         case "giveSkillPoints": case "resetSkills": if (effect.who && !["hero", "all"].includes(effect.who) && !content.database.companions.some(x => x.id === effect.who)) err(file, here, `'${effect.who}' は "hero"・"all"・仲間のどれでもありません`); break;
         case "unlockAchievement": if (!content.project.achievements[effect.achievement]) err(file, here, `未定義の実績 '${effect.achievement}'（project.json の achievements）`); break;
         case "showPicture": if (!["background", "portrait", "enemy", "character"].includes(assetById.get(effect.image)?.kind ?? "")) err(file, here, `一枚絵の素材 '${effect.image}' がありません（background・portrait・enemy・character）`); break;
@@ -432,6 +433,10 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     if (flagIds.has(id)) warn(P, `variables.${id}`, "同じ名前のフラグがあります。紛らわしいので別名にしてください");
   }
   checkEffects(P, "intro", project.intro);
+  (project.player.looks ?? []).forEach(l => {
+    if (!["character"].includes(assetById.get(l.sprite)?.kind ?? "")) err(P, `player.looks[${l.id}].sprite`, `キャラの素材 '${l.sprite}' がありません`);
+    checkEffects(P, `player.looks[${l.id}].effects`, l.effects);
+  });
   if (project.gameOver) {
     const go = project.gameOver;
     if (go.respawn) checkPosition(P, "gameOver.respawn", go.respawn.mapId, go.respawn.x, go.respawn.y, "復活する場所");
