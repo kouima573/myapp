@@ -721,6 +721,38 @@
                       "pattern": "^[a-z0-9][a-z0-9._-]*$"
                     }
                   },
+                  "achievements": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 96,
+                      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                    }
+                  },
+                  "bookSeen": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 96,
+                      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                    }
+                  },
+                  "bookDefeated": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 96,
+                      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                    },
+                    "additionalProperties": {
+                      "type": "integer",
+                      "minimum": -9007199254740991,
+                      "maximum": 9007199254740991
+                    }
+                  },
                   "level": {
                     "type": "integer",
                     "exclusiveMinimum": 0,
@@ -2195,6 +2227,26 @@
           },
           "required": [
             "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "unlockAchievement"
+            },
+            "achievement": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "achievement"
           ],
           "additionalProperties": false
         },

@@ -199,6 +199,7 @@ export type Effect =
   | { type: "playAmbient"; sound: string | null }
   | { type: "showPicture"; slot?: string; image: string; at?: "center" | "left" | "right" | "full"; x?: number; y?: number; width?: number; opacity?: number; fadeMs?: number }
   | { type: "hidePicture"; slot?: string; fadeMs?: number }
+  | { type: "unlockAchievement"; achievement: string }
   | { type: "input"; prompt?: string; speaker?: string; maxLength?: number; initial?: string; saveAs?: string; answers?: InputAnswer[]; otherwise?: Effect[] }
   | { type: "signal"; signal: string }
   | { type: "learnVerb"; verb: string }
@@ -296,6 +297,8 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
     answers: z.array(z.lazy(() => z.object({ match: z.array(z.string().min(1)).min(1), effects: z.array(EffectSchema) }).strict())).optional(),
     otherwise: z.array(EffectSchema).optional(),
   }).strict(),
+  /** Unlock an achievement now (project.achievements), even without its `when`. */
+  z.object({ type: z.literal("unlockAchievement"), achievement: IdSchema }).strict(),
   /** Hide one picture slot, or every picture without `slot`. */
   z.object({ type: z.literal("hidePicture"), slot: IdSchema.optional(), fadeMs: z.number().int().min(0).max(10000).optional() }).strict(),
   /** Broadcast a self-made event: every rule with on "signal" and match = this id runs right here. */
@@ -527,6 +530,13 @@ export const ProjectManifestSchema = z.object({
   sets: z.record(IdSchema, SetDeclSchema).default({}),
   /** Endings the game can reach (recorded across cycles in the built-in meta set "endings"). */
   endings: z.record(IdSchema, z.object({ title: z.string().min(1), text: z.string().default("") }).strict()).default({}),
+  /**
+   * Monster / item book (図鑑) in the menu. Enemies count once met (stats shown after a win); items once held.
+   * Kept across new games like the endings seen. `hidden`: ids never listed.
+   */
+  book: z.object({ enemies: z.boolean().default(true), items: z.boolean().default(true), hidden: z.array(IdSchema).default([]) }).strict().optional(),
+  /** Achievements (実績): unlocked automatically when `when` holds (or by the unlockAchievement effect), with a notice. Kept across new games. */
+  achievements: z.record(IdSchema, z.object({ title: z.string().min(1), description: z.string().default(""), when: ConditionSchema.optional(), hidden: z.boolean().default(false) }).strict()).default({}),
   /** Replace the battle maths with expressions. See docs/customization-guide.md. */
   battle: z.object({
     /** Player → enemy. ctx: attack, defense, power(0), variance(-1..1). */
@@ -1268,6 +1278,10 @@ export const GameStateSchema = z.object({
   music: IdSchema.nullable().optional(),
   /** playAmbient override (same rules as music). */
   ambient: IdSchema.nullable().optional(),
+  /** Monster / item book: enemies met, wins per enemy, items ever held (project.book). */
+  book: z.object({ seen: z.array(IdSchema), defeated: z.record(IdSchema, z.number().int()), items: z.array(IdSchema) }).strict().optional(),
+  /** Unlocked achievements, in order (project.achievements). */
+  achievements: z.array(IdSchema).optional(),
   /** Texts typed into input windows ({{text.<id>}}). */
   texts: z.record(IdSchema, z.string()).optional(),
   /** Pictures shown by showPicture, by slot (in the order shown). */

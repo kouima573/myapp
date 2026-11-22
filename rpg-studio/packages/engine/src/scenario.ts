@@ -27,6 +27,11 @@ const ExpectSchema = z.object({
   /** Statuses the hero has / does not have (database.statuses). */
   statuses: z.array(IdSchema).optional(),
   lacksStatuses: z.array(IdSchema).optional(),
+  /** Achievements unlocked (project.achievements). */
+  achievements: z.array(IdSchema).optional(),
+  /** Monster book: enemies met / beaten at least this many times (project.book). */
+  bookSeen: z.array(IdSchema).optional(),
+  bookDefeated: z.record(IdSchema, z.number().int()).optional(),
   /** project.leveling: the hero's level. */
   level: z.number().int().positive().optional(),
   vars: z.record(z.string(), z.number().int()).optional(),
@@ -205,6 +210,9 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
     }
     if (expect.player?.name !== undefined) { const name = state.player.name ?? content.project.player.name; if (name !== expect.player.name) fail(`player.name: 期待 ${expect.player.name} / 実際 ${name}`); }
     if (expect.player?.sprite !== undefined) { const sprite = state.player.sprite ?? null; if (sprite !== expect.player.sprite) fail(`player.sprite: 期待 ${expect.player.sprite} / 実際 ${sprite}`); }
+    for (const id of expect.achievements ?? []) if (!state.achievements?.includes(id)) fail(`achievements: 「${id}」が未達成です（達成: ${state.achievements?.join(", ") || "なし"}）`);
+    for (const id of expect.bookSeen ?? []) if (!state.book?.seen.includes(id)) fail(`bookSeen: ${id} が図鑑にありません`);
+    for (const [id, n] of Object.entries(expect.bookDefeated ?? {})) if ((state.book?.defeated[id] ?? 0) < n) fail(`bookDefeated.${id}: 期待 ${n}以上 / 実際 ${state.book?.defeated[id] ?? 0}`);
     for (const [id, count] of Object.entries(expect.items ?? {})) if ((state.items[id] ?? 0) !== count) fail(`items.${id}: 期待 ${count} / 実際 ${state.items[id] ?? 0}`);
     for (const id of expect.done ?? []) if (!state.done.includes(id)) fail(`done に ${id} がありません`);
     for (const id of expect.notDone ?? []) if (state.done.includes(id)) fail(`done に ${id} があります`);

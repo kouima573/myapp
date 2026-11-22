@@ -346,6 +346,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         case "system": if (!systemIds.has(effect.system)) err(file, here, `project.jsonのsystemsにないシステム '${effect.system}'`); break;
         case "script": if (!scriptIds.has(effect.script)) err(file, here, `スクリプト '${effect.script}' がありません（scripts/${effect.script}.ts）`); break;
         case "playSfx": checkAudio(file, here, effect.sound, SOUND, "効果音"); break;
+        case "unlockAchievement": if (!content.project.achievements[effect.achievement]) err(file, here, `未定義の実績 '${effect.achievement}'（project.json の achievements）`); break;
         case "showPicture": if (!["background", "portrait", "enemy", "character"].includes(assetById.get(effect.image)?.kind ?? "")) err(file, here, `一枚絵の素材 '${effect.image}' がありません（background・portrait・enemy・character）`); break;
         case "addToSet": case "removeFromSet": case "clearSet": if (!setIds.has(effect.set)) err(file, here, `未宣言の集合 '${effect.set}'`); break;
         case "moveEntity": {
@@ -427,6 +428,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     if (flagIds.has(id)) warn(P, `variables.${id}`, "同じ名前のフラグがあります。紛らわしいので別名にしてください");
   }
   checkEffects(P, "intro", project.intro);
+  for (const [id, a] of Object.entries(project.achievements)) if (a.when) checkCondition(P, `achievements.${id}.when`, a.when);
   const verbKeys = new Map<string, string>();
   for (const [id, verb] of Object.entries(project.verbs)) {
     checkCondition(P, `verbs.${id}.when`, verb.when);

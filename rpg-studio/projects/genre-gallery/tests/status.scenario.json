@@ -24,6 +24,7 @@
     { "fight": "auto" },
     { "advance": "all" },
     { "expect": { "scene": "field", "statuses": ["poison"], "lacksStatuses": ["atk-up"] } },
+    { "expect": { "achievements": ["fire-rod", "bee-hunter"], "bookSeen": ["poison-bee"], "bookDefeated": { "poison-bee": 1 } } },
     { "useItem": "antidote" },
     { "advance": "all" },
     { "expect": { "lacksStatuses": ["poison"] } }

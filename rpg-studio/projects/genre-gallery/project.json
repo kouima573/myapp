@@ -201,5 +201,33 @@
     "ice": {
       "label": "氷"
     }
+  },
+  "book": {
+    "enemies": true,
+    "items": true,
+    "hidden": []
+  },
+  "achievements": {
+    "fire-rod": {
+      "title": "炎をその手に",
+      "description": "炎の杖を手に入れた",
+      "when": {
+        "item": "fire-rod"
+      },
+      "hidden": false
+    },
+    "knight": {
+      "title": "騎士の誓い",
+      "description": "騎士が仲間になった",
+      "when": {
+        "flag": "knight-joined"
+      },
+      "hidden": false
+    },
+    "bee-hunter": {
+      "title": "毒蜂ハンター",
+      "description": "毒蜂を倒した",
+      "hidden": true
+    }
   }
 }

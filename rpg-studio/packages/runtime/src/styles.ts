@@ -12,6 +12,9 @@ export const RUNTIME_CSS = String.raw`
 .rpg-layer { position:absolute; inset:0; pointer-events:none; }
 .rpg-input { display:flex; gap:8px; align-items:center; }
 .rpg-input-field { flex:1; min-width:0; font:inherit; font-size:18px; padding:6px 10px; border-radius:6px; border:1px solid rgba(255,255,255,.35); background:rgba(0,0,0,.4); color:inherit; }
+.rpg-book { max-height:80%; overflow:auto; }
+.rpg-book-row { font-size:13px; line-height:1.6; padding:2px 4px; border-bottom:1px solid rgba(255,255,255,.06); }
+.rpg-book-row.is-got { color:#f0c36a; }
 .rpg-pictures { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
 .rpg-picture { position:absolute; transform:translate(-50%,-50%); height:auto; image-rendering:pixelated; }
 .rpg-layer > * { pointer-events:auto; }

@@ -304,6 +304,64 @@
         "additionalProperties": false
       }
     },
+    "book": {
+      "type": "object",
+      "properties": {
+        "enemies": {
+          "default": true,
+          "type": "boolean"
+        },
+        "items": {
+          "default": true,
+          "type": "boolean"
+        },
+        "hidden": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "achievements": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 96,
+        "pattern": "^[a-z0-9][a-z0-9._-]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "default": "",
+            "type": "string"
+          },
+          "when": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "hidden": {
+            "default": false,
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "additionalProperties": false
+      }
+    },
     "battle": {
       "default": {
         "order": "fixed",
@@ -318,13 +376,13 @@
       "type": "object",
       "properties": {
         "playerDamage": {
-          "$ref": "#/$defs/__schema0"
+          "$ref": "#/$defs/__schema1"
         },
         "enemyDamage": {
-          "$ref": "#/$defs/__schema0"
+          "$ref": "#/$defs/__schema1"
         },
         "fleeChance": {
-          "$ref": "#/$defs/__schema0"
+          "$ref": "#/$defs/__schema1"
         },
         "order": {
           "default": "fixed",
@@ -335,13 +393,13 @@
           ]
         },
         "playerSpeed": {
-          "$ref": "#/$defs/__schema0"
+          "$ref": "#/$defs/__schema1"
         },
         "critical": {
           "type": "object",
           "properties": {
             "chance": {
-              "$ref": "#/$defs/__schema0"
+              "$ref": "#/$defs/__schema1"
             },
             "multiplier": {
               "default": 150,
@@ -356,7 +414,7 @@
           "additionalProperties": false
         },
         "playerEvasion": {
-          "$ref": "#/$defs/__schema0"
+          "$ref": "#/$defs/__schema1"
         },
         "commands": {
           "default": {
@@ -419,7 +477,7 @@
             "pattern": "^[a-z0-9]$"
           },
           "when": {
-            "$ref": "#/$defs/__schema1"
+            "$ref": "#/$defs/__schema0"
           },
           "known": {
             "default": true,
@@ -1155,372 +1213,6 @@
     "__schema0": {
       "anyOf": [
         {
-          "type": "number"
-        },
-        {
-          "type": "object",
-          "properties": {
-            "var": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 96,
-              "pattern": "^[a-z0-9][a-z0-9._-]*$"
-            }
-          },
-          "required": [
-            "var"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "count": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 96,
-              "pattern": "^[a-z0-9][a-z0-9._-]*$"
-            }
-          },
-          "required": [
-            "count"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "stat": {
-              "type": "string",
-              "enum": [
-                "maxHp",
-                "attack",
-                "defense"
-              ]
-            }
-          },
-          "required": [
-            "stat"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "hp": {
-              "type": "boolean",
-              "const": true
-            }
-          },
-          "required": [
-            "hp"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "steps": {
-              "type": "boolean",
-              "const": true
-            }
-          },
-          "required": [
-            "steps"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "level": {
-              "type": "boolean",
-              "const": true
-            }
-          },
-          "required": [
-            "level"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "exp": {
-              "type": "boolean",
-              "const": true
-            }
-          },
-          "required": [
-            "exp"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "ctx": {
-              "type": "string",
-              "enum": [
-                "damage",
-                "turn",
-                "enemyHp",
-                "enemyMaxHp",
-                "enemyAttack",
-                "enemyDefense",
-                "attack",
-                "defense",
-                "power",
-                "variance"
-              ]
-            }
-          },
-          "required": [
-            "ctx"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "add": {
-              "minItems": 1,
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/__schema0"
-              }
-            }
-          },
-          "required": [
-            "add"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "sub": {
-              "type": "array",
-              "prefixItems": [
-                {
-                  "$ref": "#/$defs/__schema0"
-                },
-                {
-                  "$ref": "#/$defs/__schema0"
-                }
-              ],
-              "items": false,
-              "minItems": 2,
-              "maxItems": 2
-            }
-          },
-          "required": [
-            "sub"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "mul": {
-              "minItems": 1,
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/__schema0"
-              }
-            }
-          },
-          "required": [
-            "mul"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "div": {
-              "type": "array",
-              "prefixItems": [
-                {
-                  "$ref": "#/$defs/__schema0"
-                },
-                {
-                  "$ref": "#/$defs/__schema0"
-                }
-              ],
-              "items": false,
-              "minItems": 2,
-              "maxItems": 2
-            }
-          },
-          "required": [
-            "div"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "mod": {
-              "type": "array",
-              "prefixItems": [
-                {
-                  "$ref": "#/$defs/__schema0"
-                },
-                {
-                  "$ref": "#/$defs/__schema0"
-                }
-              ],
-              "items": false,
-              "minItems": 2,
-              "maxItems": 2
-            }
-          },
-          "required": [
-            "mod"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "min": {
-              "minItems": 1,
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/__schema0"
-              }
-            }
-          },
-          "required": [
-            "min"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "max": {
-              "minItems": 1,
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/__schema0"
-              }
-            }
-          },
-          "required": [
-            "max"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "percent": {
-              "type": "array",
-              "prefixItems": [
-                {
-                  "$ref": "#/$defs/__schema0"
-                },
-                {
-                  "$ref": "#/$defs/__schema0"
-                }
-              ],
-              "items": false,
-              "minItems": 2,
-              "maxItems": 2
-            }
-          },
-          "required": [
-            "percent"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "size": {
-              "type": "string",
-              "minLength": 1,
-              "maxLength": 96,
-              "pattern": "^[a-z0-9][a-z0-9._-]*$"
-            }
-          },
-          "required": [
-            "size"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "cycle": {
-              "type": "boolean",
-              "const": true
-            }
-          },
-          "required": [
-            "cycle"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "ticks": {
-              "type": "boolean",
-              "const": true
-            }
-          },
-          "required": [
-            "ticks"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "fn": {
-              "type": "string",
-              "pattern": "^[a-z0-9][a-z0-9._-]*\\.[a-z0-9][a-z0-9_-]*$"
-            },
-            "args": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/__schema0"
-              }
-            }
-          },
-          "required": [
-            "fn"
-          ],
-          "additionalProperties": false
-        },
-        {
-          "type": "object",
-          "properties": {
-            "if": {
-              "$ref": "#/$defs/__schema1"
-            },
-            "then": {
-              "$ref": "#/$defs/__schema0"
-            },
-            "else": {
-              "$ref": "#/$defs/__schema0"
-            }
-          },
-          "required": [
-            "if",
-            "then",
-            "else"
-          ],
-          "additionalProperties": false
-        }
-      ]
-    },
-    "__schema1": {
-      "anyOf": [
-        {
           "type": "object",
           "properties": {
             "flag": {
@@ -1559,7 +1251,7 @@
               ]
             },
             "value": {
-              "$ref": "#/$defs/__schema0"
+              "$ref": "#/$defs/__schema1"
             }
           },
           "required": [
@@ -1576,7 +1268,7 @@
               "type": "array",
               "prefixItems": [
                 {
-                  "$ref": "#/$defs/__schema0"
+                  "$ref": "#/$defs/__schema1"
                 },
                 {
                   "type": "string",
@@ -1590,7 +1282,7 @@
                   ]
                 },
                 {
-                  "$ref": "#/$defs/__schema0"
+                  "$ref": "#/$defs/__schema1"
                 }
               ],
               "items": false,
@@ -1754,7 +1446,7 @@
               "minItems": 1,
               "type": "array",
               "items": {
-                "$ref": "#/$defs/__schema1"
+                "$ref": "#/$defs/__schema0"
               }
             }
           },
@@ -1770,7 +1462,7 @@
               "minItems": 1,
               "type": "array",
               "items": {
-                "$ref": "#/$defs/__schema1"
+                "$ref": "#/$defs/__schema0"
               }
             }
           },
@@ -1783,7 +1475,7 @@
           "type": "object",
           "properties": {
             "not": {
-              "$ref": "#/$defs/__schema1"
+              "$ref": "#/$defs/__schema0"
             }
           },
           "required": [
@@ -1966,6 +1658,372 @@
         }
       ]
     },
+    "__schema1": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "var": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "var"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "count": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "count"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "stat": {
+              "type": "string",
+              "enum": [
+                "maxHp",
+                "attack",
+                "defense"
+              ]
+            }
+          },
+          "required": [
+            "stat"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "hp": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "hp"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "steps": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "steps"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "exp": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "exp"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ctx": {
+              "type": "string",
+              "enum": [
+                "damage",
+                "turn",
+                "enemyHp",
+                "enemyMaxHp",
+                "enemyAttack",
+                "enemyDefense",
+                "attack",
+                "defense",
+                "power",
+                "variance"
+              ]
+            }
+          },
+          "required": [
+            "ctx"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "add": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            }
+          },
+          "required": [
+            "add"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sub": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/__schema1"
+                },
+                {
+                  "$ref": "#/$defs/__schema1"
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "sub"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mul": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            }
+          },
+          "required": [
+            "mul"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "div": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/__schema1"
+                },
+                {
+                  "$ref": "#/$defs/__schema1"
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "div"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mod": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/__schema1"
+                },
+                {
+                  "$ref": "#/$defs/__schema1"
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "mod"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "min": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            }
+          },
+          "required": [
+            "min"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "max": {
+              "minItems": 1,
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            }
+          },
+          "required": [
+            "max"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "percent": {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "$ref": "#/$defs/__schema1"
+                },
+                {
+                  "$ref": "#/$defs/__schema1"
+                }
+              ],
+              "items": false,
+              "minItems": 2,
+              "maxItems": 2
+            }
+          },
+          "required": [
+            "percent"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "size"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cycle": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "cycle"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "ticks": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "ticks"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "fn": {
+              "type": "string",
+              "pattern": "^[a-z0-9][a-z0-9._-]*\\.[a-z0-9][a-z0-9_-]*$"
+            },
+            "args": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema1"
+              }
+            }
+          },
+          "required": [
+            "fn"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "if": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "then": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "else": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "if",
+            "then",
+            "else"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
     "__schema2": {
       "oneOf": [
         {
@@ -2096,7 +2154,7 @@
               "pattern": "^[a-z0-9][a-z0-9._-]*$"
             },
             "value": {
-              "$ref": "#/$defs/__schema0"
+              "$ref": "#/$defs/__schema1"
             },
             "op": {
               "type": "string",
@@ -2132,10 +2190,10 @@
               "pattern": "^[a-z0-9][a-z0-9._-]*$"
             },
             "min": {
-              "$ref": "#/$defs/__schema0"
+              "$ref": "#/$defs/__schema1"
             },
             "max": {
-              "$ref": "#/$defs/__schema0"
+              "$ref": "#/$defs/__schema1"
             }
           },
           "required": [
@@ -2154,7 +2212,7 @@
               "const": "chance"
             },
             "percent": {
-              "$ref": "#/$defs/__schema0"
+              "$ref": "#/$defs/__schema1"
             },
             "then": {
               "type": "array",
@@ -2192,7 +2250,7 @@
               ]
             },
             "value": {
-              "$ref": "#/$defs/__schema0"
+              "$ref": "#/$defs/__schema1"
             },
             "op": {
               "type": "string",
@@ -2352,7 +2410,7 @@
               "const": "heal"
             },
             "amount": {
-              "$ref": "#/$defs/__schema0"
+              "$ref": "#/$defs/__schema1"
             },
             "target": {
               "type": "string",
@@ -2376,7 +2434,7 @@
               "const": "gainExp"
             },
             "amount": {
-              "$ref": "#/$defs/__schema0"
+              "$ref": "#/$defs/__schema1"
             }
           },
           "required": [
@@ -2413,7 +2471,7 @@
               "maximum": 999
             },
             "chance": {
-              "$ref": "#/$defs/__schema0"
+              "$ref": "#/$defs/__schema1"
             }
           },
           "required": [
@@ -2507,7 +2565,7 @@
               ]
             },
             "amount": {
-              "$ref": "#/$defs/__schema0"
+              "$ref": "#/$defs/__schema1"
             },
             "text": {
               "type": "string"
@@ -2659,7 +2717,7 @@
                     "minLength": 1
                   },
                   "when": {
-                    "$ref": "#/$defs/__schema1"
+                    "$ref": "#/$defs/__schema0"
                   },
                   "effects": {
                     "type": "array",
@@ -2969,7 +3027,7 @@
               "pattern": "^[a-z0-9][a-z0-9._-]*$"
             },
             "after": {
-              "$ref": "#/$defs/__schema0"
+              "$ref": "#/$defs/__schema1"
             },
             "effects": {
               "type": "array",
@@ -3258,6 +3316,26 @@
           "properties": {
             "type": {
               "type": "string",
+              "const": "unlockAchievement"
+            },
+            "achievement": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "achievement"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
               "const": "hidePicture"
             },
             "slot": {
@@ -3459,7 +3537,7 @@
               "const": "if"
             },
             "when": {
-              "$ref": "#/$defs/__schema1"
+              "$ref": "#/$defs/__schema0"
             },
             "then": {
               "type": "array",

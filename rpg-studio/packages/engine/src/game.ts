@@ -11,6 +11,9 @@ export interface MetaState {
   flags: Record<string, boolean>;
   vars: Record<string, number>;
   sets: Record<string, string[]>;
+  /** Monster / item book and achievements carry over to new games. */
+  book?: GameState["book"];
+  achievements?: string[];
 }
 
 export interface EntityView {
@@ -71,6 +74,7 @@ export type Cue =
   /** An attack that missed / a critical hit (popup "MISS" / "会心"). */
   | { kind: "miss"; target: "player" | "enemy" }
   | { kind: "critical"; target: "player" | "enemy" }
+  | { kind: "achievement"; id: string; title: string }
   /** Speech bubble over "player", an NPC or an entity. */
   | { kind: "emote"; target: string; icon: string };
 
@@ -740,6 +744,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         return { ...state, music: effect.music };
       case "playAmbient":
         return { ...state, ambient: effect.sound };
+      case "unlockAchievement": return unlockAchievement(c, state, effect.achievement);
       case "showPicture": {
         const preset = { center: { x: 50, y: 45, width: 60 }, left: { x: 25, y: 45, width: 40 }, right: { x: 75, y: 45, width: 40 }, full: { x: 50, y: 50, width: 100 } }[effect.at ?? "center"];
         const slot = effect.slot ?? "main";
@@ -1057,6 +1062,12 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     if (battle.enemyHp <= 0 && (battle.foes ?? []).every(f => f.hp <= 0)) {
       const all = [enemy, ...(battle.foes ?? []).map(f => enemyOf(f.enemyId))];
       state = battleLog(state, all.length > 1 ? "敵をすべて倒した！" : `${enemy.name}を倒した！`);
+      if (content.project.book) {
+        const book = state.book ?? { seen: [], defeated: {}, items: [] };
+        const defeated = { ...book.defeated };
+        for (const e of all) defeated[e.id] = (defeated[e.id] ?? 0) + 1;
+        state = { ...state, book: { ...book, seen: [...book.seen, ...new Set(all.map(e => e.id).filter(id => !book.seen.includes(id)))], defeated } };
+      }
       for (const drop of all.flatMap(e => e.drops)) {
         state = { ...state, items: { ...state.items, [drop.item]: (state.items[drop.item] ?? 0) + drop.count } };
         state = battleLog(state, `${itemName(drop.item)}を${drop.count}個手に入れた。`);
@@ -1882,7 +1893,45 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       flags: Object.fromEntries(Object.entries(project.flags).filter(([, d]) => d.persist === "meta").map(([id]) => [id, state.flags[id] ?? false])),
       vars: Object.fromEntries(Object.entries(project.variables).filter(([, d]) => d.persist === "meta").map(([id, d]) => [id, state.vars[id] ?? d.initial])),
       sets: Object.fromEntries(Object.entries(state.sets ?? {}).filter(([id]) => SET_PERSIST(id))),
+      ...(state.book ? { book: state.book } : {}),
+      ...(state.achievements?.length ? { achievements: state.achievements } : {}),
     };
+  }
+
+  /**
+   * After every step: fill the book (enemies met / beaten, items held) and unlock achievements whose `when` holds.
+   * Only when the project uses them, so other games' states stay as they were.
+   */
+  const achievementIds = Object.keys(content.project.achievements);
+  function chronicle(c: Ctx, state: GameState): GameState {
+    const bookOn = content.project.book;
+    if (bookOn) {
+      const book = state.book ?? { seen: [], defeated: {}, items: [] };
+      let { seen, defeated, items } = book;
+      const b = battleOf(state);
+      if (b) {
+        const ids = [b.enemyId, ...(b.foes ?? []).map(f => f.enemyId)];
+        const fresh = ids.filter(id => !seen.includes(id));
+        if (fresh.length) seen = [...seen, ...new Set(fresh)];
+      }
+      const held = Object.entries(state.items).filter(([id, n]) => n > 0 && !items.includes(id)).map(([id]) => id);
+      if (held.length) items = [...items, ...held];
+      if (seen !== book.seen || items !== book.items || defeated !== book.defeated || !state.book) state = { ...state, book: { seen, defeated, items } };
+    }
+    if (achievementIds.length) {
+      for (const id of achievementIds) {
+        const def = content.project.achievements[id]!;
+        if (!def.when || state.achievements?.includes(id) || !ev(def.when, state)) continue;
+        state = unlockAchievement(c, state, id);
+      }
+    }
+    return state;
+  }
+  function unlockAchievement(c: Ctx, state: GameState, id: string): GameState {
+    if (state.achievements?.includes(id) || !content.project.achievements[id]) return state;
+    c.cues.push({ kind: "achievement", id, title: content.project.achievements[id]!.title });
+    c.log.push(`実績: ${content.project.achievements[id]!.title}`);
+    return { ...state, achievements: [...(state.achievements ?? []), id] };
   }
 
   function freshState(seed: number, meta?: MetaState): GameState {
@@ -1900,6 +1949,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       entities: {},
       timers: [],
       cycle: meta?.cycle ?? 1,
+      ...(meta?.book ? { book: meta.book } : {}),
+      ...(meta?.achievements ? { achievements: meta.achievements } : {}),
       ticks: 0,
       regions: [],
       fired: [],
@@ -2033,7 +2084,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         break;
     }
     if (next !== state && next.scene.kind === "field") next = runQueue(c, next);
-    if (next !== state) next = runAuto(c, runEntityAutos(c, next));
+    if (next !== state) next = chronicle(c, runAuto(c, runEntityAutos(c, next)));
     return { state: next, log: c.log, cues: c.cues };
   }
 
@@ -2041,7 +2092,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const c: Ctx = { log: [], cues: [] };
     let next = state.scene.kind === "battle" ? checkBattleEnd(c, runNow(c, state, effects)) : runQueue(c, enqueue(state, effects));
     if (next.scene.kind === "field") next = runQueue(c, updateRegions(c, next, false));
-    next = runAuto(c, runEntityAutos(c, next));
+    next = chronicle(c, runAuto(c, runEntityAutos(c, next)));
     return { state: next, log: c.log, cues: c.cues };
   }
 

@@ -91,7 +91,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   const readSlot = (slot: Slot) => { try { return storage.read(slotKey(slot)) ?? (slot === "1" ? storage.read(saveKey) : null); } catch { return null; } };
   const slotLabel = (slot: Slot) => (slot === "auto" ? "オート" : `スロット${slot}`);
   /** "main" menu, the title screen, or the save / load slot lists. */
-  let menuView: "main" | "title" | "save" | "load" = "main";
+  let menuView: "main" | "title" | "save" | "load" | "book" | "achievements" = "main";
   let slotReturn: "main" | "title" = "main";
   const settingsKey = `rpg-settings:${content.project.id}`;
   const readRawSettings = () => { try { return JSON.parse(storage.read(settingsKey) ?? "{}") as Record<string, unknown>; } catch { return {}; } };
@@ -229,6 +229,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       if (cue.kind === "moved") { animator.enqueue({ x: state.player.x, y: state.player.y }); }
       else if (cue.kind === "bump") audio.cue("bump");
       else if (cue.kind === "battleStart") { audio.cue("encounter"); fadeUntil = performance.now() + 260; }
+      else if (cue.kind === "achievement") { showToast(`🏆 実績「${cue.title}」を達成！`); audio.cue("item"); }
       else if (cue.kind === "miss") popups.push({ text: "MISS", target: cue.target, at: performance.now(), n: popups.length });
       else if (cue.kind === "critical") popups.push({ text: "会心！", target: cue.target, at: performance.now(), n: popups.length });
       else if (cue.kind === "hit") { popups.push({ text: String(cue.amount), target: cue.target, at: performance.now(), n: popups.length }); audio.cue(cue.target === "enemy" ? "hit" : "hurt"); if (cue.target === "player" && uiPrefs.shake) shakeUntil = performance.now() + 220; }
@@ -320,6 +321,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   function cancel() {
     if (menuOpen && menuView === "title") return;
     if (menuOpen && (menuView === "save" || menuView === "load")) { menuView = slotReturn; selection = 0; renderUI(); return; }
+    if (menuOpen && (menuView === "book" || menuView === "achievements")) { menuView = "main"; selection = 0; renderUI(); return; }
     if (state.scene.kind === "custom") { audio.cue("cancel"); dispatch({ type: "sceneInput", input: { type: "cancel" } }); return; }
     if (creditsOpen) { creditsOpen = false; selection = 0; renderUI(); return; }
     if (backlogOpen) { backlogOpen = false; selection = 0; renderUI(); return; }
@@ -834,10 +836,49 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     windowLayer.appendChild(box);
   }
 
+  /** 図鑑: enemies met (stats after a win) and items ever held. Unknown ones show as ？？？. */
+  function renderBook() {
+    const panel = el("div", "rpg-window rpg-menu rpg-book");
+    panel.dataset.src = "packages/runtime/src/player.ts#renderBook";
+    const cfg = content.project.book!;
+    const book = state.book ?? { seen: [], defeated: {}, items: [] };
+    if (cfg.enemies) {
+      const list = content.database.enemies.filter(e => !cfg.hidden.includes(e.id));
+      panel.appendChild(el("div", "rpg-menu-title", `モンスター図鑑 ${list.filter(e => book.seen.includes(e.id)).length} / ${list.length}`));
+      for (const e of list) {
+        const met = book.seen.includes(e.id), wins = book.defeated[e.id] ?? 0;
+        const drops = e.drops.map(d => content.database.items.find(i => i.id === d.item)?.name ?? d.item).join("・");
+        panel.appendChild(el("div", "rpg-book-row", met ? `${e.name}${wins ? `　HP ${e.stats.maxHp}・攻 ${e.stats.attack}・守 ${e.stats.defense}${drops ? `・落とす物 ${drops}` : ""}　倒した数 ${wins}` : "　（まだ倒していない）"}` : "？？？"));
+      }
+    }
+    if (cfg.items) {
+      const list = content.database.items.filter(i => !cfg.hidden.includes(i.id));
+      panel.appendChild(el("div", "rpg-menu-title", `アイテム図鑑 ${list.filter(i => book.items.includes(i.id)).length} / ${list.length}`));
+      for (const i of list) panel.appendChild(el("div", "rpg-book-row", book.items.includes(i.id) ? `${i.name}　${i.description ?? ""}` : "？？？"));
+    }
+    panel.appendChild(navButton("もどる", () => { menuView = "main"; selection = 0; renderUI(); }));
+    windowLayer.appendChild(panel);
+  }
+  function renderAchievements() {
+    const panel = el("div", "rpg-window rpg-menu rpg-book");
+    panel.dataset.src = "packages/runtime/src/player.ts#renderAchievements";
+    const all = Object.entries(content.project.achievements);
+    const got = new Set(state.achievements ?? []);
+    panel.appendChild(el("div", "rpg-menu-title", `実績 ${all.filter(([id]) => got.has(id)).length} / ${all.length}`));
+    for (const [id, a] of all) {
+      const open = got.has(id);
+      panel.appendChild(el("div", open ? "rpg-book-row is-got" : "rpg-book-row", open ? `🏆 ${a.title}　${a.description}` : a.hidden ? "？？？（ひみつの実績）" : `・${a.title}　${a.description}`));
+    }
+    panel.appendChild(navButton("もどる", () => { menuView = "main"; selection = 0; renderUI(); }));
+    windowLayer.appendChild(panel);
+  }
+
   function renderMenu() {
     if (creditsOpen) { renderCredits(); return; }
     if (menuView === "title") { renderTitle(); return; }
     if (menuView === "save" || menuView === "load") { renderSlots(menuView); return; }
+    if (menuView === "book") { renderBook(); return; }
+    if (menuView === "achievements") { renderAchievements(); return; }
     if (backlogOpen) { renderBacklog(); return; }
     const menu = el("div", "rpg-window rpg-menu");
     menu.appendChild(el("div", "rpg-menu-title", "メニュー"));
@@ -939,6 +980,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     row.append(
       navButton("セーブ", () => { slotReturn = "main"; menuView = "save"; selection = 0; renderUI(); }),
       navButton("ロード", () => { slotReturn = "main"; menuView = "load"; selection = 0; renderUI(); }),
+      ...(content.project.book ? [navButton("図鑑", () => { menuView = "book"; selection = 0; renderUI(); })] : []),
+      ...(Object.keys(content.project.achievements).length ? [navButton("実績", () => { menuView = "achievements"; selection = 0; renderUI(); })] : []),
       navButton(`BGM: ${!audio.settings.bgm ? "オフ" : `${Math.round((audio.settings.bgmVolume ?? 1) * 100)}%`}`, () => {
         const cur = !audio.settings.bgm ? 0 : Math.round((audio.settings.bgmVolume ?? 1) * 100);
         const steps = [100, 80, 60, 40, 20, 0];

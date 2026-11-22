@@ -396,7 +396,20 @@
         }
       ],
       "drops": [],
-      "rules": [],
+      "rules": [
+        {
+          "id": "bee-hunter",
+          "on": "victory",
+          "repeat": false,
+          "priority": 0,
+          "effects": [
+            {
+              "type": "unlockAchievement",
+              "achievement": "bee-hunter"
+            }
+          ]
+        }
+      ],
       "canFlee": true,
       "resist": {
         "fire": 200,

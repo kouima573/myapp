@@ -414,3 +414,27 @@ describe("text effects: pictures and input (050/054)", () => {
     expect(state.vars[gold]).toBe(1);
   });
 });
+
+describe("book and achievements (092/093)", () => {
+  it("records met / beaten enemies and held items, unlocks achievements with a cue, and keeps both in the meta for new games", () => {
+    const herb = content.database.items[0]!.id;
+    const foe = content.database.enemies.find(e => !e.battle)!;
+    const withBook: GameContent = { ...content, project: { ...content.project, book: { enemies: true, items: true, hidden: [] }, achievements: { rich: { title: "薬草持ち", description: "", when: { item: herb }, hidden: false } } } };
+    const eng = createEngine(withBook, systems);
+    let state = eng.newGame(1);
+    while (state.scene.kind === "message") state = eng.step(state, { type: "advance" }).state;
+    state = eng.step(state, { type: "choose", choiceId: "dwarf" }).state;
+    while (state.scene.kind === "message") state = eng.step(state, { type: "advance" }).state;
+    const got = eng.run(state, [{ type: "giveItem", item: herb }]);
+    expect(got.state.achievements).toEqual(["rich"]);
+    expect(got.cues).toContainEqual({ kind: "achievement", id: "rich", title: "薬草持ち" });
+    expect(got.state.book?.items).toContain(herb);
+    state = eng.run(got.state, [{ type: "battle", enemy: foe.id }]).state;
+    expect(state.book?.seen).toContain(foe.id);
+    state = eng.run(state, [{ type: "damage", target: "enemy", amount: 9999 }]).state;
+    expect(state.book?.defeated[foe.id]).toBe(1);
+    const next = eng.newGame(2, eng.metaOf(state));
+    expect(next.achievements).toEqual(["rich"]);
+    expect(next.book?.defeated[foe.id]).toBe(1);
+  });
+});
