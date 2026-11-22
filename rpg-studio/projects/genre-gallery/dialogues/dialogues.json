@@ -132,7 +132,7 @@
       "speaker": "ドワーフ",
       "lines": [
         "あの遺跡の結晶、掘りたいんだがな。魔法陣が光っていて近寄れん。",
-        "疲れたならうちで休んでいけ。安くしとくぞ。"
+        "疲れたならうちで休んでいけ。薬の調合も、荷物の預かりもやっとるぞ。"
       ],
       "choices": [
         {
@@ -147,6 +147,63 @@
                 "title": "ドワーフの小屋",
                 "price": 5,
                 "greeting": "ひと晩5ゴールドだ。"
+              }
+            }
+          ],
+          "once": false
+        },
+        {
+          "id": "craft",
+          "label": "薬を作ってもらう",
+          "effects": [
+            {
+              "type": "startScene",
+              "system": "shop",
+              "scene": "craft",
+              "args": {
+                "title": "ドワーフの調合台",
+                "greeting": "薬草があれば薬にしてやる。",
+                "recipes": [
+                  {
+                    "item": "antidote",
+                    "needs": [
+                      {
+                        "item": "garden-herb",
+                        "count": 2
+                      }
+                    ],
+                    "cost": 2
+                  },
+                  {
+                    "item": "power-seed",
+                    "needs": [
+                      {
+                        "item": "garden-herb",
+                        "count": 2
+                      },
+                      {
+                        "item": "antidote",
+                        "count": 1
+                      }
+                    ],
+                    "cost": 10
+                  }
+                ]
+              }
+            }
+          ],
+          "once": false
+        },
+        {
+          "id": "storage",
+          "label": "荷物を預ける",
+          "effects": [
+            {
+              "type": "startScene",
+              "system": "shop",
+              "scene": "storage",
+              "args": {
+                "title": "ドワーフの物置"
               }
             }
           ],

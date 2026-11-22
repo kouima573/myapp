@@ -1,0 +1,29 @@
+{
+  "name": "合成と倉庫（shop モジュールの craft・storage）: 薬草から毒消しを作る・預けて引き出す",
+  "seed": 3,
+  "steps": [
+    { "advance": "all" },
+    { "effects": [{ "type": "giveItem", "item": "garden-herb", "count": 3 }, { "type": "giveItem", "item": "squire-blade" }] },
+    { "effects": [{ "type": "dialogue", "dialogue": "garden-dwarf" }] },
+    { "advance": "all" },
+    { "choose": "craft" },
+    { "expect": { "scene": "custom" } },
+    { "sceneInput": { "custom": { "recipe": 0 } } },
+    { "expect": { "items": { "garden-herb": 1, "antidote": 1 }, "vars": { "gold": 118 } } },
+    { "sceneInput": { "custom": { "recipe": 1 } } },
+    { "expect": { "items": { "garden-herb": 1, "antidote": 1, "power-seed": 0 }, "vars": { "gold": 118 } } },
+    { "sceneInput": { "custom": { "leave": true } } },
+    { "advance": "all" },
+    { "effects": [{ "type": "dialogue", "dialogue": "garden-dwarf" }] },
+    { "advance": "all" },
+    { "choose": "storage" },
+    { "sceneInput": { "custom": { "item": "squire-blade" } } },
+    { "expect": { "items": { "squire-blade": 0 } } },
+    { "sceneInput": { "custom": { "mode": "take" } } },
+    { "sceneInput": { "custom": { "item": "squire-blade" } } },
+    { "expect": { "items": { "squire-blade": 1 } } },
+    { "sceneInput": { "custom": { "leave": true } } },
+    { "advance": "all" },
+    { "expect": { "scene": "field" } }
+  ]
+}

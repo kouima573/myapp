@@ -2,6 +2,8 @@
  * Built-in module: shops and inns — the RPG staples.
  *   shop.buy  — buy (and sell) with a currency variable. Equipment shows the stat change against what is worn now.
  *   shop.inn  — pay to rest: everyone recovers fully.
+ *   shop.craft   — 合成: recipes turn materials (and money) into an item.
+ *   shop.storage — 倉庫: put carried items into a box and take them back later (kept in the save).
  * Prices come from the shop's list, or from the item's `price`. Selling pays `sellRate` of the price.
  */
 import { z } from "zod";
@@ -33,6 +35,65 @@ export const InnArgsSchema = z.object({
   message: z.string().default("ぐっすり眠って、すっかり元気になった。"),
 }).strict();
 export type InnArgs = z.infer<typeof InnArgsSchema>;
+
+export const CraftArgsSchema = z.object({
+  title: z.string().default("合成"),
+  greeting: z.string().default("材料を持ってきたら作ってあげよう。"),
+  currency: IdSchema.default("gold"),
+  recipes: z.array(z.object({
+    item: IdSchema, count: z.number().int().min(1).max(99).default(1),
+    needs: z.array(z.object({ item: IdSchema, count: z.number().int().min(1).max(99).default(1) }).strict()).min(1),
+    /** Fee in the currency variable. */
+    cost: z.number().int().min(0).default(0),
+  }).strict()).min(1),
+}).strict();
+export type CraftArgs = z.infer<typeof CraftArgsSchema>;
+export interface CraftData { args: CraftArgs; cursor: number; message: string }
+
+export const StorageArgsSchema = z.object({
+  title: z.string().default("倉庫"),
+  /** Several separate boxes can exist (by id). */
+  box: IdSchema.default("main"),
+  /** How many different items fit (0 = no limit). */
+  capacity: z.number().int().min(0).max(999).default(0),
+}).strict();
+export type StorageArgs = z.infer<typeof StorageArgsSchema>;
+export interface StorageData { args: StorageArgs; mode: "put" | "take"; cursor: number; message: string }
+
+/** Contents of a storage box (state.systemData.shop.storage[box]). */
+export function boxOf(state: GameState, box: string): Record<string, number> {
+  const data = asRecord(state.systemData?.shop);
+  return { ...(asRecord(asRecord(data.storage)[box]) as Record<string, number>) };
+}
+function withBox(state: GameState, box: string, contents: Record<string, number>): GameState {
+  const data = asRecord(state.systemData?.shop);
+  const storage = { ...asRecord(data.storage), [box]: Object.fromEntries(Object.entries(contents).filter(([, n]) => n > 0)) };
+  return { ...state, systemData: { ...state.systemData, shop: { ...data, storage } } };
+}
+
+/** Can this recipe be made now? Returns what is missing (empty = yes). */
+export function missingFor(content: GameContent, state: GameState, args: CraftArgs, index: number): string[] {
+  const r = args.recipes[index]!;
+  const name = (id: string) => content.database.items.find(i => i.id === id)?.name ?? id;
+  const out = r.needs.filter(n => (state.items[n.item] ?? 0) < n.count).map(n => `${name(n.item)}×${n.count - (state.items[n.item] ?? 0)}`);
+  if (r.cost > money(state, args)) out.push(`${label(content, args)}${r.cost - money(state, args)}`);
+  return out;
+}
+export function craft(ctx: SystemContext, d: CraftData, index: number): { data: CraftData; apply?: Effect[] } {
+  const r = d.args.recipes[index];
+  if (!r) return { data: d };
+  const name = ctx.content.database.items.find(i => i.id === r.item)?.name ?? r.item;
+  const missing = missingFor(ctx.content, ctx.state, d.args, index);
+  if (missing.length) return { data: { ...d, message: `足りない: ${missing.join("・")}` } };
+  return {
+    data: { ...d, message: `${name}${r.count > 1 ? `×${r.count}` : ""}ができた！` },
+    apply: [
+      ...r.needs.map(n => ({ type: "takeItem", item: n.item, count: n.count }) as Effect),
+      ...(r.cost ? [{ type: "setVar", var: d.args.currency, value: r.cost, op: "sub" } as Effect] : []),
+      { type: "giveItem", item: r.item, count: r.count },
+    ],
+  };
+}
 
 export interface ShopData { args: ShopArgs; mode: "buy" | "sell"; cursor: number; message: string }
 
@@ -104,6 +165,99 @@ function checkShop(args: ShopArgs, content: GameContent): string[] {
 export default defineSystem({
   id: "shop",
   scenes: {
+    craft: {
+      title: "合成（材料とお金でアイテムを作る）",
+      checkArgs: (args, { content }) => {
+        const r = CraftArgsSchema.safeParse(args);
+        if (!r.success) return issues(r);
+        const out: string[] = [];
+        if (r.data.recipes.some(x => x.cost) && !content.project.variables[r.data.currency]) out.push(`currency '${r.data.currency}' が project.json の variables にありません`);
+        r.data.recipes.forEach((x, i) => { for (const id of [x.item, ...x.needs.map(n => n.item)]) if (!content.database.items.some(it => it.id === id)) out.push(`recipes[${i}]: 未定義のアイテム '${id}'`); });
+        return out;
+      },
+      start(_ctx, raw) { const args = CraftArgsSchema.parse(raw); return { args, cursor: 0, message: args.greeting } satisfies CraftData; },
+      input(ctx, raw, input) {
+        const d = raw as CraftData;
+        const value = input.type === "custom" ? asRecord(input.value) : {};
+        if (input.type === "cancel" || value.leave) return { close: true };
+        const n = d.args.recipes.length;
+        if (input.type === "up" || input.type === "down") return { data: { ...d, cursor: (d.cursor + (input.type === "up" ? -1 : 1) + n) % n } };
+        const index = typeof value.recipe === "number" ? value.recipe : input.type === "confirm" ? d.cursor : -1;
+        if (index < 0) return {};
+        const result = craft(ctx, { ...d, cursor: index }, index);
+        return { data: result.data, ...(result.apply ? { apply: result.apply } : {}) };
+      },
+      render(host, view) {
+        const d = view.data as CraftData;
+        const name = (id: string) => view.content.database.items.find(i => i.id === id)?.name ?? id;
+        host.innerHTML = "";
+        backdrop(host, "#25222f, #0e0c14");
+        const box = h("div", "position:absolute;inset:5% 7%;padding:1em 1.2em;display:flex;flex-direction:column;gap:.5em;overflow:auto", undefined, "rpg-window");
+        const head = h("div", "display:flex;justify-content:space-between;align-items:baseline;color:var(--rpg-accent)");
+        head.append(h("span", "font-size:1.1em", d.args.title), h("span", "", `${label(view.content, d.args)} ${money(view.state, d.args)}`));
+        box.append(head, h("div", "color:var(--rpg-dim);font-size:.9em", d.message));
+        d.args.recipes.forEach((r, i) => {
+          const missing = missingFor(view.content, view.state, d.args, i);
+          const b = button(`${name(r.item)}${r.count > 1 ? `×${r.count}` : ""}`, () => view.send({ type: "custom", value: { recipe: i } }), i === d.cursor, missing.length > 0);
+          const needs = r.needs.map(n => `${name(n.item)} ${view.state.items[n.item] ?? 0}/${n.count}`).join("・");
+          b.append(h("span", "", `${needs}${r.cost ? `・${label(view.content, d.args)}${r.cost}` : ""}`, "rpg-option-hint"));
+          box.appendChild(b);
+        });
+        box.appendChild(button("やめる", () => view.send({ type: "custom", value: { leave: true } })));
+        host.appendChild(box);
+      },
+    },
+    storage: {
+      title: "倉庫（預ける・引き出す。セーブに残る）",
+      checkArgs: args => { const r = StorageArgsSchema.safeParse(args); return r.success ? [] : issues(r); },
+      start(_ctx, raw) { const args = StorageArgsSchema.parse(raw); return { args, mode: "put", cursor: 0, message: "何を預けますか？" } satisfies StorageData; },
+      input(ctx, raw, input) {
+        const d = raw as StorageData;
+        const value = input.type === "custom" ? asRecord(input.value) : {};
+        if (input.type === "cancel" || value.leave) return { close: true };
+        if (value.mode === "put" || value.mode === "take" || input.type === "left" || input.type === "right") {
+          const mode = value.mode === "put" || value.mode === "take" ? value.mode : d.mode === "put" ? "take" : "put";
+          return { data: { ...d, mode, cursor: 0, message: mode === "put" ? "何を預けますか？" : "何を引き出しますか？" } };
+        }
+        const contents = boxOf(ctx.state, d.args.box);
+        const list = d.mode === "put"
+          ? Object.entries(ctx.state.items).filter(([id, n]) => n > 0 && !ctx.content.database.items.find(i => i.id === id)?.key).map(([id]) => id)
+          : Object.keys(contents);
+        if (input.type === "up" || input.type === "down") return list.length ? { data: { ...d, cursor: (d.cursor + (input.type === "up" ? -1 : 1) + list.length) % list.length } } : {};
+        const item = typeof value.item === "string" ? value.item : input.type === "confirm" ? list[Math.min(d.cursor, list.length - 1)] : undefined;
+        if (!item || !list.includes(item)) return {};
+        const name = ctx.content.database.items.find(i => i.id === item)?.name ?? item;
+        if (d.mode === "put") {
+          if (d.args.capacity && !contents[item] && Object.keys(contents).length >= d.args.capacity) return { data: { ...d, message: `いっぱいです（${d.args.capacity}種類まで）。` } };
+          const def = ctx.content.database.items.find(i => i.id === item);
+          const worn = def?.slot && ctx.state.equipment?.[def.slot] === item && (ctx.state.items[item] ?? 0) <= 1;
+          let state: GameState = withBox(ctx.state, d.args.box, { ...contents, [item]: (contents[item] ?? 0) + 1 });
+          state = { ...state, items: { ...state.items, [item]: (state.items[item] ?? 0) - 1 } };
+          return { state, data: { ...d, message: `${name}を預けた。` }, ...(worn ? { apply: [{ type: "unequip", slot: def.slot! } as Effect] } : {}) };
+        }
+        const state = withBox(ctx.state, d.args.box, { ...contents, [item]: (contents[item] ?? 0) - 1 });
+        return { state, data: { ...d, message: `${name}を引き出した。` }, apply: [{ type: "giveItem", item }] };
+      },
+      render(host, view) {
+        const d = view.data as StorageData;
+        const name = (id: string) => view.content.database.items.find(i => i.id === id)?.name ?? id;
+        host.innerHTML = "";
+        backdrop(host, "#20262a, #0b0e10");
+        const box = h("div", "position:absolute;inset:5% 7%;padding:1em 1.2em;display:flex;flex-direction:column;gap:.5em;overflow:auto", undefined, "rpg-window");
+        box.append(h("div", "color:var(--rpg-accent);font-size:1.1em", d.args.title), h("div", "color:var(--rpg-dim);font-size:.9em", d.message));
+        const tabs = h("div", "display:flex;gap:.4em");
+        tabs.append(button("預ける", () => view.send({ type: "custom", value: { mode: "put" } }), d.mode === "put"), button("引き出す", () => view.send({ type: "custom", value: { mode: "take" } }), d.mode === "take"));
+        box.appendChild(tabs);
+        const contents = boxOf(view.state, d.args.box);
+        const rows = d.mode === "put"
+          ? Object.entries(view.state.items).filter(([id, n]) => n > 0 && !view.content.database.items.find(i => i.id === id)?.key)
+          : Object.entries(contents);
+        if (!rows.length) box.appendChild(h("div", "color:var(--rpg-dim)", d.mode === "put" ? "預けられる物を持っていない。" : "倉庫は空っぽ。"));
+        rows.forEach(([id, n], i) => box.appendChild(button(`${name(id)}　×${n}`, () => view.send({ type: "custom", value: { item: id } }), i === d.cursor)));
+        box.appendChild(button("閉じる", () => view.send({ type: "custom", value: { leave: true } })));
+        host.appendChild(box);
+      },
+    },
     buy: {
       title: "お店（買う・売る。装備は今の装備と比べて表示）",
       checkArgs: (args, { content }) => { const r = ShopArgsSchema.safeParse(args); return r.success ? checkShop(r.data, content) : issues(r); },
