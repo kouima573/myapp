@@ -331,3 +331,4 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 .code-finder-path { font: 12px var(--mono); padding: 6px 8px; background: #0f1410; border-radius: 6px; word-break: break-all; }
 .code-finder-chain { margin: 4px 0 0; padding-left: 18px; font-family: var(--mono); }
 .is-finding-code .workspace, .is-finding-code .sidebar { cursor: help; }
+.layer-select { font-size: 11px; padding: 3px 6px; width: auto; }

@@ -102,6 +102,7 @@ export default function Inspector({ store, content, mapId, selection, onSelect, 
     const filler = content.tileset.tiles[0]!.code;
     edit(d => {
       d.rows = Array.from({ length: height }, (_, y) => { const row = Array.from(d.rows[y] ?? ""); return Array.from({ length: width }, (_, x) => row[x] ?? filler).join(""); });
+      d.layers = (d.layers ?? []).map(l => ({ ...l, rows: Array.from({ length: height }, (_, y) => { const row = Array.from(l.rows[y] ?? ""); return Array.from({ length: width }, (_, x) => row[x] ?? " ").join(""); }) }));
       d.width = width; d.height = height;
     });
     store.log("info", `${mapId} を ${width}×${height} に変更しました。範囲外の配置物は検証エラーになります`);

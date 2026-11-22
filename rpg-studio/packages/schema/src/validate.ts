@@ -461,6 +461,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       const value = tile[field];
       if (sheet && value !== undefined && value >= capacity) err(project.tilesetPath, `tiles[${index}].${field}`, `アトラスの範囲外です (${value} >= ${capacity})`);
     }
+    const extra: Array<[string, number]> = [...(tile.frames ?? []).map((v, i) => [`frames[${i}]`, v] as [string, number]), ...Object.entries(tile.autotile?.pieces ?? {}).map(([k, v]) => [`autotile.pieces.${k}`, v] as [string, number])];
+    for (const [at, value] of extra) if (sheet && value >= capacity) err(project.tilesetPath, `tiles[${index}].${at}`, `アトラスの範囲外です (${value} >= ${capacity})`);
     checkCondition(project.tilesetPath, `tiles[${index}].passableWhen`, tile.passableWhen);
     if (tile.inspect) {
       checkCondition(project.tilesetPath, `tiles[${index}].inspect.when`, tile.inspect.when);
@@ -475,6 +477,17 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     map.rows.forEach((row, y) => Array.from(row).forEach((code, x) => {
       if (!tileByCode.has(code)) err(file, `rows[${y}]`, `タイルセットにないコード '${code}' (x=${x}, y=${y})`);
     }));
+    const layerIds = new Set<string>();
+    map.layers.forEach((layer, i) => {
+      if (layerIds.has(layer.id)) err(file, `layers[${i}].id`, `レイヤーIDが重複しています: ${layer.id}`);
+      layerIds.add(layer.id);
+      if (layer.rows.length !== map.height) err(file, `layers[${i}].rows`, `レイヤー '${layer.id}' の行数 ${layer.rows.length} がマップの高さ ${map.height} と違います`);
+      layer.rows.forEach((row, y) => {
+        const cells = Array.from(row);
+        if (cells.length !== map.width) err(file, `layers[${i}].rows[${y}]`, `レイヤー '${layer.id}' の幅 ${cells.length} がマップの幅 ${map.width} と違います`);
+        cells.forEach((code, x) => { if (code !== " " && !tileByCode.has(code)) err(file, `layers[${i}].rows[${y}]`, `タイルセットにないコード '${code}' (x=${x}, y=${y})`); });
+      });
+    });
     map.overlays.forEach((overlay, i) => {
       checkCondition(file, `overlays[${i}].when`, overlay.when);
       overlay.cells.forEach((cell, j) => {

@@ -758,6 +758,39 @@
         }
       ]
     },
+    "layers": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "above": {
+            "default": false,
+            "type": "boolean"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "rows"
+        ],
+        "additionalProperties": false
+      }
+    },
     "overlays": {
       "default": [],
       "type": "array",

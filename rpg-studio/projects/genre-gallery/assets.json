@@ -337,7 +337,7 @@
       "path": "assets/tilesets/lib-tiles-field.png",
       "kind": "tileset",
       "mimeType": "image/png",
-      "bytes": 37512,
+      "bytes": 39258,
       "source": "内蔵ドット絵ジェネレーター（rpg art generate ／ library/）",
       "license": "MIT（rpg-studio リポジトリのライセンス。内蔵ジェネレーターによるオリジナル生成物）",
       "origin": "generated",
@@ -353,7 +353,7 @@
       "tileWidth": 64,
       "tileHeight": 64,
       "columns": 8,
-      "rows": 6
+      "rows": 7
     },
     {
       "id": "lib-tiles-town",
@@ -383,7 +383,7 @@
       "path": "assets/tilesets/lib-tiles-interior.png",
       "kind": "tileset",
       "mimeType": "image/png",
-      "bytes": 26068,
+      "bytes": 27038,
       "source": "内蔵ドット絵ジェネレーター（rpg art generate ／ library/）",
       "license": "MIT（rpg-studio リポジトリのライセンス。内蔵ジェネレーターによるオリジナル生成物）",
       "origin": "generated",
@@ -399,7 +399,7 @@
       "tileWidth": 64,
       "tileHeight": 64,
       "columns": 8,
-      "rows": 7
+      "rows": 8
     },
     {
       "id": "lib-tiles-dungeon",

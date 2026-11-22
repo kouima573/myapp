@@ -196,3 +196,9 @@
 - 属性: `project.json › elements: { "fire": { "label": "炎" } }`。敵の `resist: { "fire": 150 }`（150 = 弱点、50 = 半減、0 = 無効）、武器の `element`（通常攻撃の属性）、防具・装飾品の `resist`（受けるダメージ）、効果 `damage` の `element`。弱点・半減は戦闘ログに「弱点！」などと出る。
 - 自動テスト: `expect.statuses` / `expect.lacksStatuses`。見本: `projects/genre-gallery/tests/status.scenario.json`。
 
+## オートタイル・動くタイル・レイヤー
+
+- **オートタイル**（`tiles.json` のタイルに `autotile`）: 同じ `group` のタイル同士がつながる。`pieces` に9枚組（`tl` `t` `tr` `l` `c` `r` `bl` `b` `br` のアトラス番号）を書くと、1つの記号で塗った範囲の角・辺・中央が自動で選ばれる。`border: "#335577"` は絵がなくても縁に線を引く（道・水辺）。ライブラリの「赤の絨毯（自動でつながる）」がその見本。
+- **動くタイル**: `"frames": [47, 48, 49], "frameMs": 250`（同じアトラスの番号を順に表示）。ライブラリの「浅い水（動く）」。
+- **レイヤー**（マップに `layers`）: `[{ "id": "decor", "above": false, "rows": [...] }, { "id": "upper", "above": true, "rows": [...] }]`。行は地面と同じ大きさで、空白 `" "` は何もなし。`above: false` は地面の上に重ねる物（通れないタイルなら道をふさぐ）、`above: true` はキャラの頭上に描く（屋根・木の葉、道はふさがない）。工房のマップ画面の「層」で塗る層を選べる。
+

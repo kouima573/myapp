@@ -560,6 +560,19 @@ export const TileDefSchema = z.object({
   openIndex: z.number().int().nonnegative().optional(),
   /** Fallback colour used when the atlas image is unavailable. */
   color: z.string().regex(/^#[0-9a-f]{6}$/i).default("#63734f"),
+  /** Animated tile: atlas cells shown in turn (water, torches, flags). */
+  frames: z.array(z.number().int().nonnegative()).min(2).optional(),
+  frameMs: z.number().int().min(50).max(5000).default(250),
+  /**
+   * Autotile: tiles of the same `group` connect. With `pieces` (atlas cells of a 9-slice: corners, edges, centre)
+   * the right piece is drawn from the neighbours, so any rectangle can be painted with one code.
+   * `border` draws a thin edge line (#hex) where the group ends (paths, water, cliffs without edge pictures).
+   */
+  autotile: z.object({
+    group: IdSchema,
+    pieces: z.object({ tl: z.number().int().nonnegative(), t: z.number().int().nonnegative(), tr: z.number().int().nonnegative(), l: z.number().int().nonnegative(), c: z.number().int().nonnegative(), r: z.number().int().nonnegative(), bl: z.number().int().nonnegative(), b: z.number().int().nonnegative(), br: z.number().int().nonnegative() }).strict().optional(),
+    border: z.string().regex(/^#[0-9a-f]{6}$/i).optional(),
+  }).strict().optional(),
   /** Pressing the action key while facing this tile. Use `when` to make it investigable only after a flag/ability/knowledge. */
   inspect: z.object({ when: ConditionSchema.optional(), effects: z.array(EffectSchema).min(1), otherwise: z.array(EffectSchema).default([]) }).strict().optional(),
 }).strict();
@@ -710,6 +723,12 @@ export const GameMapSchema = z.object({
   battleBackground: IdSchema.optional(),
   /** Code active while the player is on this map. */
   script: ScriptRefSchema.optional(),
+  /**
+   * Extra tile layers over `rows` (same size; " " = nothing). Lower layers (above: false) hold objects on top of the
+   * ground — the same tree on grass or snow — and block movement if their tile is not passable. Upper layers
+   * (above: true) are drawn over the characters: roofs, tree tops, arches.
+   */
+  layers: z.array(z.object({ id: IdSchema, name: z.string().optional(), above: z.boolean().default(false), rows: z.array(z.string()) }).strict()).default([]),
   /** Tiles that change while a condition holds (bridge built, rubble cleared…). Later overlays win. */
   overlays: z.array(z.object({
     when: ConditionSchema,

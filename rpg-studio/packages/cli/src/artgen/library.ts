@@ -17,7 +17,7 @@ export const ARTGEN_VERSION = 1;
 export const LIBRARY_FORMAT_VERSION = 1;
 export const SHEET_COLUMNS = 8;
 
-export interface LibraryTile { key: string; name: string; index: number; passable: boolean; color: string; tags: string[] }
+export interface LibraryTile { key: string; name: string; index: number; passable: boolean; color: string; tags: string[]; frames?: number[]; autotile?: { group: string; pieces: Record<string, number> } }
 export interface LibraryItem {
   id: string;
   kind: "tileset" | "character" | "enemy" | "background";
@@ -59,6 +59,12 @@ export function renderTileSheet(sheetIndex: number): { img: Img; tiles: LibraryT
     const tile = renderTile(spec, sheet.id);
     img.draw(tile, (index % SHEET_COLUMNS) * cell, Math.floor(index / SHEET_COLUMNS) * cell);
     return { key: spec.key, name: spec.name, index, passable: spec.passable, color: average(tile), tags: spec.tags };
+  });
+  // Animations and autotiles refer to other tiles of the sheet by key; store their indices.
+  const indexOf = (key: string) => { const i = sheet.tiles.findIndex(x => x.key === key); if (i < 0) throw new Error(`${sheet.id}: unknown tile key ${key}`); return i; };
+  sheet.tiles.forEach((spec, i) => {
+    if (spec.frames) tiles[i]!.frames = spec.frames.map(indexOf);
+    if (spec.autotile) tiles[i]!.autotile = { group: spec.autotile.group, pieces: Object.fromEntries(Object.entries(spec.autotile.pieces).map(([k, key]) => [k, indexOf(key)])) };
   });
   return { img, tiles };
 }

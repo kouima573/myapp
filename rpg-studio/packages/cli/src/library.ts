@@ -142,7 +142,7 @@ async function appendTiles(root: string, tilesetPath: string, atlas: string, til
     if (already.has(tile.index)) continue;
     const code = pool.shift();
     if (!code) throw new Error("空いているタイルコードがありません");
-    tileset.tiles.push({ code, name: tile.name, atlas, index: tile.index, passable: tile.passable, color: tile.color } as (typeof tileset.tiles)[number]);
+    tileset.tiles.push({ code, name: tile.name, atlas, index: tile.index, passable: tile.passable, color: tile.color, ...(tile.frames ? { frames: tile.frames } : {}), ...(tile.autotile ? { autotile: tile.autotile } : {}) } as (typeof tileset.tiles)[number]);
     added.push(`${code}=${tile.name}`);
   }
   await fs.writeFile(file, `${JSON.stringify(tileset, null, 2)}\n`);

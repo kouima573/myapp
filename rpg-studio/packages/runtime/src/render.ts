@@ -81,6 +81,8 @@ export interface DrawMapOptions {
     hovered?: Point | null;
     showEntities: boolean;
     showPassability: boolean;
+    /** Layer ids not drawn (editor: show only the layer being painted, or hide the roofs). */
+    hiddenLayers?: string[];
     startPoint?: Point | null;
   };
   time: number;
@@ -102,34 +104,61 @@ export function drawMap(ctx: CanvasRenderingContext2D, o: DrawMapOptions): { ori
   ctx.translate(offsetX, offsetY);
   const x0 = Math.max(0, Math.floor(-offsetX / TILE)), y0 = Math.max(0, Math.floor(-offsetY / TILE));
   const x1 = Math.min(map.width, x0 + view.cols + 2), y1 = Math.min(map.height, y0 + view.rows + 2);
-  for (let y = y0; y < y1; y++) {
-    const row = Array.from(map.rows[y] ?? "");
-    for (let x = x0; x < x1; x++) {
-      const tile = tiles.get(row[x] ?? "");
-      const px = x * TILE, py = y * TILE;
-      if (!tile) { ctx.fillStyle = "#ff00aa"; ctx.fillRect(px, py, TILE, TILE); continue; }
-      const open = state && tile.passableWhen && evaluate(tile.passableWhen, state);
-      const index = open && tile.openIndex !== undefined ? tile.openIndex : tile.index;
-      const sheetId = tile.atlas ?? content.tileset.atlas;
-      const atlas = images[sheetId];
-      if (ready(atlas)) {
-        const cell = sheetCell(assetById.get(sheetId), atlas, index);
-        ctx.drawImage(atlas, cell.sx, cell.sy, cell.sw, cell.sh, px, py, TILE, TILE);
-      } else {
-        fallbackTile(ctx, open ? { ...tile, passable: true, color: shade(tile.color, 30) } : tile, px, py, x, y);
-      }
-      if (o.editor?.showPassability) {
-        const passable = tile.passable || Boolean(open);
-        if (!passable) { ctx.fillStyle = tile.passableWhen ? "rgba(237,196,119,.35)" : "rgba(216,127,106,.38)"; ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2); }
+  /** Draws one layer of tile codes (" " = empty on upper layers). Autotiles connect within the same layer. */
+  const drawLayer = (layerRows: string[], base: boolean) => {
+    const grid = layerRows.map(r => Array.from(r));
+    for (let y = y0; y < y1; y++) {
+      const row = grid[y] ?? [];
+      for (let x = x0; x < x1; x++) {
+        const code = row[x] ?? "";
+        if (!base && (code === " " || code === "")) continue;
+        const tile = tiles.get(code);
+        const px = x * TILE, py = y * TILE;
+        if (!tile) { ctx.fillStyle = "#ff00aa"; ctx.fillRect(px, py, TILE, TILE); continue; }
+        const open = state && tile.passableWhen && evaluate(tile.passableWhen, state);
+        let index = open && tile.openIndex !== undefined ? tile.openIndex : tile.index;
+        if (tile.frames) index = tile.frames[Math.floor((o.time ?? 0) / tile.frameMs) % tile.frames.length]!;
+        const auto = tile.autotile;
+        const same = auto ? (dx: number, dy: number) => { const n = tiles.get(grid[y + dy]?.[x + dx] ?? ""); return Boolean(n?.autotile && n.autotile.group === auto.group); } : undefined;
+        if (auto?.pieces && same) {
+          // 9-slice by neighbours: no tile of the group above → top row, none below → bottom row (thin strips use the outer pieces).
+          const n = same(0, -1), s = same(0, 1), w = same(-1, 0), e = same(1, 0);
+          const v = !n ? "t" : !s ? "b" : "", h = !w ? "l" : !e ? "r" : "";
+          index = auto.pieces[(v + h || "c") as keyof typeof auto.pieces];
+        }
+        const sheetId = tile.atlas ?? content.tileset.atlas;
+        const atlas = images[sheetId];
+        if (ready(atlas)) {
+          const cell = sheetCell(assetById.get(sheetId), atlas, index);
+          ctx.drawImage(atlas, cell.sx, cell.sy, cell.sw, cell.sh, px, py, TILE, TILE);
+        } else {
+          fallbackTile(ctx, open ? { ...tile, passable: true, color: shade(tile.color, 30) } : tile, px, py, x, y);
+        }
+        if (auto?.border && same) {
+          ctx.fillStyle = auto.border;
+          if (!same(0, -1)) ctx.fillRect(px, py, TILE, 2);
+          if (!same(0, 1)) ctx.fillRect(px, py + TILE - 2, TILE, 2);
+          if (!same(-1, 0)) ctx.fillRect(px, py, 2, TILE);
+          if (!same(1, 0)) ctx.fillRect(px + TILE - 2, py, 2, TILE);
+        }
+        if (o.editor?.showPassability) {
+          const passable = tile.passable || Boolean(open);
+          if (!passable) { ctx.fillStyle = tile.passableWhen ? "rgba(237,196,119,.35)" : "rgba(216,127,106,.38)"; ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2); }
+        }
       }
     }
-  }
+  };
+  const hidden = o.editor?.hiddenLayers ?? [];
+  drawLayer(map.rows, true);
+  for (const layer of map.layers ?? []) if (!layer.above && !hidden.includes(layer.id)) drawLayer(layer.rows, false);
 
   for (const item of o.interactables) drawMarker(ctx, item, o.time);
   for (const item of o.markers ?? []) drawMarker(ctx, item as Interactable, o.time);
 
   const sorted = [...o.actors].sort((a, b) => a.y - b.y || (a.kind === "player" ? 1 : -1));
   for (const actor of sorted) drawActor(ctx, content, images, actor);
+  // Layers above the characters: roofs, tree tops, bridges seen from below.
+  for (const layer of map.layers ?? []) if (layer.above && !hidden.includes(layer.id)) drawLayer(layer.rows, false);
 
   if (o.editor) drawEditorOverlay(ctx, map, o.editor);
   ctx.restore();

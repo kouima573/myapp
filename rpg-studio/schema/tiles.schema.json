@@ -54,6 +54,102 @@
             "type": "string",
             "pattern": "^#[0-9a-f]{6}$"
           },
+          "frames": {
+            "minItems": 2,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "frameMs": {
+            "default": 250,
+            "type": "integer",
+            "minimum": 50,
+            "maximum": 5000
+          },
+          "autotile": {
+            "type": "object",
+            "properties": {
+              "group": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 96,
+                "pattern": "^[a-z0-9][a-z0-9._-]*$"
+              },
+              "pieces": {
+                "type": "object",
+                "properties": {
+                  "tl": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "t": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "tr": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "l": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "c": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "r": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "bl": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "b": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "br": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "tl",
+                  "t",
+                  "tr",
+                  "l",
+                  "c",
+                  "r",
+                  "bl",
+                  "b",
+                  "br"
+                ],
+                "additionalProperties": false
+              },
+              "border": {
+                "type": "string",
+                "pattern": "^#[0-9a-f]{6}$"
+              }
+            },
+            "required": [
+              "group"
+            ],
+            "additionalProperties": false
+          },
           "inspect": {
             "type": "object",
             "properties": {

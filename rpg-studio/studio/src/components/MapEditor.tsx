@@ -56,6 +56,8 @@ export function entityAt(map: GameMap, x: number, y: number): Selection {
 export default function MapEditor({ store, content, mapId, images, imageRevision, selection, onSelect, onPlayFrom }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [tool, setTool] = useState<Tool>("paint");
+  /** Which layer paint / fill / erase write to: the ground (rows), objects on top, or the layer over the characters. */
+  const [layer, setLayer] = useState<"base" | "decor" | "upper">("base");
   const [tile, setTile] = useState<string>(content.tileset.tiles[0]?.code ?? ".");
   const [hovered, setHovered] = useState<{ x: number; y: number } | null>(null);
   const [grid, setGrid] = useState(true);
@@ -101,18 +103,29 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
     };
   };
 
+  /** The rows of the layer being painted (created on first use, filled with " " = nothing). */
+  const layerRows = (draft: GameMap): string[] => {
+    if (layer === "base") return draft.rows;
+    draft.layers ??= [];
+    let found = draft.layers.find(l => l.id === layer);
+    if (!found) { found = { id: layer, name: layer === "decor" ? "重ねる物" : "頭上", above: layer === "upper", rows: Array.from({ length: draft.height }, () => " ".repeat(draft.width)) }; draft.layers.push(found); }
+    return found.rows;
+  };
+  const eraseCode = layer === "base" ? content.tileset.tiles[0]!.code : " ";
   const setCell = useCallback((x: number, y: number, code: string) => {
     store.updateJson<GameMap>(mapPath, draft => {
-      const row = Array.from(draft.rows[y] ?? "");
+      const rows = layerRows(draft);
+      const row = Array.from(rows[y] ?? "");
       if (row[x] === code) return draft;
       row[x] = code;
-      draft.rows[y] = row.join("");
+      rows[y] = row.join("");
     });
-  }, [store, mapPath]);
+  }, [store, mapPath, layer]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fill = (x: number, y: number, code: string) => {
     store.updateJson<GameMap>(mapPath, draft => {
-      const rows = draft.rows.map(r => Array.from(r));
+      const target = layerRows(draft);
+      const rows = target.map(r => Array.from(r));
       const from = rows[y]?.[x];
       if (from === undefined || from === code) return draft;
       const stack = [[x, y]];
@@ -122,7 +135,7 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
         rows[cy!]![cx!] = code;
         stack.push([cx! + 1, cy!], [cx! - 1, cy!], [cx!, cy! + 1], [cx!, cy! - 1]);
       }
-      draft.rows = rows.map(r => r.join(""));
+      rows.forEach((r, i) => { target[i] = r.join(""); });
     });
   };
 
@@ -167,7 +180,7 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
       case "paint": case "erase":
         store.beginGroup();
         drag.current = { mode: "paint" };
-        setCell(x, y, tool === "erase" ? content.tileset.tiles[0]!.code : tile);
+        setCell(x, y, tool === "erase" ? eraseCode : tile);
         break;
       case "fill": fill(x, y, tile); break;
       case "pick": setTile(code); setTool("paint"); break;
@@ -191,7 +204,7 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
     if (!hovered || hovered.x !== cell.x || hovered.y !== cell.y) setHovered(cell);
     const current = drag.current;
     if (!current || event.buttons !== 1) return;
-    if (current.mode === "paint") setCell(cell.x, cell.y, tool === "erase" ? content.tileset.tiles[0]!.code : tile);
+    if (current.mode === "paint") setCell(cell.x, cell.y, tool === "erase" ? eraseCode : tile);
     else if (current.mode === "move" && current.id && current.kind) {
       if (selection && selection.x === cell.x && selection.y === cell.y) return;
       const key = current.kind === "npc" ? "npcs" : current.kind === "portal" ? "portals" : current.kind === "entity" ? "entities" : current.kind === "region" ? "regions" : "interactables";
@@ -265,6 +278,9 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
         <button className="tool" onClick={() => store.redo(mapPath)} disabled={!canRedo} title="やり直す (Ctrl/⌘+Shift+Z, Ctrl+Y)"><Redo2 size={15} /></button>
       </div>
       <div className="tool-group">
+        <select className="layer-select" value={layer} onChange={e => setLayer(e.target.value as "base" | "decor" | "upper")} title="塗る層: 地面／地面の上に重ねる物（通れない物は道をふさぐ）／キャラの頭上（屋根・木の葉）">
+          <option value="base">層: 地面</option><option value="decor">層: 重ねる物</option><option value="upper">層: 頭上</option>
+        </select>
         <button className={`tool ${grid ? "is-active" : ""}`} onClick={() => setGrid(g => !g)} title="グリッド" aria-pressed={grid}><Grid3x3 size={15} /></button>
         <button className={`tool ${passability ? "is-active" : ""}`} onClick={() => setPassability(p => !p)} title="通行不可を赤、条件付きを黄で表示" aria-pressed={passability}><Eye size={15} /></button>
         <button className="tool" onClick={() => setZoom(z => Math.max(0.75, z - 0.25))} title="縮小"><ZoomOut size={15} /></button>

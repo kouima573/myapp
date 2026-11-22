@@ -339,8 +339,15 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   /** Tile-only passability (no actors). */
   function tilePassable(state: GameState, map: GameMap, x: number, y: number): boolean {
     if (x < 0 || y < 0 || x >= map.width || y >= map.height) return false;
-    const tile = tiles.get(codeAt(state, map, x, y));
-    return Boolean(tile && (tile.passable || (tile.passableWhen && ev(tile.passableWhen, state))));
+    const ok = (code: string) => { const tile = tiles.get(code); return Boolean(tile && (tile.passable || (tile.passableWhen && ev(tile.passableWhen, state)))); };
+    if (!ok(codeAt(state, map, x, y))) return false;
+    // Objects on lower layers (not the roofs above the characters) block like ground tiles.
+    for (const layer of map.layers) {
+      if (layer.above) continue;
+      const code = Array.from(layer.rows[y] ?? "")[x] ?? " ";
+      if (code !== " " && !ok(code)) return false;
+    }
+    return true;
   }
 
   function isPassable(state: GameState, x: number, y: number, map = content.maps[state.mapId]): boolean {

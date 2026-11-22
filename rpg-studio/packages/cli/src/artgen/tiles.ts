@@ -12,6 +12,10 @@ export interface TileSpec {
   passable: boolean;
   tags: string[];
   paint: (img: Img, r: Rng) => void;
+  /** Animated tile: keys of the frames (this tile first). */
+  frames?: string[];
+  /** Autotile: painting this code anywhere picks the 9-slice piece (keys) from its neighbours of the same group. */
+  autotile?: { group: string; pieces: Record<"tl" | "t" | "tr" | "l" | "c" | "r" | "bl" | "b" | "br", string> };
 }
 export interface SheetSpec { id: string; title: string; tags: string[]; tiles: TileSpec[] }
 
@@ -88,6 +92,17 @@ const G = {
       const x = r.int(0, 31), y = r.int(0, 31), len = r.int(3, 6);
       for (let k = 0; k < len; k++) img.wset(x + k, y, c[k === 0 || k === len - 1 ? 3 : 4]!);
       for (let k = 1; k < len - 1; k++) img.wset(x + k, y + 1, c[0]!);
+    }
+  },
+  /** One frame of animated water: the same surface, ripples moved by `phase` (seamless left/right). */
+  waterFrame(img: Img, phase: number) {
+    const c = R(P.water, 5, 0.8);
+    ground(img, "water-anim", c, { lo: 1, hi: 2, octaves: [[4, 1], [8, 0.6]], contrast: 2 });
+    const r = rng("water-anim-waves");
+    for (let i = 0; i < 10; i++) {
+      const x = (r.int(0, 31) + phase * 3) % 32, y = r.int(0, 31), len = r.int(3, 6);
+      for (let k = 0; k < len; k++) img.wset((x + k) % 32, y, c[k === 0 || k === len - 1 ? 3 : 4]!);
+      for (let k = 1; k < len - 1; k++) img.wset((x + k) % 32, y + 1, c[0]!);
     }
   },
   lava(img: Img, r: Rng) {
@@ -549,6 +564,11 @@ export const SHEETS: SheetSpec[] = [
       t("crops-cabbage", "キャベツ畑", false, ["farm"], (i, r) => { G.soil(i, r); const l = layer(); for (let row = 0; row < 4; row++) for (let k = 0; k < 4; k++) ball(l, k * 8 + 4 + (row % 2) * 2, row * 8 + 4, 3, 2.6, R("#7cbc4a")); outline(l); i.draw(l, 0, 0); }),
       t("cliff", "崖", false, ["cliff", "rock"], (i, r) => { const c = R("#8a7a66", 6); for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) i.set(x, y, c[2]!); for (let band = 0; band < 4; band++) { const y0 = band * 8; for (let x = 0; x < 32; x++) { const off = Math.round(Math.sin((x + band * 7) / 3) * 1); i.set(x, y0 + 6 + off, c[0]!); i.set(x, y0 + 5 + off, c[1]!); i.set(x, y0 + off + 1, c[4]!); } for (let k = 0; k < 4; k++) { const x = r.int(0, 31); for (let y = 1; y < 6; y++) i.wset(x, y0 + y, c[1]!); i.wset(x + 1, y0 + 1, c[3]!); } } }),
       t("cliff-top", "崖の上（草）", false, ["cliff"], (i, r) => { const c = R("#8a7a66", 6); for (let y = 0; y < 32; y++) for (let x = 0; x < 32; x++) i.set(x, y, c[2 - (y > 24 ? 1 : 0)]!); const g = layer(); G.grass(g, r); for (let y = 0; y < 14; y++) for (let x = 0; x < 32; x++) if (y < 11 + Math.round(Math.sin(x / 2.5))) i.set(x, y, g.get(x, y)); for (let x = 0; x < 32; x++) { const yy = 11 + Math.round(Math.sin(x / 2.5)); i.set(x, yy, R(P.grass)[0]!); i.set(x, yy + 1, c[0]!); } for (let k = 0; k < 5; k++) { const x = r.int(0, 31); for (let y = 15; y < 30; y++) i.wset(x, y, c[1]!); } }),
+      // Animated water (3 frames, appended last so earlier indices never move).
+      ...[0, 1, 2].map(k => ({
+        ...t(`water-anim-${k + 1}`, k === 0 ? "浅い水（動く）" : `浅い水（動く・${k + 1}コマ目）`, false, ["water", "animated"], (img: Img) => G.waterFrame(img, k)),
+        ...(k === 0 ? { frames: ["water-anim-1", "water-anim-2", "water-anim-3"] } : {}),
+      })),
     ],
   },
   {
@@ -643,6 +663,11 @@ export const SHEETS: SheetSpec[] = [
         ];
         return parts.map(([k, name, sides]) => t(`rug-${color}-${k}`, `${label}の絨毯（${name}）`, true, ["floor", "carpet", "rug9"], (img, r) => G.carpetPiece(img, r, base, sides)));
       }),
+      // Autotile rugs: paint any rectangle with one code; corners and edges are chosen automatically (same pictures as the 9 pieces).
+      ...(["red", "blue"] as const).map(color => ({
+        ...t(`rug-${color}-auto`, `${color === "red" ? "赤" : "青"}の絨毯（自動でつながる）`, true, ["floor", "carpet", "autotile"], (img: Img, r: Rng) => G.carpetPiece(img, r, color === "red" ? P.red : P.blue, {})),
+        autotile: { group: `rug-${color}`, pieces: Object.fromEntries((["tl", "t", "tr", "l", "c", "r", "bl", "b", "br"] as const).map(k => [k, `rug-${color}-${k}`])) as Record<"tl" | "t" | "tr" | "l" | "c" | "r" | "bl" | "b" | "br", string> },
+      })),
     ],
   },
   {

@@ -1808,6 +1808,79 @@
       "index": 54,
       "passable": true,
       "color": "#696d8a"
+    },
+    {
+      "code": "ヂ",
+      "name": "浅い水（動く）",
+      "atlas": "lib-tiles-field",
+      "index": 47,
+      "passable": false,
+      "color": "#3768b0",
+      "frames": [
+        47,
+        48,
+        49
+      ]
+    },
+    {
+      "code": "ッ",
+      "name": "浅い水（動く・2コマ目）",
+      "atlas": "lib-tiles-field",
+      "index": 48,
+      "passable": false,
+      "color": "#3768b0"
+    },
+    {
+      "code": "ツ",
+      "name": "浅い水（動く・3コマ目）",
+      "atlas": "lib-tiles-field",
+      "index": 49,
+      "passable": false,
+      "color": "#3667af"
+    },
+    {
+      "code": "ヅ",
+      "name": "赤の絨毯（自動でつながる）",
+      "atlas": "lib-tiles-interior",
+      "index": 55,
+      "passable": true,
+      "color": "#c44e3d",
+      "autotile": {
+        "group": "rug-red",
+        "pieces": {
+          "tl": 37,
+          "t": 38,
+          "tr": 39,
+          "l": 40,
+          "c": 41,
+          "r": 42,
+          "bl": 43,
+          "b": 44,
+          "br": 45
+        }
+      }
+    },
+    {
+      "code": "テ",
+      "name": "青の絨毯（自動でつながる）",
+      "atlas": "lib-tiles-interior",
+      "index": 56,
+      "passable": true,
+      "color": "#506dad",
+      "autotile": {
+        "group": "rug-blue",
+        "pieces": {
+          "tl": 46,
+          "t": 47,
+          "tr": 48,
+          "l": 49,
+          "c": 50,
+          "r": 51,
+          "bl": 52,
+          "b": 53,
+          "br": 54
+        }
+      }
     }
   ]
 }

@@ -253,6 +253,24 @@ describe("attached scripts", () => {
   });
 });
 
+describe("map layers", () => {
+  it("objects on lower layers block; upper layers (above the characters) never do", () => {
+    const blocking = content.tileset.tiles.find(t => !t.passable)!.code;
+    const mapId = content.project.start.mapId;
+    const base = content.maps[mapId]!;
+    const empty = Array.from({ length: base.height }, () => " ".repeat(base.width));
+    const put = (rows: string[], x: number, y: number) => rows.map((r, i) => (i === y ? Array.from(r).map((c, j) => (j === x ? blocking : c)).join("") : r));
+    const { x, y } = content.project.start;
+    const tx = x + 1;
+    const withLayers = (above: boolean): GameContent => ({ ...content, maps: { ...content.maps, [mapId]: { ...base, layers: [{ id: "l", above, rows: put(empty, tx, y) }] } } });
+    const state = createEngine(content, systems).newGame(1);
+    expect(createEngine(content, systems).isPassable(state, tx, y)).toBe(createEngine(content, systems).isPassable(state, tx, y));
+    expect(createEngine(withLayers(false), systems).isPassable(state, tx, y)).toBe(false);
+    const plain = createEngine(content, systems).isPassable(state, tx, y);
+    expect(createEngine(withLayers(true), systems).isPassable(state, tx, y)).toBe(plain);
+  });
+});
+
 describe("leveling (project.leveling)", () => {
   it("winning gives experience, levels up stats / HP and teaches abilities; gainExp works in the field", () => {
     const ability = content.database.abilities[0]!.id;
