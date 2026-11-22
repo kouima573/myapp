@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Brush, Copy, Eraser, FlipHorizontal2, PaintBucket, Pipette, Redo2, Save, Undo2 } from "lucide-react";
+import { Brush, Circle, Copy, Eraser, FlipHorizontal2, PaintBucket, Pipette, Redo2, Save, Slash, Square, SquareDashedMousePointer, Undo2 } from "lucide-react";
+import { ellipsePoints, linePoints, rectPoints, replaceColor, shiftHue, usedColors, type Point } from "../lib/pixelshapes";
 import type { AssetEntry, GameContent, TileDef } from "@rpg/schema";
 import type { ImageMap } from "../../../packages/runtime/src/render";
 import type { ProjectStore } from "../lib/useProject";
 
 interface Props { store: ProjectStore; content: GameContent; images: ImageMap }
 
-type Tool = "pen" | "eraser" | "fill" | "picker";
+type Tool = "pen" | "eraser" | "fill" | "picker" | "line" | "rect" | "ellipse" | "select";
+const SHAPES = new Set<Tool>(["line", "rect", "ellipse"]);
 type Target =
   | { mode: "tile"; base?: string }
   | { mode: "new"; kind: "character" | "enemy" | "background" | "portrait" }
@@ -73,6 +75,13 @@ export default function PixelEditor({ store, content, images }: Props) {
   const animRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const last = useRef<{ x: number; y: number } | null>(null);
+  /** Shape being dragged (line / rect / ellipse) or a selection being moved: where it started and the picture before. */
+  const shape = useRef<{ start: Point; base: ImageData; moving?: boolean } | null>(null);
+  const [filled, setFilled] = useState(false);
+  const [sel, setSel] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [palettes, setPalettes] = useState<Array<{ name: string; colors: string[] }>>(() => { try { return JSON.parse(localStorage.getItem("rpg-studio:palettes") ?? "[]"); } catch { return []; } });
+  const [replaceFrom, setReplaceFrom] = useState<string | null>(null);
+  const [variantId, setVariantId] = useState("");
   // Pointer events can arrive faster than React re-renders: always paint on the newest pixels.
   const dataRef = useRef<ImageData | null>(null);
   dataRef.current = data;
@@ -209,9 +218,44 @@ export default function PixelEditor({ store, content, images }: Props) {
       if (a > 0) { setColor(hex(r, g, b)); setTool("pen"); }
       return;
     }
+    const value = tool === "eraser" ? [0, 0, 0, 0] as const : [...rgb(color), 255] as const;
+    // Shapes: redraw from the picture as it was when the drag started, so the preview follows the pointer.
+    if (SHAPES.has(tool)) {
+      if (first) { snapshot(); shape.current = { start: { x: gx, y: gy }, base: cloneData(data) }; }
+      const s = shape.current;
+      if (!s) return;
+      const next = cloneData(s.base);
+      const pts = tool === "line" ? linePoints(s.start.x, s.start.y, gx, gy) : tool === "rect" ? rectPoints(s.start.x, s.start.y, gx, gy, filled) : ellipsePoints(s.start.x, s.start.y, gx, gy, filled);
+      for (const p of pts) { setBlock(next, p.x, p.y, value); if (mirror) setBlock(next, gridW - 1 - p.x, p.y, value); }
+      commit(next);
+      return;
+    }
+    // Select: drag to choose a rectangle; drag inside it to move what is in it.
+    if (tool === "select") {
+      if (first) {
+        const inside = sel && gx >= sel.x && gx < sel.x + sel.w && gy >= sel.y && gy < sel.y + sel.h;
+        if (inside) snapshot();
+        shape.current = { start: { x: gx, y: gy }, base: cloneData(data), moving: Boolean(inside) };
+        if (!inside) setSel({ x: gx, y: gy, w: 1, h: 1 });
+        return;
+      }
+      const s = shape.current;
+      if (!s) return;
+      if (!s.moving) { setSel({ x: Math.min(s.start.x, gx), y: Math.min(s.start.y, gy), w: Math.abs(gx - s.start.x) + 1, h: Math.abs(gy - s.start.y) + 1 }); return; }
+      if (!sel) return;
+      const dx = gx - s.start.x, dy = gy - s.start.y;
+      const next = cloneData(s.base);
+      const block: Array<readonly [number, number, number, number]> = [];
+      for (let y = 0; y < sel.h; y++) for (let x = 0; x < sel.w; x++) { block.push(getBlock(s.base, sel.x + x, sel.y + y)); setBlock(next, sel.x + x, sel.y + y, [0, 0, 0, 0]); }
+      for (let y = 0; y < sel.h; y++) for (let x = 0; x < sel.w; x++) {
+        const tx = sel.x + x + dx, ty = sel.y + y + dy;
+        if (tx >= 0 && ty >= 0 && tx < gridW && ty < gridH && block[y * sel.w + x]![3] > 0) setBlock(next, tx, ty, block[y * sel.w + x]!);
+      }
+      commit(next);
+      return;
+    }
     if (first) snapshot();
     const next = cloneData(data);
-    const value = tool === "eraser" ? [0, 0, 0, 0] as const : [...rgb(color), 255] as const;
     if (tool === "fill") {
       const from = getBlock(next, gx, gy).join(",");
       if (from === value.join(",")) return;
@@ -311,6 +355,27 @@ export default function PixelEditor({ store, content, images }: Props) {
     store.log("ok", `${path} を保存し、素材 ${id} として登録しました`);
     setTarget({ mode: "edit", assetId: id });
   }
+  /** 色違い: the current picture saved as a new asset (same size and frames); for an enemy, a copy of the enemy uses it. */
+  async function saveVariant(base: AssetEntry) {
+    const id = (variantId.trim() || `${base.id}-alt`);
+    if (!/^[a-z0-9][a-z0-9_-]*$/i.test(id) || content.assets.assets.some(a => a.id === id)) { store.log("error", `素材ID '${id}' は使えません（英数字と - _、既存と重ならないもの）`); return; }
+    setBusy(true);
+    try {
+      const path = base.path.replace(/[^/]+\.png$/, `${id}.png`);
+      const result = await store.source.saveImage!(path, await toBlob(data!), "");
+      if (!result.ok) { store.log("error", result.error); return; }
+      const { id: _i, path: _p, bytes: _b, sha256: _s, ...rest } = base as AssetEntry & { sha256?: string };
+      store.updateJson<{ assets: AssetEntry[] }>(assetsPath, f => { f.assets.push({ ...rest, id, path, bytes: result.bytes, origin: "original", source: `工房のドット絵エディターで ${base.id} の色違いとして作成`, license: "プロジェクト内素材", creditRequired: false, redistributable: true } as AssetEntry); });
+      if (base.kind === "enemy") {
+        const enemy = content.database.enemies.find(e => e.sprite === base.id);
+        if (enemy && !content.database.enemies.some(e => e.id === id)) {
+          store.updateJson<{ enemies: Array<Record<string, unknown>> }>(content.project.databasePath, f => { f.enemies.push({ ...structuredClone(enemy), id, name: `${enemy.name}（色違い）`, sprite: id }); });
+          store.log("ok", `色違いの敵 ${id}（${enemy.name}（色違い））を追加しました。能力値は「敵・アイテム・仲間」で調整してください`);
+        }
+      }
+      store.log("ok", `${path} を色違い ${id} として保存しました`);
+    } finally { setBusy(false); }
+  }
   async function saveEdit(assetId: string) {
     const asset = content.assets.assets.find(a => a.id === assetId)!;
     const result = await store.source.saveImage!(asset.path, await toBlob(data!), baseHash);
@@ -384,9 +449,11 @@ export default function PixelEditor({ store, content, images }: Props) {
       {target.mode === "new" && <div className="field"><span className="field-label">素材ID</span><input placeholder="例: my-knight" value={newId} onChange={e => setNewId(e.target.value)} /></div>}
       <div className="field"><span className="field-label">道具</span>
         <div className="chips">
-          {([["pen", Brush, "ペン"], ["eraser", Eraser, "消す"], ["fill", PaintBucket, "塗りつぶし"], ["picker", Pipette, "スポイト"]] as const).map(([id, Icon, label]) =>
-            <button key={id} className={`chip ${tool === id ? "is-on" : ""}`} onClick={() => setTool(id)}><Icon size={12} />{label}</button>)}
+          {([["pen", Brush, "ペン"], ["eraser", Eraser, "消す"], ["fill", PaintBucket, "塗りつぶし"], ["picker", Pipette, "スポイト"], ["line", Slash, "直線"], ["rect", Square, "四角"], ["ellipse", Circle, "円"], ["select", SquareDashedMousePointer, "範囲を動かす"]] as const).map(([id, Icon, label]) =>
+            <button key={id} className={`chip ${tool === id ? "is-on" : ""}`} onClick={() => { setTool(id); if (id !== "select") setSel(null); }}><Icon size={12} />{label}</button>)}
         </div>
+        {(tool === "rect" || tool === "ellipse") && <label className="small"><input type="checkbox" checked={filled} onChange={e => setFilled(e.target.checked)} /> 中を塗る</label>}
+        {tool === "select" && <p className="muted small">ドラッグで範囲を選び、範囲の中からドラッグすると中身を動かせます。</p>}
       </div>
       <div className="field"><span className="field-label">ドットの大きさ（{frame.w}×{frame.h} を {Math.ceil(frame.w / pixel)}×{Math.ceil(frame.h / pixel)} マスで描く）</span>
         <div className="chips">{[1, 2, 4, 8].map(n => <button key={n} className={`chip ${pixel === n ? "is-on" : ""}`} onClick={() => setPixel(n)}>{n}px</button>)}</div>
@@ -397,6 +464,21 @@ export default function PixelEditor({ store, content, images }: Props) {
         <div className="form-row"><input type="color" value={color} onChange={e => setColor(e.target.value)} style={{ width: 48, padding: 0 }} /><code className="small">{color}</code></div>
         {recent.length > 0 && <div className="palette">{recent.map(c => <button key={c} className="swatch" style={{ background: c }} onClick={() => setColor(c)} />)}</div>}
       </div>
+      <div className="field"><span className="field-label">色替え（この画像で使っている色。クリック → 新しい色を選んで「置き換え」）</span>
+        <div className="palette">{data && usedColors(data.data).map(c => <button key={c} className={`swatch ${replaceFrom === c ? "is-on" : ""}`} style={{ background: c }} title={c} onClick={() => setReplaceFrom(replaceFrom === c ? null : c)} />)}</div>
+        <div className="form-row wrap">
+          <button className="button" disabled={!replaceFrom || !data} onClick={() => { if (!data || !replaceFrom) return; snapshot(); const next = cloneData(data); const n = replaceColor(next.data, replaceFrom, color); commit(next); store.log("info", `${replaceFrom} → ${color}（${n}ドット）`); setReplaceFrom(null); }}>選んだ色 → いまの色に置き換え</button>
+          {[60, 120, 180, 240, 300].map(d => <button key={d} className="button" disabled={!data} onClick={() => { if (!data) return; snapshot(); const next = cloneData(data); shiftHue(next.data, d); commit(next); }}>色相 +{d}°</button>)}
+        </div>
+        <div className="form-row wrap">
+          <button className="button" disabled={!data} onClick={() => { if (!data) return; const name = window.prompt("パレットの名前", `パレット${palettes.length + 1}`); if (!name) return; const next = [...palettes.filter(p => p.name !== name), { name, colors: usedColors(data.data, 48) }]; setPalettes(next); try { localStorage.setItem("rpg-studio:palettes", JSON.stringify(next)); } catch { /* optional */ } }}>この画像の色をパレットに保存</button>
+        </div>
+        {palettes.map(p => <div key={p.name}><span className="small muted">{p.name}</span><div className="palette">{p.colors.map(c => <button key={c} className="swatch" style={{ background: c }} title={c} onClick={() => { setColor(c); if (tool === "eraser" || tool === "picker") setTool("pen"); }} />)}</div></div>)}
+        {target.mode === "edit" && (() => { const a = content.assets.assets.find(x => x.id === target.assetId); return a && (a.kind === "enemy" || a.kind === "character") ? <div className="form-row wrap">
+          <input placeholder={`${a.id}-alt`} value={variantId} onChange={e => setVariantId(e.target.value)} style={{ width: "10em" }} />
+          <button className="button" disabled={!data || busy || !local} onClick={() => void saveVariant(a)}>色違いとして保存{a.kind === "enemy" ? "（敵も複製）" : ""}</button>
+        </div> : null; })()}
+      </div>
       <div className="form-row">
         <button className="button" disabled={!undo.length} onClick={doUndo}><Undo2 size={12} />戻す</button>
         <button className="button" disabled={!redo.length} onClick={doRedo}><Redo2 size={12} />やり直す</button>
@@ -406,11 +488,21 @@ export default function PixelEditor({ store, content, images }: Props) {
     <section className="pixel-main card">
       {!data && <div className="empty">画像を読み込み中、または編集できない画像です。</div>}
       {data && <>
-        <div className="pixel-stage">
+        <div className="pixel-stage"><div className="pixel-wrap">
           <canvas ref={canvasRef} className="pixel-canvas"
             onPointerDown={e => { drawing.current = true; e.currentTarget.setPointerCapture(e.pointerId); paintAt(e.clientX, e.clientY, true); }}
             onPointerMove={e => { if (drawing.current && tool !== "fill" && tool !== "picker") paintAt(e.clientX, e.clientY, false); }}
-            onPointerUp={() => { drawing.current = false; last.current = null; }} onPointerCancel={() => { drawing.current = false; last.current = null; }} />
+            onPointerUp={e => {
+              // A moved selection follows its pixels.
+              const s = shape.current;
+              if (tool === "select" && s?.moving && sel) {
+                const r = e.currentTarget.getBoundingClientRect();
+                const gx = Math.floor((e.clientX - r.left) / r.width * gridW), gy = Math.floor((e.clientY - r.top) / r.height * gridH);
+                setSel({ ...sel, x: sel.x + gx - s.start.x, y: sel.y + gy - s.start.y });
+              }
+              drawing.current = false; last.current = null; shape.current = null;
+            }} onPointerCancel={() => { drawing.current = false; last.current = null; shape.current = null; }} />
+          {sel && tool === "select" && <div className="pixel-selection" style={{ left: `${sel.x / gridW * 100}%`, top: `${sel.y / gridH * 100}%`, width: `${sel.w / gridW * 100}%`, height: `${sel.h / gridH * 100}%` }} />}</div>
         </div>
         {cols * rows > 1 && <div className="pixel-frames">
           <div className="form-row"><span className="field-label">コマ（全体図をクリックで選ぶ）: {frameLabel(current)}</span><span className="spacer" /><canvas ref={animRef} title="アニメーションプレビュー" style={{ width: 48, height: 48, imageRendering: "pixelated", border: "1px solid rgba(255,255,255,.15)", borderRadius: 4 }} /></div>
