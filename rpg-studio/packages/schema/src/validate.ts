@@ -286,7 +286,10 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     effects.forEach((effect, index) => {
       const here = `${at}[${index}]`;
       switch (effect.type) {
-        case "message": case "battleLog": checkText(file, here, effect.text); break;
+        case "message": case "battleLog":
+          checkText(file, here, effect.text);
+          if (effect.type === "message" && effect.portrait && !["portrait", "character"].includes(assetById.get(effect.portrait)?.kind ?? "")) err(file, here, `顔グラフィックの素材 '${effect.portrait}' がありません（portrait か character）`);
+          break;
         case "setFlag": if (!flagIds.has(effect.flag)) err(file, here, `未宣言のフラグ '${effect.flag}' を設定しています`); break;
         case "setVar": if (!varIds.has(effect.var)) err(file, here, `未宣言の変数 '${effect.var}' を設定しています`); checkExpr(file, here, effect.value, ctxAllowed); break;
         case "random": if (!varIds.has(effect.var)) err(file, here, `未宣言の変数 '${effect.var}'`); checkExpr(file, here, effect.min, ctxAllowed); checkExpr(file, here, effect.max, ctxAllowed); break;
@@ -295,13 +298,15 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         case "unlockAbility": case "removeAbility": if (!abilityIds.has(effect.ability)) err(file, here, `未定義の能力 '${effect.ability}'`); break;
         case "grantTrait": case "removeTrait": if (!traitIds.has(effect.trait)) err(file, here, `未定義の特性 '${effect.trait}'`); break;
         case "emote": case "moveRoute": if (effect.target !== "player" && !entityIds.has(effect.target) && !(effect.type === "emote" && npcIds.has(effect.target))) err(file, here, `'${effect.target}' は ${effect.type === "emote" ? "player・NPC・エンティティ" : "player・エンティティ（NPCは動かせないのでエンティティで置く）"} のどれでもありません`); break;
-        case "message": if (effect.portrait && !["portrait", "character"].includes(assetById.get(effect.portrait)?.kind ?? "")) err(file, here, `顔グラフィックの素材 '${effect.portrait}' がありません（portrait か character）`); break;
         case "addStatus": if (!statusIds.has(effect.status)) err(file, here, `未定義の状態異常 '${effect.status}'（database.json の statuses）`); break;
         case "removeStatus": if (effect.status && !statusIds.has(effect.status)) err(file, here, `未定義の状態異常 '${effect.status}'`); break;
-        case "damage": if (effect.element && !elementIds.has(effect.element)) err(file, here, `未定義の属性 '${effect.element}'（project.json の elements）`); break;
         case "giveItem": case "takeItem": if (!itemIds.has(effect.item)) err(file, here, `未定義のアイテム '${effect.item}'`); break;
         case "heal": checkExpr(file, here, effect.amount, ctxAllowed); break;
-        case "damage": checkExpr(file, here, effect.amount, ctxAllowed); if (effect.text) checkText(file, here, effect.text); break;
+        case "damage":
+          checkExpr(file, here, effect.amount, ctxAllowed);
+          if (effect.text) checkText(file, here, effect.text);
+          if (effect.element && !elementIds.has(effect.element)) err(file, here, `未定義の属性 '${effect.element}'（project.json の elements）`);
+          break;
         case "teleport": checkPosition(file, here, effect.mapId, effect.x, effect.y, "移動先"); break;
         case "setTile": {
           if (!tileByCode.has(effect.code)) err(file, here, `タイルセットにないコード '${effect.code}'`);

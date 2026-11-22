@@ -19,7 +19,8 @@ export interface ImageSaveRequest { path: string; base64: string; expectedHash: 
 export interface ImageConflictResponse { error: "conflict"; path: string; latestHash: string }
 export interface ConflictResponse { error: "conflict"; path: string; latestContent: string; latestHash: string }
 
-export interface ChangeEvent { seq: number; path: string; kind: "add" | "change" | "unlink"; hash?: string }
+export interface ChangeEvent { seq: number; path: string; kind: "add" | "change" | "unlink"; hash?: string; summary?: string[] }
+export interface HistoryEntryView { id: string; file: string; at: string; source: "studio" | "outside" | "restore"; beforeHash: string; afterHash: string; summary: string[] }
 export interface ChangesResponse { cursor: number; changes: ChangeEvent[]; build: BuildStatus }
 
 export interface BuildStatus {

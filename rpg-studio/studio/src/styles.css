@@ -332,3 +332,16 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 .code-finder-chain { margin: 4px 0 0; padding-left: 18px; font-family: var(--mono); }
 .is-finding-code .workspace, .is-finding-code .sidebar { cursor: help; }
 .layer-select { font-size: 11px; padding: 3px 6px; width: auto; }
+
+/* Save history */
+.panel-page { flex: 1; overflow: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+.panel-page h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 16px; }
+.panel-page .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.history-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.history-entry { border: 1px solid var(--line, #3a4637); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.history-entry.source-outside { border-left: 3px solid #6fa8dc; }
+.history-entry.source-restore { border-left: 3px solid #f0c36a; }
+.history-head { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; font-size: 12px; }
+.history-summary { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
+.history-preview { max-height: 320px; overflow: auto; font-size: 12px; background: rgba(0,0,0,.25); padding: 8px; border-radius: 6px; white-space: pre-wrap; }
+.panel-page select { max-width: 420px; }

@@ -30,6 +30,7 @@ describe("project format v2", () => {
     texts = edit(texts, "events/events.json", json => { json.events[1].effects[0].flag = "ruinsShortcutOpne"; });
     texts = edit(texts, "maps/village.json", json => { json.npcs[0].dialogues[1].dialogue = "missing-dialog"; json.rows[3] = json.rows[3].replace("*", "!"); });
     texts = edit(texts, "maps/ruins.json", json => { json.portals[0].targetMapId = "nowhere"; });
+    texts = edit(texts, "events/events.json", json => { json.events[1].effects[1].portrait = "no-face"; json.events[1].effects.push({ type: "damage", target: "player", amount: 1, element: "plasma" }, { type: "playAmbient", sound: "no-river" }); });
     const result = loadProjectContent(texts);
     expect(result.content).toBeNull();
     const messages = result.diagnostics.map(d => `${d.file} › ${d.at}: ${d.message}`);
@@ -38,6 +39,9 @@ describe("project format v2", () => {
       expect.stringMatching(/maps\/village\.json › npcs\[scout\]\.dialogues\[1\]: 未定義の会話 'missing-dialog'/),
       expect.stringMatching(/maps\/village\.json › rows\[3\]: タイルセットにないコード '!'/),
       expect.stringMatching(/maps\/ruins\.json › portals\[ruins-to-village\]\.target: 出入口の行き先のマップ 'nowhere'/),
+      expect.stringMatching(/effects\[1\]: 顔グラフィックの素材 'no-face'/),
+      expect.stringMatching(/未定義の属性 'plasma'/),
+      expect.stringMatching(/環境音/),
     ]));
   });
 

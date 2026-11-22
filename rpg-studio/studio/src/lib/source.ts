@@ -7,7 +7,7 @@ import type { AssetEntry } from "@rpg/schema";
 import type { GameSystem } from "@rpg/engine";
 import {
   LOCAL_TOKEN_HEADER, LOCAL_TOKEN_META,
-  type BuildStatus, type ChangesResponse, type ConflictResponse, type ProjectSnapshot, type SaveResponse, type TestResponse,
+  type BuildStatus, type ChangesResponse, type HistoryEntryView, type ConflictResponse, type ProjectSnapshot, type SaveResponse, type TestResponse,
 } from "../../../packages/local-server/src/protocol";
 
 export type SaveOutcome = { ok: true; hash: string } | { ok: false; conflict: ConflictResponse } | { ok: false; error: string };
@@ -30,6 +30,10 @@ export interface ProjectSource {
   library?(): Promise<LibraryCatalogView>;
   libraryImageUrl?(path: string): Promise<string>;
   libraryAdd?(ids: string[]): Promise<boolean>;
+  /** Save history (newest first) and restoring a file to how it was before / after one change. */
+  history?(file?: string): Promise<HistoryEntryView[]>;
+  historyText?(id: string, side: "before" | "after"): Promise<string | null>;
+  restoreHistory?(id: string, side: "before" | "after"): Promise<{ ok: boolean; error?: string }>;
 }
 
 export interface LibraryTileView { key: string; name: string; index: number; passable: boolean; color: string; tags: string[] }
@@ -133,6 +137,12 @@ export class LocalSource implements ProjectSource {
     return sha256Bytes(await response.arrayBuffer());
   }
 
+  async history(file?: string) { return (await this.call<{ entries: HistoryEntryView[] }>("GET", `/api/history${file ? `?file=${encodeURIComponent(file)}` : ""}`)).json.entries ?? []; }
+  async historyText(id: string, side: "before" | "after") { return (await this.call<{ text: string | null }>("GET", `/api/history/content?id=${encodeURIComponent(id)}&side=${side}`)).json.text ?? null; }
+  async restoreHistory(id: string, side: "before" | "after") {
+    const { status, json } = await this.call<{ error?: string }>("POST", "/api/history/restore", { id, side });
+    return status === 200 ? { ok: true } : { ok: false, error: json.error ?? `戻せません (${status})` };
+  }
   async changes(after: number) { return (await this.call<ChangesResponse>("GET", `/api/changes?after=${after}`)).json; }
   async requestBuild() { return (await this.call<BuildStatus>("POST", "/api/build", {})).json; }
   async runTests() { return (await this.call<TestResponse>("POST", "/api/test", {})).json; }

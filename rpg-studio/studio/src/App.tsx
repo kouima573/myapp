@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save } from "lucide-react";
+import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon } from "lucide-react";
 import { GameMapSchema, TilesetSchema, type GameContent, type GameMap } from "@rpg/schema";
 import { loadImages, type ImageMap } from "../../packages/runtime/src/render";
 import MapEditor, { type Selection } from "./components/MapEditor";
@@ -15,12 +15,13 @@ import DatabasePanel from "./components/DatabasePanel";
 import ScriptsPanel from "./components/ScriptsPanel";
 import PixelEditor from "./components/PixelEditor";
 import LibraryPanel from "./components/LibraryPanel";
+import HistoryPanel from "./components/HistoryPanel";
 import CodeFinder from "./components/CodeFinder";
 import ConflictDialog from "./components/ConflictDialog";
 import { useProject } from "./lib/useProject";
 import type { ProjectSource } from "./lib/source";
 
-type Section = "idea" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks";
+type Section = "idea" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history";
 const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
   { id: "idea", label: "発想", icon: Lightbulb },
   { id: "map", label: "マップ", icon: MapIcon },
@@ -34,6 +35,7 @@ const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
   { id: "data", label: "データ", icon: Database },
   { id: "assets", label: "素材", icon: ImageIcon },
   { id: "checks", label: "検証", icon: FlaskConical },
+  { id: "history", label: "保存履歴", icon: HistoryIcon },
 ];
 
 /** For the editor: the last valid project, with any map/tileset that parses on its own swapped in, so painting stays live even while another file has an error. */
@@ -148,6 +150,7 @@ export default function App({ source }: { source: ProjectSource }) {
       {section === "play" && playContent && <PlayPanel store={store} content={playContent} stale={!store.content} systems={store.systems} systemsVersion={store.systemsVersion} source={source} startAt={startAt} />}
       {section === "data" && <DataPanel store={store} diagnostics={store.diagnostics} file={dataFile} onFile={setDataFile} />}
       {section === "assets" && playContent && <AssetsPanel store={store} content={playContent} images={images} />}
+      {section === "history" && <HistoryPanel store={store} source={source} />}
       {section === "checks" && <ChecksPanel store={store} diagnostics={store.diagnostics} onOpenFile={openFile} />}
       {!editContent && section !== "data" && section !== "checks" && <div className="empty">プロジェクトが一度も検証を通っていません。「検証」と「データ」で問題を直してください。</div>}
     </section>

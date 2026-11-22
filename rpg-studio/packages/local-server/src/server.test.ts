@@ -31,11 +31,12 @@ const sha = (s: string) => crypto.createHash("sha256").update(s).digest("hex");
 beforeAll(async () => {
   dir = await fs.mkdtemp(path.join(os.tmpdir(), "rpg-server-"));
   await fs.cp(path.join(REPO_ROOT, "projects/sample-rpg"), dir, { recursive: true });
-  running = await startServer({ projectDir: dir, port, token, watch: false, buildOnStart: false, uiDir: path.join(dir, "no-ui") });
+  running = await startServer({ projectDir: dir, port, token, watch: false, buildOnStart: false, uiDir: path.join(dir, "no-ui"), historyDir: `${dir}-history` });
 });
 afterAll(async () => {
   await running.close();
   await fs.rm(dir, { recursive: true, force: true });
+  await fs.rm(`${dir}-history`, { recursive: true, force: true });
 });
 
 describe("local server security", () => {
@@ -132,6 +133,26 @@ describe("local server security", () => {
     const assets = JSON.parse(await fs.readFile(path.join(dir, "assets.json"), "utf8")) as { assets: Array<{ id: string }> };
     expect(assets.assets.some(a => a.id === enemy.id)).toBe(true);
   }, 30000);
+
+  it("keeps a save history with plain-language summaries and restores an earlier version", async () => {
+    const file = "database.json";
+    const original = JSON.parse((await request("GET", "/api/project", { headers: api })).body).texts[file] as string;
+    const db = JSON.parse(original);
+    db.enemies[0].stats.maxHp += 5;
+    db.enemies.push({ ...db.enemies[0], id: "history-test-foe", name: "履歴の敵" });
+    const edited = `${JSON.stringify(db, null, 2)}\n`;
+    expect((await request("PUT", "/api/file", { headers: write, body: JSON.stringify({ path: file, content: edited, expectedHash: sha(original) }) })).status).toBe(200);
+    const list = JSON.parse((await request("GET", `/api/history?file=${file}`, { headers: api })).body).entries as Array<{ id: string; source: string; summary: string[] }>;
+    expect(list[0]!.source).toBe("studio");
+    expect(list[0]!.summary.join("\n")).toContain("history-test-foe（履歴の敵） を追加");
+    expect(list[0]!.summary.join("\n")).toContain("stats.maxHp: 7 → 12");
+    const restored = await request("POST", "/api/history/restore", { headers: write, body: JSON.stringify({ id: list[0]!.id, side: "before" }) });
+    expect(restored.status).toBe(200);
+    expect(await fs.readFile(path.join(dir, file), "utf8")).toBe(original);
+    const after = JSON.parse((await request("GET", `/api/history?file=${file}`, { headers: api })).body).entries as Array<{ source: string }>;
+    expect(after[0]!.source).toBe("restore");
+    expect((await request("POST", "/api/history/restore", { headers: { ...api, "content-type": "application/json" }, body: "{}" })).status).toBe(403); // writes need Origin
+  });
 
   it("exposes no command execution endpoints", async () => {
     for (const route of ["/api/exec", "/api/run", "/api/shell"]) expect((await request("POST", route, { headers: write, body: "{}" })).status).toBe(404);

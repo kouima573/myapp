@@ -16,6 +16,7 @@ import { buildProject, REPO_ROOT } from "../../cli/src/build";
 import { loadSystems, runProjectScenarios, systemRefDiagnostics } from "../../cli/src/index";
 import { loadProjectFromDisk, readProjectTexts } from "../../cli/src/load";
 import { add as libraryAdd, DEFAULT_LIBRARY, loadLibrary } from "../../cli/src/library";
+import { History } from "./history";
 import {
   LOCAL_TOKEN_HEADER, LOCAL_TOKEN_META,
   type BuildStatus, type ChangeEvent, type ProjectSnapshot, type ImageSaveRequest, type SaveRequest, type TestResponse,
@@ -43,6 +44,8 @@ export interface ServerOptions {
   watch?: boolean;
   /** Build on start (default true). */
   buildOnStart?: boolean;
+  /** Where save history is kept (default <repo>/.rpg-studio/history/<project>-<hash>). null = off. */
+  historyDir?: string | null;
 }
 
 export interface RunningServer {
@@ -112,10 +115,18 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   /* ------------------------------------------------------------ change feed */
   const changes: ChangeEvent[] = [];
   let seq = 0;
-  const pushChange = (relative: string, kind: ChangeEvent["kind"], hash?: string) => {
-    changes.push({ seq: ++seq, path: relative, kind, ...(hash ? { hash } : {}) });
+  const pushChange = (relative: string, kind: ChangeEvent["kind"], hash?: string, summary?: string[]) => {
+    changes.push({ seq: ++seq, path: relative, kind, ...(hash ? { hash } : {}), ...(summary ? { summary } : {}) });
     if (changes.length > 500) changes.splice(0, changes.length - 500);
   };
+
+  /* ------------------------------------------------------------ save history */
+  const history = options.historyDir === null ? undefined
+    : new History(options.historyDir ?? path.join(REPO_ROOT, ".rpg-studio", "history", `${path.basename(root)}-${crypto.createHash("sha256").update(root).digest("hex").slice(0, 8)}`));
+  /** Last known text of every project text file, so a change from outside can be kept and summarised. */
+  const known = new Map<string, string>();
+  const isText = (relative: string) => TEXT_EXT.has(path.extname(relative).toLowerCase());
+  const readText = async (relative: string) => { try { return (await readNoFollow(await securePath(root, relative), MAX_TEXT)).toString("utf8"); } catch { return undefined; } };
 
   /* ------------------------------------------------------------ build queue */
   let build: BuildStatus = { state: "idle", version: null, diagnostics: [], stale: false, finishedAt: null };
@@ -157,8 +168,18 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       if (!inProject.startsWith("..") && !path.isAbsolute(inProject)) {
         const relative = inProject.split(path.sep).join("/");
         let hash: string | undefined;
+        let summary: string[] | undefined;
         if (event !== "unlink") { try { hash = sha256(await readNoFollow(await securePath(root, relative), MAX_BINARY)); } catch { /* not a served file */ } }
-        pushChange(relative, event as ChangeEvent["kind"], hash);
+        if (isText(relative)) {
+          const after = event === "unlink" ? undefined : await readText(relative);
+          const before = known.get(relative);
+          if (after !== before) {
+            const entry = await history?.record(relative, before, after, "outside").catch(() => undefined);
+            summary = entry?.summary;
+            if (after === undefined) known.delete(relative); else known.set(relative, after);
+          }
+        }
+        pushChange(relative, event as ChangeEvent["kind"], hash, summary);
       } else {
         pushChange(`engine:${path.relative(REPO_ROOT, file).split(path.sep).join("/")}`, event as ChangeEvent["kind"]);
       }
@@ -188,7 +209,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     return { projectDir: path.relative(REPO_ROOT, root).split(path.sep).join("/") || root, texts, hashes, repoRoot: REPO_ROOT };
   }
 
-  async function save(body: SaveRequest) {
+  async function save(body: SaveRequest, source: "studio" | "restore" = "studio") {
     if (!body || typeof body.path !== "string" || typeof body.content !== "string" || typeof body.expectedHash !== "string") throw new HttpError(400, "{path, content, expectedHash} が必要です");
     const ext = path.extname(body.path).toLowerCase();
     if (!TEXT_EXT.has(ext)) throw new HttpError(415, "工房から保存できるのはテキスト(.json/.ts/.md)のみです");
@@ -214,6 +235,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
         const handle = await fs.open(target, "wx", 0o644);
         try { await handle.writeFile(bytes); await handle.sync(); } finally { await handle.close(); }
         const hash = sha256(bytes);
+        known.set(body.path, body.content);
+        await history?.record(body.path, undefined, body.content, source).catch(() => undefined);
         revision++;
         pushChange(body.path, "add", hash);
         requestBuild();
@@ -234,6 +257,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
         throw error;
       }
       const hash = sha256(bytes);
+      known.set(body.path, body.content);
+      await history?.record(body.path, current.toString("utf8"), body.content, source).catch(() => undefined);
       revision++;
       pushChange(body.path, "change", hash);
       requestBuild();
@@ -398,6 +423,28 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
           const result = await save(await readBody(req) as SaveRequest);
           return json(res, result.status, result.json);
         }
+        case "GET /api/history": {
+          if (!history) throw new HttpError(404, "履歴は無効です");
+          const file = url.searchParams.get("file") ?? undefined;
+          return json(res, 200, { entries: (await history.list(file)).slice(0, 200) });
+        }
+        case "GET /api/history/content": {
+          if (!history) throw new HttpError(404, "履歴は無効です");
+          const side = url.searchParams.get("side") === "after" ? "after" : "before";
+          const found = await history.content(url.searchParams.get("id") ?? "", side);
+          if (!found) throw new HttpError(404, "その履歴はありません");
+          return json(res, 200, { entry: found.entry, text: found.text ?? null });
+        }
+        case "POST /api/history/restore": {
+          if (!history) throw new HttpError(404, "履歴は無効です");
+          const body = await readBody(req) as { id?: unknown; side?: unknown };
+          const found = await history.content(typeof body?.id === "string" ? body.id : "", body?.side === "after" ? "after" : "before");
+          if (!found) throw new HttpError(404, "その履歴はありません");
+          if (found.text === undefined) throw new HttpError(422, "その時点ではファイルがありませんでした（削除は手作業で行ってください）");
+          const current = await readText(found.entry.file);
+          const result = await save({ path: found.entry.file, content: found.text, expectedHash: current === undefined ? "" : sha256(Buffer.from(current, "utf8")) }, "restore");
+          return json(res, result.status, result.json);
+        }
         case "GET /api/changes": {
           const after = Number(url.searchParams.get("after") ?? 0);
           if (!Number.isSafeInteger(after) || after < 0) throw new HttpError(400, "invalid cursor");
@@ -422,6 +469,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     }
   });
 
+  for (const [file, text] of Object.entries((await snapshot()).texts)) known.set(file, text);
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
     server.listen(options.port, "127.0.0.1", () => resolve());

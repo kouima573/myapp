@@ -104,6 +104,8 @@ export function useProject(source: ProjectSource) {
         const clean = external.filter(change => !dirtyRef.current.has(change.path)).map(change => change.path);
         const clashing = external.filter(change => dirtyRef.current.has(change.path)).map(change => change.path);
         if (clean.length) { await reload(clean); log("info", `外部で変更されたファイルを再読込: ${clean.join(", ")}`); }
+        // What changed, in game terms (from the server's save history), so an AI's edit is easy to follow.
+        for (const change of external) if (change.summary?.length) log("info", `変更の要約 ${change.path}: ${change.summary.join(" ／ ")}`);
         if (clashing.length) {
           setExternallyChanged(current => new Set([...current, ...clashing]));
           log("warn", `未保存の変更があるファイルが外部でも変更されました: ${clashing.join(", ")}`);
