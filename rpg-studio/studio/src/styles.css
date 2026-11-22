@@ -425,3 +425,15 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 .step-cell.is-bar { box-shadow: inset 2px 0 0 var(--amber); }
 .step-cell.is-on { background: var(--green); }
 .step-cell.is-held { background: color-mix(in srgb, var(--green) 55%, transparent); }
+.skill-editor-body { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 420px); gap: 12px; align-items: start; }
+@media (max-width: 1000px) { .skill-editor-body { grid-template-columns: 1fr; } }
+.skill-editor-svg { display: block; max-width: 100%; height: auto; }
+.skill-slot { fill: transparent; stroke: var(--line); stroke-dasharray: 4 3; cursor: pointer; }
+.skill-slot:hover, .skill-slot.is-target { stroke: var(--amber); fill: rgba(215,166,93,.08); }
+.skill-node { cursor: pointer; }
+.skill-node polygon { fill: var(--surface-3); stroke: var(--line); stroke-width: 2; }
+.skill-node.is-start polygon { stroke: var(--green); }
+.skill-node.is-hidden polygon { stroke: #a58bd6; stroke-dasharray: 3 2; }
+.skill-node.is-selected polygon { fill: rgba(111,168,220,.35); stroke: var(--blue); stroke-width: 3; }
+.skill-node text { fill: var(--text); font-size: 11px; pointer-events: none; }
+.skill-node .skill-cost { fill: var(--muted); font-size: 9px; }
