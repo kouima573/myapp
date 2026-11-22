@@ -353,6 +353,9 @@
     "party": {
       "type": "object",
       "properties": {
+        "follow": {
+          "type": "boolean"
+        },
         "size": {
           "type": "integer",
           "minimum": 0,

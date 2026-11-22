@@ -1198,6 +1198,25 @@
             ],
             "additionalProperties": false
           },
+          "chat": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "when": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            }
+          },
           "speed": {
             "type": "integer",
             "minimum": 0,
