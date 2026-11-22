@@ -198,6 +198,29 @@
 - 属性: `project.json › elements: { "fire": { "label": "炎" } }`。敵の `resist: { "fire": 150 }`（150 = 弱点、50 = 半減、0 = 無効）、武器の `element`（通常攻撃の属性）、防具・装飾品の `resist`（受けるダメージ）、効果 `damage` の `element`。弱点・半減は戦闘ログに「弱点！」などと出る。
 - 自動テスト: `expect.statuses` / `expect.lacksStatuses`。見本: `projects/genre-gallery/tests/status.scenario.json`。
 
+## v2.2 の追加
+
+### スキルボード（`database.json › skillBoards`）
+
+```json
+{ "id": "sword", "name": "剣", "owner": "hero", "nodes": [
+  { "id": "s1", "name": "攻撃+2", "q": 0, "r": 0, "cost": 1, "start": true, "icon": "攻+2", "statMods": { "attack": 2 } },
+  { "id": "s2", "name": "渾身斬り", "q": 1, "r": 0, "cost": 2, "abilities": ["power-strike"] },
+  { "id": "s7", "name": "秘伝", "q": 2, "r": 1, "cost": 3, "statMods": { "attack": 5 }, "hidden": { "flag": "knight-joined" } }
+] }
+```
+
+- 位置は六角形の座標 `q`・`r`（隣は (±1,0)・(0,±1)・(+1,−1)・(−1,+1)）。`start: true` か、覚えたパネルの隣なら覚えられる（`requires: [...]` を書くとそちらが優先）
+- パネル: `cost`・`statMods`・`abilities`（主人公）・`traits`（主人公）・`effects`（覚えたとき1回）・`hidden`（条件まで「？」）・`icon`（2〜4文字）
+- `owner` は `"hero"` か仲間のID（仲間は能力値と効果）。ポイントは `project.leveling.skillPoints`（レベルアップごと、主人公と仲間全員に）と効果 `giveSkillPoints`（`who`: hero・仲間・all）。`resetSkills` で全部戻してポイントを返す
+- シナリオテスト: `{ "learnSkill": "sword/s2" }`、`expect` の `skillsLearned`・`skillPoints`
+
+### そのほか
+
+- 効果 `{ "type": "summon", "companion": "<仲間>", "turns": 3 }`（戦闘中だけ。終わると去る）
+- 効果 `battle` の `practice: true`（練習試合）
+- `project.player.looks: [{ "id", "label", "sprite", "name"?, "effects"? }]` と `lookPrompt`（新しいゲームの最初に選ぶ）
+
 ## v2.1 の追加
 
 - 効果 `{ "type": "camera", "focus": { "x": 5, "y": 3 } | "player", "zoom": 2, "ms": 600, "shake": { "power": 6, "ms": 400 } }`

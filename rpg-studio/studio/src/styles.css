@@ -416,3 +416,12 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 .tutorial-steps li > div { flex: 1; }
 .tutorial-steps li.is-done { opacity: .65; }
 .tutorial-steps li.is-done svg { color: var(--green); }
+.step-grid { display: grid; gap: 1px; overflow: auto; max-height: 52vh; background: var(--line-soft); border: 1px solid var(--line); }
+.step-pitch { font: 10px var(--mono); padding: 0 4px; background: var(--surface-2); display: flex; align-items: center; }
+.step-pitch.is-sharp { background: var(--surface-3); }
+.step-cell { height: 14px; min-width: 10px; padding: 0; border: none; border-radius: 0; background: var(--surface); }
+.step-cell.is-sharp { background: var(--surface-2); }
+.step-cell.is-beat { box-shadow: inset 1px 0 0 var(--line); }
+.step-cell.is-bar { box-shadow: inset 2px 0 0 var(--amber); }
+.step-cell.is-on { background: var(--green); }
+.step-cell.is-held { background: color-mix(in srgb, var(--green) 55%, transparent); }

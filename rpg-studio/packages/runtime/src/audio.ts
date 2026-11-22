@@ -15,7 +15,7 @@ const FALLBACK: Partial<Record<SfxCue, SfxPreset>> = {
   encounter: "encounter", victory: "victory", defeat: "defeat", door: "door", item: "item", save: "save", menu: "menu", text: "text",
 };
 
-class SongPlayer {
+export class SongPlayer {
   private timer = 0;
   private nextBeat = 0;
   private startTime = 0;
@@ -290,4 +290,18 @@ export class AudioManager {
     void this.ctx?.close();
     this.ctx = null;
   }
+}
+
+/** Studio preview of a text-score song: plays it on its own audio context; returns stop(). */
+export function previewSong(song: Song, volume = 0.6): { stop(): void } {
+  const ctx = new AudioContext();
+  const gain = ctx.createGain();
+  gain.gain.value = volume;
+  gain.connect(ctx.destination);
+  const noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+  const data = noise.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  const player = new SongPlayer(ctx, gain, song, noise);
+  player.start();
+  return { stop() { player.stop(0.1); window.setTimeout(() => void ctx.close(), 300); } };
 }

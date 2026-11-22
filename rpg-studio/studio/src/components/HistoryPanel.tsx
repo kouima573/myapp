@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { History as HistoryIcon, RefreshCw, RotateCcw } from "lucide-react";
 import type { HistoryEntryView } from "../../../packages/local-server/src/protocol";
+import { summarizeChange } from "../../../packages/local-server/src/summary";
 import type { ProjectSource } from "../lib/source";
 import type { ProjectStore } from "../lib/useProject";
 
@@ -42,6 +43,20 @@ export default function HistoryPanel({ store, source }: { store: ProjectStore; s
   const files = Object.keys(store.texts).sort();
   return <div className="panel-page history-panel">
     <h2><HistoryIcon size={18} /> 保存履歴</h2>
+    {store.timeline.length > 0 && <section className="timeline">
+      <h3>この工房での操作（新しい順）</h3>
+      <ol className="history-list">
+        {[...store.timeline].reverse().slice(0, 40).map(step => {
+          const later = store.timeline.find(t => t.path === step.path && t.id > step.id);
+          const summary = summarizeChange(step.path, step.before, later ? later.before : store.texts[step.path]);
+          return <li key={step.id} className="history-entry">
+            <div className="history-head"><time>{new Date(step.at).toLocaleTimeString()}</time><code>{step.path}</code></div>
+            <ul className="history-summary">{summary.slice(0, 3).map((l, i) => <li key={i}>{l}</li>)}</ul>
+            <div className="row"><button onClick={() => { if (window.confirm(`${step.path} をこの操作の前まで戻します（元に戻すを繰り返します）`)) store.rewindTo(step.id); }}><RotateCcw size={13} /> この操作の前まで戻す</button></div>
+          </li>;
+        })}
+      </ol>
+    </section>}
     <p className="muted">工房での保存も、Codex／Claude Code などが外からファイルを書き換えたときも、変更前の内容を残しています（最新300件。<code>.rpg-studio/history/</code>）。何が変わったかを言葉で表示し、どの時点にも戻せます。</p>
     <div className="row">
       <select value={file} onChange={e => setFile(e.target.value)} aria-label="ファイルで絞り込む">

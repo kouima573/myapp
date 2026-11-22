@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon, Globe2, Search, GraduationCap } from "lucide-react";
+import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon, Globe2, Search, GraduationCap, Music } from "lucide-react";
 import { GameMapSchema, TilesetSchema, type GameContent, type GameMap, type GameState } from "@rpg/schema";
 import { loadImages, type ImageMap } from "../../packages/runtime/src/render";
 import MapEditor, { type Selection } from "./components/MapEditor";
@@ -19,12 +19,13 @@ import HistoryPanel from "./components/HistoryPanel";
 import WorldPanel from "./components/WorldPanel";
 import SearchPanel from "./components/SearchPanel";
 import TutorialPanel from "./components/TutorialPanel";
+import SongPanel from "./components/SongPanel";
 import CodeFinder from "./components/CodeFinder";
 import ConflictDialog from "./components/ConflictDialog";
 import { useProject } from "./lib/useProject";
 import type { ProjectSource } from "./lib/source";
 
-type Section = "idea" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history" | "world" | "search" | "tutorial";
+type Section = "idea" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history" | "world" | "search" | "tutorial" | "song";
 const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
   { id: "tutorial", label: "はじめての5分", icon: GraduationCap },
   { id: "idea", label: "発想", icon: Lightbulb },
@@ -36,6 +37,7 @@ const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
   { id: "scripts", label: "スクリプト（コード）", icon: Code2 },
   { id: "pixel", label: "ドット絵", icon: Palette },
   { id: "library", label: "素材ライブラリ", icon: Library },
+  { id: "song", label: "楽譜BGM", icon: Music },
   { id: "play", label: "試遊", icon: Gamepad2 },
   { id: "data", label: "データ", icon: Database },
   { id: "search", label: "検索・置換", icon: Search },
@@ -165,6 +167,7 @@ export default function App({ source }: { source: ProjectSource }) {
       {section === "data" && <DataPanel store={store} diagnostics={store.diagnostics} file={dataFile} onFile={setDataFile} />}
       {section === "assets" && playContent && <AssetsPanel store={store} content={playContent} images={images} />}
       {section === "world" && playContent && <WorldPanel content={playContent} onOpenMap={id => { setMapId(id); setSelection(null); setSection("map"); }} />}
+      {section === "song" && playContent && <SongPanel store={store} content={playContent} />}
       {section === "tutorial" && playContent && <TutorialPanel store={store} content={playContent} onGo={s => setSection(s as Section)} />}
       {section === "search" && <SearchPanel store={store} onOpenFile={openFile} />}
       {section === "history" && <HistoryPanel store={store} source={source} />}

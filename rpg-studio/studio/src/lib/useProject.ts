@@ -35,6 +35,8 @@ export function useProject(source: ProjectSource) {
   dirtyRef.current = dirty;
   const timers = useRef<Record<string, number>>({});
   const history = useRef<Record<string, { undo: string[]; redo: string[] }>>({});
+  /** 操作履歴 (176): every undo step made in this studio session, newest last (file, when, text before). */
+  const timeline = useRef<Array<{ id: number; at: number; path: string; before: string }>>([]);
   const group = useRef<{ open: boolean; recorded: Set<string> }>({ open: false, recorded: new Set() });
   const logId = useRef(0);
 
@@ -158,6 +160,7 @@ export function useProject(source: ProjectSource) {
       if (!group.current.open || !group.current.recorded.has(path)) {
         entry.undo = [...entry.undo, previous].slice(-HISTORY_LIMIT);
         entry.redo = [];
+        timeline.current = [...timeline.current, { id: (timeline.current.at(-1)?.id ?? 0) + 1, at: Date.now(), path, before: previous }].slice(-300);
         if (group.current.open) group.current.recorded.add(path);
         setHistoryTick(t => t + 1);
       }
@@ -256,6 +259,16 @@ export function useProject(source: ProjectSource) {
     source, status, loadError, texts, projectInfo, dirty, conflicts, externallyChanged, build, systems, systemsVersion, logs,
     content: loaded.content, lastGoodContent: lastGood.current, diagnostics: loaded.diagnostics,
     log, setFileText, updateJson, raiseConflict, beginGroup, endGroup, undo, redo, historyState, resolveConflict, requestBuild, reload,
+    timeline: timeline.current,
+    /** Undo the file of a timeline step back to just before it (as many undo steps as needed). */
+    rewindTo: (id: number) => {
+      const step = timeline.current.find(t => t.id === id);
+      if (!step) return;
+      let guard = 0;
+      while (guard++ < 200 && textsRef.current[step.path] !== step.before && undo(step.path)) { /* keep undoing */ }
+      timeline.current = timeline.current.filter(t => !(t.path === step.path && t.id >= id));
+      setHistoryTick(t => t + 1);
+    },
   };
 }
 
