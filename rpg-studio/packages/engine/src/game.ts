@@ -1690,6 +1690,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
           let pick: number;
           [pick, state] = random(state);
           const enemy = map.encounters.enemies[Math.floor(pick * map.encounters.enemies.length)]!;
+          if (active(state).some(system => system.canEncounter?.({ content, state, map, enemy }) === false)) return state;
           return startBattle(c, state, { type: "battle", enemy, onDefeat: "respawn" });
         }
       }

@@ -363,3 +363,17 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 .flow-missing > .flow-label { color: #ffb4a2; }
 .flow-when { font-size: 11px; color: #c7b98a; }
 .flow-link { background: none; border: none; color: inherit; padding: 0; cursor: pointer; text-decoration: underline dotted; font: inherit; }
+
+/* World map graph */
+.world-scroll { overflow: auto; border: 1px solid #3a4637; border-radius: 8px; padding: 6px; }
+.world-panel svg { color: #a9b09d; display: block; }
+.world-edge { stroke: currentColor; stroke-width: 1.6; }
+.world-edge.is-teleport { stroke-dasharray: 5 4; color: #6fa8dc; stroke: #6fa8dc; }
+.world-node { cursor: pointer; }
+.world-node rect { fill: #1d241c; stroke: #4d5a47; stroke-width: 1.5; }
+.world-node:hover rect, .world-node:focus rect { stroke: #f0c36a; }
+.world-node.is-start rect { stroke: #8fdc7a; }
+.world-node.is-lonely rect { stroke: #e0a050; stroke-dasharray: 4 3; }
+.world-title { fill: #e9e2cb; font-size: 14px; font-weight: 600; }
+.world-sub { fill: #a9b09d; font-size: 11px; font-family: ui-monospace, monospace; }
+.check { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }

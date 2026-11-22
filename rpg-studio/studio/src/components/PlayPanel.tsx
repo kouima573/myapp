@@ -33,6 +33,16 @@ export default function PlayPanel({ store, content, stale, systems, systemsVersi
   /** Recording play as a scenario test (167): actions since "録画" was pressed, from a fresh game. */
   const recording = useRef<Action[] | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  /** Debug play (164): walk through walls / meet no random enemies. Read through refs so toggling never restarts the game. */
+  const [noclip, setNoclip] = useState(false);
+  const [noEncounters, setNoEncounters] = useState(false);
+  const debugRef = useRef({ noclip: false, noEncounters: false });
+  debugRef.current = { noclip, noEncounters };
+  const debugSystem = useRef<GameSystem>({
+    id: "studio-debug",
+    canPass: () => (debugRef.current.noclip ? true : undefined),
+    canEncounter: () => (debugRef.current.noEncounters ? false : undefined),
+  });
 
   // Remount when content, systems or the requested start change. Engine state is intentionally reset.
   useEffect(() => {
@@ -45,7 +55,7 @@ export default function PlayPanel({ store, content, stale, systems, systemsVersi
     try {
       const handle = mountGame(host, {
         content,
-        systems: withModules(content, systems),
+        systems: [...withModules(content, systems), debugSystem.current],
         resolveAsset: asset => source.assetUrl(asset),
         storage: studioStorage,
         keyboard: "focus",
@@ -123,6 +133,8 @@ export default function PlayPanel({ store, content, stale, systems, systemsVersi
             store.setFileText(path, `${JSON.stringify(scenario, null, 2)}\n`);
             store.log("ok", `${path} に保存しました（${steps.length}手順${skipped ? `・リアルタイム画面の入力${skipped}件は記録していません` : ""}）。「検証」画面の自動テストで確かめられます`);
           }}><Square size={12} /> 録画を止めて保存</button>}
+      <label className="check small" title="試遊のときだけ。壁や水の上も歩けます（出入口・イベントはそのまま動きます）"><input type="checkbox" checked={noclip} onChange={e => { setNoclip(e.target.checked); handleRef.current?.focus(); }} /> 壁をすり抜ける</label>
+      <label className="check small" title="試遊のときだけ。ランダムエンカウントが起きません"><input type="checkbox" checked={noEncounters} onChange={e => { setNoEncounters(e.target.checked); handleRef.current?.focus(); }} /> 敵と出会わない</label>
       <span className="muted small">クリックで操作対象に · 矢印/WASD 移動 · Enter/Z 調べる · Esc/X メニュー</span>
       <span className="spacer" />
       {stale && <span className="badge warn"><AlertTriangle size={12} /> 最新データに検証エラー：直前の正常版で試遊中</span>}

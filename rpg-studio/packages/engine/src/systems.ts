@@ -196,6 +196,8 @@ export interface GameSystem {
   onLethalDamage?(ctx: LethalContext): LethalOutcome | void;
   /** Override passability (e.g. swimming). Return undefined to keep the data rule. */
   canPass?(ctx: PassContext): boolean | void;
+  /** A random encounter is about to start on this map (enemy chosen). Return false to prevent it (repel items, debug). */
+  canEncounter?(ctx: SystemContext & { map: GameMap; enemy: string }): boolean | void;
   /** Called after a battle is created; return initial per-battle data for this system. */
   onBattleStart?(ctx: SystemContext & { battle: BattleState; enemy: Enemy }): unknown;
   /** Custom actions invoked from data via `{ "type": "system", "system": id, "action": name }`. */
@@ -228,7 +230,7 @@ export function defineScript<T extends ScriptDefinition>(script: T): T & { scope
   return { ...script, scope: "attached" as const };
 }
 
-const HOOKS = ["modifyDamage", "onLethalDamage", "canPass", "onBattleStart", "onAction", "onStep", "onTick", "hud", "use", "commands", "enemyTurn", "companionTurn", "onTurnEnd", "onBattleEnd", "onMapEnter"] as const;
+const HOOKS = ["modifyDamage", "onLethalDamage", "canPass", "canEncounter", "onBattleStart", "onAction", "onStep", "onTick", "hud", "use", "commands", "enemyTurn", "companionTurn", "onTurnEnd", "onBattleEnd", "onMapEnter"] as const;
 
 /** A copy of an attached script whose hooks see `ctx.self` (and keep their own per-battle data under `key`). */
 export function bindScript(system: GameSystem, self: ScriptSelf, key: string): GameSystem {

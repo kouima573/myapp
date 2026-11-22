@@ -198,6 +198,25 @@
 - 属性: `project.json › elements: { "fire": { "label": "炎" } }`。敵の `resist: { "fire": 150 }`（150 = 弱点、50 = 半減、0 = 無効）、武器の `element`（通常攻撃の属性）、防具・装飾品の `resist`（受けるダメージ）、効果 `damage` の `element`。弱点・半減は戦闘ログに「弱点！」などと出る。
 - 自動テスト: `expect.statuses` / `expect.lacksStatuses`。見本: `projects/genre-gallery/tests/status.scenario.json`。
 
+## 戦闘の細かい設定（v1.8）
+
+- `project.json › battle`: `order`（`"fixed"` 主人公→仲間→敵／`"speed"` 素早さ順。画面に行動順）、`playerSpeed`（式。既定10）、`critical: { chance（式・%）, multiplier（%・既定150） }`、`playerEvasion`（式・%）
+- 敵: `speed`（既定10）、`evasion`（主人公の攻撃をかわす%）、`critical`（痛恨の一撃%）。行動に `target: "all"`（全員）、`hits`（回数）
+- 仲間: `speed`
+- 効果 `damage`: `target` に `"enemies"`（立っている敵全員）・`"randomEnemy"`（1回ごとにランダム）、`hits`（回数）
+
+## 文字の装飾・一枚絵・文字入力
+
+- 文中の装飾: `[c=red]…[/c]`（red・blue・green・yellow・gray・gold・white・purple・pink・#rrggbb）、`[b]`、`[big]`、`[small]`、`[shake]`、`[wave]`、`[w=500]`（文字送りの間・ミリ秒）、`[se=効果音ID]`。ルビ `{漢字|かんじ}` と併用できる。知らない `[…]` はそのまま表示
+- `{"type":"showPicture","image":"<背景・顔・敵の絵>","at":"center|left|right|full","slot":"main"}`（`x`・`y`・`width` は画面の%、`opacity`、`fadeMs`）、`{"type":"hidePicture","slot":"main"}`（`slot` なしで全部）
+- `{"type":"input","prompt":"名前は？","saveAs":"name"}` で主人公の名前。`saveAs` にほかのIDを書くと `{{text.<ID>}}` で使える。合言葉は `answers: [{ "match": ["ひらけごま"], "effects": [...] }]` と `otherwise`（全角半角・大文字小文字・空白は無視）。シナリオテストでは `{ "input": "ひらけごま" }`
+
+## 図鑑と実績
+
+- `project.json › book`: `{ "enemies": true, "items": true, "hidden": [] }` でメニューに「図鑑」。出会った敵（倒すと能力も表示）と手にしたアイテム
+- `project.json › achievements`: `{ "<ID>": { "title", "description", "when": 条件, "hidden": false } }`。条件が成り立つと自動で達成して通知。効果 `unlockAchievement` でも達成。図鑑と実績は新しいゲームにも引き継ぐ
+- シナリオテストの `expect`: `achievements`、`bookSeen`、`bookDefeated`
+
 ## タイルのキー（`tiles.json › tiles[].key`）
 
 ライブラリから取り込んだタイルには、画像の中での名前 `key`（例 `carpet-red-c`）が付く。`rpg library add <シート> --project <dir> --replace` は「画像（atlas）＋キー」で既存のタイルを見つけ、シートの並びが変わっていれば `index` だけを新しい番号に直す。マップが使う1文字の記号は変わらないので、地図は崩れない。キーのない古い定義は、番号と名前が一致すればキーを覚える。

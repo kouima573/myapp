@@ -75,6 +75,7 @@ scenes: {
 | `onLethalDamage(ctx)` | プレイヤーのHPが0になる時だけ（処理順③）。最初に結果を返したシステムが優先 | `{ hp, message?, battleData? }` |
 | `onBattleStart(ctx)` | 戦闘開始時 | このシステム用の戦闘内データ（`battle.systemData[id]`）の初期値 |
 | `canPass(ctx)` | 移動判定のたび。`ctx.passable` はデータ上の結果 | `true`/`false` で上書き、`undefined` で変更なし |
+| `canEncounter(ctx)` | ランダムエンカウントが起きる直前（`ctx.map`・`ctx.enemy`） | `false` で出会わない（魔除けの鈴・デバッグ） |
 | `onAction(ctx, action)` | プレイヤーの行動（`move` / `interact` / `verb` / `advance` / `sceneInput` …）をエンジンが処理する直前 | `{ action? }` で別の行動に書き換え、`{ cancel: true }` で打ち消し。`state` / `effects` / `log` も返せる。何も返さなければそのまま |
 | `actions.<name>(ctx, args)` | データの `{ "type": "system", "system": id, "action": name, "args": {...} }` | `{ state?, effects?, log? }`。`effects` は次に実行される |
 
