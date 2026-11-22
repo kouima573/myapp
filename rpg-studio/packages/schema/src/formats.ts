@@ -607,6 +607,11 @@ export const ProjectManifestSchema = z.object({
     encounters: z.boolean().default(false),
     start: z.object({ mapId: IdSchema, x: z.number().int().min(0), y: z.number().int().min(0) }).strict().optional(),
   }).strict()).default({}),
+  /**
+   * タイルの大きさ: how big one map cell looks on screen. 32 = standard (20×14 cells visible); 16 shows a wider area
+   * (40×28), 48 / 64 a closer view. Pictures of any size are scaled to fit, so tile sheets do not need to change.
+   */
+  display: z.object({ tileSize: z.union([z.literal(16), z.literal(24), z.literal(32), z.literal(48), z.literal(64)]).default(32) }).strict().optional(),
   /** Minimap in the corner of the field (N key / menu toggles it). Tile colours (tiles.json › color) are used. */
   minimap: z.object({ enabled: z.boolean().default(true), size: z.number().int().min(60).max(240).default(120) }).strict().optional(),
   /**

@@ -23,6 +23,7 @@ import SongPanel from "./components/SongPanel";
 import SkillBoardPanel from "./components/SkillBoardPanel";
 import HelpPanel from "./components/HelpPanel";
 import { glossaryLookup } from "./lib/glossary";
+import { generateDungeon } from "../../packages/engine/src/dungeon";
 import CodeFinder from "./components/CodeFinder";
 import ConflictDialog from "./components/ConflictDialog";
 import { useProject } from "./lib/useProject";
@@ -154,8 +155,8 @@ export default function App({ source }: { source: ProjectSource }) {
         {editContent.project.maps.map(ref => <button key={ref.id} className={`map-item ${activeMapId === ref.id ? "is-active" : ""}`} onClick={() => { setMapId(ref.id); setSelection(null); if (section === "play") { const m = editContent.maps[ref.id]; if (m) setStartAt({ mapId: ref.id, x: editContent.project.start.mapId === ref.id ? editContent.project.start.x : Math.floor(m.width / 2), y: editContent.project.start.mapId === ref.id ? editContent.project.start.y : Math.floor(m.height / 2), nonce: Date.now() }); } }}>
           <MapIcon size={13} /><span>{ref.title}</span>{editContent.project.start.mapId === ref.id && <span className="tag">開始</span>}{store.dirty.has(ref.path) && <span className="dot amber" />}
         </button>)}
-        {section === "map" && <NewMapForm content={editContent} onCreate={(id, title, width, height, fill) => {
-          const rows = Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x) => (x === 0 || y === 0 || x === width - 1 || y === height - 1) && editContent.tileset.tiles.some(t => t.code === "T") ? "T" : fill).join(""));
+        {section === "map" && <NewMapForm content={editContent} onCreate={(id, title, width, height, fill, dungeon) => {
+          const rows = dungeon ? generateDungeon({ width, height, seed: dungeon.seed, floor: fill, wall: dungeon.wall }).rows : Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x) => (x === 0 || y === 0 || x === width - 1 || y === height - 1) && editContent.tileset.tiles.some(t => t.code === "T") ? "T" : fill).join(""));
           const path = `maps/${id}.json`;
           store.setFileText(path, `${JSON.stringify({ formatVersion: 2, id, title, width, height, rows, npcs: [], portals: [], interactables: [], entities: [] }, null, 2)}\n`);
           store.updateJson<{ maps: Array<{ id: string; path: string; title: string }> }>("project.json", p => { p.maps.push({ id, path, title }); });
@@ -207,7 +208,11 @@ export default function App({ source }: { source: ProjectSource }) {
   </main>;
 }
 
-function NewMapForm({ content, onCreate }: { content: GameContent; onCreate: (id: string, title: string, width: number, height: number, fill: string) => void }) {
+function NewMapForm({ content, onCreate }: { content: GameContent; onCreate: (id: string, title: string, width: number, height: number, fill: string, dungeon?: { seed: number; wall: string }) => void }) {
+  const [dungeon, setDungeon] = useState(false);
+  const walls = content.tileset.tiles.filter(t => !t.passable);
+  const [wall, setWall] = useState(walls[0]?.code ?? "#");
+  const [seed, setSeed] = useState(() => Math.floor(Math.random() * 100000));
   const [open, setOpen] = useState(false);
   const [id, setId] = useState("");
   const [title, setTitle] = useState("");
@@ -222,7 +227,12 @@ function NewMapForm({ content, onCreate }: { content: GameContent; onCreate: (id
     {taken.has(id) && <span className="field-error">そのIDは使われています</span>}
     <input placeholder="名前（例: 東の湖）" value={title} onChange={e => setTitle(e.target.value)} />
     <div className="field-row"><input type="number" min={5} max={200} value={size.w} onChange={e => setSize({ ...size, w: Number(e.target.value) })} /><span>×</span><input type="number" min={5} max={200} value={size.h} onChange={e => setSize({ ...size, h: Number(e.target.value) })} /></div>
-    <select value={fill} onChange={e => setFill(e.target.value)}>{passable.map(t => <option key={t.code} value={t.code}>{t.code} {t.name}</option>)}</select>
-    <div className="field-row"><button className="button primary" disabled={!valid} onClick={() => { onCreate(id, title.trim(), size.w, size.h, fill); setOpen(false); setId(""); setTitle(""); }}>作る</button><button className="button" onClick={() => setOpen(false)}>やめる</button></div>
+    <select value={fill} onChange={e => setFill(e.target.value)} title="床">{passable.map(t => <option key={t.code} value={t.code}>{t.code} {t.name}</option>)}</select>
+    <label className="check small"><input type="checkbox" checked={dungeon} onChange={e => setDungeon(e.target.checked)} /> 部屋と通路のダンジョンを自動生成</label>
+    {dungeon && <div className="field-row">
+      <select value={wall} onChange={e => setWall(e.target.value)} title="壁">{walls.map(t => <option key={t.code} value={t.code}>壁 {t.code} {t.name}</option>)}</select>
+      <input type="number" value={seed} onChange={e => setSeed(Number(e.target.value) || 1)} title="シード（同じ数なら同じ形）" style={{ width: "6em" }} />
+    </div>}
+    <div className="field-row"><button className="button primary" disabled={!valid || (dungeon && (size.w < 10 || size.h < 8))} onClick={() => { onCreate(id, title.trim(), size.w, size.h, fill, dungeon ? { seed, wall } : undefined); setOpen(false); setId(""); setTitle(""); }}>作る</button><button className="button" onClick={() => setOpen(false)}>やめる</button></div>
   </div>;
 }

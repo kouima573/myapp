@@ -22,6 +22,7 @@ import { cmdProofread } from "./proofread";
 import { cmdFind } from "./find";
 import { cmdSample } from "./sample";
 import { cmdDevlog } from "./devlog";
+import { cmdMap } from "./mapgen";
 import { cmdLibrary } from "./library";
 import { genreAtlasMarkdown, GENRES, LEVEL_LABEL, searchGenres } from "../../modules/src/genres";
 
@@ -34,6 +35,7 @@ const USAGE = `RPG Studio CLI
   rpg test     --project <dir>          検証 + システム読込 + tests/*.scenario.json の自動プレイ
   rpg build    --project <dir> [--out <dir>] [--zip]  型検査・bundleして dist/game/<id>/ に静的ゲームを出力（--zipで公開用ZIPも作成）
   rpg audit    --project <dir>          未到達マップ・未使用会話・未使用イベントを検出
+  rpg map generate <ID> --project <dir> [--width 30 --height 22 --seed 1 --rooms 6 --enemies a,b --back map:x:y]   部屋と通路のダンジョンを自動生成
   rpg devlog   --project <dir> [--days 7] [--out DEVLOG.md]   制作日誌の下書き（いまの内容・コミット・保存履歴の要約）
   rpg sample reset --project projects/<id> [--write]   見本を元の状態に戻す（壊して学ぶ用）
   rpg find     <文字> --project <dir> [--regex] [--case] [--replace <新しい文字> --write]   データの文章を横断検索・置換
@@ -52,7 +54,7 @@ const USAGE = `RPG Studio CLI
   rpg asset find --kind <bgm|sfx|image…> --words "<言葉>"                        AIが会話で候補を出す用（内蔵素材・取得元の検索URL・条件）
 `;
 
-const SUBCOMMANDS = new Set(["new", "genres", "mod", "asset", "art", "library", "packs", "refs", "rename", "find", "sample", "help", "--help"]);
+const SUBCOMMANDS = new Set(["new", "genres", "mod", "asset", "art", "library", "packs", "refs", "rename", "find", "sample", "map", "help", "--help"]);
 
 function parseArgs(argv: string[]) {
   const [command, ...afterCommand] = argv;
@@ -382,6 +384,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       return 0;
     }
     case "library": return cmdLibrary(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
+    case "map": return cmdMap(parsed.sub, parsed.args, parsed.flags, projectDir(parsed.flags));
     case "devlog": return cmdDevlog(parsed.flags, projectDir(parsed.flags));
     case "sample": return cmdSample(parsed.sub, parsed.flags, projectDir(parsed.flags));
     case "find": return cmdFind(parsed.sub ? [parsed.sub, ...parsed.args] : parsed.args, parsed.flags, projectDir(parsed.flags));
@@ -391,7 +394,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "packs": return cmdPacks(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
     default: {
       if (parsed.command && parsed.command !== "help" && parsed.command !== "--help") {
-        const cmds = ["new", "genres", "mod", "validate", "test", "build", "dev", "migrate", "catalog", "audit", "refs", "rename", "proofread", "find", "sample", "devlog", "schema", "asset", "art", "library", "packs"];
+        const cmds = ["new", "genres", "mod", "validate", "test", "build", "dev", "migrate", "catalog", "audit", "refs", "rename", "proofread", "find", "sample", "devlog", "map", "schema", "asset", "art", "library", "packs"];
         const dist = (a: string, b: string) => {
           const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
           for (let j = 0; j <= b.length; j++) dp[0]![j] = j;

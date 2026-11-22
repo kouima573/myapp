@@ -1471,7 +1471,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       }
       camNow.at = now;
       if (state.camera) lastCamMs = state.camera.ms;
-      const zoom = camNow.zoom, viewCols = VIEW_COLS / zoom, viewRows = VIEW_ROWS / zoom;
+      // project.display.tileSize: 32 = 20×14 cells on screen; 16 = twice as wide an area, 64 = closer.
+      const zoom = camNow.zoom * ((content.project.display?.tileSize ?? 32) / 32), viewCols = VIEW_COLS / zoom, viewRows = VIEW_ROWS / zoom;
       const shaking = shakeUntil > now && uiPrefs.shake ? shakePower * ((shakeUntil - now) / 400) : 0;
       const cam = {
         x: Math.max(0, Math.min(map.width - viewCols, camNow.x - (viewCols - 1) / 2)) + (shaking ? (Math.random() * 2 - 1) * shaking / TILE : 0),
@@ -1534,7 +1535,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         if (!system.drawOverlay) continue;
         try {
           ctx.save();
-          system.drawOverlay(ctx, { content, state, map, originX: origin.originX, originY: origin.originY, tileSize: TILE, player: renderPos, width: VIEW_COLS * TILE, height: VIEW_ROWS * TILE, time: now });
+          system.drawOverlay(ctx, { content, state, map, originX: origin.originX * zoom, originY: origin.originY * zoom, tileSize: TILE * zoom, player: renderPos, width: VIEW_COLS * TILE, height: VIEW_ROWS * TILE, time: now });
           ctx.restore();
         } catch (error) { ctx.restore(); console.warn(`${system.id}.drawOverlay`, error); }
       }
