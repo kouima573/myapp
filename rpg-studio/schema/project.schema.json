@@ -491,6 +491,29 @@
         "additionalProperties": false
       }
     },
+    "elements": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 96,
+        "pattern": "^[a-z0-9][a-z0-9._-]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "additionalProperties": false
+      }
+    },
     "leveling": {
       "type": "object",
       "properties": {
@@ -1580,6 +1603,28 @@
         {
           "type": "object",
           "properties": {
+            "status": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "target": {
+              "type": "string",
+              "enum": [
+                "player",
+                "enemy"
+              ]
+            }
+          },
+          "required": [
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
             "item": {
               "type": "string",
               "minLength": 1,
@@ -2243,6 +2288,71 @@
           "properties": {
             "type": {
               "type": "string",
+              "const": "addStatus"
+            },
+            "status": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "target": {
+              "type": "string",
+              "enum": [
+                "player",
+                "enemy",
+                "enemies",
+                "party"
+              ]
+            },
+            "turns": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999
+            },
+            "chance": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "type",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "removeStatus"
+            },
+            "status": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "target": {
+              "type": "string",
+              "enum": [
+                "player",
+                "enemy",
+                "enemies",
+                "party"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
               "const": "joinParty"
             },
             "companion": {
@@ -2297,6 +2407,12 @@
             },
             "text": {
               "type": "string"
+            },
+            "element": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
             }
           },
           "required": [

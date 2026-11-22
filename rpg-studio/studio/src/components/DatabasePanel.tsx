@@ -62,7 +62,7 @@ export default function DatabasePanel({ store, content }: Props) {
   const add = () => {
     const id = uniqueId(`new-${tab.replace(/s$/, "")}`, list.map(x => x.id));
     store.updateJson<Db>(path, f => {
-      if (tab === "enemies") f.enemies.push({ id, name: "新しい敵", tags: [], stats: { maxHp: 10, attack: 3, defense: 0 }, actions: [{ name: "体当たり", power: 1, effects: [] }], drops: [], rules: [], canFlee: true });
+      if (tab === "enemies") f.enemies.push({ id, name: "新しい敵", tags: [], stats: { maxHp: 10, attack: 3, defense: 0 }, actions: [{ name: "体当たり", power: 1, effects: [] }], drops: [], rules: [], canFlee: true, resist: {}, immune: [] });
       if (tab === "items") f.items.push({ id, name: "新しいアイテム", description: "", rules: [], key: false });
       if (tab === "abilities") f.abilities.push({ id, name: "新しい能力", description: "", kind: "battle", rules: [] });
       if (tab === "companions") (f.companions ??= []).push({ id, name: "新しい仲間", description: "", stats: { maxHp: 12, attack: 4, defense: 1 }, actions: [{ name: "攻撃", kind: "attack", power: 0 }] });

@@ -149,6 +149,7 @@ export function loadProjectContent(texts: ProjectFileTexts): LoadResult {
   duplicateIds(project.eventsPath, "events", eventBundle.events, diagnostics);
   duplicateIds(project.databasePath, "abilities", database.abilities, diagnostics);
   duplicateIds(project.databasePath, "items", database.items, diagnostics);
+  duplicateIds(project.databasePath, "statuses", database.statuses, diagnostics);
   duplicateIds(project.databasePath, "companions", database.companions, diagnostics);
   duplicateIds(project.databasePath, "enemies", database.enemies, diagnostics);
   duplicateIds(project.databasePath, "traits", database.traits, diagnostics);
@@ -175,6 +176,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   const warn = (file: string, at: string, message: string) => out.push({ severity: "warning", file, at, message });
   const abilityIds = new Set(database.abilities.map(a => a.id));
   const traitIds = new Set(database.traits.map(t => t.id));
+  const statusIds = new Set(database.statuses.map(s => s.id));
+  const elementIds = new Set(Object.keys(project.elements));
   const itemIds = new Set(database.items.map(i => i.id));
   const enemyIds = new Set(database.enemies.map(e => e.id));
   const enemyTags = new Set(database.enemies.flatMap(e => e.tags));
@@ -256,6 +259,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       if ("compare" in c) { checkExpr(file, at, c.compare[0], ctxAllowed); checkExpr(file, at, c.compare[2], ctxAllowed); }
       if ("ability" in c && !abilityIds.has(c.ability)) err(file, at, `未定義の能力 '${c.ability}' を参照しています`);
       if ("trait" in c && !traitIds.has(c.trait)) err(file, at, `未定義の特性 '${c.trait}' を参照しています`);
+      if ("status" in c && !statusIds.has(c.status)) err(file, at, `未定義の状態異常 '${c.status}'（database.json の statuses）`);
       if ("item" in c && !itemIds.has(c.item)) err(file, at, `未定義のアイテム '${c.item}' を参照しています`);
       if ("done" in c && !doneIds.has(c.done)) err(file, at, `完了IDとして不明な '${c.done}' を参照しています（イベントID、'会話ID/選択肢ID'、markDoneのID）`);
       if ("map" in c && !maps[c.map]) err(file, at, `未定義のマップ '${c.map}'`);
@@ -290,6 +294,9 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         case "setStat": checkExpr(file, here, effect.value, ctxAllowed); break;
         case "unlockAbility": case "removeAbility": if (!abilityIds.has(effect.ability)) err(file, here, `未定義の能力 '${effect.ability}'`); break;
         case "grantTrait": case "removeTrait": if (!traitIds.has(effect.trait)) err(file, here, `未定義の特性 '${effect.trait}'`); break;
+        case "addStatus": if (!statusIds.has(effect.status)) err(file, here, `未定義の状態異常 '${effect.status}'（database.json の statuses）`); break;
+        case "removeStatus": if (effect.status && !statusIds.has(effect.status)) err(file, here, `未定義の状態異常 '${effect.status}'`); break;
+        case "damage": if (effect.element && !elementIds.has(effect.element)) err(file, here, `未定義の属性 '${effect.element}'（project.json の elements）`); break;
         case "giveItem": case "takeItem": if (!itemIds.has(effect.item)) err(file, here, `未定義のアイテム '${effect.item}'`); break;
         case "heal": checkExpr(file, here, effect.amount, ctxAllowed); break;
         case "damage": checkExpr(file, here, effect.amount, ctxAllowed); if (effect.text) checkText(file, here, effect.text); break;
@@ -385,6 +392,14 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   project.player.abilities.forEach((id, i) => { if (!abilityIds.has(id)) err(P, `player.abilities[${i}]`, `未定義の能力 '${id}'`); });
   project.leveling?.learn.forEach((l, i) => { if (!abilityIds.has(l.ability)) err(P, `leveling.learn[${i}].ability`, `未定義の能力 '${l.ability}'`); });
   if (project.leveling?.learn.some(l => l.level > project.leveling!.maxLevel)) warn(P, "leveling.learn", "maxLevel より上のレベルで覚える能力があります");
+  database.enemies.forEach(e => {
+    for (const el of Object.keys(e.resist)) if (!elementIds.has(el)) err(DB, `enemies[${e.id}].resist.${el}`, `未定義の属性 '${el}'（project.json の elements）`);
+    e.immune.forEach((id, i) => { if (!statusIds.has(id)) err(DB, `enemies[${e.id}].immune[${i}]`, `未定義の状態異常 '${id}'`); });
+  });
+  database.items.forEach(it => {
+    if (it.element && !elementIds.has(it.element)) err(DB, `items[${it.id}].element`, `未定義の属性 '${it.element}'`);
+    for (const el of Object.keys(it.resist ?? {})) if (!elementIds.has(el)) err(DB, `items[${it.id}].resist.${el}`, `未定義の属性 '${el}'`);
+  });
   project.player.traits.forEach((id, i) => { if (!traitIds.has(id)) err(P, `player.traits[${i}]`, `未定義の特性 '${id}'`); });
   Object.keys(project.player.items).forEach(id => { if (!itemIds.has(id)) err(P, `player.items.${id}`, `未定義のアイテム '${id}'`); });
   for (const [id, decl] of Object.entries(project.variables)) {

@@ -1,5 +1,5 @@
 import type {
-  BattleState, Direction, Effect, Enemy, Entity, EntityState, GameContent, GameEvent, GameMap, GameState, Interactable, Npc, Rule, RuleTrigger,
+  BattleState, Direction, Effect, Expr, Enemy, Entity, EntityState, GameContent, GameEvent, GameMap, GameState, Interactable, Npc, Rule, RuleTrigger,
   ScriptRef, Stats, TileDef, Use,
 } from "../../schema/src/formats";
 import { abilitiesOf, effectiveStats, evalExpr, evaluate, interpolate, itemActive, nextRandom, regionsAt, type EvalEnv, type FrontInfo } from "./conditions";
@@ -581,6 +581,29 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
           const party = left > 0 || !s.party ? s.party : s.party.map(m => ({ ...m, equipment: Object.fromEntries(Object.entries(m.equipment ?? {}).filter(([, item]) => item !== effect.item)) }));
           return { ...s, items, ...(equipment ? { equipment } : {}), ...(party ? { party } : {}) };
         });
+      case "addStatus": {
+        const target = effect.target ?? (inBattle ? "enemy" : "player");
+        if (effect.chance !== undefined) {
+          let roll: number;
+          [roll, state] = random(state);
+          if (roll * 100 >= ex(effect.chance, state, ctxValues)) return inBattle ? battleLog(state, `${statusLabel(effect.status)}は効かなかった。`) : state;
+        }
+        if (target === "player" || target === "party") return giveStatus(state, "player", effect.status, effect.turns);
+        const b = battleOf(state);
+        if (!b) return state;
+        if (target === "enemy") return giveStatus(state, curSlot(state), effect.status, effect.turns);
+        for (let i = 0; i < enemyCount(b); i++) if (enemyHpAt(b, i) > 0) state = giveStatus(state, slotAt(b, i), effect.status, effect.turns);
+        return state;
+      }
+      case "removeStatus": {
+        const target = effect.target ?? "player";
+        if (target === "player" || target === "party") return dropStatus(state, "player", effect.status, inBattle);
+        const b = battleOf(state);
+        if (!b) return state;
+        if (target === "enemy") return dropStatus(state, curSlot(state), effect.status, true);
+        for (let i = 0; i < enemyCount(b); i++) state = dropStatus(state, slotAt(b, i), effect.status, true);
+        return state;
+      }
       case "gainExp": {
         const amount = Math.max(0, ex(effect.amount, state, ctxValues));
         state = gainExp(c, state, amount, false);
@@ -605,12 +628,16 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       case "leaveParty":
         return { ...state, party: (state.party ?? []).filter(m => m.id !== effect.companion) };
       case "damage": {
-        const amount = Math.max(0, ex(effect.amount, state, ctxValues));
+        const rate = effect.element && (effect.target === "player" || battleOf(state)) ? elementRate(state, effect.element, effect.target) : 100;
+        const amount = Math.max(0, Math.floor(ex(effect.amount, state, ctxValues) * rate / 100));
+        if (rate !== 100 && inBattle) state = battleLog(state, elementNote(rate).trim() || `${content.project.elements[effect.element!]?.label ?? effect.element}（${rate}%）`);
         if (effect.target === "enemy") {
           const battle = battleOf(state);
           if (!battle) return state;
+          if (amount > 0) state = dropWakers(state, curSlot(state));
           c.cues.push({ kind: "hit", target: "enemy", amount });
-          state = setBattle(state, { ...battle, enemyHp: Math.max(0, battle.enemyHp - amount) });
+          const now = battleOf(state)!;
+          state = setBattle(state, { ...now, enemyHp: Math.max(0, now.enemyHp - amount) });
           return effect.text ? battleLog(state, text(effect.text, state, { ...ctxValues, damage: amount })) : state;
         }
         // Outside battle, damage never knocks the player out.
@@ -868,6 +895,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
    * ① formula → ② rules (dealDamage/takeDamage) then systems.modifyDamage → ③ lethal: rules (lethalDamage) then systems.onLethalDamage, first wins → ④ commit HP.
    */
   function applyDamage(c: Ctx, state: GameState, target: "player" | "enemy", raw: number): [GameState, number] {
+    if (raw > 0) state = dropWakers(state, target === "player" ? "player" : curSlot(state));
     const enemy = enemyOf(battleOf(state)!.enemyId);
     let amount = raw;
     for (const entry of rulesFor(state, target === "enemy" ? "dealDamage" : "takeDamage")) {
@@ -947,6 +975,121 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     }
     return state;
   }
+
+  /* ---------------------------------------------------------------- statuses & elements */
+  type StatusInst = { id: string; turns: number };
+  const statusDef = (id: string) => db.statuses.find(s => s.id === id);
+  const statusLabel = (id: string) => { const d = statusDef(id); return d ? d.label ?? d.name : id; };
+  const curSlot = (state: GameState) => battleOf(state)?.slot ?? 0;
+  const slotAt = (b: BattleState, i: number) => (i === 0 ? b.slot ?? 0 : b.foes?.[i - 1]?.slot ?? i);
+  const enemyStatusList = (state: GameState, slot = curSlot(state)): StatusInst[] => battleOf(state)?.enemyStatuses?.[String(slot)] ?? [];
+  function setEnemyStatusList(state: GameState, slot: number, list: StatusInst[]): GameState {
+    const b = battleOf(state);
+    if (!b) return state;
+    const all = { ...(b.enemyStatuses ?? {}) };
+    if (list.length) all[String(slot)] = list; else delete all[String(slot)];
+    return setBattle(state, { ...b, enemyStatuses: all });
+  }
+  const setPlayerStatuses = (state: GameState, list: StatusInst[]): GameState => {
+    const { statuses: _old, ...player } = state.player;
+    return { ...state, player: list.length ? { ...player, statuses: list } : player };
+  };
+  /** Enemy attack / defense with the status mods of the enemy acting or being hit now. */
+  function enemyStat(state: GameState, enemy: Enemy, stat: "attack" | "defense"): number {
+    return Math.max(0, enemy.stats[stat] + enemyStatusList(state).reduce((sum, s) => sum + (statusDef(s.id)?.statMods?.[stat] ?? 0), 0));
+  }
+  const holderName = (state: GameState, who: "player" | number) => (who === "player" ? state.player.name ?? content.project.player.name : enemyOf(enemyIdAtSlot(state, who) ?? battleOf(state)!.enemyId).name);
+  function enemyIdAtSlot(state: GameState, slot: number): string | undefined {
+    const b = battleOf(state);
+    if (!b) return undefined;
+    if ((b.slot ?? 0) === slot) return b.enemyId;
+    return b.foes?.find((f, k) => (f.slot ?? k + 1) === slot)?.enemyId;
+  }
+  /** Adds (or refreshes) a status. Returns the state and whether it took. */
+  function giveStatus(state: GameState, who: "player" | number, id: string, turns?: number): GameState {
+    const def = statusDef(id);
+    if (!def) return state;
+    if (who !== "player") {
+      const enemyId = enemyIdAtSlot(state, who);
+      if (enemyId && enemyOf(enemyId).immune.includes(id)) return battleOf(state) ? battleLog(state, `${enemyOf(enemyId).name}に${statusLabel(id)}は効かない！`) : state;
+    }
+    const list = who === "player" ? state.player.statuses ?? [] : enemyStatusList(state, who);
+    const n = turns ?? def.turns;
+    const existing = list.find(s => s.id === id);
+    const next = existing ? list.map(s => (s.id === id ? { ...s, turns: Math.max(s.turns, n) } : s)) : [...list, { id, turns: n }];
+    state = who === "player" ? setPlayerStatuses(state, next) : setEnemyStatusList(state, who, next);
+    const line = text((def.onAdd ?? `{{name}}は${def.name}になった。`).replaceAll("{{name}}", holderName(state, who)), state);
+    return battleOf(state) ? battleLog(state, line) : state;
+  }
+  function dropStatus(state: GameState, who: "player" | number, id?: string, announce = false): GameState {
+    const list = who === "player" ? state.player.statuses ?? [] : enemyStatusList(state, who);
+    const gone = list.filter(s => !id || s.id === id);
+    if (!gone.length) return state;
+    const rest = list.filter(s => id && s.id !== id);
+    state = who === "player" ? setPlayerStatuses(state, rest) : setEnemyStatusList(state, who, rest);
+    if (announce && battleOf(state)) for (const s of gone) { const def = statusDef(s.id); state = battleLog(state, text((def?.onEnd ?? `{{name}}の${def?.name ?? s.id}が治った。`).replaceAll("{{name}}", holderName(state, who)), state)); }
+    return state;
+  }
+  /** Rolls the skipChance of the statuses (sleep, paralysis). */
+  function loseTurn(state: GameState, who: "player" | number): [boolean, GameState] {
+    const list = who === "player" ? state.player.statuses ?? [] : enemyStatusList(state, who);
+    for (const s of list) {
+      const chance = statusDef(s.id)?.skipChance ?? 0;
+      if (chance <= 0) continue;
+      let roll: number;
+      [roll, state] = random(state);
+      if (roll * 100 < chance) return [true, battleLog(state, `${holderName(state, who)}は${statusDef(s.id)!.name}で動けない！`)];
+    }
+    return [false, state];
+  }
+  /** End of a battle turn: damage / heal over time, count down, expire. */
+  function tickStatuses(c: Ctx, state: GameState): GameState {
+    const who: Array<"player" | number> = ["player"];
+    const b = battleOf(state)!;
+    for (let i = 0; i < enemyCount(b); i++) if (enemyHpAt(b, i) > 0) who.push(slotAt(b, i));
+    for (const holder of who) {
+      const list = holder === "player" ? state.player.statuses ?? [] : enemyStatusList(state, holder);
+      for (const s of list) {
+        const def = statusDef(s.id);
+        if (!def) continue;
+        const max = holder === "player" ? stats(state).maxHp : enemyOf(enemyIdAtSlot(state, holder)!).stats.maxHp;
+        const amount = (e: Expr | undefined) => (e === undefined ? 0 : Math.max(0, ex(e, state, { power: max })));
+        const dmg = amount(def.damage), heal = amount(def.heal);
+        if (!dmg && !heal) continue;
+        const delta = heal - dmg;
+        if (holder === "player") state = { ...state, player: { ...state.player, hp: Math.max(0, Math.min(max, state.player.hp + delta)) } };
+        else {
+          const bb = battleOf(state)!;
+          const idx = [...Array(enemyCount(bb)).keys()].find(i => slotAt(bb, i) === holder)!;
+          state = idx === 0 ? setBattle(state, { ...bb, enemyHp: Math.max(0, Math.min(max, bb.enemyHp + delta)) })
+            : setBattle(state, { ...bb, foes: bb.foes!.map((f, k) => (k === idx - 1 ? { ...f, hp: Math.max(0, Math.min(max, f.hp + delta)) } : f)) });
+        }
+        if (dmg) c.cues.push({ kind: "hit", target: holder === "player" ? "player" : "enemy", amount: dmg });
+        state = battleLog(state, `${holderName(state, holder)}は${def.name}で${dmg ? `${dmg}のダメージ` : `${heal}回復した`}。`);
+      }
+      const after = (holder === "player" ? state.player.statuses ?? [] : enemyStatusList(state, holder)).map(s => ({ ...s, turns: s.turns - 1 }));
+      for (const s of after.filter(x => x.turns <= 0)) state = dropStatus(state, holder, s.id, true);
+      const kept = after.filter(x => x.turns > 0);
+      state = holder === "player" ? setPlayerStatuses(state, kept) : setEnemyStatusList(state, holder, kept);
+    }
+    return state;
+  }
+  /** Damage multiplier by element: the target's resist (enemy data, or the hero's active items). */
+  function elementRate(state: GameState, element: string | undefined, target: "player" | "enemy"): number {
+    if (!element) return 100;
+    if (target === "enemy") return enemyOf(battleOf(state)!.enemyId).resist[element] ?? 100;
+    let rate = 100;
+    for (const id of Object.keys(state.items)) { const it = db.items.find(i => i.id === id); if (it?.resist?.[element] !== undefined && itemActive(state, it)) rate = rate * it.resist[element]! / 100; }
+    return Math.round(rate);
+  }
+  /** Taking damage ends wakeOnHit statuses (sleep). */
+  function dropWakers(state: GameState, who: "player" | number): GameState {
+    const list = who === "player" ? state.player.statuses ?? [] : enemyStatusList(state, who);
+    for (const s of list) if (statusDef(s.id)?.wakeOnHit) state = dropStatus(state, who, s.id, true);
+    return state;
+  }
+  const elementNote = (rate: number) => (rate >= 150 ? "弱点！ " : rate === 0 ? "効かない！ " : rate <= 50 ? "効きが悪い…… " : "");
+  const weaponElement = (state: GameState) => Object.values(state.equipment ?? {}).map(id => db.items.find(i => i.id === id)?.element).find(Boolean);
 
   /** Experience needed to go from `level` to level + 1. */
   function expToNext(level: number): number {
@@ -1056,7 +1199,10 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const enemy = enemyOf(battleOf(state)!.enemyId);
     const name = state.player.name ?? content.project.player.name;
     if (command.command === "attack") {
-      const [raw, next] = rollDamage(state, stats(state).attack, 0, enemy.stats.defense);
+      const [rolled, rolledState] = rollDamage(state, stats(state).attack, 0, enemyStat(state, enemy, "defense"));
+      const rate = elementRate(rolledState, weaponElement(rolledState), "enemy");
+      const raw = Math.floor(rolled * rate / 100);
+      const next = rate !== 100 ? battleLog(rolledState, elementNote(rate).trim() || `（${rate}%）`) : rolledState;
       const [after, amount] = applyDamage(c, next, "enemy", raw);
       state = battleLog(after, `${name}の攻撃！ ${enemy.name}に${amount}のダメージ。`);
       if (battleOf(state)!.enemyHp <= 0 && enemyCount(battleOf(state)!) > 1) state = battleLog(state, `${enemy.name}を倒した！`);
@@ -1123,7 +1269,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       const t = firstAlive(battleOf(state)!);
       state = swapEnemy(state, t);
       const enemy = enemyOf(battleOf(state)!.enemyId);
-      const [raw, next] = rollDamage(state, cs.attack, action.power, enemy.stats.defense);
+      const [raw, next] = rollDamage(state, cs.attack, action.power, enemyStat(state, enemy, "defense"));
       const amount = Math.max(1, raw);
       state = setBattle(next, { ...battleOf(next)!, enemyHp: Math.max(0, battleOf(next)!.enemyHp - amount) });
       state = battleLog(state, text(action.message ?? `${comp.name}の${action.name}！ ${enemy.name}に${amount}のダメージ。`, state));
@@ -1136,6 +1282,9 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
 
   /** One enemy's turn (it is the primary while acting). It strikes the hero or, with a party, anyone standing. */
   function enemyTurn(c: Ctx, state: GameState): GameState {
+    let lost: boolean;
+    [lost, state] = loseTurn(state, curSlot(state));
+    if (lost) return state;
     const battle = battleOf(state)!;
     const enemy = enemyOf(battle.enemyId);
     for (const system of active(state)) {
@@ -1153,14 +1302,14 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       if (standing.length) { let roll: number; [roll, state] = random(state); pick = Math.floor(roll * (standing.length + 1)); }
       if (pick === 0) {
         const guarding = battleOf(state)!.guarding;
-        const [rolled, next] = rollDamage(state, enemy.stats.attack, action.power, stats(state).defense, "enemy");
+        const [rolled, next] = rollDamage(state, enemyStat(state, enemy, "attack"), action.power, stats(state).defense, "enemy");
         // Guarding halves the damage at step ① (before rules and systems see it).
         const [after, amount] = applyDamage(c, next, "player", guarding ? Math.max(1, Math.ceil(rolled / 2)) : rolled);
         state = battleLog(after, `${amount}のダメージを受けた。`);
       } else {
         const member = standing[pick - 1]!;
         const comp = companionOf(member.id)!;
-        const [rolled, next] = rollDamage(state, enemy.stats.attack, action.power, companionStats(state, comp.id).defense, "enemy");
+        const [rolled, next] = rollDamage(state, enemyStat(state, enemy, "attack"), action.power, companionStats(state, comp.id).defense, "enemy");
         const amount = Math.max(1, rolled);
         state = { ...next, party: next.party!.map(m => (m.id === member.id ? { ...m, hp: Math.max(0, m.hp - amount) } : m)) };
         state = battleLog(state, `${comp.name}に${amount}のダメージ。${state.party!.find(m => m.id === member.id)!.hp <= 0 ? `${comp.name}は倒れた……` : ""}`);
@@ -1195,7 +1344,11 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     // Target: the chosen enemy if it still stands, otherwise the first one standing.
     const requested = command.command === "attack" ? command.target : undefined;
     const target = requested !== undefined && requested < enemyCount(battle) && enemyHpAt(battle, requested) > 0 ? requested : firstAlive(battle);
-    if (!scripted) {
+    // Silence blocks skills without using the turn; sleep / paralysis may take the turn.
+    if (!scripted && command.command === "skill" && (state.player.statuses ?? []).some(s => statusDef(s.id)?.noSkills)) return battleLog(state, "技を封じられている！");
+    let lost = false;
+    if (!scripted) [lost, state] = loseTurn(state, "player");
+    if (!scripted && !lost) {
       state = swapEnemy(state, target);
       const acted = playerAction(c, state, command);
       if (acted === "done") return state;
@@ -1217,6 +1370,9 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       state = checkBattleEnd(c, state);
       if (battleOf(state)!.outcome !== "ongoing") return state;
     }
+    state = tickStatuses(c, state);
+    state = checkBattleEnd(c, state);
+    if (battleOf(state)!.outcome !== "ongoing") return state;
     for (const entry of rulesFor(state, "turnEnd")) {
       const next = tryRule(c, state, entry);
       if (next) state = runNow(c, next, entry.rule.effects);
@@ -1233,6 +1389,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
 
   function closeBattle(c: Ctx, state: GameState): GameState {
     if (!battleOf(state) || battleOf(state)!.outcome === "ongoing") return state;
+    state = setPlayerStatuses(state, (state.player.statuses ?? []).filter(s => statusDef(s.id)?.clearAfterBattle === false));
     for (const system of active(state)) state = applyNow(c, state, system.onBattleEnd?.({ content, state, battle: battleOf(state)! }));
     const battle = battleOf(state);
     if (!battle) return state;

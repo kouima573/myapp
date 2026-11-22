@@ -545,6 +545,26 @@
             },
             "additionalProperties": false
           },
+          "element": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "resist": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000
+            }
+          },
           "price": {
             "type": "integer",
             "minimum": 0,
@@ -941,6 +961,31 @@
             "default": true,
             "type": "boolean"
           },
+          "resist": {
+            "default": {},
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000
+            }
+          },
+          "immune": {
+            "default": [],
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
           "exp": {
             "type": "integer",
             "minimum": 0,
@@ -1125,6 +1170,95 @@
           "id",
           "name",
           "stats"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "statuses": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 6
+          },
+          "description": {
+            "default": "",
+            "type": "string"
+          },
+          "turns": {
+            "default": 3,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 999
+          },
+          "damage": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "heal": {
+            "$ref": "#/$defs/__schema0"
+          },
+          "skipChance": {
+            "default": 0,
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "wakeOnHit": {
+            "default": false,
+            "type": "boolean"
+          },
+          "noSkills": {
+            "default": false,
+            "type": "boolean"
+          },
+          "statMods": {
+            "type": "object",
+            "properties": {
+              "maxHp": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "attack": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "defense": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "additionalProperties": false
+          },
+          "clearAfterBattle": {
+            "default": true,
+            "type": "boolean"
+          },
+          "onAdd": {
+            "type": "string"
+          },
+          "onEnd": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
         ],
         "additionalProperties": false
       }
@@ -1613,6 +1747,28 @@
           },
           "required": [
             "trait"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "target": {
+              "type": "string",
+              "enum": [
+                "player",
+                "enemy"
+              ]
+            }
+          },
+          "required": [
+            "status"
           ],
           "additionalProperties": false
         },
@@ -2282,6 +2438,71 @@
           "properties": {
             "type": {
               "type": "string",
+              "const": "addStatus"
+            },
+            "status": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "target": {
+              "type": "string",
+              "enum": [
+                "player",
+                "enemy",
+                "enemies",
+                "party"
+              ]
+            },
+            "turns": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 999
+            },
+            "chance": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "type",
+            "status"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "removeStatus"
+            },
+            "status": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "target": {
+              "type": "string",
+              "enum": [
+                "player",
+                "enemy",
+                "enemies",
+                "party"
+              ]
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
               "const": "joinParty"
             },
             "companion": {
@@ -2336,6 +2557,12 @@
             },
             "text": {
               "type": "string"
+            },
+            "element": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
             }
           },
           "required": [

@@ -499,7 +499,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     }
     const hp = el("div", "rpg-hud-hp");
     const lvInfo = engine.levelInfo(state);
-    hp.append(el("span", "rpg-hud-label", `${heroName()}${lvInfo ? `  Lv${lvInfo.level}` : ""}  HP ${state.player.hp}/${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
+    hp.append(el("span", "rpg-hud-label", `${heroName()}${lvInfo ? `  Lv${lvInfo.level}` : ""}  HP ${state.player.hp}/${eff.maxHp}${statusTags(state.player.statuses)}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
     const extra = (() => { try { return engine.hudLines(state); } catch { return []; } })();
     if (extra.length) { const box = el("div", "rpg-hud-vars"); for (const line of extra) box.appendChild(el("span", undefined, line)); left.append(box); }
     if (state.carrying) {
@@ -599,6 +599,12 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     } catch (error) { fail(error); }
   }
 
+  /** "［毒3］［攻↑2］" — status labels with turns left. */
+  function statusTags(list: Array<{ id: string; turns: number }> | undefined): string {
+    if (!list?.length) return "";
+    return " " + list.map(s => { const d = content.database.statuses.find(x => x.id === s.id); return `［${d?.label ?? d?.name ?? s.id}${s.turns}］`; }).join("");
+  }
+
   function renderBattle(battle: Extract<GameState["scene"], { kind: "battle" }>["battle"]) {
     const enemy = content.database.enemies.find(e => e.id === battle.enemyId)!;
     const eff = engine.stats(state);
@@ -608,18 +614,19 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (backgroundUrl) panel.style.backgroundImage = `linear-gradient(rgba(10,12,10,.15), rgba(10,12,10,.55)), url("${backgroundUrl}")`;
     const stage = el("div", "rpg-battle-stage");
     const enemyInfo = el("div", "rpg-enemy-info");
-    const foes = [{ enemyId: battle.enemyId, hp: battle.enemyHp }, ...(battle.foes ?? [])];
+    const foes = [{ enemyId: battle.enemyId, hp: battle.enemyHp, slot: battle.slot ?? 0 }, ...(battle.foes ?? []).map((f, k) => ({ ...f, slot: f.slot ?? k + 1 }))];
     for (const foe of foes) {
       const e = content.database.enemies.find(x => x.id === foe.enemyId)!;
       const row = el("div", foe.hp <= 0 ? "rpg-enemy-row is-down" : "rpg-enemy-row");
-      row.append(el("div", "rpg-enemy-name", `${e.name}${foes.length > 1 && foe.hp <= 0 ? "（倒れた）" : ""}`), hpBar(foe.hp, e.stats.maxHp, "is-enemy"));
+      const tags = statusTags(battle.enemyStatuses?.[String(foe.slot)]);
+      row.append(el("div", "rpg-enemy-name", `${e.name}${foes.length > 1 && foe.hp <= 0 ? "（倒れた）" : ""}${tags}`), hpBar(foe.hp, e.stats.maxHp, "is-enemy"));
       enemyInfo.appendChild(row);
     }
     const portraits = el("div", "rpg-portraits");
     portraitCanvases = foes.map(() => { const c = el("canvas", foes.length > 1 ? "rpg-portrait is-group" : "rpg-portrait"); c.width = 128; c.height = 128; portraits.appendChild(c); return c; });
     stage.append(enemyInfo, portraits);
     const status = el("div", "rpg-window rpg-battle-status");
-    status.append(el("div", "rpg-speaker", `${heroName()}${engine.levelInfo(state) ? `  Lv${engine.levelInfo(state)!.level}` : ""}`), el("div", "rpg-battle-hp", `HP ${state.player.hp} / ${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
+    status.append(el("div", "rpg-speaker", `${heroName()}${engine.levelInfo(state) ? `  Lv${engine.levelInfo(state)!.level}` : ""}${statusTags(state.player.statuses)}`), el("div", "rpg-battle-hp", `HP ${state.player.hp} / ${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
     for (const member of state.party ?? []) {
       const comp = content.database.companions.find(x => x.id === member.id);
       if (comp) status.append(el("div", "rpg-battle-var", `${comp.name} HP ${member.hp}/${engine.companionStats(state, comp.id).maxHp}${member.hp <= 0 ? "（倒れている）" : battle.orders?.[comp.id] !== undefined ? `（${comp.actions[battle.orders[comp.id]!]?.name}）` : ""}`));

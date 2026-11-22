@@ -179,3 +179,20 @@
 
 アイテムに `"price"` を書き、`{ "type": "startScene", "system": "shop", "scene": "buy", "args": { "items": [ { "item": "herb" }, { "item": "iron-sword", "price": 60 } ], "currency": "gold" } }`。売るときは `sellRate`（既定0.5）倍。装備品は今の装備と比べた能力の差を表示。宿屋は `"scene": "inn", "args": { "price": 10 }`（全員全回復）。`project.json › modules` に `"shop": {}` が必要。
 
+## 状態異常・強化・属性（`database.json › statuses`、`project.json › elements`）
+
+```json
+"statuses": [
+  { "id": "poison", "name": "毒", "label": "毒", "turns": 5, "damage": 2, "clearAfterBattle": false },
+  { "id": "sleep", "name": "眠り", "turns": 3, "skipChance": 100, "wakeOnHit": true, "onEnd": "{{name}}は目を覚ました。" },
+  { "id": "atk-up", "name": "攻撃力アップ", "label": "攻↑", "turns": 3, "statMods": { "attack": 3 } },
+  { "id": "silence", "name": "沈黙", "turns": 2, "noSkills": true }
+]
+```
+
+- できること: ターンの終わりのダメージ（`damage`）・回復（`heal`）、行動できない確率（`skipChance`: 100 = 眠り・停止、50 = 麻痺）、攻撃を受けると治る（`wakeOnHit`）、技を封じる（`noSkills`）、能力値の増減（`statMods`）、戦闘後も残す（`clearAfterBattle: false`）。
+- 効果 `{ "type": "addStatus", "status": "poison", "target": "player" | "enemy" | "enemies" | "party", "turns": 3, "chance": 50 }` / `{ "type": "removeStatus", "status": "poison", "target": "player" }`（status を省くと全部）。条件 `{ "status": "poison" }`（`"target": "enemy"` で今の敵）。
+- 敵の `immune`（効かない状態異常）。
+- 属性: `project.json › elements: { "fire": { "label": "炎" } }`。敵の `resist: { "fire": 150 }`（150 = 弱点、50 = 半減、0 = 無効）、武器の `element`（通常攻撃の属性）、防具・装飾品の `resist`（受けるダメージ）、効果 `damage` の `element`。弱点・半減は戦闘ログに「弱点！」などと出る。
+- 自動テスト: `expect.statuses` / `expect.lacksStatuses`。見本: `projects/genre-gallery/tests/status.scenario.json`。
+

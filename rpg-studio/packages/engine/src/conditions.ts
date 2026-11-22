@@ -53,6 +53,7 @@ export function modSources(state: GameState, content: GameContent): StatMods[] {
   for (const id of abilitiesOf(state, content)) { const a = content.database.abilities.find(x => x.id === id); if (a?.statMods) out.push(a.statMods); }
   for (const id of state.traits ?? []) { const t = content.database.traits.find(x => x.id === id); if (t?.statMods) out.push(t.statMods); }
   for (const id of Object.keys(state.items)) { const i = content.database.items.find(x => x.id === id); if (i?.statMods && itemActive(state, i)) out.push(i.statMods); }
+  for (const s of state.player.statuses ?? []) { const d = content.database.statuses?.find(x => x.id === s.id); if (d?.statMods) out.push(d.statMods); }
   return out;
 }
 
@@ -145,6 +146,13 @@ export function evaluate(condition: Condition | undefined, state: GameState, env
   if ("compare" in condition) return compare(evalExpr(condition.compare[0], state, env), condition.compare[1], evalExpr(condition.compare[2], state, env));
   if ("ability" in condition) return abilitiesOf(state, env.content).includes(condition.ability);
   if ("trait" in condition) return (state.traits ?? []).includes(condition.trait);
+  if ("status" in condition) {
+    if (condition.target === "enemy") {
+      const b = state.scene.kind === "battle" ? state.scene.battle : undefined;
+      return Boolean(b?.enemyStatuses?.[String(b.slot ?? 0)]?.some(s => s.id === condition.status));
+    }
+    return (state.player.statuses ?? []).some(s => s.id === condition.status);
+  }
   if ("item" in condition) return (state.items[condition.item] ?? 0) >= (condition.atLeast ?? 1);
   if ("done" in condition) return state.done.includes(condition.done);
   if ("map" in condition) return state.mapId === condition.map;

@@ -44,6 +44,68 @@
         "defense": 1
       },
       "price": 25
+    },
+    {
+      "id": "antidote",
+      "name": "毒消し草",
+      "description": "毒を治す。",
+      "use": {
+        "where": "both",
+        "effects": [
+          {
+            "type": "removeStatus",
+            "status": "poison",
+            "target": "player"
+          }
+        ],
+        "consume": true
+      },
+      "price": 6
+    },
+    {
+      "id": "sleep-powder",
+      "name": "眠り粉",
+      "description": "敵1体を眠らせる。",
+      "use": {
+        "where": "battle",
+        "effects": [
+          {
+            "type": "addStatus",
+            "status": "sleep",
+            "target": "enemy"
+          }
+        ],
+        "consume": true
+      },
+      "price": 12
+    },
+    {
+      "id": "power-seed",
+      "name": "力の実",
+      "description": "3ターン攻撃+3。",
+      "use": {
+        "where": "battle",
+        "effects": [
+          {
+            "type": "addStatus",
+            "status": "atk-up",
+            "target": "player"
+          }
+        ],
+        "consume": true
+      },
+      "price": 15
+    },
+    {
+      "id": "fire-rod",
+      "name": "炎の杖",
+      "description": "攻撃が炎属性になる（攻撃+1）。",
+      "slot": "weapon",
+      "element": "fire",
+      "statMods": {
+        "attack": 1
+      },
+      "price": 45
     }
   ],
   "enemies": [
@@ -302,6 +364,47 @@
       "tags": [
         "garden"
       ]
+    },
+    {
+      "id": "poison-bee",
+      "name": "毒蜂",
+      "sprite": "mon-bee",
+      "tags": [
+        "monster"
+      ],
+      "stats": {
+        "maxHp": 30,
+        "attack": 3,
+        "defense": 0
+      },
+      "actions": [
+        {
+          "name": "毒針",
+          "power": 0,
+          "message": "毒蜂は毒針を刺した！",
+          "effects": [
+            {
+              "type": "addStatus",
+              "status": "poison",
+              "target": "player"
+            }
+          ]
+        },
+        {
+          "name": "体当たり",
+          "power": 1
+        }
+      ],
+      "drops": [],
+      "rules": [],
+      "canFlee": true,
+      "resist": {
+        "fire": 200,
+        "ice": 50
+      },
+      "immune": [
+        "silence"
+      ]
     }
   ],
   "traits": [],
@@ -327,6 +430,43 @@
           "power": 6
         }
       ]
+    }
+  ],
+  "statuses": [
+    {
+      "id": "poison",
+      "name": "毒",
+      "label": "毒",
+      "description": "ターンの終わりに2ダメージ。戦闘が終わっても治らない。",
+      "turns": 5,
+      "damage": 2,
+      "clearAfterBattle": false
+    },
+    {
+      "id": "sleep",
+      "name": "眠り",
+      "label": "眠",
+      "description": "動けない。攻撃を受けると目が覚める。",
+      "turns": 3,
+      "skipChance": 100,
+      "wakeOnHit": true,
+      "onEnd": "{{name}}は目を覚ました。"
+    },
+    {
+      "id": "atk-up",
+      "name": "攻撃力アップ",
+      "label": "攻↑",
+      "turns": 3,
+      "statMods": {
+        "attack": 3
+      }
+    },
+    {
+      "id": "silence",
+      "name": "沈黙",
+      "label": "黙",
+      "turns": 2,
+      "noSkills": true
     }
   ]
 }

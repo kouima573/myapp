@@ -1087,6 +1087,31 @@
       "tileHeight": 448,
       "columns": 1,
       "rows": 1
+    },
+    {
+      "id": "mon-bee",
+      "path": "assets/enemies/mon-bee.png",
+      "kind": "enemy",
+      "mimeType": "image/png",
+      "bytes": 1634,
+      "source": "内蔵ドット絵ジェネレーター（rpg art generate ／ library/）",
+      "license": "MIT（rpg-studio リポジトリのライセンス。内蔵ジェネレーターによるオリジナル生成物）",
+      "origin": "generated",
+      "sourceId": "builtin-art",
+      "creditRequired": false,
+      "redistributable": true,
+      "notes": "共有素材ライブラリ（library/）の「大蜂」。内蔵ジェネレーターによるオリジナル生成物。",
+      "generator": {
+        "tool": "rpg art generate",
+        "version": 1,
+        "libraryId": "mon-bee"
+      },
+      "tileWidth": 64,
+      "tileHeight": 64,
+      "columns": 4,
+      "rows": 1,
+      "frameDurationMs": 220,
+      "loop": true
     }
   ]
 }

@@ -1,0 +1,31 @@
+{
+  "name": "状態異常・強化・属性: 眠り粉・力の実・炎の杖（弱点）・毒（戦闘後も残る）・毒消し",
+  "seed": 11,
+  "steps": [
+    { "advance": "all" },
+    { "effects": [
+      { "type": "giveItem", "item": "sleep-powder" }, { "type": "giveItem", "item": "power-seed" },
+      { "type": "giveItem", "item": "antidote" }, { "type": "giveItem", "item": "fire-rod" }
+    ] },
+    { "equip": "fire-rod" },
+    { "effects": [{ "type": "battle", "enemy": "poison-bee" }] },
+    { "advance": "once" },
+    { "battleItem": "sleep-powder" },
+    { "expect": { "textIncludes": "毒蜂は眠りになった" } },
+    { "expect": { "textIncludes": "眠りで動けない" } },
+    { "battleItem": "power-seed" },
+    { "expect": { "statuses": ["atk-up"] } },
+    { "battle": "attack" },
+    { "expect": { "textIncludes": "弱点！" } },
+    { "expect": { "textIncludes": "目を覚ました" } },
+    { "battle": "guard" },
+    { "battle": "guard" },
+    { "expect": { "statuses": ["poison"] } },
+    { "fight": "auto" },
+    { "advance": "all" },
+    { "expect": { "scene": "field", "statuses": ["poison"], "lacksStatuses": ["atk-up"] } },
+    { "useItem": "antidote" },
+    { "advance": "all" },
+    { "expect": { "lacksStatuses": ["poison"] } }
+  ]
+}

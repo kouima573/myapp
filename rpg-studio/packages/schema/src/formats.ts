@@ -91,6 +91,7 @@ export type Condition =
   | { compare: [Expr, CompareOp, Expr] }
   | { ability: string }
   | { trait: string }
+  | { status: string; target?: "player" | "enemy" }
   | { item: string; atLeast?: number }
   | { done: string }
   | { map: string }
@@ -118,6 +119,8 @@ export const ConditionSchema: z.ZodType<Condition> = z.lazy(() => z.union([
   z.object({ compare: z.tuple([ExprSchema, z.enum(COMPARE_OPS), ExprSchema]) }).strict(),
   z.object({ ability: IdSchema }).strict(),
   z.object({ trait: IdSchema }).strict(),
+  /** The hero (default) or the enemy being acted on has this status. */
+  z.object({ status: IdSchema, target: z.enum(["player", "enemy"]).optional() }).strict(),
   z.object({ item: IdSchema, atLeast: z.number().int().positive().optional() }).strict(),
   z.object({ done: IdSchema }).strict(),
   z.object({ map: IdSchema }).strict(),
@@ -165,9 +168,11 @@ export type Effect =
   | { type: "takeItem"; item: string; count?: number }
   | { type: "heal"; amount?: Expr; target?: "player" | "party" | "all" }
   | { type: "gainExp"; amount: Expr }
+  | { type: "addStatus"; status: string; target?: "player" | "enemy" | "enemies" | "party"; turns?: number; chance?: Expr }
+  | { type: "removeStatus"; status?: string; target?: "player" | "enemy" | "enemies" | "party" }
   | { type: "joinParty"; companion: string }
   | { type: "leaveParty"; companion: string }
-  | { type: "damage"; target: "player" | "enemy"; amount: Expr; text?: string }
+  | { type: "damage"; target: "player" | "enemy"; amount: Expr; text?: string; element?: string }
   | { type: "teleport"; mapId: string; x: number; y: number; facing?: Direction }
   | { type: "setTile"; mapId?: string; x: number; y: number; code: string }
   | { type: "dialogue"; dialogue: string }
@@ -218,10 +223,13 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("heal"), amount: ExprSchema.optional(), target: z.enum(["player", "party", "all"]).optional() }).strict(),
   /** Experience points (project.leveling). Levels up as many times as needed. */
   z.object({ type: z.literal("gainExp"), amount: ExprSchema }).strict(),
+  /** Status effects (database.statuses): poison, sleep, attack up… "enemy" = the one being acted on, "enemies" = all, "party" = hero and companions. chance in percent. */
+  z.object({ type: z.literal("addStatus"), status: IdSchema, target: z.enum(["player", "enemy", "enemies", "party"]).optional(), turns: z.number().int().min(1).max(999).optional(), chance: ExprSchema.optional() }).strict(),
+  z.object({ type: z.literal("removeStatus"), status: IdSchema.optional(), target: z.enum(["player", "enemy", "enemies", "party"]).optional() }).strict(),
   /** A companion joins / leaves the party (database › companions). */
   z.object({ type: z.literal("joinParty"), companion: IdSchema }).strict(),
   z.object({ type: z.literal("leaveParty"), companion: IdSchema }).strict(),
-  z.object({ type: z.literal("damage"), target: z.enum(["player", "enemy"]), amount: ExprSchema, text: z.string().optional() }).strict(),
+  z.object({ type: z.literal("damage"), target: z.enum(["player", "enemy"]), amount: ExprSchema, text: z.string().optional(), /** project.elements: multiplied by the target's resist. */ element: IdSchema.optional() }).strict(),
   z.object({ type: z.literal("teleport"), mapId: IdSchema, x: CoordSchema, y: CoordSchema, facing: DirectionSchema.optional() }).strict(),
   z.object({ type: z.literal("setTile"), mapId: IdSchema.optional(), x: CoordSchema, y: CoordSchema, code: z.string().length(1) }).strict(),
   z.object({ type: z.literal("dialogue"), dialogue: IdSchema }).strict(),
@@ -486,6 +494,8 @@ export const ProjectManifestSchema = z.object({
   verbs: z.record(IdSchema, VerbSchema).default({}),
   /** Equipment slots items can go in (item.slot). */
   equipmentSlots: z.record(IdSchema, z.object({ label: z.string().min(1) }).strict()).default({ weapon: { label: "武器" }, armor: { label: "防具" }, accessory: { label: "装飾品" } }),
+  /** Elements for attacks and resistances (fire, ice, light…). Labels are shown in battle ("弱点！"). */
+  elements: z.record(IdSchema, z.object({ label: z.string().min(1) }).strict()).default({}),
   /**
    * Experience and levels (optional: without it there are no levels). Winning gives each enemy's `exp`.
    * Needed to go from level L to L+1: expTable[L-1] if given, else round(base × growth^(L-1)).
@@ -825,6 +835,10 @@ export const ItemSchema = z.object({
   use: UseSchema.optional(),
   /** Passive bonus while carried — or, for items with a `slot`, only while equipped. */
   statMods: StatModsSchema.optional(),
+  /** Weapons: element of normal attacks while equipped (project.elements). */
+  element: IdSchema.optional(),
+  /** Armour / accessories: damage taken by element in percent while active ({ "fire": 50 }). */
+  resist: z.record(IdSchema, z.number().int().min(0).max(1000)).optional(),
   /** Price in shops (shop.buy). Selling pays shop.sellRate of it. */
   price: z.number().int().min(0).optional(),
   /** Equipment slot (project.json › equipmentSlots, e.g. weapon / armor / accessory). Its statMods and rules count only while equipped. */
@@ -864,6 +878,10 @@ export const EnemySchema = z.object({
   /** Rules active during battles with this enemy. */
   rules: z.array(RuleSchema).default([]),
   canFlee: z.boolean().default(true),
+  /** Damage taken by element in percent: { "fire": 150 } = weak, 50 = resists, 0 = immune (project.elements). */
+  resist: z.record(IdSchema, z.number().int().min(0).max(1000)).default({}),
+  /** Statuses it cannot get. */
+  immune: z.array(IdSchema).default([]),
   /** Experience for defeating it (project.leveling). Missing = round((maxHp + 2×attack + 2×defense) / 3). */
   exp: z.number().int().min(0).optional(),
   /** Code active while this enemy is in the battle (its `enemyTurn` can replace how it acts). */
@@ -890,6 +908,35 @@ export const CompanionSchema = z.object({
 }).strict();
 export type Companion = z.infer<typeof CompanionSchema>;
 
+/** A status effect (database.statuses). Everything is optional: combine what the status should do. */
+export const StatusSchema = z.object({
+  id: IdSchema,
+  name: z.string().min(1),
+  /** Short tag shown next to names in battle (e.g. "毒"). Defaults to the name. */
+  label: z.string().max(6).optional(),
+  description: z.string().default(""),
+  /** Turns it lasts (counted at the end of each battle turn). */
+  turns: z.number().int().min(1).max(999).default(3),
+  /** HP lost at the end of each turn (expressions see {"ctx":"enemyMaxHp"} / maxHp of the holder as {"ctx":"power"}). */
+  damage: ExprSchema.optional(),
+  /** HP regained at the end of each turn. */
+  heal: ExprSchema.optional(),
+  /** Chance (percent) to lose the turn: 100 = sleep / stop, 50 = paralysis. */
+  skipChance: z.number().int().min(0).max(100).default(0),
+  /** Taking damage removes it (sleep). */
+  wakeOnHit: z.boolean().default(false),
+  /** Cannot use skills (silence). */
+  noSkills: z.boolean().default(false),
+  /** Added to stats while it lasts (buffs / debuffs; numbers). */
+  statMods: z.object({ maxHp: z.number().int().optional(), attack: z.number().int().optional(), defense: z.number().int().optional() }).strict().optional(),
+  /** Removed when the battle ends (default). false = stays (poison until cured). */
+  clearAfterBattle: z.boolean().default(true),
+  /** Lines for the battle log. {{name}} = who has it. */
+  onAdd: z.string().optional(),
+  onEnd: z.string().optional(),
+}).strict();
+export type StatusDef = z.infer<typeof StatusSchema>;
+
 export const DatabaseSchema = z.object({
   formatVersion: z.literal(PROJECT_FORMAT_VERSION),
   abilities: z.array(AbilitySchema).default([]),
@@ -898,6 +945,8 @@ export const DatabaseSchema = z.object({
   enemies: z.array(EnemySchema).default([]),
   /** Party members who can join the hero (joinParty) and fight on their own in built-in battles. */
   companions: z.array(CompanionSchema).default([]),
+  /** Status effects: poison, sleep, paralysis, silence, attack up, guard down… (effects addStatus / removeStatus). */
+  statuses: z.array(StatusSchema).default([]),
 }).strict();
 export type Database = z.infer<typeof DatabaseSchema>;
 
@@ -1024,6 +1073,8 @@ export const BattleStateSchema = z.object({
   orders: z.record(z.string(), z.number().int().nonnegative()).optional(),
   /** Other enemies in the same battle (with). */
   foes: z.array(z.object({ enemyId: IdSchema, hp: z.number().int().nonnegative(), /** Position at the start of the battle (stays with the enemy when the engine reorders). */ slot: z.number().int().nonnegative().optional() }).strict()).optional(),
+  /** Status effects on enemies, by start-of-battle slot ("0", "1"…). */
+  enemyStatuses: z.record(z.string(), z.array(z.object({ id: IdSchema, turns: z.number().int().min(0) }).strict())).optional(),
   /** Start-of-battle position of the current first enemy (0 when absent). */
   slot: z.number().int().nonnegative().optional(),
   turn: z.number().int().nonnegative(),
@@ -1067,6 +1118,8 @@ export const GameStateSchema = z.object({
     name: z.string().optional(),
     /** project.leveling: current level (missing = 1) and experience gathered toward the next level. */
     level: z.number().int().positive().optional(),
+    /** Status effects on the hero (database.statuses) with the turns left. */
+    statuses: z.array(z.object({ id: IdSchema, turns: z.number().int().min(0) }).strict()).optional(),
     exp: z.number().int().nonnegative().optional(),
     sprite: z.string().optional(),
   }).strict(),
