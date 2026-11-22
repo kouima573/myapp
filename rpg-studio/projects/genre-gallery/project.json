@@ -229,5 +229,9 @@
       "description": "毒蜂を倒した",
       "hidden": true
     }
+  },
+  "minimap": {
+    "enabled": true,
+    "size": 120
   }
 }

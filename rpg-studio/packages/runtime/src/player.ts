@@ -100,6 +100,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   const uiPrefs = {
     textSpeed: (rawSet.textSpeed === "fast" || rawSet.textSpeed === "instant" ? rawSet.textSpeed : "normal") as "normal" | "fast" | "instant",
     shake: typeof rawSet.shake === "boolean" ? rawSet.shake : true,
+    minimap: typeof rawSet.minimap === "boolean" ? rawSet.minimap : true,
   };
   let creditsOpen = false;
   let backlogOpen = false;
@@ -368,6 +369,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const key = event.key.toLowerCase();
     if (key === "enter" || key === " " || key === "z") { event.preventDefault(); if (!event.repeat) confirm(); }
     else if (key === "escape" || key === "x" || key === "m") { event.preventDefault(); if (!event.repeat) cancel(); }
+    else if (key === "n" && content.project.minimap && state.scene.kind === "field" && !menuOpen && !event.repeat && !availableVerbs().some(([, v]) => v.key === "n")) { uiPrefs.minimap = !uiPrefs.minimap; savePrefs(audio.settings); }
     else if (state.scene.kind === "battle" && /^[1-4]$/.test(key)) { selection = Number(key) - 1; confirm(); }
     else if (state.scene.kind === "field" && !menuOpen && !event.repeat) {
       const verb = availableVerbs().find(([, v]) => v.key === key);
@@ -520,6 +522,37 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     }
   }
 
+  /** Minimap (project.minimap): each cell in its tile colour, the hero as a blinking dot. */
+  function minimapCanvas(): HTMLCanvasElement | null {
+    const cfg = content.project.minimap;
+    const map = content.maps[state.mapId];
+    if (!cfg?.enabled || !uiPrefs.minimap || !map || !map.minimap || state.scene.kind !== "field") return null;
+    const cell = Math.max(1, Math.floor(cfg.size / Math.max(map.width, map.height)));
+    const c = el("canvas", "rpg-minimap");
+    c.dataset.src = "packages/runtime/src/player.ts#minimapCanvas";
+    c.width = map.width * cell; c.height = map.height * cell;
+    c.title = "ミニマップ（N キーで表示を切り替え）";
+    const g = c.getContext("2d")!;
+    const colorOf = new Map(content.tileset.tiles.map(t => [t.code, t.color] as const));
+    const rows = engine.rowsFor(state, map.id);
+    for (let y = 0; y < map.height; y++) {
+      const row = Array.from(rows[y] ?? "");
+      for (let x = 0; x < map.width; x++) {
+        const tile = content.tileset.tiles.find(t => t.code === row[x]);
+        g.fillStyle = colorOf.get(row[x] ?? "") ?? "#222";
+        g.globalAlpha = tile && !tile.passable ? 0.55 : 1;
+        g.fillRect(x * cell, y * cell, cell, cell);
+      }
+    }
+    g.globalAlpha = 1;
+    g.fillStyle = "#f0c36a";
+    for (const p of map.portals) g.fillRect(p.x * cell, p.y * cell, cell, cell);
+    g.fillStyle = "#ff4b3e";
+    const r = Math.max(2, cell);
+    g.fillRect(state.player.x * cell + cell / 2 - r / 2, state.player.y * cell + cell / 2 - r / 2, r, r);
+    return c;
+  }
+
   function renderUI() {
     syncPictures();
     windowLayer.replaceChildren();
@@ -557,7 +590,9 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       }
       left.append(bar);
     }
-    hud.append(left, hp);
+    const mini = minimapCanvas();
+    if (mini) { const right = el("div", "rpg-hud-right"); right.append(hp, mini); hud.append(left, right); }
+    else hud.append(left, hp);
     hud.hidden = state.scene.kind === "battle" || state.scene.kind === "ending" || state.scene.kind === "custom";
     root.dataset.scene = menuOpen ? "menu" : state.scene.kind;
 
@@ -1000,6 +1035,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         savePrefs(audio.settings);
       }),
       navButton(`画面揺れ: ${uiPrefs.shake ? "あり" : "なし"}`, () => { uiPrefs.shake = !uiPrefs.shake; savePrefs(audio.settings); }),
+      ...(content.project.minimap?.enabled ? [navButton(`ミニマップ: ${uiPrefs.minimap ? "表示" : "隠す"}［N］`, () => { uiPrefs.minimap = !uiPrefs.minimap; savePrefs(audio.settings); })] : []),
       navButton("会話履歴", () => { backlogOpen = true; selection = 0; renderUI(); }),
       navButton("クレジット", () => { creditsOpen = true; selection = 0; renderUI(); }),
       navButton("とじる", () => { menuOpen = false; renderUI(); }),

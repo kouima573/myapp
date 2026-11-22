@@ -45,6 +45,19 @@
           "passable": {
             "type": "boolean"
           },
+          "walls": {
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "up",
+                "down",
+                "left",
+                "right"
+              ]
+            }
+          },
           "passableWhen": {
             "$ref": "#/$defs/__schema0"
           },

@@ -367,6 +367,19 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     return true;
   }
 
+  /** Edge walls (tile.walls): leaving `from` towards `dir`, or entering the next tile from the opposite side. */
+  function edgeBlocked(state: GameState, map: GameMap, from: { x: number; y: number }, dir: Direction): boolean {
+    const walls = (x: number, y: number): Direction[] => {
+      const out: Direction[] = [];
+      const add = (code: string) => { const w = tiles.get(code)?.walls; if (w) out.push(...w); };
+      add(codeAt(state, map, x, y));
+      for (const layer of map.layers) if (!layer.above) { const code = Array.from(layer.rows[y] ?? "")[x] ?? " "; if (code !== " ") add(code); }
+      return out;
+    };
+    const back: Record<Direction, Direction> = { up: "down", down: "up", left: "right", right: "left" };
+    return walls(from.x, from.y).includes(dir) || walls(from.x + DELTAS[dir].x, from.y + DELTAS[dir].y).includes(back[dir]);
+  }
+
   function isPassable(state: GameState, x: number, y: number, map = content.maps[state.mapId]): boolean {
     if (!map || x < 0 || y < 0 || x >= map.width || y >= map.height) return false;
     const tile = tiles.get(codeAt(state, map, x, y));
@@ -1643,6 +1656,10 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     if (!map) throw new Error(`現在のマップ '${state.mapId}' がありません`);
     state = { ...state, player: { ...state.player, facing: direction } };
     const to = { x: state.player.x + DELTAS[direction].x, y: state.player.y + DELTAS[direction].y };
+    if (edgeBlocked(state, map, state.player, direction) && !active(state).some(s => s.canPass?.({ content, state, map, x: to.x, y: to.y, tile: tiles.get(codeAt(state, map, to.x, to.y)), passable: false }) === true)) {
+      c.cues.push({ kind: "bump" });
+      return runQueue(c, fireFieldRules(c, state, "bump"));
+    }
     if (!isPassable(state, to.x, to.y, map)) {
       // Push a pushable entity one tile if the tile beyond is free.
       const pushed = visibleEntities(state, map).find(e => e.x === to.x && e.y === to.y && e.state.pushable);

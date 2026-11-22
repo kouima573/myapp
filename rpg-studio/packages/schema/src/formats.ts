@@ -530,6 +530,8 @@ export const ProjectManifestSchema = z.object({
   sets: z.record(IdSchema, SetDeclSchema).default({}),
   /** Endings the game can reach (recorded across cycles in the built-in meta set "endings"). */
   endings: z.record(IdSchema, z.object({ title: z.string().min(1), text: z.string().default("") }).strict()).default({}),
+  /** Minimap in the corner of the field (N key / menu toggles it). Tile colours (tiles.json › color) are used. */
+  minimap: z.object({ enabled: z.boolean().default(true), size: z.number().int().min(60).max(240).default(120) }).strict().optional(),
   /**
    * Monster / item book (図鑑) in the menu. Enemies count once met (stats shown after a win); items once held.
    * Kept across new games like the endings seen. `hidden`: ids never listed.
@@ -625,6 +627,11 @@ export const TileDefSchema = z.object({
    */
   key: z.string().regex(/^[a-z0-9][a-z0-9_-]*$/i).optional(),
   passable: z.boolean(),
+  /**
+   * Walls on some edges of a passable tile (方向ごとの通行): ["down"] = a cliff edge — you cannot walk down off it,
+   * nor walk up onto it from below. Fences, counters, one-sided ledges.
+   */
+  walls: z.array(z.enum(["up", "down", "left", "right"])).max(4).optional(),
   /** When this condition holds the tile is passable regardless of `passable`. */
   passableWhen: ConditionSchema.optional(),
   /** Atlas cell used while `passableWhen` holds (e.g. an opened gate). */
@@ -799,6 +806,8 @@ export const GameMapSchema = z.object({
   /** Environmental sound looping under the BGM (rain, river, fire): a bgm or sfx asset. */
   ambient: IdSchema.optional(),
   /** Battle background image (background asset) for fights on this map. */
+  /** Show this map on the minimap (project.minimap). false for mazes and secret places. */
+  minimap: z.boolean().default(true),
   battleBackground: IdSchema.optional(),
   /** Code active while the player is on this map. */
   script: ScriptRefSchema.optional(),

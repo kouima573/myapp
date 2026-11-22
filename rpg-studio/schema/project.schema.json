@@ -304,6 +304,22 @@
         "additionalProperties": false
       }
     },
+    "minimap": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "type": "boolean"
+        },
+        "size": {
+          "default": 120,
+          "type": "integer",
+          "minimum": 60,
+          "maximum": 240
+        }
+      },
+      "additionalProperties": false
+    },
     "book": {
       "type": "object",
       "properties": {

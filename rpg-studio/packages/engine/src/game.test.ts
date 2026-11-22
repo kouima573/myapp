@@ -438,3 +438,22 @@ describe("book and achievements (092/093)", () => {
     expect(next.book?.defeated[foe.id]).toBe(1);
   });
 });
+
+describe("edge walls (025)", () => {
+  it("a tile with walls: [\"right\"] cannot be left to the right nor entered from the right; debug canPass still walks through", () => {
+    const base = createEngine(content, systems);
+    const s0 = base.newGame(1);
+    const map = content.maps[s0.mapId]!;
+    // Find an open tile whose right neighbour is open too.
+    let at: { x: number; y: number } | undefined;
+    for (let y = 1; y < map.height - 1 && !at; y++) for (let x = 1; x < map.width - 2 && !at; x++) if (base.isPassable(s0, x, y) && base.isPassable(s0, x + 1, y) && base.codeAt(s0, map, x, y) !== base.codeAt(s0, map, x + 1, y)) at = { x, y };
+    const code = base.codeAt(s0, map, at!.x, at!.y);
+    const walled: GameContent = { ...content, tileset: { ...content.tileset, tiles: content.tileset.tiles.map(t => (t.code === code ? { ...t, walls: ["right" as const] } : t)) } };
+    const place = (eng: Engine, x: number, y: number) => ({ ...eng.newGame(1), scene: { kind: "field" as const }, queue: [], player: { ...s0.player, x, y } });
+    const eng = createEngine(walled, systems);
+    expect(eng.step(place(eng, at!.x, at!.y), { type: "move", direction: "right" }).state.player.x).toBe(at!.x);
+    expect(eng.step(place(eng, at!.x + 1, at!.y), { type: "move", direction: "left" }).state.player.x).toBe(at!.x + 1);
+    const ghost = createEngine(walled, [...systems, { id: "debug", canPass: () => true }]);
+    expect(ghost.step(place(ghost, at!.x, at!.y), { type: "move", direction: "right" }).state.player.x).toBe(at!.x + 1);
+  });
+});

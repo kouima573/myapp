@@ -725,6 +725,10 @@
       "maxLength": 96,
       "pattern": "^[a-z0-9][a-z0-9._-]*$"
     },
+    "minimap": {
+      "default": true,
+      "type": "boolean"
+    },
     "battleBackground": {
       "type": "string",
       "minLength": 1,
