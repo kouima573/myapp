@@ -115,6 +115,7 @@ export async function bootStandalone(options: { systems: GameSystem[]; host?: HT
       systems: options.systems,
       resolveAsset: asset => new URL(asset.path, new URL(base, location.href)).href,
       keyboard: "window",
+      titleScreen: true,
     });
     handle.focus();
     // `?debug` exposes the handle for automated play-tests and quick inspection in DevTools.

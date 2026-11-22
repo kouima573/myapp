@@ -32,6 +32,7 @@ import table from "./table";
 import composer from "./composer";
 import program from "./program";
 import factory from "./factory";
+import shop from "./shop";
 
 export interface ModuleInfo {
   system: GameSystem;
@@ -67,6 +68,7 @@ export const MODULES: Record<string, ModuleInfo> = {
   table: { system: table, title: "札勝負", genre: "テーブルゲーム・手役・駆け引き（はったり）", description: "5枚の手札を1度交換して役を作り、相手の表情（はったりかも）を読んで降りる・勝負・上乗せ。チップはゲーム内のみ（RPGの変数と連動可）。", usage: '{ "type": "startScene", "system": "table", "scene": "hand", "args": { "rounds": 5, "stakeVar": "gold" } }' },
   composer: { system: composer, title: "作曲", genre: "作曲・演奏・音の謎解き", description: "拍ごとに音を置いて鳴らす。お手本の旋律を再現する課題か、自由に作曲して集合に保存（後の会話や条件で使える）。", usage: '{ "type": "startScene", "system": "composer", "scene": "compose", "args": { "target": "C4 E4 G4 . G4 E4 C4 ." } }' },
   program: { system: program, title: "プログラミング", genre: "プログラミング・命令パズル", description: "進む・曲がる・跳ぶ・×2・くり返しの命令を並べて動かす。ゴールと宝石、命令数や試行回数の制限。", usage: '{ "type": "startScene", "system": "program", "scene": "run", "args": { "rows": [ "#####", "#@.G#", "#####" ] } }' },
+  shop: { system: shop, title: "お店・宿屋", genre: "RPGの店・宿屋", description: "買う・売る（装備品は今の装備と比べた能力の差を表示）と、お金を払って全員全回復する宿屋。値段はアイテムの price か店ごとの指定。", usage: '{ "type": "startScene", "system": "shop", "scene": "buy", "args": { "items": [ { "item": "herb", "price": 8 } ] } }／{ "type": "startScene", "system": "shop", "scene": "inn", "args": { "price": 10 } }' },
   factory: { system: factory, title: "工場", genre: "工場・自動化・生産ライン", description: "原料が流れ込む。機械の枠にレシピを入れ、出来た物を次の機械の材料につなぎ、制限時間内に目標の品を作る。", usage: '{ "type": "startScene", "system": "factory", "scene": "line", "args": { "goal": { "item": "tool", "amount": 5 } } }' },
 };
 

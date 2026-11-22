@@ -62,7 +62,8 @@ export type Cue =
   | { kind: "battleEnd"; outcome: BattleState["outcome"] }
   | { kind: "sfx"; sound: string }
   | { kind: "item" }
-  | { kind: "heal" };
+  | { kind: "heal" }
+  | { kind: "levelUp"; level: number };
 
 export interface StepResult {
   state: GameState;
@@ -101,6 +102,8 @@ export interface Engine {
   regions(state: GameState): string[];
   /** HUD lines from systems. */
   hudLines(state: GameState): string[];
+  /** Level, experience and what the next level needs (undefined without project.leveling). */
+  levelInfo(state: GameState): { level: number; exp: number; next: number | null } | undefined;
   /** Project systems plus the scripts attached to whatever is active right now (abilities, items, enemies, map…). */
   activeSystems(state: GameState): GameSystem[];
   /** Commands that active scripts add to the battle or field menu. `source` identifies the script for the action. */
@@ -578,6 +581,11 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
           const party = left > 0 || !s.party ? s.party : s.party.map(m => ({ ...m, equipment: Object.fromEntries(Object.entries(m.equipment ?? {}).filter(([, item]) => item !== effect.item)) }));
           return { ...s, items, ...(equipment ? { equipment } : {}), ...(party ? { party } : {}) };
         });
+      case "gainExp": {
+        const amount = Math.max(0, ex(effect.amount, state, ctxValues));
+        state = gainExp(c, state, amount, false);
+        return state;
+      }
       case "heal": {
         const max = stats(state).maxHp;
         const amount = effect.amount === undefined ? max : ex(effect.amount, state, ctxValues);
@@ -917,6 +925,10 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         state = { ...state, items: { ...state.items, [drop.item]: (state.items[drop.item] ?? 0) + drop.count } };
         state = battleLog(state, `${itemName(drop.item)}を${drop.count}個手に入れた。`);
       }
+      if (content.project.leveling) {
+        const exp = all.reduce((sum, e) => sum + (e.exp ?? Math.max(1, Math.round((e.stats.maxHp + 2 * e.stats.attack + 2 * e.stats.defense) / 3))), 0);
+        state = gainExp(c, state, exp, true);
+      }
       const after: Effect[] = [];
       for (const entry of rulesFor(state, "victory")) { const next = tryRule(c, state, entry); if (next) { state = next; after.push(...entry.rule.effects); } }
       battle = battleOf(state)!;
@@ -934,6 +946,39 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       return setBattle(state, { ...battle, outcome: "defeat", after: [...battle.after, ...after] });
     }
     return state;
+  }
+
+  /** Experience needed to go from `level` to level + 1. */
+  function expToNext(level: number): number {
+    const lv = content.project.leveling!;
+    return lv.expTable?.[level - 1] ?? Math.max(1, Math.round(lv.base * lv.growth ** (level - 1)));
+  }
+  /** Adds experience; levels up (stats, HP, abilities) as many times as it reaches. In battle the lines go to the battle log. */
+  function gainExp(c: Ctx, state: GameState, amount: number, inBattle: boolean): GameState {
+    const lv = content.project.leveling;
+    if (!lv || amount <= 0) return state;
+    const say = (s: GameState, line: string) => (inBattle && battleOf(s) ? battleLog(s, line) : enqueue(s, [{ type: "message", text: line }]));
+    const name = state.player.name ?? content.project.player.name;
+    let level = state.player.level ?? 1;
+    let exp = (state.player.exp ?? 0) + amount;
+    state = say(state, `${amount}の経験値を手に入れた。`);
+    while (level < lv.maxLevel && exp >= expToNext(level)) {
+      exp -= expToNext(level);
+      level++;
+      const g = lv.gains;
+      const stats = { maxHp: state.player.stats.maxHp + g.maxHp, attack: state.player.stats.attack + g.attack, defense: state.player.stats.defense + g.defense };
+      state = { ...state, player: { ...state.player, level, stats, hp: lv.fullHeal ? effectiveStats({ ...state, player: { ...state.player, stats } }, content).maxHp : state.player.hp + g.maxHp } };
+      c.cues.push({ kind: "levelUp", level });
+      c.log.push(`レベル${level}`);
+      state = say(state, `${name}はレベル${level}に上がった！`);
+      for (const learn of lv.learn.filter(l => l.level === level)) {
+        if (state.abilities.includes(learn.ability)) continue;
+        state = { ...state, abilities: [...state.abilities, learn.ability] };
+        state = say(state, learn.message ?? `${abilityName(learn.ability)}を覚えた！`);
+      }
+    }
+    if (level >= lv.maxLevel) exp = 0;
+    return { ...state, player: { ...state.player, level, exp } };
   }
 
   function usableBlock(state: GameState, use: Use, where: "battle" | "field"): string | undefined {
@@ -1671,6 +1716,12 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     regions: state => regionsAt(state, content, env),
     hudLines: state => active(state).flatMap(sys => sys.hud?.({ content, state }) ?? []),
     activeSystems: state => active(state),
+    levelInfo: state => {
+      const lv = content.project.leveling;
+      if (!lv) return undefined;
+      const level = state.player.level ?? 1;
+      return { level, exp: state.player.exp ?? 0, next: level >= lv.maxLevel ? null : expToNext(level) };
+    },
     commands: (state, where) => scriptCommands(state, where),
     step,
     run,

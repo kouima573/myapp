@@ -43,7 +43,7 @@
 cd rpg-studio
 pnpm install
 pnpm check                      # 型チェック
-pnpm test                       # vitest（現在134件）
+pnpm test                       # vitest（現在135件）
 pnpm rpg validate --project projects/sample-rpg     # ← フォルダは --project で指定（位置引数は無視される）
 pnpm rpg test     --project projects/sample-rpg
 pnpm rpg build    --project projects/sample-rpg
@@ -63,7 +63,7 @@ pnpm build:site / pnpm deploy:site   # 公開用サイト（dist/site）
 | `packages/schema/src/formats.ts` | 全データ形式（zod）。`validate.ts` が参照の検査 |
 | `packages/engine/src/game.ts` | 決定的エンジン `createEngine(content, systems)` → `step(state, action)`。`systems.ts` が拡張契約とスクリプト補助関数 |
 | `packages/runtime/src/player.ts` | ブラウザでの描画・入力（ゲーム画面の部品には `data-src` が付く） |
-| `packages/modules/src/` | ジャンルモジュール25種（ノベル・パズル・弾幕・カード・タクティクスなど） |
+| `packages/modules/src/` | ジャンルモジュール26種（ノベル・パズル・弾幕・カード・タクティクスなど） |
 | `packages/cli/src/` | `rpg` コマンド。`artgen/` は内蔵ドット絵ジェネレーター、`library.ts`・`packs.ts`・`assets.ts` が素材まわり |
 | `packages/local-server/src/server.ts` | 工房用ローカルサーバー（トークン・Origin・パス・シンボリックリンク拒否・衝突検出。画像保存とライブラリ取り込みの口あり） |
 | `studio/src/` | 工房（React）。`components/` に各画面 |
@@ -84,6 +84,10 @@ pnpm build:site / pnpm deploy:site   # 公開用サイト（dist/site）
 遊ぶ人向けの設定（文字速度・会話履歴・音量・画面揺れ・ダッシュ・全画面・ルビ）、`rpg audit`・`rpg asset unused`・`rpg build --zip`・`rpg new --theme`、初心者ガイド（`docs/beginner-guide.md`）など。詳しくは `TODO.md` の「v1.4で完了」。
 
 **配布版のデータは「ビルドが既定値を埋めたもの」**: ゲーム本体は Zod なしでデータを読む。`rpg build` は検証済みの内容（既定値入り）を `data/` に書き出す。`packages/cli/src/build.test.ts` がビルド結果で見本の全シナリオを再生して、テストと同じ動きになることを確かめている。データ形式を変えたらこのテストが通ることを必ず確認する。
+
+## 6.6 v1.5（「200の改善指針」第1弾）
+
+Gemini でまとめた200項目の改善案を受け取り、`docs/roadmap-200.md` に1項目ずつ状態を記録した（✅済・🟡一部・🔜次・⬜未）。第1弾としてレベル制・タイトル画面・セーブ3枠＋オート・書き出し/読み込み・ダメージ数値・お店と宿屋（`shop` モジュール）を実装。**次はこの表の 🔜 から**（TODO.md「第2弾の候補」）。
 
 ## 7. 残っている仕事
 

@@ -30,7 +30,7 @@ export type CompareOp = (typeof COMPARE_OPS)[number];
 
 /**
  * Numeric expression (JSON, never eval'd). Integers result; division floors.
- *   12 | {"var":"gold"} | {"count":"herb"} | {"stat":"attack"} | {"hp":true} | {"steps":true} | {"ctx":"damage"}
+ *   12 | {"var":"gold"} | {"count":"herb"} | {"stat":"attack"} | {"hp":true} | {"steps":true} | {"ctx":"damage"} | {"level":true} | {"exp":true}
  *   {"add":[..]} {"sub":[a,b]} {"mul":[..]} {"div":[a,b]} {"mod":[a,b]} {"min":[..]} {"max":[..]} {"if":cond,"then":e,"else":e}
  *   {"percent":[value, pct]}  = floor(value * pct / 100)
  */
@@ -41,6 +41,8 @@ export type Expr =
   | { stat: StatName }
   | { hp: true }
   | { steps: true }
+  | { level: true }
+  | { exp: true }
   | { ctx: CtxName }
   | { add: Expr[] }
   | { sub: [Expr, Expr] }
@@ -63,6 +65,8 @@ export const ExprSchema: z.ZodType<Expr> = z.lazy(() => z.union([
   z.object({ stat: z.enum(STAT_NAMES) }).strict(),
   z.object({ hp: z.literal(true) }).strict(),
   z.object({ steps: z.literal(true) }).strict(),
+  z.object({ level: z.literal(true) }).strict(),
+  z.object({ exp: z.literal(true) }).strict(),
   z.object({ ctx: z.enum(CTX_NAMES) }).strict(),
   z.object({ add: z.array(ExprSchema).min(1) }).strict(),
   z.object({ sub: z.tuple([ExprSchema, ExprSchema]) }).strict(),
@@ -160,6 +164,7 @@ export type Effect =
   | { type: "unequip"; slot: string; companion?: string }
   | { type: "takeItem"; item: string; count?: number }
   | { type: "heal"; amount?: Expr; target?: "player" | "party" | "all" }
+  | { type: "gainExp"; amount: Expr }
   | { type: "joinParty"; companion: string }
   | { type: "leaveParty"; companion: string }
   | { type: "damage"; target: "player" | "enemy"; amount: Expr; text?: string }
@@ -211,6 +216,8 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("takeItem"), item: IdSchema, count: z.number().int().positive().optional() }).strict(),
   /** target: "player" (default), "party" (companions, also revives the fallen) or "all". */
   z.object({ type: z.literal("heal"), amount: ExprSchema.optional(), target: z.enum(["player", "party", "all"]).optional() }).strict(),
+  /** Experience points (project.leveling). Levels up as many times as needed. */
+  z.object({ type: z.literal("gainExp"), amount: ExprSchema }).strict(),
   /** A companion joins / leaves the party (database › companions). */
   z.object({ type: z.literal("joinParty"), companion: IdSchema }).strict(),
   z.object({ type: z.literal("leaveParty"), companion: IdSchema }).strict(),
@@ -479,6 +486,23 @@ export const ProjectManifestSchema = z.object({
   verbs: z.record(IdSchema, VerbSchema).default({}),
   /** Equipment slots items can go in (item.slot). */
   equipmentSlots: z.record(IdSchema, z.object({ label: z.string().min(1) }).strict()).default({ weapon: { label: "武器" }, armor: { label: "防具" }, accessory: { label: "装飾品" } }),
+  /**
+   * Experience and levels (optional: without it there are no levels). Winning gives each enemy's `exp`.
+   * Needed to go from level L to L+1: expTable[L-1] if given, else round(base × growth^(L-1)).
+   */
+  leveling: z.object({
+    maxLevel: z.number().int().min(2).max(999).default(50),
+    base: z.number().positive().default(10),
+    growth: z.number().min(1).max(5).default(1.35),
+    /** Explicit amounts needed per level-up (index 0 = 1→2). Overrides base/growth where given. */
+    expTable: z.array(z.number().int().positive()).optional(),
+    /** Added to the base stats on every level-up (HP rises by the same amount). */
+    gains: z.object({ maxHp: z.number().int().min(0).default(4), attack: z.number().int().min(0).default(1), defense: z.number().int().min(0).default(1) }).strict().default({ maxHp: 4, attack: 1, defense: 1 }),
+    /** Abilities learned on reaching a level. */
+    learn: z.array(z.object({ level: z.number().int().min(2), ability: IdSchema, message: z.string().optional() }).strict()).default([]),
+    /** Restore all HP on level-up (default: only the HP gained). */
+    fullHeal: z.boolean().default(false),
+  }).strict().optional(),
   /** Self-made events. Rules listen with on "signal"; effects fire them with { "type": "signal" }. */
   signals: z.record(IdSchema, z.object({ description: z.string().optional() }).strict()).default({}),
   /** Effects run when a new game starts (e.g. race selection). */
@@ -498,6 +522,15 @@ export const ProjectManifestSchema = z.object({
   modules: z.record(IdSchema, z.record(z.string(), z.unknown())).default({}),
   /** Extra lines for the credits screen (staff, thanks). Asset credits are added automatically. */
   credits: z.array(z.string()).default([]),
+  /** Title screen of the built game (はじめから / つづきから). The studio's play view skips it. */
+  titleScreen: z.object({
+    enabled: z.boolean().default(true),
+    subtitle: z.string().optional(),
+    /** Background picture (background asset). */
+    background: IdSchema.optional(),
+  }).strict().default({ enabled: true }),
+  /** Save automatically to the "オート" slot when entering a map (field, nothing pending). */
+  autosave: z.boolean().default(true),
 }).strict();
 export type ProjectManifest = z.infer<typeof ProjectManifestSchema>;
 
@@ -792,6 +825,8 @@ export const ItemSchema = z.object({
   use: UseSchema.optional(),
   /** Passive bonus while carried — or, for items with a `slot`, only while equipped. */
   statMods: StatModsSchema.optional(),
+  /** Price in shops (shop.buy). Selling pays shop.sellRate of it. */
+  price: z.number().int().min(0).optional(),
   /** Equipment slot (project.json › equipmentSlots, e.g. weapon / armor / accessory). Its statMods and rules count only while equipped. */
   slot: IdSchema.optional(),
   rules: z.array(RuleSchema).default([]),
@@ -829,6 +864,8 @@ export const EnemySchema = z.object({
   /** Rules active during battles with this enemy. */
   rules: z.array(RuleSchema).default([]),
   canFlee: z.boolean().default(true),
+  /** Experience for defeating it (project.leveling). Missing = round((maxHp + 2×attack + 2×defense) / 3). */
+  exp: z.number().int().min(0).optional(),
   /** Code active while this enemy is in the battle (its `enemyTurn` can replace how it acts). */
   script: ScriptRefSchema.optional(),
 }).strict();
@@ -1028,6 +1065,9 @@ export const GameStateSchema = z.object({
     stats: StatsSchema,
     /** Set by setPlayer (transformation). Missing = project.player. */
     name: z.string().optional(),
+    /** project.leveling: current level (missing = 1) and experience gathered toward the next level. */
+    level: z.number().int().positive().optional(),
+    exp: z.number().int().nonnegative().optional(),
     sprite: z.string().optional(),
   }).strict(),
   /** Abilities learned directly (trait abilities are added on top while the trait is held). */

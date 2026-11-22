@@ -383,6 +383,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   checkPosition(P, "start", project.start.mapId, project.start.x, project.start.y, "開始位置");
   if (project.player.sprite && assetById.get(project.player.sprite)?.kind !== "character") err(P, "player.sprite", `キャラクター素材 '${project.player.sprite}' がassets.jsonにありません`);
   project.player.abilities.forEach((id, i) => { if (!abilityIds.has(id)) err(P, `player.abilities[${i}]`, `未定義の能力 '${id}'`); });
+  project.leveling?.learn.forEach((l, i) => { if (!abilityIds.has(l.ability)) err(P, `leveling.learn[${i}].ability`, `未定義の能力 '${l.ability}'`); });
+  if (project.leveling?.learn.some(l => l.level > project.leveling!.maxLevel)) warn(P, "leveling.learn", "maxLevel より上のレベルで覚える能力があります");
   project.player.traits.forEach((id, i) => { if (!traitIds.has(id)) err(P, `player.traits[${i}]`, `未定義の特性 '${id}'`); });
   Object.keys(project.player.items).forEach(id => { if (!itemIds.has(id)) err(P, `player.items.${id}`, `未定義のアイテム '${id}'`); });
   for (const [id, decl] of Object.entries(project.variables)) {

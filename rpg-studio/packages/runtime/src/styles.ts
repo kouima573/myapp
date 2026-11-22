@@ -75,6 +75,13 @@ export const RUNTIME_CSS = String.raw`
 .rpg-ending { position:absolute; left:10%; right:10%; top:14%; bottom:14%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.6em; padding:1.2em; text-align:center; animation:rpg-in .6s ease-out; }
 .rpg-ending-label { letter-spacing:.4em; color:var(--rpg-accent); font-size:.8em; }
 .rpg-ending-title { font-size:1.5em; letter-spacing:.1em; }
+.rpg-pop { position:absolute; left:50%; top:30%; z-index:6; pointer-events:none; font-size:1.6em; font-weight:700; color:#fff2c4; text-shadow:0 2px 0 #000, 0 0 6px rgba(0,0,0,.8); transform:translate(calc(-50% + var(--dx, 0px)), 0); animation:rpg-pop .9s ease-out forwards; }
+.rpg-pop.is-player { top:62%; left:22%; color:#ff9a8a; }
+@keyframes rpg-pop { 0% { opacity:0; transform:translate(calc(-50% + var(--dx, 0px)), .4em) scale(.8); } 15% { opacity:1; transform:translate(calc(-50% + var(--dx, 0px)), 0) scale(1.15); } 70% { opacity:1; } 100% { opacity:0; transform:translate(calc(-50% + var(--dx, 0px)), -1.4em) scale(1); } }
+.rpg-title { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.6em; border-radius:0; background:radial-gradient(ellipse at center, rgba(28,38,30,.92), rgba(8,11,9,.97)); background-size:cover; background-position:center; animation:rpg-in .3s ease-out; }
+.rpg-title-name { font-size:2.2em; letter-spacing:.12em; text-align:center; text-shadow:0 2px 0 rgba(0,0,0,.6); padding:0 .5em; }
+.rpg-title-sub { opacity:.8; letter-spacing:.08em; }
+.rpg-title-menu { margin-top:1.4em; display:flex; flex-direction:column; gap:.35em; min-width:min(70%, 14em); }
 .rpg-ending-text { white-space:pre-wrap; line-height:1.8; color:var(--rpg-dim); max-width:32em; }
 .rpg-ending-meta { font-size:.75em; color:var(--rpg-dim); }
 .rpg-credit-line { font-size:.8em; line-height:1.6; padding:.15em .5em; color:var(--rpg-ink); }

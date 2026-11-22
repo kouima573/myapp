@@ -49,6 +49,8 @@ export async function newProject(id: string, title: string, root = path.join(REP
       engineCompatibility: { min: "0.7.0" },
       start: { mapId: "start", x: 7, y: 6, facing: "down" },
       player: { name: preset.playerName, sprite: "adventurer", stats: preset.stats, abilities: [], items: {}, traits: [] },
+      // Levels from the start (remove "leveling" for a game without experience).
+      leveling: { maxLevel: 30, base: 8, growth: 1.3, gains: { maxHp: 4, attack: 1, defense: 1 } },
       flags: {}, variables: {}, sets: {}, endings: {},
       verbs: {}, signals: {},
       intro: [{ type: "message", text: preset.intro(title) }],

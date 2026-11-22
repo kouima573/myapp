@@ -491,6 +491,98 @@
         "additionalProperties": false
       }
     },
+    "leveling": {
+      "type": "object",
+      "properties": {
+        "maxLevel": {
+          "default": 50,
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 999
+        },
+        "base": {
+          "default": 10,
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "growth": {
+          "default": 1.35,
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "expTable": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "gains": {
+          "default": {
+            "maxHp": 4,
+            "attack": 1,
+            "defense": 1
+          },
+          "type": "object",
+          "properties": {
+            "maxHp": {
+              "default": 4,
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "attack": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "defense": {
+              "default": 1,
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "additionalProperties": false
+        },
+        "learn": {
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "integer",
+                "minimum": 2,
+                "maximum": 9007199254740991
+              },
+              "ability": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 96,
+                "pattern": "^[a-z0-9][a-z0-9._-]*$"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "level",
+              "ability"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "fullHeal": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
     "signals": {
       "default": {},
       "type": "object",
@@ -960,6 +1052,32 @@
       "items": {
         "type": "string"
       }
+    },
+    "titleScreen": {
+      "default": {
+        "enabled": true
+      },
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "type": "boolean"
+        },
+        "subtitle": {
+          "type": "string"
+        },
+        "background": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96,
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "autosave": {
+      "default": true,
+      "type": "boolean"
     }
   },
   "required": [
@@ -1053,6 +1171,32 @@
           },
           "required": [
             "steps"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "exp": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "exp"
           ],
           "additionalProperties": false
         },
@@ -2074,6 +2218,23 @@
           },
           "required": [
             "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "gainExp"
+            },
+            "amount": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "type",
+            "amount"
           ],
           "additionalProperties": false
         },

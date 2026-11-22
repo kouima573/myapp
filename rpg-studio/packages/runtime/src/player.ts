@@ -29,6 +29,8 @@ export interface MountOptions {
   seed?: number;
   /** Load cross-cycle memories (meta) from storage on start. Default true. */
   useMeta?: boolean;
+  /** Show the title screen first (built games). The studio skips it. */
+  titleScreen?: boolean;
 }
 
 export interface GameHandle {
@@ -79,6 +81,15 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   const engine = createEngine(content, options.systems ?? []);
   const storage = options.storage ?? browserStorage();
   const saveKey = `rpg-save:${content.project.id}`;
+  /** Slots: "auto" (written on map changes) and 1–3. Slot 1 also reads the single save of older versions. */
+  const SLOTS = ["auto", "1", "2", "3"] as const;
+  type Slot = (typeof SLOTS)[number];
+  const slotKey = (slot: Slot) => `${saveKey}:${slot}`;
+  const readSlot = (slot: Slot) => { try { return storage.read(slotKey(slot)) ?? (slot === "1" ? storage.read(saveKey) : null); } catch { return null; } };
+  const slotLabel = (slot: Slot) => (slot === "auto" ? "オート" : `スロット${slot}`);
+  /** "main" menu, the title screen, or the save / load slot lists. */
+  let menuView: "main" | "title" | "save" | "load" = "main";
+  let slotReturn: "main" | "title" = "main";
   const settingsKey = `rpg-settings:${content.project.id}`;
   const readRawSettings = () => { try { return JSON.parse(storage.read(settingsKey) ?? "{}") as Record<string, unknown>; } catch { return {}; } };
   const rawSet = readRawSettings();
@@ -126,6 +137,12 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   let talkFacing: Record<string, Direction> = {};
   let selection = 0;
   let menuOpen = false;
+  /** Damage numbers shown over the battle (070). */
+  const POPUP_MS = 900;
+  let popups: Array<{ text: string; target: "enemy" | "player"; at: number; n: number }> = [];
+  /** True while the title screen (and its load / credits views) is shown: they stay on top of the opening scene. */
+  let atTitle = false;
+  if (options.titleScreen && content.project.titleScreen.enabled && !options.initialState) { menuOpen = true; menuView = "title"; atTitle = true; }
   let toast: { text: string; until: number } | null = null;
   let typing = { text: "", startedAt: 0, done: true };
   let fadeUntil = 0;
@@ -203,7 +220,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       if (cue.kind === "moved") { animator.enqueue({ x: state.player.x, y: state.player.y }); }
       else if (cue.kind === "bump") audio.cue("bump");
       else if (cue.kind === "battleStart") { audio.cue("encounter"); fadeUntil = performance.now() + 260; }
-      else if (cue.kind === "hit") { audio.cue(cue.target === "enemy" ? "hit" : "hurt"); if (cue.target === "player" && uiPrefs.shake) shakeUntil = performance.now() + 220; }
+      else if (cue.kind === "hit") { popups.push({ text: String(cue.amount), target: cue.target, at: performance.now(), n: popups.length }); audio.cue(cue.target === "enemy" ? "hit" : "hurt"); if (cue.target === "player" && uiPrefs.shake) shakeUntil = performance.now() + 220; }
       else if (cue.kind === "battleEnd") {
         if (cue.outcome === "victory") { const v = content.project.audio.victory; if (v) audio.playSound(v); else audio.cue("victory"); }
         else if (cue.outcome === "defeat") audio.cue("defeat");
@@ -211,7 +228,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       else if (cue.kind === "sfx") audio.playSound(cue.sound);
       else if (cue.kind === "item") audio.cue("item");
       else if (cue.kind === "heal") audio.cue("heal");
-      else if (cue.kind === "mapChanged") audio.cue("door");
+      else if (cue.kind === "levelUp") audio.cue("victory");
+      else if (cue.kind === "mapChanged") { audio.cue("door"); autoSaveSoon = true; }
     }
     if (state.mapId !== before.mapId || result.cues.some(c => c.kind === "mapChanged") || Math.abs(state.player.x - before.player.x) + Math.abs(state.player.y - before.player.y) > 1) {
       animator.reset({ x: state.player.x, y: state.player.y });
@@ -230,6 +248,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (result.log.length) options.onLog?.(result.log, state);
     if (state !== before) options.onStateChange?.(state);
     renderUI();
+    if (autoSaveSoon) autoSave();
   }
 
   /* ------------------------------------------------------------ input */
@@ -286,12 +305,14 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (state.scene.kind === "field" && !animator.update(performance.now()).moving) dispatch({ type: "interact" });
   }
   function cancel() {
+    if (menuOpen && menuView === "title") return;
+    if (menuOpen && (menuView === "save" || menuView === "load")) { menuView = slotReturn; selection = 0; renderUI(); return; }
     if (state.scene.kind === "custom") { audio.cue("cancel"); dispatch({ type: "sceneInput", input: { type: "cancel" } }); return; }
     if (creditsOpen) { creditsOpen = false; selection = 0; renderUI(); return; }
     if (backlogOpen) { backlogOpen = false; selection = 0; renderUI(); return; }
     if (state.scene.kind === "battle" && battlePicker) { battlePicker = null; selection = 0; renderUI(); return; }
     if (state.scene.kind !== "field") return;
-    menuOpen = !menuOpen; selection = 0; held.length = 0; equipFor = null;
+    menuOpen = !menuOpen; menuView = "main"; selection = 0; held.length = 0; equipFor = null;
     audio.cue(menuOpen ? "menu" : "cancel");
     renderUI();
   }
@@ -477,7 +498,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       left.append(vars);
     }
     const hp = el("div", "rpg-hud-hp");
-    hp.append(el("span", "rpg-hud-label", `${heroName()}  HP ${state.player.hp}/${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
+    const lvInfo = engine.levelInfo(state);
+    hp.append(el("span", "rpg-hud-label", `${heroName()}${lvInfo ? `  Lv${lvInfo.level}` : ""}  HP ${state.player.hp}/${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
     const extra = (() => { try { return engine.hudLines(state); } catch { return []; } })();
     if (extra.length) { const box = el("div", "rpg-hud-vars"); for (const line of extra) box.appendChild(el("span", undefined, line)); left.append(box); }
     if (state.carrying) {
@@ -501,7 +523,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     root.dataset.scene = menuOpen ? "menu" : state.scene.kind;
 
     const scene = state.scene;
-    if (scene.kind === "message") messageWindow(scene.speaker, scene.text);
+    if (menuOpen && atTitle) { hud.hidden = true; typing = { ...typing, done: true }; renderMenu(); }
+    else if (scene.kind === "message") messageWindow(scene.speaker, scene.text);
     else if (scene.kind === "dialogue") {
       const dialogue = content.dialogues[scene.dialogueId]!;
       messageWindow(dialogue.speaker, engine.dialogueLines(state, dialogue.id)[scene.line] ?? "");
@@ -596,7 +619,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     portraitCanvases = foes.map(() => { const c = el("canvas", foes.length > 1 ? "rpg-portrait is-group" : "rpg-portrait"); c.width = 128; c.height = 128; portraits.appendChild(c); return c; });
     stage.append(enemyInfo, portraits);
     const status = el("div", "rpg-window rpg-battle-status");
-    status.append(el("div", "rpg-speaker", `${heroName()}`), el("div", "rpg-battle-hp", `HP ${state.player.hp} / ${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
+    status.append(el("div", "rpg-speaker", `${heroName()}${engine.levelInfo(state) ? `  Lv${engine.levelInfo(state)!.level}` : ""}`), el("div", "rpg-battle-hp", `HP ${state.player.hp} / ${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
     for (const member of state.party ?? []) {
       const comp = content.database.companions.find(x => x.id === member.id);
       if (comp) status.append(el("div", "rpg-battle-var", `${comp.name} HP ${member.hp}/${engine.companionStats(state, comp.id).maxHp}${member.hp <= 0 ? "（倒れている）" : battle.orders?.[comp.id] !== undefined ? `（${comp.actions[battle.orders[comp.id]!]?.name}）` : ""}`));
@@ -653,6 +676,17 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const bottom = el("div", "rpg-battle-bottom");
     bottom.append(status, log, commands);
     panel.append(stage, bottom);
+    // Damage numbers that rise and fade (kept running across re-renders with a negative animation delay).
+    const now = performance.now();
+    popups = popups.filter(p => now - p.at < POPUP_MS);
+    popups.forEach((p, i) => {
+      const pop = el("div", `rpg-pop is-${p.target}`, p.text);
+      pop.style.animationDelay = `${-(now - p.at)}ms`;
+      pop.style.setProperty("--dx", `${((p.n * 37) % 5 - 2) * 1.2}em`);
+      if (i > 6) return;
+      panel.appendChild(pop);
+    });
+    if (popups.length) window.setTimeout(() => { if (!destroyed && state.scene.kind === "battle" && popups.some(p => performance.now() - p.at >= POPUP_MS)) renderUI(); }, POPUP_MS);
     windowLayer.appendChild(panel);
   }
 
@@ -694,14 +728,61 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     windowLayer.appendChild(panel);
   }
 
+  function slotSummary(slot: Slot): string | null {
+    const raw = readSlot(slot);
+    if (!raw) return null;
+    try {
+      const save = JSON.parse(raw) as { savedAt?: string; state?: GameState };
+      const st = save.state;
+      const when = save.savedAt ? new Date(save.savedAt).toLocaleString("ja-JP", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+      return `${st ? (content.maps[st.mapId]?.title ?? st.mapId) : "?"}${st?.player.level ? `　Lv${st.player.level}` : ""}　${st?.steps ?? 0}歩　${when}`;
+    } catch { return "（読めないデータ）"; }
+  }
+  function renderSlots(mode: "save" | "load") {
+    const panel = el("div", "rpg-window rpg-menu rpg-slots");
+    panel.appendChild(el("div", "rpg-menu-title", mode === "save" ? "どこにセーブする？" : "どれをロードする？"));
+    for (const slot of SLOTS) {
+      if (mode === "save" && slot === "auto") continue;
+      const summary = slotSummary(slot);
+      panel.appendChild(navButton(slotLabel(slot), () => (mode === "save" ? save(slot) : load(slot)), { hint: summary ?? "（空き）", disabled: mode === "load" && !summary }));
+    }
+    const row = el("div", "rpg-menu-row");
+    if (mode === "load") row.appendChild(navButton("ファイルから読み込む", () => importSave()));
+    if (mode === "save") row.appendChild(navButton("いまの状態をファイルに書き出す", () => exportSave()));
+    row.appendChild(navButton("もどる", () => { menuView = slotReturn; selection = 0; renderUI(); }));
+    panel.appendChild(row);
+    panel.appendChild(el("div", "rpg-menu-empty", "セーブはこのブラウザに保存されます。消える前に「ファイルに書き出す」で残せます。"));
+    windowLayer.appendChild(panel);
+  }
+  function renderTitle() {
+    const box = el("div", "rpg-window rpg-title");
+    const bgId = content.project.titleScreen.background;
+    const bg = bgId ? content.assets.assets.find(a => a.id === bgId) : undefined;
+    if (bg) void Promise.resolve(options.resolveAsset(bg)).then(url => { box.style.backgroundImage = `linear-gradient(rgba(10,14,11,.35), rgba(10,14,11,.75)), url("${url}")`; });
+    box.append(el("div", "rpg-title-name", content.project.title));
+    if (content.project.titleScreen.subtitle) box.append(el("div", "rpg-title-sub", content.project.titleScreen.subtitle));
+    const list = el("div", "rpg-title-menu");
+    const hasSave = SLOTS.some(slot => readSlot(slot));
+    list.append(
+      navButton("はじめから", () => { atTitle = false; menuOpen = false; menuView = "main"; selection = 0; renderUI(); }),
+      navButton("つづきから", () => { slotReturn = "title"; menuView = "load"; selection = 0; renderUI(); }, { disabled: !hasSave }),
+      navButton("クレジット", () => { creditsOpen = true; selection = 0; renderUI(); }),
+    );
+    box.append(list);
+    windowLayer.appendChild(box);
+  }
+
   function renderMenu() {
     if (creditsOpen) { renderCredits(); return; }
+    if (menuView === "title") { renderTitle(); return; }
+    if (menuView === "save" || menuView === "load") { renderSlots(menuView); return; }
     if (backlogOpen) { renderBacklog(); return; }
     const menu = el("div", "rpg-window rpg-menu");
     menu.appendChild(el("div", "rpg-menu-title", "メニュー"));
     const stats = el("div", "rpg-menu-stats");
     const s = engine.stats(state);
-    stats.textContent = `${heroName()}　HP ${state.player.hp}/${s.maxHp}　攻撃 ${s.attack}　防御 ${s.defense}`;
+    const lv = engine.levelInfo(state);
+    stats.textContent = `${heroName()}${lv ? `　Lv${lv.level}` : ""}　HP ${state.player.hp}/${s.maxHp}　攻撃 ${s.attack}　防御 ${s.defense}${lv ? `　経験値 ${lv.exp}${lv.next === null ? "（最大）" : `／次まで ${lv.next - lv.exp}`}` : ""}`;
     menu.appendChild(stats);
     const section = (title: string) => menu.appendChild(el("div", "rpg-menu-section", title));
     const labeled = Object.entries(content.project.variables).filter(([, decl]) => decl.label);
@@ -794,8 +875,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     section("きろく");
     const row = el("div", "rpg-menu-row");
     row.append(
-      navButton("セーブ", () => save()),
-      navButton("ロード", () => load()),
+      navButton("セーブ", () => { slotReturn = "main"; menuView = "save"; selection = 0; renderUI(); }),
+      navButton("ロード", () => { slotReturn = "main"; menuView = "load"; selection = 0; renderUI(); }),
       navButton(`BGM: ${!audio.settings.bgm ? "オフ" : `${Math.round((audio.settings.bgmVolume ?? 1) * 100)}%`}`, () => {
         const cur = !audio.settings.bgm ? 0 : Math.round((audio.settings.bgmVolume ?? 1) * 100);
         const steps = [100, 80, 60, 40, 20, 0];
@@ -828,22 +909,56 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     window.setTimeout(() => { if (!destroyed && toast && toast.until <= performance.now()) { toast = null; renderUI(); } }, ms + 30);
   }
 
-  function save() {
+  function save(slot: Slot = "1") {
     try {
-      storage.write(saveKey, JSON.stringify(makeSave(content, state)));
-      showToast("セーブしました。");
+      storage.write(slotKey(slot), JSON.stringify(makeSave(content, state)));
+      menuView = "main";
+      showToast(`${slotLabel(slot)}にセーブしました。`);
     } catch (error) { showToast(`セーブできません: ${error instanceof Error ? error.message : String(error)}`); }
   }
-  function load() {
-    const raw = storage.read(saveKey);
+  /** Written when entering a map, once nothing is pending (no toast: it should go unnoticed). */
+  let autoSaveSoon = false;
+  function autoSave() {
+    if (!content.project.autosave) { autoSaveSoon = false; return; }
+    if (state.scene.kind !== "field" || state.queue.length) return; // try again once the scene settles
+    autoSaveSoon = false;
+    try { storage.write(slotKey("auto"), JSON.stringify(makeSave(content, state))); } catch { /* autosave is best effort */ }
+  }
+  function exportSave() {
+    try {
+      const text = JSON.stringify(makeSave(content, state), null, 2);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+      a.download = `${content.project.id}-save-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      window.setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      showToast("セーブをファイルに書き出しました。");
+    } catch (error) { showToast(`書き出せません: ${error instanceof Error ? error.message : String(error)}`); }
+  }
+  function importSave() {
+    const input = document.createElement("input");
+    input.type = "file"; input.accept = ".json,application/json";
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      if (file.size > 2_000_000) { showToast("ファイルが大きすぎます。"); return; }
+      loadRaw(await file.text(), "ファイル");
+    });
+    input.click();
+  }
+  function load(slot: Slot = "1") {
+    const raw = readSlot(slot);
     if (!raw) { showToast("セーブデータがありません。"); return; }
+    loadRaw(raw, slotLabel(slot));
+  }
+  function loadRaw(raw: string, from: string) {
     let parsed: unknown;
     try { parsed = JSON.parse(raw); } catch { showToast("セーブデータが壊れています。新しく始めることができます。"); return; }
     const result = readSave(parsed, content);
     if (!result.ok) { showToast(`${result.reason}。新しく始めることができます。`, 4000); return; }
-    menuOpen = false;
+    menuOpen = false; menuView = "main"; atTitle = false;
     setState(result.save.state);
-    showToast(result.migrated ? "旧形式のセーブを変換して読み込みました。" : "ロードしました。");
+    showToast(result.migrated ? "旧形式のセーブを変換して読み込みました。" : `${from}からロードしました。`);
   }
 
   function setState(next: GameState) {

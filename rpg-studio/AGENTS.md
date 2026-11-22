@@ -10,7 +10,7 @@
 1. `docs/project-format.md` — データ形式v2（条件・効果・マップ・会話・イベント・戦闘・セーブ）
 2. `docs/customization-guide.md` — 種族・効果・仕組みをデータで作るレシピ集（フラグ・変数・特性・ルール・式）
    `docs/genre-atlas.md`（`pnpm rpg genres --query <言葉>`）— 111ジャンルそれぞれをこの工房でどう作るか
-   `docs/genre-modules.md` — ノベル・アクション・格闘・タクティクス・防衛・落ちもの・リズム・脱出・推理・3Dダンジョン・工場など25種の他ジャンルの遊びをRPGに組み込むモジュール（作れるのはRPGのみ）
+   `docs/genre-modules.md` — ノベル・アクション・格闘・タクティクス・防衛・落ちもの・リズム・脱出・推理・3Dダンジョン・工場など26種の他ジャンルの遊びをRPGに組み込むモジュール（作れるのはRPGのみ）
    `docs/innovation-guide.md` — 新しい遊びを発明するための部品（エンティティ・領域・集合・周回・独自画面・描画レイヤー）と発想集
 3. `docs/scripting.md` — データで書けない処理を、技・アイテム・特性・敵・仲間・マップ・エンティティに付けるスクリプト（`scripts/*.ts` の `defineScript`）。`docs/extension-api.md` — プロジェクト全体に効くシステム（`defineSystem`）
 4. `docs/scenario-tests.md` — 自動プレイテスト

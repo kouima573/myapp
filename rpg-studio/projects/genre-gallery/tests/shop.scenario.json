@@ -1,0 +1,32 @@
+{
+  "name": "お店と宿屋（shop モジュール）: 買う・装備・売る・泊まる",
+  "seed": 5,
+  "steps": [
+    { "advance": "all" },
+    { "effects": [{ "type": "teleport", "mapId": "garden", "x": 7, "y": 8, "facing": "right" }] },
+    { "interact": true },
+    { "advance": "all" },
+    { "choose": "shop" },
+    { "expect": { "scene": "custom" } },
+    { "sceneInput": { "custom": { "item": "iron-sword" } } },
+    { "sceneInput": { "custom": { "item": "garden-herb" } } },
+    { "expect": { "items": { "iron-sword": 1, "garden-herb": 1 }, "vars": { "gold": 52 } } },
+    { "sceneInput": { "custom": { "item": "iron-sword" } } },
+    { "expect": { "vars": { "gold": 52 }, "items": { "iron-sword": 1 } } },
+    { "sceneInput": { "custom": { "mode": "sell" } } },
+    { "sceneInput": { "custom": { "item": "garden-herb" } } },
+    { "expect": { "vars": { "gold": 56 }, "items": { "garden-herb": 0 } } },
+    { "sceneInput": { "custom": { "leave": true } } },
+    { "advance": "all" },
+    { "equip": "iron-sword" },
+    { "expect": { "equipped": { "weapon": "iron-sword" } } },
+    { "effects": [{ "type": "teleport", "mapId": "garden", "x": 24, "y": 18, "facing": "right" }] },
+    { "interact": true },
+    { "advance": "all" },
+    { "choose": "inn" },
+    { "sceneInput": "confirm" },
+    { "expect": { "vars": { "gold": 51 }, "textIncludes": "元気になった" } },
+    { "advance": "all" },
+    { "expect": { "scene": "field" } }
+  ]
+}

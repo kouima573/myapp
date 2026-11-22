@@ -253,6 +253,37 @@ describe("attached scripts", () => {
   });
 });
 
+describe("leveling (project.leveling)", () => {
+  it("winning gives experience, levels up stats / HP and teaches abilities; gainExp works in the field", () => {
+    const ability = content.database.abilities[0]!.id;
+    const leveled: GameContent = { ...content, project: { ...content.project, leveling: { maxLevel: 5, base: 3, growth: 1, gains: { maxHp: 5, attack: 2, defense: 1 }, learn: [{ level: 3, ability }], fullHeal: false } } };
+    const eng = createEngine(leveled, systems);
+    let state = eng.newGame(1);
+    while (state.scene.kind === "message") state = eng.step(state, { type: "advance" }).state;
+    state = eng.step(state, { type: "choose", choiceId: "human" }).state;
+    while (state.scene.kind !== "field") state = eng.step(state, { type: "advance" }).state;
+    state = { ...state, abilities: state.abilities.filter(a => a !== ability) };
+    const before = state.player.stats;
+    // 7 exp with 3 per level: 1→2 (3), 2→3 (3), 1 left over.
+    state = eng.run(state, [{ type: "gainExp", amount: 7 }]).state;
+    expect(state.player.level).toBe(3);
+    expect(state.player.exp).toBe(1);
+    expect(state.player.stats).toEqual({ maxHp: before.maxHp + 10, attack: before.attack + 4, defense: before.defense + 2 });
+    expect(state.abilities).toContain(ability);
+    expect(eng.levelInfo(state)).toEqual({ level: 3, exp: 1, next: 3 });
+    // Battles give each enemy's exp (or the formula) on victory.
+    const enemy = leveled.database.enemies[0]!;
+    expect(state.scene.kind).toBe("message"); // "…の経験値を手に入れた。" / "レベル…に上がった！" / "…を覚えた！"
+    while (state.scene.kind === "message") state = eng.step(state, { type: "advance" }).state;
+    state = eng.run(state, [{ type: "battle", enemy: enemy.id }]).state;
+    if (state.scene.kind !== "battle") throw new Error(`battle expected, got ${state.scene.kind}`);
+    state = { ...state, scene: { ...state.scene, battle: { ...state.scene.battle, enemyHp: 1 } } };
+    for (let i = 0; i < 10 && state.scene.kind === "battle" && (state.scene.battle.outcome === "ongoing"); i++) state = eng.step(state, { type: "battle", command: "attack" }).state;
+    expect(state.scene.kind === "battle" && state.scene.battle.log.some(l => l.includes("経験値"))).toBe(true);
+    expect((state.player.level ?? 1) >= 3).toBe(true);
+  });
+});
+
 describe("sample scenarios", () => {
   it("all tests/*.scenario.json pass", async () => {
     const results = await runProjectScenarios(root, content, systems);

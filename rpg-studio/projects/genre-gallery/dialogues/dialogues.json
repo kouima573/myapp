@@ -28,7 +28,46 @@
       "id": "garden-merchant",
       "speaker": "商人",
       "lines": [
-        "キャラは50人以上、敵は50体以上。取り込みは pnpm rpg library add <id> --project <dir> だよ。"
+        "いらっしゃい！ 薬草も武具もあるよ。",
+        "（素材の話なら: キャラは50人以上、敵は50体以上。pnpm rpg library add <id> で取り込めるよ）"
+      ],
+      "choices": [
+        {
+          "id": "shop",
+          "label": "買い物をする",
+          "effects": [
+            {
+              "type": "startScene",
+              "system": "shop",
+              "scene": "buy",
+              "args": {
+                "title": "庭の道具屋",
+                "items": [
+                  {
+                    "item": "garden-herb"
+                  },
+                  {
+                    "item": "iron-sword"
+                  },
+                  {
+                    "item": "leather-cap"
+                  },
+                  {
+                    "item": "squire-blade",
+                    "price": 40
+                  }
+                ]
+              }
+            }
+          ],
+          "once": false
+        },
+        {
+          "id": "bye",
+          "label": "またね",
+          "effects": [],
+          "once": false
+        }
       ]
     },
     {
@@ -49,7 +88,33 @@
       "id": "garden-dwarf",
       "speaker": "ドワーフ",
       "lines": [
-        "あの遺跡の結晶、掘りたいんだがな。魔法陣が光っていて近寄れん。"
+        "あの遺跡の結晶、掘りたいんだがな。魔法陣が光っていて近寄れん。",
+        "疲れたならうちで休んでいけ。安くしとくぞ。"
+      ],
+      "choices": [
+        {
+          "id": "inn",
+          "label": "休ませてもらう",
+          "effects": [
+            {
+              "type": "startScene",
+              "system": "shop",
+              "scene": "inn",
+              "args": {
+                "title": "ドワーフの小屋",
+                "price": 5,
+                "greeting": "ひと晩5ゴールドだ。"
+              }
+            }
+          ],
+          "once": false
+        },
+        {
+          "id": "no",
+          "label": "いまはいい",
+          "effects": [],
+          "once": false
+        }
       ]
     },
     {

@@ -99,6 +99,8 @@ export function evalExpr(expr: Expr, state: GameState, env: EvalEnv = {}, depth 
   if ("stat" in expr) return env.baseStats ? state.player.stats[expr.stat] : effectiveStats(state, env.content)[expr.stat];
   if ("hp" in expr) return state.player.hp;
   if ("steps" in expr) return state.steps;
+  if ("level" in expr) return state.player.level ?? 1;
+  if ("exp" in expr) return state.player.exp ?? 0;
   if ("ctx" in expr) return ctxValue(expr.ctx, state, env);
   if ("add" in expr) return expr.add.reduce<number>((sum, x) => sum + e(x), 0);
   if ("sub" in expr) return e(expr.sub[0]) - e(expr.sub[1]);

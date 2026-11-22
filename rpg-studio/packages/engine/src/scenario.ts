@@ -24,6 +24,8 @@ const ExpectSchema = z.object({
   done: z.array(z.string()).optional(),
   notDone: z.array(z.string()).optional(),
   hpAtLeast: z.number().int().optional(),
+  /** project.leveling: the hero's level. */
+  level: z.number().int().positive().optional(),
   vars: z.record(z.string(), z.number().int()).optional(),
   traits: z.array(IdSchema).optional(),
   lacksTraits: z.array(IdSchema).optional(),
@@ -214,6 +216,7 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
     for (const id of expect.regions ?? []) if (!engine.regions(state).includes(id)) fail(`領域 ${id} の中にいません`);
     const eff = engine.stats(state);
     for (const [key, value] of Object.entries(expect.stats ?? {})) if (eff[key as "attack"] !== value) fail(`stats.${key}: 期待 ${value} / 実際 ${eff[key as "attack"]}`);
+    if (expect.level !== undefined && (state.player.level ?? 1) !== expect.level) fail(`レベル: ${expect.level} を期待 / 実際 ${state.player.level ?? 1}`);
     if (expect.hpAtLeast !== undefined && state.player.hp < expect.hpAtLeast) fail(`HP: ${expect.hpAtLeast}以上を期待 / 実際 ${state.player.hp}`);
     for (const cell of expect.passable ?? []) if (engine.isPassable(state, cell.x, cell.y) !== cell.is) fail(`(${cell.x}, ${cell.y}) の通行可否: 期待 ${cell.is}`);
     if (expect.battleOutcome && (state.scene.kind !== "battle" || state.scene.battle.outcome !== expect.battleOutcome)) fail(`戦闘結果: 期待 ${expect.battleOutcome}`);

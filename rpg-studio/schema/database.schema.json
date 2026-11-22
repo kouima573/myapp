@@ -545,6 +545,11 @@
             },
             "additionalProperties": false
           },
+          "price": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
           "slot": {
             "type": "string",
             "minLength": 1,
@@ -936,6 +941,11 @@
             "default": true,
             "type": "boolean"
           },
+          "exp": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
           "script": {
             "anyOf": [
               {
@@ -1200,6 +1210,32 @@
           },
           "required": [
             "steps"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "exp": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "exp"
           ],
           "additionalProperties": false
         },
@@ -2221,6 +2257,23 @@
           },
           "required": [
             "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "gainExp"
+            },
+            "amount": {
+              "$ref": "#/$defs/__schema0"
+            }
+          },
+          "required": [
+            "type",
+            "amount"
           ],
           "additionalProperties": false
         },

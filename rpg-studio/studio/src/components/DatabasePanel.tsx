@@ -96,6 +96,7 @@ export default function DatabasePanel({ store, content }: Props) {
             <Field label="絵"><select value={e.sprite ?? ""} onChange={v => set(x => { if (v.target.value) x.sprite = v.target.value; else delete x.sprite; })}><option value="">（自動の絵）</option>{enemyArt.map(id => <option key={id}>{id}</option>)}</select></Field>
             <Field label="戦闘背景"><select value={e.background ?? ""} onChange={v => set(x => { if (v.target.value) x.background = v.target.value; else delete x.background; })}><option value="">（マップの背景）</option>{backgrounds.map(id => <option key={id}>{id}</option>)}</select></Field>
             <label className="field"><span className="field-label">逃げられる</span><input type="checkbox" checked={e.canFlee} onChange={v => set(x => { x.canFlee = v.target.checked; })} /></label>
+            <Field label="経験値（空欄＝自動）"><TextInput type="number" min={0} value={e.exp ?? ""} onCommit={v => set(x => { if (v === "") delete x.exp; else x.exp = num(v); })} /></Field>
             <Field label="タグ（空白区切り）"><TextInput value={e.tags.join(" ")} onCommit={v => set(x => { x.tags = v.split(/\s+/).filter(Boolean); })} /></Field>
           </div>
           <div className="field"><span className="field-label">行動（使える物を上から順に、くり返し）</span>

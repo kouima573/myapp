@@ -433,5 +433,10 @@
   "credits": [
     "企画・データ: RPGシステム工房 サンプル",
     "効果音・BGM: 内蔵ジェネレーターと楽譜BGMによるオリジナル"
-  ]
+  ],
+  "titleScreen": {
+    "enabled": true,
+    "subtitle": "苔むした村から始まる、小さな旅",
+    "background": "bg-ruins"
+  }
 }

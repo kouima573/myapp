@@ -678,6 +678,11 @@
                     "minimum": -9007199254740991,
                     "maximum": 9007199254740991
                   },
+                  "level": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991
+                  },
                   "vars": {
                     "type": "object",
                     "propertyNames": {
@@ -1193,6 +1198,23 @@
           },
           "required": [
             "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "gainExp"
+            },
+            "amount": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "type",
+            "amount"
           ],
           "additionalProperties": false
         },
@@ -2180,6 +2202,32 @@
           },
           "required": [
             "steps"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "level"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "exp": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "exp"
           ],
           "additionalProperties": false
         },

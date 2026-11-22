@@ -61,7 +61,7 @@ scenes: {
 - **ゲームパッド**: 標準配置のゲームパッドは自動で使える（十字キー/左スティック、A 決定・発射、B キャンセル、X focus、Start メニュー。2台目は2人用画面の2P）。
 - **2人用・クリック**: `realtime: { fps, players: 2 }` で held に2人目のボタン（`p2up`・`p2fire` など）が入る。キャンバスのクリックは `{ type: "custom", value: { click: { x, y, width, height } } }`。
 - **戦闘モード**: 敵の `"battle": { "mode": "id.scene", "args": {...} }` か戦闘効果の `mode` で、その画面が戦闘になる。`start` の `args.enemyId` に敵ID、`ctx.state.scene.battle` にRPG側の戦闘情報。決着は `outcome` で返す。
-- 組み込みのジャンルモジュール（25種）は `packages/modules/src/` にあり、そのまま見本になる。[genre-modules.md](genre-modules.md)
+- 組み込みのジャンルモジュール（26種）は `packages/modules/src/` にあり、そのまま見本になる。[genre-modules.md](genre-modules.md)
 - 自動プレイテストでは `{ "sceneInput": "up" }` や `{ "sceneInput": { "custom": ... } }`、`{ "sceneInputs": ["confirm", "down"], "repeat": 10 }`、リアルタイム画面は `{ "frames": 600, "hold": ["fire"] }` で操作できる。
 - `rpg test` は、データが参照している条件・関数・画面・アクションが実際に定義されているかも確認する。
 

@@ -26,7 +26,7 @@ RPGの土台（マップ・会話・能力値・アイテム・フラグ・周�
 `project.json` の `modules` に使うモジュールを書きます（書いていないモジュールを参照すると検証エラー）。
 
 ```json
-"modules": { "novel": {}, "puzzle": {}, "shooter": {}, "planner": {}, "cards": {}, "action": {}, "tactics": {}, "match3": {}, "rhythm": {}, "room": {}, "deduce": {}, "runner": {}, "quiz": {}, "fighter": {}, "defense": {}, "blocks": {}, "logic": {}, "physics": {}, "aim": {}, "dungeon3d": {}, "squad": {}, "table": {}, "composer": {}, "program": {}, "factory": {} }
+"modules": { "novel": {}, "puzzle": {}, "shooter": {}, "planner": {}, "cards": {}, "action": {}, "tactics": {}, "match3": {}, "rhythm": {}, "room": {}, "deduce": {}, "runner": {}, "quiz": {}, "fighter": {}, "defense": {}, "blocks": {}, "logic": {}, "physics": {}, "aim": {}, "dungeon3d": {}, "squad": {}, "table": {}, "composer": {}, "program": {}, "factory": {}, "shop": {} }
 ```
 
 使い方は2通りです。
@@ -232,6 +232,17 @@ RPGの土台（マップ・会話・能力値・アイテム・フラグ・周�
 
 - `realtime: { fps, players: 2 }` で2人用のキー割り当て（held に `p2left`・`p2fire` などが入る）。
 - 画面のクリックは `{ type: "custom", value: { click: { x, y, width, height } } }`（キャンバスのピクセル）で届く。照準・建設・部隊指示に使える。
+
+## shop — お店・宿屋（`shop.buy` / `shop.inn`、v1.5）
+
+RPGの定番。`buy` は買う・売る（`sell: false` で買うだけ）。値段は店の `items[].price` か、アイテムの `price`。売値は `sellRate`（既定0.5）倍。装備品は「攻撃+2（いまの装備と比べて）」のように差を表示し、装備中の最後の1個を売ると外れる。`inn` はお金を払って全員全回復。
+
+```json
+{ "type": "startScene", "system": "shop", "scene": "buy", "args": { "title": "道具屋", "currency": "gold", "items": [ { "item": "herb" }, { "item": "iron-sword", "price": 60 } ] } }
+{ "type": "startScene", "system": "shop", "scene": "inn", "args": { "price": 10, "greeting": "ひと晩10ゴールドです。" } }
+```
+
+自動テスト: `{ "sceneInput": { "custom": { "item": "herb" } } }`（買う／売る）、`{ "custom": { "mode": "sell" } }`、`{ "custom": { "leave": true } }`、宿屋は `"confirm"`。見本: `projects/genre-gallery/tests/shop.scenario.json`。
 
 ## 新しいジャンルモジュールを作る（AIに頼む）
 

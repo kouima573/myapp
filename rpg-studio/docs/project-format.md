@@ -157,3 +157,25 @@
 
 `abilities[]`・`items[]`・`traits[]`・`enemies[]`・`companions[]`・マップ・エンティティの状態に `"script": "名前"` または `"script": { "id": "名前", "args": {...} }` を書くと、`scripts/名前.ts` のコードが付け先の有効な間だけ動きます。効果 `{ "type": "script", "script": "名前", "call"?: "アクション", "args"?: {} }` でも呼べます。詳しくは [scripting.md](scripting.md)。
 
+## レベル・経験値（`project.json › leveling`）
+
+書くとレベル制になります（書かなければレベルはありません。`rpg new` で作ったプロジェクトは最初から有効）。
+
+```json
+"leveling": { "maxLevel": 30, "base": 8, "growth": 1.3, "gains": { "maxHp": 4, "attack": 1, "defense": 1 },
+              "learn": [ { "level": 3, "ability": "fire" } ], "fullHeal": false }
+```
+
+- 次のレベルまでの経験値: `expTable[レベル-1]`（書いた場合）、なければ `round(base × growth^(レベル-1))`。
+- 勝つと倒した敵の `exp` の合計が入る（敵に `exp` がなければ `round((最大HP + 2×攻撃 + 2×防御) / 3)`）。
+- 効果 `{ "type": "gainExp", "amount": 20 }`、式 `{ "level": true }` / `{ "exp": true }`、自動テストの `expect.level`。
+
+## タイトル画面とセーブ（`project.json › titleScreen` / `autosave`）
+
+- `"titleScreen": { "enabled": true, "subtitle": "…", "background": "背景素材ID" }` — 書き出したゲームは「はじめから／つづきから／クレジット」のタイトル画面で始まる（工房の試遊では出ない）。
+- セーブはスロット3つと「オート」（`"autosave": true` のとき、マップに入るたびに自動保存）。セーブはファイルに書き出し・読み込みもできる。
+
+## お店と宿屋（`shop` モジュール）
+
+アイテムに `"price"` を書き、`{ "type": "startScene", "system": "shop", "scene": "buy", "args": { "items": [ { "item": "herb" }, { "item": "iron-sword", "price": 60 } ], "currency": "gold" } }`。売るときは `sellRate`（既定0.5）倍。装備品は今の装備と比べた能力の差を表示。宿屋は `"scene": "inn", "args": { "price": 10 }`（全員全回復）。`project.json › modules` に `"shop": {}` が必要。
+
