@@ -143,6 +143,8 @@
 
 - `project.json` › `audio`: `battle`（戦闘BGM）、`victory`（勝利の音）、`sfx`（場面ごとの効果音: cursor / confirm / cancel / bump / hit / hurt / heal / encounter / victory / defeat / door / item / save / menu）、`volume`。
 - マップの `bgm`、敵の `bgm`、効果 `playBgm`（`null` で無音、セーブに残る）・`playSfx`。
+- **環境音**（川・風・雨など、BGMと重ねて流れる2本目のループ）: マップの `ambient`、効果 `playAmbient`（`null` で止める。セーブに残り、未設定ならマップの `ambient`）。戦闘中は止まる。
+- **ループ位置**: 素材の `loopStart` / `loopEnd`（秒）。イントロを1回だけ流し、`loopStart`〜`loopEnd` を繰り返す（BGM・環境音とも）。
 - 素材の種類 `bgm`・`sfx`（OGG/MP3/WAV）と `song`（楽譜BGM `.song.json`。書式は [asset-guide.md](asset-guide.md)）。
 
 ## 素材の出どころ（assets.json）
@@ -208,3 +210,8 @@
 - **顔グラフィックと表情**: 会話に `"portrait": "素材ID"`（portrait か character の素材。コマ＝表情）、行ごとに `{ "text": "…", "face": 2 }`。メッセージ効果にも `"portrait"` と `"face"`。
 - **移動ルート** `{ "type": "moveRoute", "target": "player" | エンティティのID, "steps": ["up", "up", "left", "face:down", "wait"], "wait": true, "through": false }` — 1歩ずつ歩く。`wait: true` なら歩き終わるまで次の効果とプレイヤーの操作を止める（イベントの演出）。`through: true` で壁を通り抜ける。NPCは位置が決まっているので、動かしたい人物はエンティティで置く。自動テストでは `{ "routes": "finish" }` で最後まで進める。見本: `projects/genre-gallery/tests/cutscene.scenario.json`。
 
+
+## 配布版の読み込みとホーム画面（`rpg build`）
+
+- 起動時に画像と音をすべて先に読み込み、「読み込み中… N%」を表示してからタイトル画面へ。
+- `manifest.webmanifest`・`icon.svg`・`sw.js` を自動で書き出す。http(s) で公開すると、スマホの「ホーム画面に追加」でアプリのように起動でき、一度開けばオフラインでも遊べる。版（`version.json`）が変わると古いキャッシュは自動で入れ替わる。`file://` で開いたときや `?debug` のときは使わない。

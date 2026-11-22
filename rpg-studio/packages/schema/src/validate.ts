@@ -345,6 +345,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
           if (!systemIds.has(effect.system)) err(file, here, `'${effect.system}' は project.json の systems にも modules にもありません`); break;
         case "ending": if (!endingIds.has(effect.ending)) err(file, here, `未宣言のエンディング '${effect.ending}'（project.json の endings）`); break;
         case "playBgm": checkAudio(file, here, effect.music, MUSIC, "BGM"); break;
+        case "playAmbient": checkAudio(file, here, effect.sound, ["bgm", "sfx"], "環境音"); break;
         case "joinParty": case "leaveParty": if (!content.database.companions.some(x => x.id === effect.companion)) err(file, here, `未定義の仲間 '${effect.companion}'（database.json の companions）`); break;
         case "equip": { const it = content.database.items.find(i => i.id === effect.item); if (!it) err(file, here, `未定義のアイテム '${effect.item}'`); else if (!it.slot) err(file, here, `'${effect.item}' は装備品ではありません（slot がない）`); if (effect.companion && !content.database.companions.some(x => x.id === effect.companion)) err(file, here, `未定義の仲間 '${effect.companion}'`); break; }
         case "unequip": if (effect.companion && !content.database.companions.some(x => x.id === effect.companion)) err(file, here, `未定義の仲間 '${effect.companion}'`); if (!content.project.equipmentSlots[effect.slot]) err(file, here, `未定義の装備枠 '${effect.slot}'（project.json の equipmentSlots）`); break;
@@ -432,6 +433,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   for (const [cue, id] of Object.entries(project.audio.sfx)) checkAudio(P, `audio.sfx.${cue}`, id, SOUND, "効果音");
   for (const map of Object.values(maps)) {
     checkAudio(mapFile(map.id), "bgm", map.bgm, MUSIC, "BGM");
+    checkAudio(mapFile(map.id), "ambient", map.ambient, ["bgm", "sfx"], "環境音");
     checkAudio(mapFile(map.id), "battleBackground", map.battleBackground, ["background"], "戦闘背景");
   }
   for (const enemy of database.enemies) checkAudio(DB, `enemies[${enemy.id}].background`, enemy.background, ["background"], "戦闘背景");

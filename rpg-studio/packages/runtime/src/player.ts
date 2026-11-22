@@ -741,6 +741,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   /** Which BGM should play now: enemy / battle music, a playBgm override, or the map's. */
   function syncMusic() {
     const scene = state.scene;
+    audio.setAmbient(scene.kind === "battle" ? null : state.ambient !== undefined ? state.ambient : content.maps[state.mapId]?.ambient ?? null);
     if (scene.kind === "battle" && scene.battle.outcome === "ongoing") {
       const enemy = content.database.enemies.find(e => e.id === scene.battle.enemyId);
       const battleMusic = enemy?.bgm ?? content.project.audio.battle;

@@ -115,6 +115,15 @@ describe("rules", () => {
     expect(state.vars.loot).toBe(3); // repeat fired each time gold returned to 0
   });
 
+  it("playAmbient sets and clears the ambient loop (null = stop, unset = the map's own)", () => {
+    let state = start("dwarf");
+    expect(state.ambient).toBeUndefined();
+    state = engine.run(state, [{ type: "playAmbient", sound: "sfx-cursor" }]).state;
+    expect(state.ambient).toBe("sfx-cursor");
+    state = engine.run(state, [{ type: "playAmbient", sound: null }]).state;
+    expect(state.ambient).toBeNull();
+  });
+
   it("the sample's veteran rule raises attack after 3 victories, and loot uses {{var}} text", () => {
     let state = start("beastfolk", 5);
     for (let i = 0; i < 3; i++) {

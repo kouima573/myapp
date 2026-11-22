@@ -195,6 +195,7 @@ export type Effect =
   | { type: "ending"; ending: string }
   | { type: "newCycle" }
   | { type: "playBgm"; music: string | null }
+  | { type: "playAmbient"; sound: string | null }
   | { type: "signal"; signal: string }
   | { type: "learnVerb"; verb: string }
   | { type: "forgetVerb"; verb: string }
@@ -259,6 +260,8 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("ending"), ending: IdSchema }).strict(),
   z.object({ type: z.literal("newCycle") }).strict(),
   z.object({ type: z.literal("playBgm"), music: IdSchema.nullable() }).strict(),
+  /** Environmental loop under the BGM (rain, fire, waves). null = silence, map default otherwise. */
+  z.object({ type: z.literal("playAmbient"), sound: IdSchema.nullable() }).strict(),
   /** Broadcast a self-made event: every rule with on "signal" and match = this id runs right here. */
   z.object({ type: z.literal("signal"), signal: IdSchema }).strict(),
   /** Put on an item you carry (it goes in its slot, replacing what was there) / take off a slot. */
@@ -728,6 +731,8 @@ export const GameMapSchema = z.object({
   regions: z.array(RegionSchema).default([]),
   /** BGM (bgm or song asset) for this map. */
   bgm: IdSchema.optional(),
+  /** Environmental sound looping under the BGM (rain, river, fire): a bgm or sfx asset. */
+  ambient: IdSchema.optional(),
   /** Battle background image (background asset) for fights on this map. */
   battleBackground: IdSchema.optional(),
   /** Code active while the player is on this map. */
@@ -1027,6 +1032,9 @@ export const AssetEntrySchema = z.object({
   frameOrder: z.array(z.number().int().nonnegative()).optional(),
   loop: z.boolean().optional(),
   initialVolume: z.number().min(0).max(1).optional(),
+  /** BGM with an intro: after the end (or loopEnd) playback jumps back to loopStart (seconds). */
+  loopStart: z.number().min(0).optional(),
+  loopEnd: z.number().positive().optional(),
 }).strict();
 export type AssetEntry = z.infer<typeof AssetEntrySchema>;
 
@@ -1186,6 +1194,8 @@ export const GameStateSchema = z.object({
   regions: z.array(z.string()).default([]),
   /** playBgm override: asset id, null = silence, absent = map default. */
   music: IdSchema.nullable().optional(),
+  /** playAmbient override (same rules as music). */
+  ambient: IdSchema.nullable().optional(),
   /** Stable IDs of once-events, once-choices and markDone ids. */
   done: z.array(z.string()),
   scene: SceneSchema,

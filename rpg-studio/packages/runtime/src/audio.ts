@@ -144,6 +144,9 @@ export class AudioManager {
       this.wanted = null;
       this.preload();
       this.setMusic(wanted);
+      const ambient = this.wantedAmbient;
+      this.wantedAmbient = null;
+      this.setAmbient(ambient);
     }
     if (this.ctx.state === "suspended") void this.ctx.resume();
   }
@@ -219,17 +222,26 @@ export class AudioManager {
   }
 
   /** Switch BGM (crossfade). null = silence. */
-  setMusic(id: string | null) {
-    if (!this.ctx || !this.master) { this.wanted = id; return; }
-    if ((this.current?.id ?? null) === id) return;
-    this.current?.stop(0.4);
-    this.current = null;
+  setMusic(id: string | null) { this.setLoop("music", id); }
+  /** Environmental loop under the BGM (rain, river, fire). null = silence. */
+  setAmbient(id: string | null) { this.setLoop("ambient", id); }
+
+  private loops: Record<"music" | "ambient", { id: string; stop: (fade?: number) => void } | null> = { music: null, ambient: null };
+  private wantedAmbient: string | null = null;
+
+  private setLoop(slot: "music" | "ambient", id: string | null) {
+    if (!this.ctx || !this.master) { if (slot === "music") this.wanted = id; else this.wantedAmbient = id; return; }
+    const playing = slot === "music" ? this.current : this.loops.ambient;
+    if ((playing?.id ?? null) === id) return;
+    playing?.stop(0.4);
+    if (slot === "music") this.current = null; else this.loops.ambient = null;
     if (!id) return;
-    const token = { id, stop: (_fade?: number) => { cancelled = true; } };
     let cancelled = false;
-    this.current = token;
+    const token = { id, stop: (_fade?: number) => { cancelled = true; } };
+    if (slot === "music") this.current = token; else this.loops.ambient = token;
+    const stillCurrent = () => (slot === "music" ? this.current : this.loops.ambient) === token;
     void this.load(id).then(loaded => {
-      if (cancelled || !loaded || !this.ctx || !this.master || this.current !== token) return;
+      if (cancelled || !loaded || !this.ctx || !this.master || !stillCurrent()) return;
       if (loaded.kind === "song") {
         const player = new SongPlayer(this.ctx, this.master.bgm, loaded.song, this.noise!);
         player.start();
@@ -240,8 +252,11 @@ export class AudioManager {
       src.buffer = loaded.buffer;
       const asset = this.content.assets.assets.find(a => a.id === id);
       src.loop = asset?.loop ?? true;
+      // Intro + loop: play from the start once, then repeat loopStart..loopEnd.
+      if (asset?.loopStart !== undefined) src.loopStart = asset.loopStart;
+      if (asset?.loopEnd !== undefined) src.loopEnd = asset.loopEnd;
       const gain = this.ctx.createGain();
-      const target = asset?.initialVolume ?? 1;
+      const target = (asset?.initialVolume ?? 1) * (slot === "ambient" ? 0.7 : 1);
       gain.gain.setValueAtTime(0, this.ctx.currentTime);
       gain.gain.linearRampToValueAtTime(target, this.ctx.currentTime + 0.5);
       src.connect(gain).connect(this.master.bgm);
@@ -257,6 +272,7 @@ export class AudioManager {
 
   dispose() {
     this.current?.stop(0.05);
+    this.loops.ambient?.stop(0.05);
     this.current = null;
     void this.ctx?.close();
     this.ctx = null;

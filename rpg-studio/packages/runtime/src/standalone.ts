@@ -96,6 +96,27 @@ export async function loadBuiltContent(fetchJson: <T>(path: string) => Promise<T
   return content;
 }
 
+/**
+ * Fetches every image and sound before the title screen so the first scenes do not pop in.
+ * A file that fails is skipped (the game still starts; the missing picture shows as before).
+ */
+export async function preloadAssets(content: GameContent, url: (path: string) => string, progress: (done: number, total: number) => void): Promise<void> {
+  const files = content.assets.assets.filter(a => a.kind !== "song").map(a => a.path);
+  let done = 0;
+  progress(0, files.length);
+  const one = async (path: string) => {
+    try {
+      if (/\.(png|gif|jpe?g|webp)$/i.test(path)) {
+        await new Promise<void>(resolve => { const img = new Image(); img.onload = img.onerror = () => resolve(); img.src = url(path); });
+      } else {
+        await fetch(url(path)).then(r => r.arrayBuffer()).catch(() => undefined);
+      }
+    } finally { progress(++done, files.length); }
+  };
+  const queue = [...files];
+  await Promise.all(Array.from({ length: Math.min(6, queue.length) }, async () => { while (queue.length) await one(queue.shift()!); }));
+}
+
 export async function bootStandalone(options: { systems: GameSystem[]; host?: HTMLElement; dataBase?: string }): Promise<void> {
   const host = options.host ?? document.getElementById("game")!;
   const base = options.dataBase ?? "./data/";
@@ -106,7 +127,11 @@ export async function bootStandalone(options: { systems: GameSystem[]; host?: HT
       if (!response.ok) throw new Error(`${path} を取得できません (HTTP ${response.status})`);
       return JSON.parse(await response.text()) as T;
     };
+    if (status) status.textContent = "読み込み中… データ";
     const content = await loadBuiltContent(fetchJson, options.systems);
+    await preloadAssets(content, path => new URL(path, new URL(base, location.href)).href, (done, total) => {
+      if (status) status.textContent = `読み込み中… ${Math.round((done / Math.max(1, total)) * 100)}%（${done}/${total}）`;
+    });
 
     document.title = content.project.title;
     status?.remove();
@@ -118,6 +143,10 @@ export async function bootStandalone(options: { systems: GameSystem[]; host?: HT
       titleScreen: true,
     });
     handle.focus();
+    // Offline play / home-screen install (only over http(s); a game opened from a file:// folder skips this).
+    if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol) && !new URLSearchParams(location.search).has("debug")) {
+      navigator.serviceWorker.register("./sw.js").catch(() => undefined);
+    }
     // `?debug` exposes the handle for automated play-tests and quick inspection in DevTools.
     if (new URLSearchParams(location.search).has("debug")) (window as unknown as { rpg: unknown }).rpg = handle;
   } catch (error) {

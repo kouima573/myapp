@@ -25,6 +25,11 @@ describe("built game data", () => {
         const built = await loadBuiltContent(read, systems);
         // No raw project files that the game does not need (ideas, art requests, tests…).
         expect(await fs.access(path.join(out, "data", "IDEA.md")).then(() => true, () => false)).toBe(false);
+        // Home-screen install / offline: the service worker lists every file of this build under a versioned cache.
+        const sw = await fs.readFile(path.join(out, "sw.js"), "utf8");
+        expect(sw).toContain(`rpg-${result.version}`);
+        expect(sw).toContain("./game.js");
+        expect(JSON.parse(await fs.readFile(path.join(out, "manifest.webmanifest"), "utf8")).display).toBe("standalone");
         const results = await runProjectScenarios(root, built, systems);
         expect(results.filter(r => !r.ok).map(r => `${r.file}: ${r.message}`)).toEqual([]);
         expect(results.length).toBeGreaterThan(0);

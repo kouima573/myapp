@@ -705,6 +705,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         return state;
       case "playBgm":
         return { ...state, music: effect.music };
+      case "playAmbient":
+        return { ...state, ambient: effect.sound };
       case "signal": {
         const depth = (c.signalDepth ?? 0) + 1;
         if (depth > 32) throw new Error(`シグナル '${effect.signal}' が32段以上連鎖しました。シグナルどうしが無限に呼び合っていないか確認してください`);

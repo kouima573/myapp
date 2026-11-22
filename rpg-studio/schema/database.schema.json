@@ -3214,6 +3214,33 @@
           "properties": {
             "type": {
               "type": "string",
+              "const": "playAmbient"
+            },
+            "sound": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 96,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "sound"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
               "const": "signal"
             },
             "signal": {

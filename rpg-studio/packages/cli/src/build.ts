@@ -97,6 +97,9 @@ function gameHtml(title: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'">
 <title>${safe}</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0d110e">
 <meta property="og:type" content="website">
 <meta property="og:title" content="${safe}">
 <meta property="og:description" content="${safe} — RPGシステム工房で制作されたブラウザRPG">
@@ -121,6 +124,36 @@ function gameHtml(title: string): string {
 </body>
 </html>
 `;
+}
+
+/** Lets phones "add to home screen" and keeps the game playable offline once it has been opened. */
+async function writePwaFiles(stage: string, title: string, version: string) {
+  const icon = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#0d110e"/><path d="M14 46 32 14l18 32z" fill="#f0c36a"/><rect x="28" y="34" width="8" height="12" fill="#0d110e"/></svg>\n`;
+  await fs.writeFile(path.join(stage, "icon.svg"), icon);
+  await fs.writeFile(path.join(stage, "manifest.webmanifest"), `${JSON.stringify({
+    name: title, short_name: [...title].slice(0, 12).join(""), start_url: "./", scope: "./", display: "standalone",
+    background_color: "#0d110e", theme_color: "#0d110e", icons: [{ src: "icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any" }],
+  }, null, 2)}\n`);
+  const files: string[] = ["./"];
+  const walk = async (dir: string, rel: string) => {
+    for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+      const r = rel ? `${rel}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) await walk(path.join(dir, entry.name), r);
+      else if (!/^(CREDITS\.md|sw\.js)$/.test(r)) files.push(`./${r}`);
+    }
+  };
+  await walk(stage, "");
+  files.sort();
+  await fs.writeFile(path.join(stage, "sw.js"), `// 自動生成（rpg build）。版が変わると古いキャッシュを消して入れ替えます。
+const CACHE = ${JSON.stringify(`rpg-${version}`)};
+const FILES = ${JSON.stringify(files)};
+self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
+self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith("rpg-") && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
+self.addEventListener("fetch", e => {
+  if (e.request.method !== "GET") return;
+  e.respondWith(caches.match(e.request, { ignoreSearch: true }).then(hit => hit || fetch(e.request)));
+});
+`);
 }
 
 async function copyFile(projectRoot: string, relative: string, outData: string) {
@@ -256,6 +289,7 @@ export async function buildProject(projectRoot: string, options: BuildOptions = 
     }
     const version = hash.digest("hex").slice(0, 12);
     await fs.writeFile(path.join(stage, "version.json"), `${JSON.stringify({ version, project: content.project.id, builtAt: new Date().toISOString() }, null, 2)}\n`);
+    await writePwaFiles(stage, content.project.title, version);
 
     const outDir = path.resolve(options.outDir ?? path.join(REPO_ROOT, "dist/game", content.project.id));
     await fs.mkdir(path.dirname(outDir), { recursive: true });
