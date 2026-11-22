@@ -351,6 +351,10 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         case "setFormation": if (effect.who !== "hero" && !content.database.companions.some(x => x.id === effect.who)) err(file, here, `'${effect.who}' は "hero" でも仲間（companions）でもありません`); break;
         case "summon": if (!content.database.companions.some(x => x.id === effect.companion)) err(file, here, `未定義の仲間 '${effect.companion}'（database.json の companions）`); break;
         case "giveSkillPoints": case "resetSkills": if (effect.who && !["hero", "all"].includes(effect.who) && !content.database.companions.some(x => x.id === effect.who)) err(file, here, `'${effect.who}' は "hero"・"all"・仲間のどれでもありません`); break;
+        case "placeVehicle": case "board":
+          if (!content.project.vehicles[effect.vehicle]) err(file, here, `未定義の乗り物 '${effect.vehicle}'（project.json の vehicles）`);
+          if (effect.type === "placeVehicle") checkPosition(file, here, effect.mapId, effect.x, effect.y, "乗り物の場所");
+          break;
         case "unlockAchievement": if (!content.project.achievements[effect.achievement]) err(file, here, `未定義の実績 '${effect.achievement}'（project.json の achievements）`); break;
         case "showPicture": if (!["background", "portrait", "enemy", "character"].includes(assetById.get(effect.image)?.kind ?? "")) err(file, here, `一枚絵の素材 '${effect.image}' がありません（background・portrait・enemy・character）`); break;
         case "addToSet": case "removeFromSet": case "clearSet": if (!setIds.has(effect.set)) err(file, here, `未宣言の集合 '${effect.set}'`); break;
@@ -433,6 +437,15 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     if (flagIds.has(id)) warn(P, `variables.${id}`, "同じ名前のフラグがあります。紛らわしいので別名にしてください");
   }
   checkEffects(P, "intro", project.intro);
+  for (const [id, v] of Object.entries(project.vehicles)) {
+    if (assetById.get(v.sprite)?.kind !== "character") err(P, `vehicles.${id}.sprite`, `キャラの素材 '${v.sprite}' がありません`);
+    for (const code of v.crosses) if (code !== "*" && !tileByCode.has(code)) err(P, `vehicles.${id}.crosses`, `タイルセットにないコード '${code}'`);
+    if (v.start) checkPosition(P, `vehicles.${id}.start`, v.start.mapId, v.start.x, v.start.y, "乗り物の場所");
+  }
+  for (const m of Object.values(maps)) for (const side of ["north", "south", "east", "west"] as const) {
+    const link = m.edges?.[side];
+    if (link && !maps[link.mapId]) err(mapFile(m.id), `edges.${side}`, `つながる先のマップ '${link.mapId}' がありません`);
+  }
   (project.player.looks ?? []).forEach(l => {
     if (!["character"].includes(assetById.get(l.sprite)?.kind ?? "")) err(P, `player.looks[${l.id}].sprite`, `キャラの素材 '${l.sprite}' がありません`);
     checkEffects(P, `player.looks[${l.id}].effects`, l.effects);

@@ -412,6 +412,77 @@
       },
       "additionalProperties": false
     },
+    "vehicles": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 96,
+        "pattern": "^[a-z0-9][a-z0-9._-]*$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sprite": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "crosses": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1
+            }
+          },
+          "encounters": {
+            "default": false,
+            "type": "boolean"
+          },
+          "start": {
+            "type": "object",
+            "properties": {
+              "mapId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 96,
+                "pattern": "^[a-z0-9][a-z0-9._-]*$"
+              },
+              "x": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "y": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "mapId",
+              "x",
+              "y"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "name",
+          "sprite",
+          "crosses"
+        ],
+        "additionalProperties": false
+      }
+    },
     "minimap": {
       "type": "object",
       "properties": {
@@ -2957,6 +3028,78 @@
             "who": {
               "type": "string",
               "minLength": 1
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "placeVehicle"
+            },
+            "vehicle": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "mapId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "x": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "y": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "type",
+            "vehicle",
+            "mapId",
+            "x",
+            "y"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "board"
+            },
+            "vehicle": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "vehicle"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "disembark"
             }
           },
           "required": [

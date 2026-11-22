@@ -609,3 +609,38 @@ describe("summon, practice fights and looks (096/151/099)", () => {
     expect(state.player.sprite).toBe(sprite);
   });
 });
+
+describe("map edges and vehicles (026/033)", () => {
+  const fresh = (eng: Engine, mapId: string, x: number, y: number) => ({ ...eng.newGame(1), mapId, scene: { kind: "field" as const }, queue: [], player: { ...eng.newGame(1).player, x, y } });
+  it("walking off an edge continues on the linked map; wrap loops the map", () => {
+    const floor = content.tileset.tiles.find(t => t.passable && !t.walls)!.code;
+    const base = content.maps[content.project.start.mapId]!;
+    const room = (id: string, extra = {}) => ({ ...base, id, width: 5, height: 5, rows: Array.from({ length: 5 }, () => floor.repeat(5)), npcs: [], portals: [], interactables: [], entities: [], regions: [], layers: [], encounters: undefined, ...extra });
+    const maps = { ...content.maps, ea: room("ea", { edges: { east: { mapId: "eb", offset: 0 } } }), eb: room("eb"), ec: room("ec", { edges: { wrap: true } }) };
+    const eng = createEngine({ ...content, maps }, systems);
+    const s = eng.step(fresh(eng, "ea", 4, 2), { type: "move", direction: "right" }).state;
+    expect([s.mapId, s.player.x, s.player.y]).toEqual(["eb", 0, 2]);
+    const w = eng.step(fresh(eng, "ec", 0, 3), { type: "move", direction: "up" }).state;
+    const w2 = eng.step(fresh(eng, "ec", 4, 3), { type: "move", direction: "right" }).state;
+    expect([w2.mapId, w2.player.x, w2.player.y]).toEqual(["ec", 0, 3]);
+    expect(w.player.y).toBe(2);
+  });
+  it("a boat crosses only its tiles; board by facing it, get off onto land", () => {
+    const map = content.maps[content.project.start.mapId]!;
+    const base = createEngine(content, systems);
+    const s0 = fresh(base, map.id, 0, 0);
+    // find a walkable cell (x, y) whose right neighbour is not walkable (water / wall) to park the boat on
+    let spot: { x: number; y: number; code: string } | undefined;
+    for (let y = 1; y < map.height - 1 && !spot; y++) for (let x = 1; x < map.width - 2 && !spot; x++) if (base.isPassable(s0, x, y) && !base.isPassable(s0, x + 1, y)) spot = { x, y, code: base.codeAt(s0, map, x + 1, y) };
+    const sprite = content.assets.assets.find(a => a.kind === "character")!.id;
+    const eng = createEngine({ ...content, project: { ...content.project, vehicles: { boat: { name: "小舟", sprite, crosses: [spot!.code], encounters: false, start: { mapId: map.id, x: spot!.x + 1, y: spot!.y } } } } }, systems);
+    let s = { ...fresh(eng, map.id, spot!.x, spot!.y), player: { ...fresh(eng, map.id, spot!.x, spot!.y).player, facing: "right" as const } };
+    s = eng.step(s, { type: "interact" }).state;
+    expect(s.riding).toBe("boat");
+    expect(s.player.x).toBe(spot!.x + 1);
+    s = eng.step({ ...s, player: { ...s.player, facing: "left" } }, { type: "interact" }).state;
+    expect(s.riding).toBeUndefined();
+    expect(s.player.x).toBe(spot!.x);
+    expect(s.vehicles?.boat).toEqual({ mapId: map.id, x: spot!.x + 1, y: spot!.y });
+  });
+});

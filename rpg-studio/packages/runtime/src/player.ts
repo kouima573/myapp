@@ -1480,7 +1480,12 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         actors: [
           ...npcActors(content, map, npcs, { facingOverride: talkFacing }),
           ...entityActors,
-          { id: "player", kind: "player" as const, x: renderPos.x, y: renderPos.y, facing: state.player.facing, sprite: state.player.sprite ?? content.project.player.sprite, frame: walkFrame },
+          // Parked vehicles on this map (乗り物), drawn like characters.
+          ...Object.entries(content.project.vehicles ?? {}).flatMap(([id, v]) => {
+            const at = state.vehicles?.[id] ?? v.start;
+            return id !== state.riding && at && at.mapId === map.id ? [{ id: `vehicle:${id}`, kind: "npc" as const, x: at.x, y: at.y, facing: "down" as const, sprite: v.sprite, frame: 0 }] : [];
+          }),
+          { id: "player", kind: "player" as const, x: renderPos.x, y: renderPos.y, facing: state.player.facing, sprite: (state.riding ? content.project.vehicles?.[state.riding]?.sprite : undefined) ?? state.player.sprite ?? content.project.player.sprite, frame: walkFrame },
         ].map(a => { const e = emotes.get(a.id); return e && e.until > now ? { ...a, emote: e.icon } : a; }),
       });
       ctx.restore();

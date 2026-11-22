@@ -885,6 +885,13 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       case "playAmbient":
         return { ...state, ambient: effect.sound };
       case "unlockAchievement": return unlockAchievement(c, state, effect.achievement);
+      case "placeVehicle": return { ...state, vehicles: { ...state.vehicles, [effect.vehicle]: { mapId: effect.mapId, x: effect.x, y: effect.y } } };
+      case "board": {
+        if (!content.project.vehicles[effect.vehicle]) return state;
+        c.log.push(`${content.project.vehicles[effect.vehicle]!.name}に乗った`);
+        return { ...state, riding: effect.vehicle, vehicles: { ...state.vehicles, [effect.vehicle]: { mapId: state.mapId, x: state.player.x, y: state.player.y } } };
+      }
+      case "disembark": { const { riding: _r, ...rest } = state; return rest; }
       case "giveSkillPoints": {
         const owners = effect.who === "all" ? ["hero", ...(state.party ?? []).map(m => m.id)] : [effect.who ?? "hero"];
         const skills = state.skills ?? { points: {}, learned: [] };
@@ -1097,6 +1104,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
           const from = state.mapId;
           c.log.push(`${content.maps[effect.mapId]?.title ?? effect.mapId} (${effect.x}, ${effect.y}) へ移動`);
           state = { ...state, mapId: effect.mapId, player: { ...state.player, x: effect.x, y: effect.y, facing: effect.facing ?? state.player.facing } };
+          if (state.riding) state = { ...state, vehicles: { ...state.vehicles, [state.riding]: { mapId: effect.mapId, x: effect.x, y: effect.y } } };
           if (from !== effect.mapId) {
             c.cues.push({ kind: "mapChanged", from });
             state = { ...state, fired: state.fired.filter(k => !k.startsWith("map:")), regions: [] };
@@ -1872,11 +1880,58 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     return runQueue(c, enqueue(state, entityEffects(c, state, view.state)));
   }
 
+  /** Where a vehicle is parked now (state, or its start), and the vehicle parked on a cell. */
+  const vehicleAt = (state: GameState, id: string) => state.vehicles?.[id] ?? content.project.vehicles[id]?.start;
+  const parkedVehicle = (state: GameState, mapId: string, x: number, y: number) => Object.keys(content.project.vehicles).find(id => id !== state.riding && (() => { const p = vehicleAt(state, id); return p && p.mapId === mapId && p.x === x && p.y === y; })());
+  const vehicleCrosses = (id: string, code: string) => { const v = content.project.vehicles[id]; return Boolean(v && (v.crosses.includes("*") || v.crosses.includes(code))); };
+
+  /** 端でつながるマップ: the cell you arrive at when walking off an edge (or null). */
+  function acrossEdge(map: GameMap, to: { x: number; y: number }, direction: Direction): { mapId: string; x: number; y: number } | null {
+    const e = map.edges;
+    if (!e) return null;
+    if (e.wrap) return { mapId: map.id, x: (to.x + map.width) % map.width, y: (to.y + map.height) % map.height };
+    const side = to.x < 0 ? "west" : to.x >= map.width ? "east" : to.y < 0 ? "north" : to.y >= map.height ? "south" : null;
+    const link = side ? e[side] : undefined;
+    const target = link ? content.maps[link.mapId] : undefined;
+    if (!side || !link || !target) return null;
+    const clampX = (x: number) => Math.max(0, Math.min(target.width - 1, x)), clampY = (y: number) => Math.max(0, Math.min(target.height - 1, y));
+    void direction;
+    return side === "east" ? { mapId: target.id, x: 0, y: clampY(to.y + link.offset) }
+      : side === "west" ? { mapId: target.id, x: target.width - 1, y: clampY(to.y + link.offset) }
+      : side === "north" ? { mapId: target.id, x: clampX(to.x + link.offset), y: target.height - 1 }
+      : { mapId: target.id, x: clampX(to.x + link.offset), y: 0 };
+  }
+
   function move(c: Ctx, state: GameState, direction: Direction): GameState {
     const map = content.maps[state.mapId];
     if (!map) throw new Error(`現在のマップ '${state.mapId}' がありません`);
     state = { ...state, player: { ...state.player, facing: direction } };
-    const to = { x: state.player.x + DELTAS[direction].x, y: state.player.y + DELTAS[direction].y };
+    let to = { x: state.player.x + DELTAS[direction].x, y: state.player.y + DELTAS[direction].y };
+    // Off the edge: continue on the linked map (or wrap around).
+    if (to.x < 0 || to.y < 0 || to.x >= map.width || to.y >= map.height) {
+      const next = acrossEdge(map, to, direction);
+      if (next && next.mapId === map.id) to = { x: next.x, y: next.y };
+      else if (next) {
+        const target = content.maps[next.mapId]!;
+        const code = codeAt(state, target, next.x, next.y);
+        const ok = state.riding ? vehicleCrosses(state.riding, code) : isPassable({ ...state, mapId: target.id }, next.x, next.y, target);
+        if (!ok) { c.cues.push({ kind: "bump" }); return state; }
+        return runQueue(c, applyEffect(c, { ...state, steps: state.steps + 1 }, { type: "teleport", mapId: next.mapId, x: next.x, y: next.y, facing: direction }));
+      }
+    }
+    // Riding: only the vehicle's tiles count; the hero (and the vehicle) move together.
+    if (state.riding) {
+      const id = state.riding;
+      if (to.x < 0 || to.y < 0 || to.x >= map.width || to.y >= map.height || !vehicleCrosses(id, codeAt(state, map, to.x, to.y))) { c.cues.push({ kind: "bump" }); return state; }
+      const from = { x: state.player.x, y: state.player.y };
+      state = { ...state, steps: state.steps + 1, player: { ...state.player, ...to }, vehicles: { ...state.vehicles, [id]: { mapId: map.id, ...to } } };
+      c.cues.push({ kind: "moved", from });
+      state = fireFieldRules(c, state, "step");
+      state = updateRegions(c, state, true);
+      state = runQueue(c, state);
+      if (!content.project.vehicles[id]!.encounters || state.scene.kind !== "field" || state.mapId !== map.id) return state;
+      return maybeEncounter(c, state, map, to);
+    }
     if (edgeBlocked(state, map, state.player, direction) && !active(state).some(s => s.canPass?.({ content, state, map, x: to.x, y: to.y, tile: tiles.get(codeAt(state, map, to.x, to.y)), passable: false }) === true)) {
       c.cues.push({ kind: "bump" });
       return runQueue(c, fireFieldRules(c, state, "bump"));
@@ -1919,6 +1974,11 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     }
     state = runQueue(c, state);
     if (state.scene.kind !== "field" || state.mapId !== map.id) return state;
+    return maybeEncounter(c, state, map, to);
+  }
+
+  /** Random encounter after a step (map.encounters, tile.encounterRate, canEncounter). */
+  function maybeEncounter(c: Ctx, state: GameState, map: GameMap, to: { x: number; y: number }): GameState {
     const stepTile = tiles.get(codeAt(state, map, to.x, to.y));
     const rate = stepTile?.encounterRate ?? map.encounters?.rate ?? 0;
     if (map.encounters && rate > 0) {
@@ -1944,6 +2004,18 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const map = content.maps[state.mapId];
     if (!map) return state;
     const front = { x: state.player.x + DELTAS[state.player.facing].x, y: state.player.y + DELTAS[state.player.facing].y };
+    // 乗り物: get off onto a walkable tile in front; get on a vehicle parked in front.
+    if (state.riding) {
+      const { riding: _r, ...off } = state;
+      if (!isPassable(off, front.x, front.y, map)) { c.cues.push({ kind: "bump" }); return state; }
+      c.log.push(`${content.project.vehicles[state.riding]?.name ?? state.riding}から降りた`);
+      return { ...off, player: { ...off.player, ...front } };
+    }
+    const parked = parkedVehicle(state, map.id, front.x, front.y);
+    if (parked) {
+      c.log.push(`${content.project.vehicles[parked]!.name}に乗った`);
+      return { ...state, riding: parked, player: { ...state.player, ...front }, vehicles: { ...state.vehicles, [parked]: { mapId: map.id, ...front } } };
+    }
     // Put down what you carry on a free tile in front.
     if (state.carrying && isPassable(state, front.x, front.y, map) && !visibleEntities(state, map).some(e => e.x === front.x && e.y === front.y)) {
       const { id, home } = state.carrying;

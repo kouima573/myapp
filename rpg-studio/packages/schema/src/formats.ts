@@ -200,6 +200,9 @@ export type Effect =
   | { type: "showPicture"; slot?: string; image: string; at?: "center" | "left" | "right" | "full"; x?: number; y?: number; width?: number; opacity?: number; fadeMs?: number }
   | { type: "hidePicture"; slot?: string; fadeMs?: number }
   | { type: "unlockAchievement"; achievement: string }
+  | { type: "placeVehicle"; vehicle: string; mapId: string; x: number; y: number }
+  | { type: "board"; vehicle: string }
+  | { type: "disembark" }
   | { type: "giveSkillPoints"; amount: number; who?: string }
   | { type: "summon"; companion: string; turns?: number }
   | { type: "resetSkills"; who?: string }
@@ -327,6 +330,11 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("giveSkillPoints"), amount: z.number().int().min(1).max(9999), who: z.string().min(1).optional() }).strict(),
   /** Forget every learned panel of the hero / a companion / "all" and get the points back (traits from panels are removed). */
   z.object({ type: z.literal("resetSkills"), who: z.string().min(1).optional() }).strict(),
+  /** Put a vehicle somewhere (bought a ship, found an airship). */
+  z.object({ type: z.literal("placeVehicle"), vehicle: IdSchema, mapId: IdSchema, x: z.number().int().min(0), y: z.number().int().min(0) }).strict(),
+  /** Ride a vehicle right away (it comes to the hero), / get off where you are. */
+  z.object({ type: z.literal("board"), vehicle: IdSchema }).strict(),
+  z.object({ type: z.literal("disembark") }).strict(),
   /** Unlock an achievement now (project.achievements), even without its `when`. */
   z.object({ type: z.literal("unlockAchievement"), achievement: IdSchema }).strict(),
   /** Hide one picture slot, or every picture without `slot`. */
@@ -588,6 +596,17 @@ export const ProjectManifestSchema = z.object({
     order: z.array(z.string()).default([]), hidden: z.array(z.string()).default([]),
     when: z.record(z.string(), ConditionSchema).optional(), labels: z.record(z.string(), z.string().min(1)).optional(),
   }).strict().optional(),
+  /**
+   * 乗り物 (ship, airship, horse…): `crosses` = tile codes it can move over ("*" = everything, an airship);
+   * board by facing it and pressing the action key, get off onto a walkable tile the same way.
+   * `start`: where it is parked at the start. Encounters are off while riding unless `encounters`.
+   */
+  vehicles: z.record(IdSchema, z.object({
+    name: z.string().min(1), sprite: IdSchema,
+    crosses: z.array(z.string().min(1).max(1)).min(1),
+    encounters: z.boolean().default(false),
+    start: z.object({ mapId: IdSchema, x: z.number().int().min(0), y: z.number().int().min(0) }).strict().optional(),
+  }).strict()).default({}),
   /** Minimap in the corner of the field (N key / menu toggles it). Tile colours (tiles.json › color) are used. */
   minimap: z.object({ enabled: z.boolean().default(true), size: z.number().int().min(60).max(240).default(120) }).strict().optional(),
   /**
@@ -911,6 +930,17 @@ export const GameMapSchema = z.object({
   fog: z.object({ image: IdSchema, opacity: z.number().min(0).max(1).default(0.35), speedX: z.number().min(-200).max(200).default(8), speedY: z.number().min(-200).max(200).default(0) }).strict().optional(),
   /** Show this map on the minimap (project.minimap). false for mazes and secret places. */
   minimap: z.boolean().default(true),
+  /**
+   * 端でつながるマップ: walking off an edge continues on another map (same row / column, plus `offset`),
+   * or `wrap: true` loops this map around (a round world).
+   */
+  edges: z.object({
+    north: z.object({ mapId: IdSchema, offset: z.number().int().default(0) }).strict().optional(),
+    south: z.object({ mapId: IdSchema, offset: z.number().int().default(0) }).strict().optional(),
+    west: z.object({ mapId: IdSchema, offset: z.number().int().default(0) }).strict().optional(),
+    east: z.object({ mapId: IdSchema, offset: z.number().int().default(0) }).strict().optional(),
+    wrap: z.boolean().optional(),
+  }).strict().optional(),
   battleBackground: IdSchema.optional(),
   /** Code active while the player is on this map. */
   script: ScriptRefSchema.optional(),
@@ -1475,6 +1505,9 @@ export const GameStateSchema = z.object({
   skills: z.object({ points: z.record(z.string(), z.number().int()), learned: z.array(z.string()) }).strict().optional(),
   /** Unlocked achievements, in order (project.achievements). */
   achievements: z.array(IdSchema).optional(),
+  /** Where each vehicle is parked (missing = project.vehicles.start) and the one being ridden. */
+  vehicles: z.record(z.string(), z.object({ mapId: z.string(), x: z.number().int(), y: z.number().int() }).strict()).optional(),
+  riding: z.string().optional(),
   /** Camera set by the camera effect (missing = follow the hero at zoom 1). */
   camera: z.object({ x: z.number().optional(), y: z.number().optional(), zoom: z.number().optional(), ms: z.number().int() }).strict().optional(),
   /** Texts typed into input windows ({{text.<id>}}). */
