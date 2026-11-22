@@ -67,6 +67,10 @@ const StepSchema = z.union([
   z.object({ interact: z.literal(true) }).strict(),
   z.object({ advance: z.enum(["once", "all"]) }).strict(),
   z.object({ choose: IdSchema }).strict(),
+  /** さいきょう装備 (the hero, or a companion id). */
+  z.object({ optimize: z.string() }).strict(),
+  /** 転職 from the menu (a selectable trait). */
+  z.object({ chooseTrait: IdSchema }).strict(),
   /** Type text into an input window (effect "input"). */
   z.object({ input: z.string() }).strict(),
   /** target: which enemy to attack (0 = the first, 1 = the next of `with`…). */
@@ -257,6 +261,12 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
       else if ("advance" in s) {
         if (s.advance === "once") step({ type: "advance" });
         else for (let guard = 0; guard < 100 && (state.scene.kind === "message" || state.scene.kind === "dialogue" || (state.scene.kind === "battle" && state.scene.battle.outcome !== "ongoing")); guard++) step({ type: "advance" });
+      } else if ("optimize" in s) {
+        step(s.optimize === "hero" ? { type: "optimizeEquipment" } : { type: "optimizeEquipment", companion: s.optimize });
+      } else if ("chooseTrait" in s) {
+        const before = state;
+        step({ type: "chooseTrait", trait: s.chooseTrait });
+        if (state === before || !state.traits.includes(s.chooseTrait)) throw new ScenarioError(`chooseTrait: '${s.chooseTrait}' に転職できません（selectable と selectableWhen を確認）`);
       } else if ("input" in s) {
         if (state.scene.kind !== "input") throw new ScenarioError(`input: 文字入力の画面ではありません (scene=${state.scene.kind})`);
         step({ type: "submitText", text: s.input });

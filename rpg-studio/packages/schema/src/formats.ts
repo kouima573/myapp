@@ -560,6 +560,14 @@ export const ProjectManifestSchema = z.object({
    * back row: damage taken / dealt by normal attacks in percent.
    */
   party: z.object({ size: z.number().int().min(0).max(7).optional(), backRowTaken: z.number().int().min(0).max(100).default(50), backRowDealt: z.number().int().min(0).max(100).default(50) }).strict().optional(),
+  /**
+   * Field menu layout (メニューの並べ替え): `order` of section keys (party, traits, jobs, items, abilities, commands, verbs, records, set:<id>),
+   * `hidden` keys, `when` = show a section only while a condition holds, `labels` = new titles.
+   */
+  menu: z.object({
+    order: z.array(z.string()).default([]), hidden: z.array(z.string()).default([]),
+    when: z.record(z.string(), ConditionSchema).optional(), labels: z.record(z.string(), z.string().min(1)).optional(),
+  }).strict().optional(),
   /** Minimap in the corner of the field (N key / menu toggles it). Tile colours (tiles.json › color) are used. */
   minimap: z.object({ enabled: z.boolean().default(true), size: z.number().int().min(60).max(240).default(120) }).strict().optional(),
   /**
@@ -1005,6 +1013,13 @@ export const TraitSchema = z.object({
   rules: z.array(RuleSchema).default([]),
   /** Run once when the trait is granted. */
   onGrant: z.array(EffectSchema).default([]),
+  /**
+   * 職業・クラス: traits of the same `group` exclude each other (granting one removes the others, e.g. group "job").
+   * `selectable`: the hero can switch to it from the menu (転職) while `selectableWhen` holds.
+   */
+  group: IdSchema.optional(),
+  selectable: z.boolean().optional(),
+  selectableWhen: ConditionSchema.optional(),
   script: ScriptRefSchema.optional(),
 }).strict();
 export type Trait = z.infer<typeof TraitSchema>;

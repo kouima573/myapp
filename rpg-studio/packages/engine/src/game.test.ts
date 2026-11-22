@@ -551,3 +551,23 @@ describe("camera and battle animations (035/069)", () => {
     state = r.state;
   });
 });
+
+describe("jobs and optimize equipment (082/097)", () => {
+  it("only selectable traits whose condition holds can be chosen; the same group replaces", () => {
+    const traits = [
+      { id: "j1", name: "一", category: "職業", description: "", tags: [], abilities: [], rules: [], onGrant: [], group: "job", selectable: true },
+      { id: "j2", name: "二", category: "職業", description: "", tags: [], abilities: [], rules: [], onGrant: [], group: "job", selectable: true, selectableWhen: { flag: Object.keys(content.project.flags)[0]! } },
+      { id: "x", name: "隠し", category: "職業", description: "", tags: [], abilities: [], rules: [], onGrant: [], group: "job" },
+    ];
+    const eng = createEngine({ ...content, database: { ...content.database, traits: [...content.database.traits, ...traits] } }, systems);
+    let state = start("human");
+    state = eng.step(state, { type: "chooseTrait", trait: "j1" }).state;
+    expect(state.traits).toContain("j1");
+    expect(eng.step(state, { type: "chooseTrait", trait: "x" }).state.traits).not.toContain("x");
+    expect(eng.step(state, { type: "chooseTrait", trait: "j2" }).state.traits).not.toContain("j2");
+    state = eng.run(state, [{ type: "setFlag", flag: Object.keys(content.project.flags)[0]! }]).state;
+    state = eng.step(state, { type: "chooseTrait", trait: "j2" }).state;
+    expect(state.traits).toContain("j2");
+    expect(state.traits).not.toContain("j1");
+  });
+});

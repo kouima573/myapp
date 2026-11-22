@@ -1,0 +1,17 @@
+{
+  "name": "職業と転職・さいきょう装備: 戦士 → 守り手（同じ group は入れ替わる）、条件つきの賢者、いちばん強い剣を自動で装備",
+  "seed": 4,
+  "steps": [
+    { "advance": "all" },
+    { "chooseTrait": "job-fighter" },
+    { "expect": { "traits": ["job-fighter"] } },
+    { "chooseTrait": "job-guardian" },
+    { "expect": { "traits": ["job-guardian"], "lacksTraits": ["job-fighter"] } },
+    { "effects": [{ "type": "giveItem", "item": "squire-blade" }, { "type": "giveItem", "item": "iron-sword" }, { "type": "giveItem", "item": "fire-rod" }, { "type": "giveItem", "item": "leather-cap" }] },
+    { "optimize": "hero" },
+    { "expect": { "equipped": { "weapon": "iron-sword", "armor": "leather-cap" } } },
+    { "effects": [{ "type": "setFlag", "flag": "knight-joined" }] },
+    { "chooseTrait": "job-sage" },
+    { "expect": { "traits": ["job-sage"], "lacksTraits": ["job-guardian"] } }
+  ]
+}

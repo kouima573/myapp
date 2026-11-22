@@ -42,6 +42,10 @@ export type Action =
   | { type: "interact" }
   | { type: "advance" }
   | { type: "choose"; choiceId: string }
+  /** 転職 from the menu: switch to a selectable trait (job) whose selectableWhen holds. Field only. */
+  | { type: "chooseTrait"; trait: string }
+  /** さいきょう装備: wear the strongest owned equipment in every slot (hero, or a companion). Field only. */
+  | { type: "optimizeEquipment"; companion?: string }
   /** 隊列 from the menu: row and reserve of the hero ("hero") or a companion. Field only. */
   | { type: "formation"; who: string; row?: "front" | "back"; reserve?: boolean }
   /** The text typed into an input window (scene "input"). */
@@ -192,6 +196,28 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const p = content.project.party;
     return side === "taken" ? p?.backRowTaken ?? 50 : p?.backRowDealt ?? 50;
   };
+  /** Strength of an item for さいきょう装備: numeric stat bonuses (maxHp counts a fifth). Expressions count 0. */
+  const gearScore = (itemId: string) => {
+    const m = db.items.find(i => i.id === itemId)?.statMods;
+    const n = (v: unknown) => (typeof v === "number" ? v : 0);
+    return n(m?.attack) + n(m?.defense) + n(m?.maxHp) / 5;
+  };
+  function optimizeEquipment(c: Ctx, state: GameState, companion?: string): GameState {
+    const who = companion ?? "hero";
+    if (companion && !state.party?.some(m => m.id === companion)) return state;
+    const worn = (s: GameState) => (companion ? s.party?.find(m => m.id === companion)?.equipment ?? {} : s.equipment ?? {});
+    for (const slot of Object.keys(content.project.equipmentSlots)) {
+      // Owned items for this slot that are free or already worn by this person.
+      const candidates = Object.entries(state.items).filter(([id, n]) => n > 0 && db.items.find(i => i.id === id)?.slot === slot)
+        .map(([id]) => id).filter(id => worn(state)[slot] === id || !holdersOf(state, id).length);
+      const best = candidates.sort((a, b) => gearScore(b) - gearScore(a))[0];
+      const now = worn(state)[slot];
+      if (!best || best === now || (now && gearScore(now) >= gearScore(best))) continue;
+      state = applyEffect(c, state, { type: "equip", item: best, ...(companion ? { companion } : {}) });
+    }
+    c.log.push(`さいきょう装備: ${who}`);
+    return state;
+  }
   function setFormation(c: Ctx, state: GameState, who: string, row?: "front" | "back", reserve?: boolean): GameState {
     if (who === "hero" || who === "player") {
       if (!row) return state;
@@ -664,7 +690,9 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         if (state.traits.includes(effect.trait)) return state;
         const trait = db.traits.find(t => t.id === effect.trait);
         c.log.push(`特性「${trait?.name ?? effect.trait}」を得た`);
-        state = withHpCare(state, s => ({ ...s, traits: [...s.traits, effect.trait] }));
+        // Same group (e.g. jobs): the new one replaces the old.
+        const rivals = trait?.group ? new Set(db.traits.filter(t => t.group === trait.group && t.id !== trait.id).map(t => t.id)) : new Set<string>();
+        state = withHpCare(state, s => ({ ...s, traits: [...s.traits.filter(t => !rivals.has(t)), effect.trait] }));
         const gifts = trait?.onGrant ?? [];
         return immediate ? runNow(c, state, gifts, ctxValues) : enqueue(state, gifts);
       }
@@ -2165,6 +2193,15 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         } else if (scene.kind === "battle") next = closeBattle(c, state);
         else if (scene.kind === "ending") next = runQueue(c, applyEffect(c, { ...state, scene: { kind: "field" } }, { type: "newCycle" }));
         else if (scene.kind === "gameover") next = respawn(c, state);
+        break;
+      case "chooseTrait": {
+        const trait = db.traits.find(t => t.id === action.trait);
+        if (scene.kind !== "field" || !trait?.selectable || !ev(trait.selectableWhen, state) || state.traits.includes(trait.id)) break;
+        next = runQueue(c, enqueue(state, [{ type: "grantTrait", trait: trait.id }]));
+        break;
+      }
+      case "optimizeEquipment":
+        if (scene.kind === "field") next = optimizeEquipment(c, state, action.companion);
         break;
       case "formation":
         if (scene.kind === "field") next = setFormation(c, state, action.who, action.row, action.reserve);

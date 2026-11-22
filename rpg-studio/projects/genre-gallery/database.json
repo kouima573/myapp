@@ -420,7 +420,59 @@
       ]
     }
   ],
-  "traits": [],
+  "traits": [
+    {
+      "id": "job-fighter",
+      "name": "戦士",
+      "category": "職業",
+      "description": "剣が得意。攻撃+2",
+      "tags": [],
+      "statMods": {
+        "attack": 2
+      },
+      "abilities": [],
+      "rules": [],
+      "onGrant": [],
+      "group": "job",
+      "selectable": true
+    },
+    {
+      "id": "job-guardian",
+      "name": "守り手",
+      "category": "職業",
+      "description": "盾が得意。防御+2・HP+5",
+      "tags": [],
+      "statMods": {
+        "defense": 2,
+        "maxHp": 5
+      },
+      "abilities": [],
+      "rules": [],
+      "onGrant": [],
+      "group": "job",
+      "selectable": true
+    },
+    {
+      "id": "job-sage",
+      "name": "賢者",
+      "category": "職業",
+      "description": "騎士が仲間になると選べる。全能力+1",
+      "tags": [],
+      "statMods": {
+        "attack": 1,
+        "defense": 1,
+        "maxHp": 1
+      },
+      "abilities": [],
+      "rules": [],
+      "onGrant": [],
+      "group": "job",
+      "selectable": true,
+      "selectableWhen": {
+        "flag": "knight-joined"
+      }
+    }
+  ],
   "companions": [
     {
       "id": "emma",

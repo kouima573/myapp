@@ -1010,6 +1010,26 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     windowLayer.appendChild(panel);
   }
 
+  /**
+   * project.menu: order of the sections (keys: party, traits, jobs, items, abilities, commands, verbs, records, set:<id>),
+   * hidden ones, and ones shown only while a condition holds. Everything before the first section (title, stats) stays on top.
+   */
+  function arrangeMenu(menu: HTMLElement) {
+    const cfg = content.project.menu;
+    if (!cfg) return;
+    const groups = new Map<string, Element[]>();
+    let current: Element[] | null = null;
+    for (const child of Array.from(menu.children)) {
+      const key = (child as HTMLElement).dataset?.key;
+      if (key) { current = [child]; groups.set(key, current); }
+      else if (current) current.push(child);
+    }
+    const visible = (key: string) => !cfg.hidden.includes(key) && (cfg.when?.[key] === undefined || engine.evaluate(cfg.when[key]!, state));
+    const order = [...cfg.order.filter(k => groups.has(k)), ...[...groups.keys()].filter(k => !cfg.order.includes(k))];
+    for (const group of groups.values()) for (const node of group) node.remove();
+    for (const key of order) if (visible(key)) for (const node of groups.get(key)!) menu.appendChild(node);
+  }
+
   function renderMenu() {
     if (creditsOpen) { renderCredits(); return; }
     if (menuView === "title") { renderTitle(); return; }
@@ -1025,7 +1045,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const lv = engine.levelInfo(state);
     stats.textContent = `${heroName()}${lv ? `　Lv${lv.level}` : ""}　HP ${state.player.hp}/${s.maxHp}　攻撃 ${s.attack}　防御 ${s.defense}${lv ? `　経験値 ${lv.exp}${lv.next === null ? "（最大）" : `／次まで ${lv.next - lv.exp}`}` : ""}`;
     menu.appendChild(stats);
-    const section = (title: string) => menu.appendChild(el("div", "rpg-menu-section", title));
+    // Sections can be reordered, renamed, hidden or shown on a condition (project.menu).
+    const section = (title: string, key: string) => { const h = el("div", "rpg-menu-section", content.project.menu?.labels?.[key] ?? title); h.dataset.key = key; return menu.appendChild(h); };
     const labeled = Object.entries(content.project.variables).filter(([, decl]) => decl.label);
     if (labeled.length) {
       const vars = el("div", "rpg-menu-stats");
@@ -1034,13 +1055,13 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     }
     for (const [id, decl] of Object.entries(content.project.sets)) {
       if (!decl.show) continue;
-      section(decl.label ?? id);
+      section(decl.label ?? id, `set:${id}`);
       const values = state.sets[id] ?? [];
       if (!values.length) menu.appendChild(el("div", "rpg-menu-empty", "まだない"));
       for (const v of values) menu.appendChild(el("div", "rpg-menu-ability", decl.entries[v] ?? v));
     }
     if (state.party?.length) {
-      section("なかま");
+      section("なかま", "party");
       for (const member of state.party) {
         const comp = content.database.companions.find(x => x.id === member.id);
         const row = el("div", "rpg-menu-ability");
@@ -1053,7 +1074,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     }
     if ((state.cycle ?? 1) > 1 || (state.sets.endings?.length ?? 0) > 0) stats.textContent += `　${state.cycle}周目`;
     if (state.traits.length) {
-      section("とくせい");
+      section("とくせい", "traits");
       for (const id of state.traits) {
         const trait = content.database.traits.find(t => t.id === id);
         const row = el("div", "rpg-menu-ability");
@@ -1061,8 +1082,23 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         menu.appendChild(row);
       }
     }
+    // 転職: traits marked selectable (jobs), switchable while their condition holds.
+    const jobs = content.database.traits.filter(t => t.selectable && engine.evaluate(t.selectableWhen, state));
+    if (jobs.length) {
+      section("しょくぎょう", "jobs");
+      for (const job of jobs) {
+        const current = state.traits.includes(job.id);
+        menu.appendChild(navButton(`${current ? "● " : ""}${job.name}`, () => { if (!current) dispatch({ type: "chooseTrait", trait: job.id }); renderUI(); }, { hint: current ? "いまの職業" : job.description || "この職業になる" }));
+      }
+    }
     const fieldUsable = engine.usables(state, "field");
-    section("どうぐ");
+    section("どうぐ", "items");
+    if (Object.keys(state.items).some(id => content.database.items.find(i => i.id === id)?.slot)) {
+      const row = el("div", "rpg-menu-row");
+      row.appendChild(navButton("さいきょう装備", () => { dispatch({ type: "optimizeEquipment" }); renderUI(); }, { hint: heroName() }));
+      for (const m of (state.party ?? []).filter(x => !x.reserve)) row.appendChild(navButton(`さいきょう（${content.database.companions.find(x => x.id === m.id)?.name ?? m.id}）`, () => { dispatch({ type: "optimizeEquipment", companion: m.id }); renderUI(); }));
+      menu.appendChild(row);
+    }
     const owned = Object.entries(state.items);
     if (!owned.length) menu.appendChild(el("div", "rpg-menu-empty", "何も持っていない"));
     for (const [id, count] of owned) {
@@ -1090,7 +1126,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       }
       menu.appendChild(navButton(`${item?.name ?? id}`, () => { if (usable && !usable.blocked) { menuOpen = false; dispatch({ type: "useItem", item: id }); } else showToast(usable?.blocked ?? (item?.description || "使えない。")); }, { hint: `×${count}${usable && !usable.blocked ? "　使う" : ""}` }));
     }
-    section("のうりょく");
+    section("のうりょく", "abilities");
     const abilities = engine.abilities(state);
     if (!abilities.length) menu.appendChild(el("div", "rpg-menu-empty", "なし"));
     for (const id of abilities) {
@@ -1106,15 +1142,15 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     }
     const scriptCommands = engine.commands(state, "field");
     if (scriptCommands.length) {
-      section("とくしゅ");
+      section("とくしゅ", "commands");
       for (const cmd of scriptCommands) menu.appendChild(navButton(cmd.label, () => { if (cmd.blocked) showToast(cmd.blocked); else { menuOpen = false; dispatch({ type: "command", source: cmd.source, id: cmd.id }); } }, { hint: cmd.blocked ?? "" }));
     }
     const verbList = availableVerbs();
     if (verbList.length) {
-      section("こうどう");
+      section("こうどう", "verbs");
       for (const [id, verb] of verbList) menu.appendChild(navButton(verb.label, () => useVerb(id), { hint: `${verb.description ?? ""}${verb.key ? `［${verb.key.toUpperCase()}］` : ""}` }));
     }
-    section("きろく");
+    section("きろく", "records");
     const row = el("div", "rpg-menu-row");
     row.append(
       navButton("セーブ", () => { slotReturn = "main"; menuView = "save"; selection = 0; renderUI(); }),
@@ -1147,6 +1183,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       navButton("とじる", () => { menuOpen = false; renderUI(); }),
     );
     menu.appendChild(row);
+    arrangeMenu(menu);
     windowLayer.appendChild(menu);
   }
 

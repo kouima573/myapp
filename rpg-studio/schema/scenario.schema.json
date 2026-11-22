@@ -138,6 +138,33 @@
           {
             "type": "object",
             "properties": {
+              "optimize": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "optimize"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "chooseTrait": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 96,
+                "pattern": "^[a-z0-9][a-z0-9._-]*$"
+              }
+            },
+            "required": [
+              "chooseTrait"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
               "input": {
                 "type": "string"
               }

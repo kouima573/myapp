@@ -447,6 +447,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     for (const i of m.interactables) if (i.disabled) warn(mapFile(m.id), `interactables[${i.id}]`, "無効化中（disabled: true）。調べても反応しません");
   }
   for (const [id, a] of Object.entries(project.achievements)) if (a.when) checkCondition(P, `achievements.${id}.when`, a.when);
+  for (const [key, cond] of Object.entries(project.menu?.when ?? {})) checkCondition(P, `menu.when.${key}`, cond);
+  for (const t of content.database.traits) if (t.selectableWhen) checkCondition("database.json", `traits[${t.id}].selectableWhen`, t.selectableWhen);
   const verbKeys = new Map<string, string>();
   for (const [id, verb] of Object.entries(project.verbs)) {
     checkCondition(P, `verbs.${id}.when`, verb.when);
