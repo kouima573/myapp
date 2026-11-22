@@ -74,6 +74,8 @@ export interface DrawMapOptions {
   state?: GameState;
   actors: ActorDraw[];
   interactables: Interactable[];
+  /** Footprints / splashes left by the hero (tile.stepEffect), with the time they were made. */
+  stepEffects?: Array<{ x: number; y: number; kind: "dust" | "splash" | "footprints" | "leaves"; at: number; facing?: string }>;
   /** Entity markers (chests, signs… on entities). */
   markers?: Array<{ x: number; y: number; marker: Interactable["marker"] }>;
   /** Editor overlays. */
@@ -102,6 +104,8 @@ export function drawMap(ctx: CanvasRenderingContext2D, o: DrawMapOptions): { ori
   // Centre maps smaller than the viewport.
   const offsetX = map.width < view.cols ? Math.floor((view.cols - map.width) / 2) * TILE : -Math.round(view.camera.x * TILE);
   const offsetY = map.height < view.rows ? Math.floor((view.rows - map.height) / 2) * TILE : -Math.round(view.camera.y * TILE);
+  // 遠景: a repeating picture behind the map, moving slower than it.
+  if (map.parallax) tiled(ctx, images[map.parallax.image], width, height, view.camera.x * TILE * map.parallax.speed, view.camera.y * TILE * map.parallax.speed, 1);
   ctx.save();
   ctx.translate(offsetX, offsetY);
   const x0 = Math.max(0, Math.floor(-offsetX / TILE)), y0 = Math.max(0, Math.floor(-offsetY / TILE));
@@ -113,7 +117,7 @@ export function drawMap(ctx: CanvasRenderingContext2D, o: DrawMapOptions): { ori
       const row = grid[y] ?? [];
       for (let x = x0; x < x1; x++) {
         const code = row[x] ?? "";
-        if (!base && (code === " " || code === "")) continue;
+        if ((!base || map.parallax) && (code === " " || code === "")) continue;
         const tile = tiles.get(code);
         const px = x * TILE, py = y * TILE;
         if (!tile) { ctx.fillStyle = "#ff00aa"; ctx.fillRect(px, py, TILE, TILE); continue; }
@@ -157,6 +161,7 @@ export function drawMap(ctx: CanvasRenderingContext2D, o: DrawMapOptions): { ori
   for (const item of o.interactables) drawMarker(ctx, item, o.time);
   for (const item of o.markers ?? []) drawMarker(ctx, item as Interactable, o.time);
 
+  for (const fx of o.stepEffects ?? []) drawStepEffect(ctx, fx, o.time);
   const sorted = [...o.actors].sort((a, b) => a.y - b.y || (a.kind === "player" ? 1 : -1));
   for (const actor of sorted) drawActor(ctx, content, images, actor);
   // Layers above the characters: roofs, tree tops, bridges seen from below.
@@ -164,7 +169,46 @@ export function drawMap(ctx: CanvasRenderingContext2D, o: DrawMapOptions): { ori
 
   if (o.editor) drawEditorOverlay(ctx, map, o.editor);
   ctx.restore();
+  // 霧・雲: drifting over everything (screen space, follows the camera a little).
+  if (map.fog && !o.editor) tiled(ctx, images[map.fog.image], width, height, view.camera.x * TILE * 0.5 - (o.time / 1000) * map.fog.speedX, view.camera.y * TILE * 0.5 - (o.time / 1000) * map.fog.speedY, map.fog.opacity);
   return { originX: offsetX, originY: offsetY };
+}
+
+/** Fills the view with a picture repeated in both directions, shifted by (sx, sy) pixels. */
+function tiled(ctx: CanvasRenderingContext2D, image: HTMLImageElement | undefined, width: number, height: number, sx: number, sy: number, alpha: number) {
+  if (!image || !image.complete || !image.naturalWidth) return;
+  const w = image.naturalWidth, h = image.naturalHeight;
+  const ox = -(((sx % w) + w) % w), oy = -(((sy % h) + h) % h);
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  for (let y = oy; y < height; y += h) for (let x = ox; x < width; x += w) ctx.drawImage(image, Math.round(x), Math.round(y));
+  ctx.restore();
+}
+
+const STEP_MS = { dust: 450, splash: 600, footprints: 2600, leaves: 700 } as const;
+function drawStepEffect(ctx: CanvasRenderingContext2D, fx: { x: number; y: number; kind: keyof typeof STEP_MS; at: number; facing?: string }, time: number) {
+  const t = (time - fx.at) / STEP_MS[fx.kind];
+  if (t < 0 || t >= 1) return;
+  const cx = fx.x * TILE + TILE / 2, cy = fx.y * TILE + TILE - 6;
+  ctx.save();
+  if (fx.kind === "splash") {
+    ctx.strokeStyle = `rgba(210,235,255,${(0.8 * (1 - t)).toFixed(2)})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(cx, cy, 4 + 10 * t, 2 + 4 * t, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = `rgba(230,245,255,${(0.9 * (1 - t)).toFixed(2)})`;
+    for (const k of [-1, 1]) ctx.fillRect(cx + k * (4 + 8 * t), cy - 8 * t + 10 * t * t, 2, 2);
+  } else if (fx.kind === "dust") {
+    ctx.fillStyle = `rgba(200,190,170,${(0.6 * (1 - t)).toFixed(2)})`;
+    for (const k of [-1, 1]) { ctx.beginPath(); ctx.arc(cx + k * (3 + 6 * t), cy - 2 * t, 2 + 2 * t, 0, Math.PI * 2); ctx.fill(); }
+  } else if (fx.kind === "footprints") {
+    ctx.fillStyle = `rgba(60,55,50,${(0.35 * (1 - t)).toFixed(2)})`;
+    const side = fx.facing === "left" || fx.facing === "right";
+    if (side) { ctx.fillRect(cx - 7, cy - 4, 4, 3); ctx.fillRect(cx + 3, cy, 4, 3); }
+    else { ctx.fillRect(cx - 5, cy - 6, 3, 4); ctx.fillRect(cx + 2, cy - 1, 3, 4); }
+  } else {
+    ctx.fillStyle = `rgba(120,170,80,${(0.85 * (1 - t)).toFixed(2)})`;
+    for (const [dx, dy] of [[-6, -3], [5, -5], [1, -9]] as const) ctx.fillRect(cx + dx * (0.5 + t), cy + dy * (0.5 + t) + 6 * t * t, 3, 2);
+  }
+  ctx.restore();
 }
 
 function drawMarker(ctx: CanvasRenderingContext2D, item: Interactable, time: number) {

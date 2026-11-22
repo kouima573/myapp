@@ -379,7 +379,9 @@
       "index": 3,
       "passable": true,
       "color": "#407536",
-      "key": "tall-grass"
+      "key": "tall-grass",
+      "stepEffect": "leaves",
+      "encounterRate": 0.12
     },
     {
       "code": "4",
@@ -775,7 +777,8 @@
       "index": 0,
       "passable": true,
       "color": "#8c887f",
-      "key": "cobble"
+      "key": "cobble",
+      "stepEffect": "dust"
     },
     {
       "code": "ζ",

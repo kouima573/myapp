@@ -461,6 +461,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   for (const map of Object.values(maps)) {
     checkAudio(mapFile(map.id), "bgm", map.bgm, MUSIC, "BGM");
     checkAudio(mapFile(map.id), "ambient", map.ambient, ["bgm", "sfx"], "環境音");
+    for (const [key, pic] of [["parallax", map.parallax], ["fog", map.fog]] as const) if (pic && !["background", "portrait", "tileset"].includes(assetById.get(pic.image)?.kind ?? "")) err(mapFile(map.id), key, `画像の素材 '${pic.image}' がありません（background など）`);
     checkAudio(mapFile(map.id), "battleBackground", map.battleBackground, ["background"], "戦闘背景");
   }
   for (const enemy of database.enemies) checkAudio(DB, `enemies[${enemy.id}].background`, enemy.background, ["background"], "戦闘背景");
@@ -495,6 +496,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     const extra: Array<[string, number]> = [...(tile.frames ?? []).map((v, i) => [`frames[${i}]`, v] as [string, number]), ...Object.entries(tile.autotile?.pieces ?? {}).map(([k, v]) => [`autotile.pieces.${k}`, v] as [string, number])];
     for (const [at, value] of extra) if (sheet && value >= capacity) err(project.tilesetPath, `tiles[${index}].${at}`, `アトラスの範囲外です (${value} >= ${capacity})`);
     checkCondition(project.tilesetPath, `tiles[${index}].passableWhen`, tile.passableWhen);
+    if (tile.footstep) checkAudio(project.tilesetPath, `tiles[${index}].footstep`, tile.footstep, ["sfx"], "足音");
     if (tile.inspect) {
       checkCondition(project.tilesetPath, `tiles[${index}].inspect.when`, tile.inspect.when);
       checkEffects(project.tilesetPath, `tiles[${index}].inspect.effects`, tile.inspect.effects);
@@ -506,7 +508,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   for (const map of Object.values(maps)) {
     const file = mapFile(map.id);
     map.rows.forEach((row, y) => Array.from(row).forEach((code, x) => {
-      if (!tileByCode.has(code)) err(file, `rows[${y}]`, `タイルセットにないコード '${code}' (x=${x}, y=${y})`);
+      if (code === " " && map.parallax) return; // see-through to the far background
+      if (!tileByCode.has(code)) err(file, `rows[${y}]`, `タイルセットにないコード '${code}' (x=${x}, y=${y})${code === " " ? "（空白で遠景を見せるには map.parallax を設定）" : ""}`);
     }));
     const layerIds = new Set<string>();
     map.layers.forEach((layer, i) => {

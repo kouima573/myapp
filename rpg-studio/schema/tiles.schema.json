@@ -58,6 +58,26 @@
               ]
             }
           },
+          "encounterRate": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "footstep": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "stepEffect": {
+            "type": "string",
+            "enum": [
+              "dust",
+              "splash",
+              "footprints",
+              "leaves"
+            ]
+          },
           "passableWhen": {
             "$ref": "#/$defs/__schema0"
           },

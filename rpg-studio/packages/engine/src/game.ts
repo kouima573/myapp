@@ -1722,12 +1722,14 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     }
     state = runQueue(c, state);
     if (state.scene.kind !== "field" || state.mapId !== map.id) return state;
-    if (map.encounters && map.encounters.rate > 0) {
+    const stepTile = tiles.get(codeAt(state, map, to.x, to.y));
+    const rate = stepTile?.encounterRate ?? map.encounters?.rate ?? 0;
+    if (map.encounters && rate > 0) {
       const code = codeAt(state, map, to.x, to.y);
-      if (!map.encounters.tiles.length || map.encounters.tiles.includes(code)) {
+      if (stepTile?.encounterRate !== undefined || !map.encounters.tiles.length || map.encounters.tiles.includes(code)) {
         let roll: number;
         [roll, state] = random(state);
-        if (roll < map.encounters.rate) {
+        if (roll < rate) {
           let pick: number;
           [pick, state] = random(state);
           const enemy = map.encounters.enemies[Math.floor(pick * map.encounters.enemies.length)]!;

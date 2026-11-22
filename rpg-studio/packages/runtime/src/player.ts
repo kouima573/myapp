@@ -158,6 +158,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   let toast: { text: string; until: number } | null = null;
   let typing = { text: "", startedAt: 0, done: true };
   let fadeUntil = 0;
+  /** Footprints / splashes (tile.stepEffect). */
+  let stepEffects: Array<{ x: number; y: number; kind: "dust" | "splash" | "footprints" | "leaves"; at: number; facing?: string }> = [];
   let shakeUntil = 0;
   let destroyed = false;
   let raf = 0;
@@ -232,7 +234,18 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const before = state;
     state = result.state;
     for (const cue of result.cues) {
-      if (cue.kind === "moved") { animator.enqueue({ x: state.player.x, y: state.player.y }); }
+      if (cue.kind === "moved") {
+        animator.enqueue({ x: state.player.x, y: state.player.y });
+        // The tile stepped on: its footstep sound and little effect (water splash, snow footprints…).
+        const map = content.maps[state.mapId];
+        const code = map ? Array.from(engine.rowsFor(state, map.id)[state.player.y] ?? "")[state.player.x] : undefined;
+        const tile = code ? content.tileset.tiles.find(t => t.code === code) : undefined;
+        if (tile?.footstep) audio.playSound(tile.footstep);
+        if (tile?.stepEffect) {
+          const now = performance.now();
+          stepEffects = [...stepEffects.filter(fx => now - fx.at < 2600).slice(-24), { x: state.player.x, y: state.player.y, kind: tile.stepEffect, at: now, facing: state.player.facing }];
+        }
+      }
       else if (cue.kind === "bump") audio.cue("bump");
       else if (cue.kind === "battleStart") { audio.cue("encounter"); fadeUntil = performance.now() + (uiPrefs.battleSpeed === "fast" ? 60 : 260); }
       else if (cue.kind === "achievement") { showToast(`🏆 実績「${cue.title}」を達成！`); audio.cue("item"); }
@@ -1242,6 +1255,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         content, map: rows === map.rows ? map : { ...map, rows }, images, state, time: now,
         view: { camera: cam, cols: VIEW_COLS, rows: VIEW_ROWS },
         interactables: engine.visibleInteractables(state, map),
+        stepEffects: stepEffects.filter(fx => now - fx.at < 2600),
         markers: entities.filter(e => e.state.marker !== "none").map(e => ({ x: e.x, y: e.y, marker: e.state.marker })),
         actors: [
           ...npcActors(content, map, npcs, { facingOverride: talkFacing }),

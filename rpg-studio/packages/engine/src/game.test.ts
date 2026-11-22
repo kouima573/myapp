@@ -492,3 +492,22 @@ describe("disabled (178)", () => {
     expect(state.vars[gold]).not.toBe(77);
   });
 });
+
+describe("tile encounter rate (031)", () => {
+  it("tile.encounterRate overrides the map rate on that tile (0 = never, 1 = always)", () => {
+    const mapId = Object.keys(content.maps).find(id => content.maps[id]!.encounters)!;
+    const map = content.maps[mapId]!;
+    const base = createEngine(content, systems);
+    const s0 = base.newGame(1);
+    let at: { x: number; y: number } | undefined;
+    for (let y = 1; y < map.height - 1 && !at; y++) for (let x = 1; x < map.width - 2 && !at; x++) {
+      const probe = { ...s0, mapId };
+      if (base.isPassable(probe, x, y) && base.isPassable(probe, x + 1, y) && !map.portals.some(p => p.x === x + 1 && p.y === y) && !map.interactables.some(i => i.x === x + 1 && i.y === y)) at = { x, y };
+    }
+    const code = base.codeAt({ ...s0, mapId }, map, at!.x + 1, at!.y);
+    const make = (rate: number, tileRate: number) => createEngine({ ...content, maps: { ...content.maps, [mapId]: { ...map, encounters: { ...map.encounters!, rate, tiles: [] } } }, tileset: { ...content.tileset, tiles: content.tileset.tiles.map(t => (t.code === code ? { ...t, encounterRate: tileRate } : t)) } }, systems);
+    const walk = (eng: Engine) => eng.step({ ...eng.newGame(1), mapId, scene: { kind: "field" as const }, queue: [], player: { ...s0.player, x: at!.x, y: at!.y } }, { type: "move", direction: "right" }).state.scene.kind;
+    expect(walk(make(0, 1))).toBe("battle");
+    expect(walk(make(1, 0))).toBe("field");
+  });
+});

@@ -638,6 +638,12 @@ export const TileDefSchema = z.object({
    * nor walk up onto it from below. Fences, counters, one-sided ledges.
    */
   walls: z.array(z.enum(["up", "down", "left", "right"])).max(4).optional(),
+  /** Chance of a random encounter per step on this tile (0..1), instead of the map's rate (tall grass 0.15, road 0). Needs map.encounters. */
+  encounterRate: z.number().min(0).max(1).optional(),
+  /** Sound when the hero steps on it (grass rustle, wooden floor). sfx asset. */
+  footstep: IdSchema.optional(),
+  /** Little effect where the hero walks: dust, splash (water), footprints (snow, sand), leaves. */
+  stepEffect: z.enum(["dust", "splash", "footprints", "leaves"]).optional(),
   /** When this condition holds the tile is passable regardless of `passable`. */
   passableWhen: ConditionSchema.optional(),
   /** Atlas cell used while `passableWhen` holds (e.g. an opened gate). */
@@ -816,6 +822,13 @@ export const GameMapSchema = z.object({
   /** Environmental sound looping under the BGM (rain, river, fire): a bgm or sfx asset. */
   ambient: IdSchema.optional(),
   /** Battle background image (background asset) for fights on this map. */
+  /**
+   * Far background (遠景) behind the map, moving slower than the map (speed 0 = fixed sky, 1 = with the map).
+   * Base-layer cells written as " " (space) are see-through (and cannot be walked on): sky, clouds below a cliff, space.
+   */
+  parallax: z.object({ image: IdSchema, speed: z.number().min(0).max(2).default(0.3) }).strict().optional(),
+  /** Fog / clouds / rain drawn over the whole map, drifting (pixels per second). */
+  fog: z.object({ image: IdSchema, opacity: z.number().min(0).max(1).default(0.35), speedX: z.number().min(-200).max(200).default(8), speedY: z.number().min(-200).max(200).default(0) }).strict().optional(),
   /** Show this map on the minimap (project.minimap). false for mazes and secret places. */
   minimap: z.boolean().default(true),
   battleBackground: IdSchema.optional(),

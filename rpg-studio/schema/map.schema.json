@@ -731,6 +731,60 @@
       "maxLength": 96,
       "pattern": "^[a-z0-9][a-z0-9._-]*$"
     },
+    "parallax": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96,
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "speed": {
+          "default": 0.3,
+          "type": "number",
+          "minimum": 0,
+          "maximum": 2
+        }
+      },
+      "required": [
+        "image"
+      ],
+      "additionalProperties": false
+    },
+    "fog": {
+      "type": "object",
+      "properties": {
+        "image": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96,
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "opacity": {
+          "default": 0.35,
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "speedX": {
+          "default": 8,
+          "type": "number",
+          "minimum": -200,
+          "maximum": 200
+        },
+        "speedY": {
+          "default": 0,
+          "type": "number",
+          "minimum": -200,
+          "maximum": 200
+        }
+      },
+      "required": [
+        "image"
+      ],
+      "additionalProperties": false
+    },
     "minimap": {
       "default": true,
       "type": "boolean"
