@@ -66,6 +66,8 @@ export type Action =
   | { type: "equip"; item: string; companion?: string }
   /** A field command added by a script (engine.commands(state, "field")). */
   | { type: "command"; source: string; id: string }
+  /** Equip / unequip a known passive ability when the project uses a passive capacity. */
+  | { type: "togglePassive"; ability: string }
   /** One step of every moveRoute in progress (the runtime sends it a few times per second). */
   | { type: "routeStep" };
 
@@ -89,6 +91,8 @@ export type Cue =
   | { kind: "skill"; board: string; node: string }
   /** Screen shake (camera effect). */
   | { kind: "shake"; power: number; ms: number }
+  | { kind: "fade"; to: "color" | "clear"; color: string; ms: number }
+  | { kind: "quest"; title: string; action: "start" | "complete" | "fail" | "objective" }
   /** Battle animation on the hero ("player") or an enemy by its start-of-battle slot ("all" = every enemy). */
   | { kind: "anim"; name: BattleAnimation; target: "player" | "enemy"; slot?: number | "all" }
   /** Speech bubble over "player", an NPC or an entity. */
@@ -187,18 +191,18 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   /** A companion's stats with its equipment (items' statMods, evaluated like the hero's). */
   function companionStats(state: GameState, id: string): Stats {
     const comp = companionOf(id);
-    const base = { ...(comp?.stats ?? { maxHp: 1, attack: 0, defense: 0 }) };
+    const base = { ...(comp?.stats ?? { maxHp: 1, maxMp: 0, maxSp: 0, attack: 0, defense: 0 }) };
     const member = state.party?.find(m => m.id === id);
     for (const itemId of Object.values(member?.equipment ?? {})) {
       const mods = db.items.find(i => i.id === itemId)?.statMods;
       if (!mods) continue;
-      for (const key of ["maxHp", "attack", "defense"] as const) if (mods[key] !== undefined) base[key] += evalExpr(mods[key]!, state, { content, baseStats: true });
+      for (const key of ["maxHp", "maxMp", "maxSp", "attack", "defense"] as const) if (mods[key] !== undefined) base[key] = (base[key] ?? 0) + evalExpr(mods[key]!, state, { content, baseStats: true });
     }
     // Skill-board panels learned for this companion.
     for (const node of learnedNodes(state, content, id)) {
-      for (const key of ["maxHp", "attack", "defense"] as const) if (node.statMods?.[key] !== undefined) base[key] += evalExpr(node.statMods[key]!, state, { content, baseStats: true });
+      for (const key of ["maxHp", "maxMp", "maxSp", "attack", "defense"] as const) if (node.statMods?.[key] !== undefined) base[key] = (base[key] ?? 0) + evalExpr(node.statMods[key]!, state, { content, baseStats: true });
     }
-    return { maxHp: Math.max(1, base.maxHp), attack: Math.max(0, base.attack), defense: Math.max(0, base.defense) };
+    return { maxHp: Math.max(1, base.maxHp), ...(base.maxMp !== undefined ? { maxMp: Math.max(0, base.maxMp) } : {}), ...(base.maxSp !== undefined ? { maxSp: Math.max(0, base.maxSp) } : {}), attack: Math.max(0, base.attack), defense: Math.max(0, base.defense) };
   }
   /** Who holds this item equipped: "hero" and/or companion ids. */
   /** Companions who fight (not in the reserve). */
@@ -314,6 +318,23 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   };
   const itemName = (id: string) => db.items.find(i => i.id === id)?.name ?? id;
   const abilityName = (id: string) => db.abilities.find(a => a.id === id)?.name ?? id;
+  function addItems(c: Ctx, state: GameState, id: string, count: number): GameState {
+    const item = db.items.find(x => x.id === id);
+    const held = state.items[id] ?? 0;
+    const total = Object.values(state.items).reduce((sum, n) => sum + n, 0);
+    const stackRoom = item?.maxStack === undefined ? count : Math.max(0, item.maxStack - held);
+    const bagRoom = content.project.inventory?.maxItems === undefined ? count : Math.max(0, content.project.inventory.maxItems - total);
+    const added = Math.min(count, stackRoom, bagRoom);
+    if (added < count) {
+      const message = added > 0 ? `持ち物の上限で${itemName(id)}は${added}個だけ入手した。` : `持ち物がいっぱいで${itemName(id)}を持てない。`;
+      c.log.push(message);
+      if (state.scene.kind === "battle") state = battleLog(state, message);
+    }
+    if (added <= 0) return state;
+    c.log.push(`${itemName(id)} ×${added} を入手`);
+    c.cues.push({ kind: "item" });
+    return { ...state, items: { ...state.items, [id]: held + added } };
+  }
 
   /* ---------------------------------------------------------------- map queries */
   const tileAt = (map: GameMap, x: number, y: number) => tiles.get(Array.from(map.rows[y] ?? "")[x] ?? "");
@@ -689,14 +710,29 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     return state;
   }
 
-  /** Keeps a "full HP" player full when max HP grows, and clamps HP when it shrinks. */
+  /** Keeps full resources full when their maximum grows, and clamps them when it shrinks. */
   function withHpCare(state: GameState, change: (s: GameState) => GameState): GameState {
-    const before = stats(state).maxHp;
+    const before = stats(state);
     const next = change(state);
-    const after = stats(next).maxHp;
-    if (after === before && next.player.hp <= after) return next;
-    const hp = next.player.hp >= before ? Math.max(next.player.hp, after) : next.player.hp;
-    return { ...next, player: { ...next.player, hp: Math.min(after, hp) } };
+    const after = stats(next);
+    const care = (current: number, oldMax: number, newMax: number) => Math.max(0, Math.min(newMax, current >= oldMax ? Math.max(current, newMax) : current));
+    const player = {
+      ...next.player,
+      hp: care(next.player.hp, before.maxHp, after.maxHp),
+      ...(next.player.mp !== undefined || after.maxMp !== undefined ? { mp: care(next.player.mp ?? 0, before.maxMp ?? 0, after.maxMp ?? 0) } : {}),
+      ...(next.player.sp !== undefined || after.maxSp !== undefined ? { sp: care(next.player.sp ?? 0, before.maxSp ?? 0, after.maxSp ?? 0) } : {}),
+    };
+    const party = next.party?.map(member => {
+      const oldMember = state.party?.find(m => m.id === member.id);
+      const oldStats = companionStats(state, member.id), newStats = companionStats(next, member.id);
+      return {
+        ...member,
+        hp: care(oldMember?.hp ?? member.hp, oldStats.maxHp, newStats.maxHp),
+        ...(member.mp !== undefined || newStats.maxMp !== undefined ? { mp: care(oldMember?.mp ?? member.mp ?? 0, oldStats.maxMp ?? 0, newStats.maxMp ?? 0) } : {}),
+        ...(member.sp !== undefined || newStats.maxSp !== undefined ? { sp: care(oldMember?.sp ?? member.sp ?? 0, oldStats.maxSp ?? 0, newStats.maxSp ?? 0) } : {}),
+      };
+    });
+    return { ...next, player, ...(party ? { party } : {}) };
   }
 
   function applyEffect(c: Ctx, state: GameState, effect: Effect, ctxValues?: EvalEnv["ctx"]): GameState {
@@ -740,7 +776,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       }
       case "setStat":
         return withHpCare(state, s => {
-          const value = Math.max(effect.stat === "maxHp" ? 1 : 0, applyOp(s.player.stats[effect.stat], effect.op, ex(effect.value, s, ctxValues)));
+          const value = Math.max(effect.stat === "maxHp" ? 1 : 0, applyOp(s.player.stats[effect.stat] ?? 0, effect.op, ex(effect.value, s, ctxValues)));
           c.log.push(`基本能力 ${effect.stat} = ${value}`);
           return { ...s, player: { ...s.player, stats: { ...s.player.stats, [effect.stat]: value } } };
         });
@@ -749,7 +785,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         c.log.push(`能力「${abilityName(effect.ability)}」を習得`);
         return withHpCare(state, s => ({ ...s, abilities: [...s.abilities, effect.ability] }));
       case "removeAbility":
-        return withHpCare(state, s => ({ ...s, abilities: s.abilities.filter(a => a !== effect.ability) }));
+        return withHpCare(state, s => ({ ...s, abilities: s.abilities.filter(a => a !== effect.ability), ...(s.equippedPassives ? { equippedPassives: s.equippedPassives.filter(a => a !== effect.ability) } : {}) }));
       case "grantTrait": {
         if (state.traits.includes(effect.trait)) return state;
         const trait = db.traits.find(t => t.id === effect.trait);
@@ -764,9 +800,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         return withHpCare(state, s => ({ ...s, traits: s.traits.filter(t => t !== effect.trait) }));
       case "giveItem": {
         const count = effect.count ?? 1;
-        c.log.push(`${itemName(effect.item)} ×${count} を入手`);
-        c.cues.push({ kind: "item" });
-        return withHpCare(state, s => ({ ...s, items: { ...s.items, [effect.item]: (s.items[effect.item] ?? 0) + count } }));
+        return addItems(c, state, effect.item, count);
       }
       case "takeItem":
         return withHpCare(state, s => {
@@ -815,6 +849,28 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         if (target !== "player" && state.party) state = { ...state, party: state.party.map(m => { const cmax = companionStats(state, m.id).maxHp; return { ...m, hp: Math.max(0, Math.min(cmax, m.hp + (effect.amount === undefined ? cmax : amount))) }; }) };
         return state;
       }
+      case "recover": {
+        const target = effect.target ?? "player";
+        const currentKey = effect.resource;
+        const maxKey = currentKey === "mp" ? "maxMp" : "maxSp";
+        const requested = effect.amount === undefined ? undefined : Math.max(0, ex(effect.amount, state, ctxValues));
+        const restore = (current: number, maximum: number) => Math.max(0, Math.min(maximum, current + (requested ?? maximum)));
+        if (target !== "party") {
+          const maximum = stats(state)[maxKey] ?? 0;
+          if (maximum > 0) state = currentKey === "mp"
+            ? { ...state, player: { ...state.player, mp: restore(state.player.mp ?? 0, maximum) } }
+            : { ...state, player: { ...state.player, sp: restore(state.player.sp ?? 0, maximum) } };
+        }
+        if (target !== "player" && state.party) {
+          state = { ...state, party: state.party.map(member => {
+            const maximum = companionStats(state, member.id)[maxKey] ?? 0;
+            if (maximum <= 0) return member;
+            return currentKey === "mp" ? { ...member, mp: restore(member.mp ?? 0, maximum) } : { ...member, sp: restore(member.sp ?? 0, maximum) };
+          }) };
+        }
+        if (requested === undefined || requested > 0) c.cues.push({ kind: "heal" });
+        return state;
+      }
       case "joinParty": {
         const comp = companionOf(effect.companion);
         if (!comp) throw new Error(`仲間 '${effect.companion}' がいません（database.json の companions）`);
@@ -823,7 +879,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         // Over project.party.size: waits in the reserve (swap in the menu's 隊列).
         const size = content.project.party?.size;
         const full = size !== undefined && activeParty(state).length >= size;
-        return { ...state, party: [...(state.party ?? []), { id: comp.id, hp: comp.stats.maxHp, ...(full ? { reserve: true } : {}) }] };
+        const cs = companionStats(state, comp.id);
+        return withHpCare(state, s => ({ ...s, party: [...(s.party ?? []), { id: comp.id, hp: cs.maxHp, ...(cs.maxMp !== undefined ? { mp: cs.maxMp } : {}), ...(cs.maxSp !== undefined ? { sp: cs.maxSp } : {}), ...(full ? { reserve: true } : {}) }] }));
       }
       case "leaveParty":
         return { ...state, party: (state.party ?? []).filter(m => m.id !== effect.companion) };
@@ -881,6 +938,55 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       }
       case "markDone":
         return state.done.includes(effect.id) ? state : { ...state, done: [...state.done, effect.id] };
+      case "quest": {
+        const def = content.project.quests[effect.quest];
+        if (!def) { c.log.push(`依頼 '${effect.quest}' が定義されていません`); return state; }
+        const previous = state.quests?.[effect.quest] ?? { status: "active" as const, objectivesDone: [] };
+        let next = previous;
+        if (effect.action === "start") next = { status: "active", objectivesDone: [] };
+        else if (effect.action === "complete") next = { ...previous, status: "complete" };
+        else if (effect.action === "fail") next = { ...previous, status: "failed" };
+        else if (effect.objective && def.objectives.some(o => o.id === effect.objective)) next = { ...previous, objectivesDone: [...new Set([...previous.objectivesDone, effect.objective])] };
+        c.cues.push({ kind: "quest", title: def.title, action: effect.action });
+        return { ...state, quests: { ...state.quests, [effect.quest]: next } };
+      }
+      case "steal": {
+        if (!inBattle) return state;
+        const battle = battleOf(state)!;
+        if (battle.practice) return battleLog(state, "練習試合では盗めない。");
+        const enemy = enemyOf(battle.enemyId);
+        const slot = String(curSlot(state));
+        const taken = battle.stolenDrops?.[slot] ?? [];
+        const available = enemy.drops.map((drop, index) => ({ drop, index })).filter(entry => !taken.includes(entry.index));
+        if (!available.length) return battleLog(state, `${enemy.name}から盗めるものはない。`);
+        if (effect.chance !== undefined) {
+          let roll: number;
+          [roll, state] = random(state);
+          if (roll * 100 >= ex(effect.chance, state, ctxValues)) return battleLog(state, `${enemy.name}から盗めなかった。`);
+        } else {
+          let roll: number;
+          [roll, state] = random(state);
+          if (roll >= 0.5) return battleLog(state, `${enemy.name}から盗めなかった。`);
+        }
+        let selected = available[0]!;
+        if (available.length > 1) { let roll: number; [roll, state] = random(state); selected = available[Math.floor(roll * available.length)]!; }
+        const before = state.items[selected.drop.item] ?? 0;
+        state = addItems(c, state, selected.drop.item, selected.drop.count);
+        if ((state.items[selected.drop.item] ?? 0) <= before) return state;
+        const current = battleOf(state)!;
+        const stolenDrops = { ...(current.stolenDrops ?? {}), [slot]: [...taken, selected.index] };
+        state = setBattle(state, { ...current, stolenDrops });
+        return battleLog(state, `${enemy.name}から${itemName(selected.drop.item)}を盗んだ！`);
+      }
+      case "inspectEnemy": {
+        if (!inBattle) return state;
+        const battle = battleOf(state)!;
+        const enemy = enemyOf(battle.enemyId);
+        const taken = battle.stolenDrops?.[String(curSlot(state))] ?? [];
+        const drops = enemy.drops.filter((_, index) => !taken.includes(index)).map(drop => `${itemName(drop.item)}×${drop.count}${drop.chance < 100 ? ` (${drop.chance}%)` : ""}`);
+        const detail = `${enemy.name}　HP ${battle.enemyHp}/${enemy.stats.maxHp}　攻 ${enemyStat(state, enemy, "attack")}　守 ${enemyStat(state, enemy, "defense")}　落とす物: ${drops.join("・") || "なし"}`;
+        return battleLog(state, detail);
+      }
       case "playSfx":
         c.cues.push({ kind: "sfx", sound: effect.sound });
         return state;
@@ -911,7 +1017,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         if (state.party?.some(m => m.id === comp.id)) { state = battleLog(state, `${comp.name}はもう一緒に戦っている。`); return state; }
         c.log.push(`召喚: ${comp.name}`);
         state = battleLog(state, `${comp.name}が駆けつけた！`);
-        return { ...state, party: [...(state.party ?? []), { id: comp.id, hp: comp.stats.maxHp, summoned: effect.turns ?? 0 }] };
+        const cs = companionStats(state, comp.id);
+        return withHpCare(state, s => ({ ...s, party: [...(s.party ?? []), { id: comp.id, hp: cs.maxHp, ...(cs.maxMp !== undefined ? { mp: cs.maxMp } : {}), ...(cs.maxSp !== undefined ? { sp: cs.maxSp } : {}), summoned: effect.turns ?? 0 }] }));
       }
       case "camera": {
         if (effect.shake) c.cues.push({ kind: "shake", power: effect.shake.power ?? 6, ms: effect.shake.ms ?? 400 });
@@ -923,6 +1030,9 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         if (focus.x === undefined && zoom === 1) return rest;
         return { ...rest, camera: { ...(focus.x !== undefined ? { x: focus.x, y: focus.y } : {}), ...(zoom !== 1 ? { zoom } : {}), ms: effect.ms ?? 600 } };
       }
+      case "fadeScreen":
+        c.cues.push({ kind: "fade", to: effect.to, color: effect.color ?? "#000000", ms: effect.ms ?? 350 });
+        return state;
       case "showPicture": {
         const preset = { center: { x: 50, y: 45, width: 60 }, left: { x: 25, y: 45, width: 40 }, right: { x: 75, y: 45, width: 40 }, full: { x: 50, y: 50, width: 100 } }[effect.at ?? "center"];
         const slot = effect.slot ?? "main";
@@ -1096,7 +1206,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         if (inScene) return { ...state, queue: [...state.queue, effect] };
         if (effect.type === "dialogue") {
           if (!content.dialogues[effect.dialogue]) throw new Error(`会話 '${effect.dialogue}' がありません`);
-          return { ...state, scene: { kind: "dialogue", dialogueId: effect.dialogue, line: 0 } };
+          return { ...state, seenDialogues: [...new Set([...(state.seenDialogues ?? []), effect.dialogue])], scene: { kind: "dialogue", dialogueId: effect.dialogue, line: 0 } };
         }
         if (effect.type === "choice") {
           const options = effect.options.map((option, index) => ({ option, index })).filter(({ option }) => ev(option.when, state))
@@ -1140,7 +1250,13 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       log: [others.length ? `${[enemy, ...others].map(e => e.name).join("と")}が現れた！` : `${enemy.name}が現れた！`], systemData: {}, outcome: "ongoing", fired: [], after: [],
       ...(others.length ? { foes: others.map((o, k) => ({ enemyId: o.id, hp: o.stats.maxHp, slot: k + 1 })) } : {}),
       ...(effect.waves?.length ? { waves: effect.waves, wave: 1 } : {}),
-      ...(effect.practice ? { practice: { hp: state.player.hp, party: Object.fromEntries((state.party ?? []).map(m => [m.id, m.hp])) } } : {}),
+      ...(effect.practice ? { practice: {
+        hp: state.player.hp,
+        ...(state.player.mp !== undefined ? { mp: state.player.mp } : {}),
+        ...(state.player.sp !== undefined ? { sp: state.player.sp } : {}),
+        party: Object.fromEntries((state.party ?? []).map(m => [m.id, m.hp])),
+        partyResources: Object.fromEntries((state.party ?? []).map(m => [m.id, { ...(m.mp !== undefined ? { mp: m.mp } : {}), ...(m.sp !== undefined ? { sp: m.sp } : {}) }])),
+      } } : {}),
     };
     state = setBattle(state, battle);
     for (const system of active(state)) {
@@ -1250,9 +1366,20 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         for (const e of all) defeated[e.id] = (defeated[e.id] ?? 0) + 1;
         state = { ...state, book: { ...book, seen: [...book.seen, ...new Set(all.map(e => e.id).filter(id => !book.seen.includes(id)))], defeated } };
       }
-      for (const drop of battleOf(state)!.practice ? [] : all.flatMap(e => e.drops)) {
-        state = { ...state, items: { ...state.items, [drop.item]: (state.items[drop.item] ?? 0) + drop.count } };
-        state = battleLog(state, `${itemName(drop.item)}を${drop.count}個手に入れた。`);
+      if (!battleOf(state)!.practice) {
+        const settled = battleOf(state)!;
+        for (const [enemyIndex, defeated] of all.entries()) {
+          const slot = enemyIndex === 0 ? settled.slot ?? 0 : settled.foes?.[enemyIndex - 1]?.slot ?? enemyIndex;
+          const alreadyStolen = new Set(settled.stolenDrops?.[String(slot)] ?? []);
+          for (const [dropIndex, drop] of defeated.drops.entries()) {
+            if (alreadyStolen.has(dropIndex)) continue;
+            if (drop.chance < 100) { let roll: number; [roll, state] = random(state); if (roll * 100 >= drop.chance) continue; }
+            const before = state.items[drop.item] ?? 0;
+            state = addItems(c, state, drop.item, drop.count);
+            const got = (state.items[drop.item] ?? 0) - before;
+            if (got > 0) state = battleLog(state, `${itemName(drop.item)}を${got}個手に入れた。`);
+          }
+        }
       }
       if (content.project.leveling && !battleOf(state)!.practice) {
         const exp = all.reduce((sum, e) => sum + (e.exp ?? Math.max(1, Math.round((e.stats.maxHp + 2 * e.stats.attack + 2 * e.stats.defense) / 3))), 0);
@@ -1264,7 +1391,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         const [nextWave, ...rest] = waves;
         const lead = enemyOf(nextWave!.enemy), others = (nextWave!.with ?? []).map(id => enemyOf(id));
         const b = battleOf(state)!;
-        const { foes: _f, enemyStatuses: _s, slot: _slot, waves: _w, ...keep } = b;
+        const { foes: _f, enemyStatuses: _s, slot: _slot, waves: _w, stolenDrops: _stolen, ...keep } = b;
         const wave = (b.wave ?? 1) + 1;
         state = setBattle(state, {
           ...keep, enemyId: lead.id, enemyHp: lead.stats.maxHp,
@@ -1340,7 +1467,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const n = turns ?? def.turns;
     const existing = list.find(s => s.id === id);
     const next = existing ? list.map(s => (s.id === id ? { ...s, turns: Math.max(s.turns, n) } : s)) : [...list, { id, turns: n }];
-    state = who === "player" ? setPlayerStatuses(state, next) : setEnemyStatusList(state, who, next);
+    state = who === "player" ? withHpCare(state, s => setPlayerStatuses(s, next)) : setEnemyStatusList(state, who, next);
     const line = text((def.onAdd ?? `{{name}}は${def.name}になった。`).replaceAll("{{name}}", holderName(state, who)), state);
     return battleOf(state) ? battleLog(state, line) : state;
   }
@@ -1349,7 +1476,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const gone = list.filter(s => !id || s.id === id);
     if (!gone.length) return state;
     const rest = list.filter(s => id && s.id !== id);
-    state = who === "player" ? setPlayerStatuses(state, rest) : setEnemyStatusList(state, who, rest);
+    state = who === "player" ? withHpCare(state, s => setPlayerStatuses(s, rest)) : setEnemyStatusList(state, who, rest);
     if (announce && battleOf(state)) for (const s of gone) { const def = statusDef(s.id); state = battleLog(state, text((def?.onEnd ?? `{{name}}の${def?.name ?? s.id}が治った。`).replaceAll("{{name}}", holderName(state, who)), state)); }
     return state;
   }
@@ -1432,8 +1559,21 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       exp -= expToNext(level);
       level++;
       const g = lv.gains;
-      const stats = { maxHp: state.player.stats.maxHp + g.maxHp, attack: state.player.stats.attack + g.attack, defense: state.player.stats.defense + g.defense };
-      state = { ...state, player: { ...state.player, level, stats, hp: lv.fullHeal ? effectiveStats({ ...state, player: { ...state.player, stats } }, content).maxHp : state.player.hp + g.maxHp } };
+      const stats = {
+        ...state.player.stats,
+        maxHp: state.player.stats.maxHp + g.maxHp,
+        ...(state.player.stats.maxMp !== undefined || (g.maxMp ?? 0) > 0 ? { maxMp: (state.player.stats.maxMp ?? 0) + (g.maxMp ?? 0) } : {}),
+        ...(state.player.stats.maxSp !== undefined || (g.maxSp ?? 0) > 0 ? { maxSp: (state.player.stats.maxSp ?? 0) + (g.maxSp ?? 0) } : {}),
+        attack: state.player.stats.attack + g.attack,
+        defense: state.player.stats.defense + g.defense,
+      };
+      const leveled = { ...state, player: { ...state.player, level, stats } };
+      const effective = effectiveStats(leveled, content);
+      state = { ...state, player: { ...state.player, level, stats,
+        hp: lv.fullHeal ? effective.maxHp : Math.min(effective.maxHp, state.player.hp + g.maxHp),
+        ...(effective.maxMp !== undefined ? { mp: lv.fullHeal ? effective.maxMp : Math.min(effective.maxMp, (state.player.mp ?? 0) + (g.maxMp ?? 0)) } : {}),
+        ...(effective.maxSp !== undefined ? { sp: lv.fullHeal ? effective.maxSp : Math.min(effective.maxSp, (state.player.sp ?? 0) + (g.maxSp ?? 0)) } : {}),
+      } };
       c.cues.push({ kind: "levelUp", level });
       c.log.push(`レベル${level}`);
       state = say(state, `${name}はレベル${level}に上がった！`);
@@ -1458,6 +1598,10 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       const need = ex(cost.amount, state);
       if (ex({ var: cost.var }, state) < need) return `${content.project.variables[cost.var]?.label ?? cost.var}が${need}必要`;
     }
+    const mpNeed = use.mpCost === undefined ? 0 : Math.max(0, ex(use.mpCost, state));
+    const spNeed = use.spCost === undefined ? 0 : Math.max(0, ex(use.spCost, state));
+    if ((state.player.mp ?? 0) < mpNeed) return `MPが${mpNeed}必要`;
+    if ((state.player.sp ?? 0) < spNeed) return `SPが${spNeed}必要`;
     return undefined;
   }
 
@@ -1493,7 +1637,10 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     if (!use) return "使えない";
     const blocked = usableBlock(state, use, where);
     if (blocked) return blocked;
+    const mpCost = use.mpCost === undefined ? 0 : Math.max(0, ex(use.mpCost, state));
+    const spCost = use.spCost === undefined ? 0 : Math.max(0, ex(use.spCost, state));
     for (const cost of use.cost) state = { ...state, vars: { ...state.vars, [cost.var]: clampVar(cost.var, ex({ var: cost.var }, state) - ex(cost.amount, state)) } };
+    if (mpCost || spCost) state = { ...state, player: { ...state.player, ...(mpCost ? { mp: Math.max(0, (state.player.mp ?? 0) - mpCost) } : {}), ...(spCost ? { sp: Math.max(0, (state.player.sp ?? 0) - spCost) } : {}) } };
     if (use.hpCost !== undefined) state = { ...state, player: { ...state.player, hp: Math.max(1, state.player.hp - ex(use.hpCost, state)) } };
     if (kind === "item" && use.consume) {
       const items = { ...state.items };
@@ -1595,15 +1742,27 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         if (result) { state = applyNow(c, state, result); replaced = true; break; }
       }
       if (replaced) { state = checkBattleEnd(c, state); continue; }
-      const actions = comp.actions.filter(a => ev(a.when, state));
+      const costOf = (action: typeof comp.actions[number]) => ({
+        mp: action.mpCost === undefined ? 0 : Math.max(0, ex(action.mpCost, state)),
+        sp: action.spCost === undefined ? 0 : Math.max(0, ex(action.spCost, state)),
+      });
+      const canPay = (action: typeof comp.actions[number]) => { const cost = costOf(action), resources = state.party?.find(m => m.id === comp.id); return (resources?.mp ?? 0) >= cost.mp && (resources?.sp ?? 0) >= cost.sp; };
+      const pay = (action: typeof comp.actions[number]) => {
+        const cost = costOf(action);
+        if (!cost.mp && !cost.sp) return;
+        state = { ...state, party: state.party!.map(m => m.id === comp.id ? { ...m, ...(cost.mp ? { mp: Math.max(0, (m.mp ?? 0) - cost.mp) } : {}), ...(cost.sp ? { sp: Math.max(0, (m.sp ?? 0) - cost.sp) } : {}) } : m) };
+      };
+      const actions = comp.actions.filter(a => ev(a.when, state) && canPay(a));
       const cs = companionStats(state, comp.id);
       // An order from the hero for this turn wins (if its condition holds).
       const orderIndex = battleOf(state)!.orders?.[comp.id];
-      const ordered = orderIndex !== undefined && comp.actions[orderIndex] && ev(comp.actions[orderIndex]!.when, state) ? comp.actions[orderIndex] : undefined;
+      const orderedCandidate = orderIndex !== undefined ? comp.actions[orderIndex] : undefined;
+      const ordered = orderedCandidate && ev(orderedCandidate.when, state) && canPay(orderedCandidate) ? orderedCandidate : undefined;
       const everyone = [{ id: "player", hp: state.player.hp, max: stats(state).maxHp }, ...activeParty(state).filter(m => m.hp > 0).map(m => ({ id: m.id, hp: m.hp, max: companionStats(state, m.id).maxHp }))].sort((a, b) => a.hp / a.max - b.hp / b.max);
       const hurt = ordered?.kind === "heal" ? everyone[0] : ordered ? undefined : everyone.filter(x => x.hp < x.max / 2)[0];
       const heal = hurt && (ordered?.kind === "heal" ? ordered : actions.find(a => a.kind === "heal"));
       if (heal && hurt) {
+        pay(heal);
         const amount = Math.max(1, heal.power || Math.ceil(cs.attack * 1.5));
         if (hurt.id === "player") state = { ...state, player: { ...state.player, hp: Math.min(stats(state).maxHp, state.player.hp + amount) } };
         else state = { ...state, party: state.party!.map(m => (m.id === hurt.id ? { ...m, hp: Math.min(hurt.max, m.hp + amount) } : m)) };
@@ -1612,7 +1771,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       }
       const others = actions.filter(a => a.kind !== "heal");
       const action = ordered && ordered.kind !== "heal" ? ordered : others.length ? others[battleOf(state)!.turn % others.length]! : undefined;
-      if (!action || action.kind === "guard") { state = battleLog(state, `${comp.name}は身構えている。`); continue; }
+      if (!action || action.kind === "guard") { if (action) pay(action); state = battleLog(state, `${comp.name}は身構えている。`); continue; }
+      pay(action);
       const t = firstAlive(battleOf(state)!);
       state = swapEnemy(state, t);
       const enemy = enemyOf(battleOf(state)!.enemyId);
@@ -1691,7 +1851,9 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         state = pick === 0 ? strikeHero(state) : strikeMember(state, standing[pick - 1]!.id);
       }
     }
-    return runNow(c, state, action.effects);
+    state = runNow(c, state, action.effects);
+    if (action.music !== undefined) { const battle = battleOf(state); if (battle) state = setBattle(state, { ...battle, music: action.music }); }
+    return state;
   }
 
   type Actor = { kind: "player"; id: "player"; name: string } | { kind: "companion"; id: string; name: string } | { kind: "enemy"; id: string; name: string; index: number };
@@ -1825,7 +1987,19 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     // Practice fight: everyone is back as before; a loss is not a game over.
     const practice = battleOf(state)!.practice;
     if (practice) {
-      state = { ...state, player: { ...state.player, hp: Math.max(1, practice.hp) }, ...(state.party ? { party: state.party.map(m => ({ ...m, hp: practice.party[m.id] ?? m.hp })) } : {}) };
+      state = { ...state, player: {
+        ...state.player,
+        hp: Math.min(stats(state).maxHp, Math.max(1, practice.hp)),
+        ...(practice.mp !== undefined ? { mp: Math.min(stats(state).maxMp ?? 0, practice.mp) } : {}),
+        ...(practice.sp !== undefined ? { sp: Math.min(stats(state).maxSp ?? 0, practice.sp) } : {}),
+      }, ...(state.party ? { party: state.party.map(m => {
+        const saved = practice.partyResources?.[m.id];
+        const cap = companionStats(state, m.id);
+        return { ...m, hp: Math.min(cap.maxHp, practice.party[m.id] ?? m.hp),
+          ...(saved?.mp !== undefined ? { mp: Math.min(cap.maxMp ?? 0, saved.mp) } : {}),
+          ...(saved?.sp !== undefined ? { sp: Math.min(cap.maxSp ?? 0, saved.sp) } : {}),
+        };
+      }) } : {}) };
       if (battleOf(state)!.outcome === "defeat") return runQueue(c, { ...state, scene: { kind: "message", text: "練習試合はここまで。" }, queue: battleOf(state)!.after });
     }
     state = setPlayerStatuses(state, (state.player.statuses ?? []).filter(s => statusDef(s.id)?.clearAfterBattle === false));
@@ -1857,8 +2031,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     return {
       ...state,
       mapId: to.mapId,
-      player: { ...state.player, x: to.x, y: to.y, facing: start.facing, hp: stats(state).maxHp },
-      ...(state.party ? { party: state.party.map(m => ({ ...m, hp: Math.max(1, m.hp) })) } : {}),
+      player: { ...state.player, x: to.x, y: to.y, facing: start.facing, hp: stats(state).maxHp, ...(stats(state).maxMp !== undefined ? { mp: stats(state).maxMp } : {}), ...(stats(state).maxSp !== undefined ? { sp: stats(state).maxSp } : {}) },
+      ...(state.party ? { party: state.party.map(m => { const cap = companionStats(state, m.id); return { ...m, hp: Math.max(1, m.hp), ...(cap.maxMp !== undefined ? { mp: cap.maxMp } : {}), ...(cap.maxSp !== undefined ? { sp: cap.maxSp } : {}) }; }) } : {}),
       scene: { kind: "message", text: go?.message ?? "目の前が暗くなった……。気がつくと、見慣れた場所に戻っていた。" },
     };
   }
@@ -2282,10 +2456,20 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
 
   function freshState(seed: number, meta?: MetaState): GameState {
     const { project } = content;
+    const equippedPassives: string[] = [];
+    if (project.player.passiveCapacity !== undefined) {
+      let remaining = project.player.passiveCapacity;
+      for (const id of project.player.abilities) {
+        const ability = db.abilities.find(a => a.id === id);
+        const cost = ability?.passiveCost ?? 1;
+        if (ability?.kind === "passive" && cost <= remaining) { equippedPassives.push(id); remaining -= cost; }
+      }
+    }
     let state: GameState = {
       mapId: project.start.mapId,
-      player: { x: project.start.x, y: project.start.y, facing: project.start.facing, hp: project.player.stats.maxHp, stats: { ...project.player.stats } },
+      player: { x: project.start.x, y: project.start.y, facing: project.start.facing, hp: project.player.stats.maxHp, ...(project.player.stats.maxMp !== undefined ? { mp: project.player.stats.maxMp } : {}), ...(project.player.stats.maxSp !== undefined ? { sp: project.player.stats.maxSp } : {}), stats: { ...project.player.stats } },
       abilities: [...project.player.abilities],
+      ...(project.player.passiveCapacity !== undefined ? { equippedPassives } : {}),
       traits: [],
       items: { ...project.player.items },
       flags: { ...Object.fromEntries(Object.entries(project.flags).map(([id, decl]) => [id, decl.initial])), ...meta?.flags },
@@ -2307,7 +2491,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       rng: seed >>> 0,
       steps: 0,
     };
-    state = { ...state, player: { ...state.player, hp: stats(state).maxHp } };
+    state = { ...state, player: { ...state.player, hp: stats(state).maxHp, ...(stats(state).maxMp !== undefined ? { mp: stats(state).maxMp } : {}), ...(stats(state).maxSp !== undefined ? { sp: stats(state).maxSp } : {}) } };
     return state;
   }
 
@@ -2408,6 +2592,22 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
           return comp && line ? [{ type: "message", speaker: comp.name, text: line.text } as Effect] : [];
         });
         next = runQueue(c, enqueue(state, lines.length ? lines : [{ type: "message", text: "（今は話すことがないようだ）" }]));
+        break;
+      }
+      case "togglePassive": {
+        if (scene.kind !== "field" || content.project.player.passiveCapacity === undefined) break;
+        const ability = db.abilities.find(a => a.id === action.ability);
+        if (!ability || ability.kind !== "passive" || !state.abilities.includes(ability.id)) break;
+        const equipped = new Set(state.equippedPassives ?? []);
+        if (equipped.has(ability.id)) equipped.delete(ability.id);
+        else {
+          const used = [...equipped].reduce((sum, id) => sum + (db.abilities.find(a => a.id === id)?.passiveCost ?? 1), 0);
+          const cost = ability.passiveCost ?? 1;
+          if (used + cost > content.project.player.passiveCapacity) { c.log.push(`パッシブ枠が足りません（必要 ${cost} / 空き ${Math.max(0, content.project.player.passiveCapacity - used)}）`); break; }
+          equipped.add(ability.id);
+        }
+        next = { ...state, equippedPassives: [...equipped] };
+        c.log.push(`${ability.name}を${equipped.has(ability.id) ? "装備" : "外した"}`);
         break;
       }
       case "learnSkill":

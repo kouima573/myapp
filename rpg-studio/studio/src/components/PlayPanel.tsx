@@ -173,7 +173,7 @@ export default function PlayPanel({ store, content, stale, systems, systemsVersi
           return <button key={a.id} className={`chip ${state.abilities.includes(a.id) || viaTrait ? "is-on" : ""}`} disabled={viaTrait} title={a.description} onClick={() => toggleAbility(a.id)}>{a.name}</button>;
         })}</div>
         <h4>能力値</h4>
-        <p className="mono small">{(() => { const st = handleRef.current?.engine.stats(state); return st ? `最大HP ${st.maxHp} / 攻撃 ${st.attack} / 防御 ${st.defense}` : ""; })()}</p>
+        <p className="mono small">{(() => { const st = handleRef.current?.engine.stats(state); return st ? `最大HP ${st.maxHp}${(st.maxMp ?? 0) > 0 ? ` / 最大MP ${st.maxMp}` : ""}${(st.maxSp ?? 0) > 0 ? ` / 最大SP ${st.maxSp}` : ""} / 攻撃 ${st.attack} / 防御 ${st.defense}` : ""; })()}</p>
         <h4>持ち物 <span className="muted small">クリックで+1</span></h4>
         <div className="chips">{content.database.items.map(i => <button key={i.id} className={`chip ${(state.items[i.id] ?? 0) > 0 ? "is-on" : ""}`} onClick={() => giveItem(i.id)}>{i.name} ×{state.items[i.id] ?? 0}</button>)}</div>
         <h4>完了済み</h4>

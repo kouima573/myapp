@@ -1227,6 +1227,8 @@
               "type": "string",
               "enum": [
                 "maxHp",
+                "maxMp",
+                "maxSp",
                 "attack",
                 "defense"
               ]
@@ -1405,6 +1407,38 @@
           },
           "required": [
             "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "recover"
+            },
+            "resource": {
+              "type": "string",
+              "enum": [
+                "mp",
+                "sp"
+              ]
+            },
+            "amount": {
+              "$ref": "#/$defs/__schema1"
+            },
+            "target": {
+              "type": "string",
+              "enum": [
+                "player",
+                "party",
+                "all"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "resource"
           ],
           "additionalProperties": false
         },
@@ -1854,6 +1888,35 @@
           "properties": {
             "type": {
               "type": "string",
+              "const": "steal"
+            },
+            "chance": {
+              "$ref": "#/$defs/__schema1"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "inspectEnemy"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
               "const": "endBattle"
             },
             "outcome": {
@@ -1887,6 +1950,42 @@
           "required": [
             "type",
             "id"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "quest"
+            },
+            "quest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "action": {
+              "type": "string",
+              "enum": [
+                "start",
+                "complete",
+                "fail",
+                "objective"
+              ]
+            },
+            "objective": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "type",
+            "quest",
+            "action"
           ],
           "additionalProperties": false
         },
@@ -2427,6 +2526,36 @@
           "properties": {
             "type": {
               "type": "string",
+              "const": "fadeScreen"
+            },
+            "to": {
+              "type": "string",
+              "enum": [
+                "color",
+                "clear"
+              ]
+            },
+            "color": {
+              "type": "string",
+              "pattern": "^#[0-9a-fA-F]{6}$"
+            },
+            "ms": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            }
+          },
+          "required": [
+            "type",
+            "to"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
               "const": "summon"
             },
             "companion": {
@@ -2918,6 +3047,8 @@
               "type": "string",
               "enum": [
                 "maxHp",
+                "maxMp",
+                "maxSp",
                 "attack",
                 "defense"
               ]
@@ -2938,6 +3069,32 @@
           },
           "required": [
             "hp"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "mp": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "mp"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "sp": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "sp"
           ],
           "additionalProperties": false
         },
@@ -3411,6 +3568,44 @@
           },
           "required": [
             "done"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "seenDialogue": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            }
+          },
+          "required": [
+            "seenDialogue"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "quest": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "active",
+                "complete",
+                "failed"
+              ]
+            }
+          },
+          "required": [
+            "quest"
           ],
           "additionalProperties": false
         },

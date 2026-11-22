@@ -264,9 +264,10 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       if ("compare" in c) { checkExpr(file, at, c.compare[0], ctxAllowed); checkExpr(file, at, c.compare[2], ctxAllowed); }
       if ("ability" in c && !abilityIds.has(c.ability)) err(file, at, `未定義の能力 '${c.ability}' を参照しています`);
       if ("trait" in c && !traitIds.has(c.trait)) err(file, at, `未定義の特性 '${c.trait}' を参照しています`);
-      if ("status" in c && !statusIds.has(c.status)) err(file, at, `未定義の状態異常 '${c.status}'（database.json の statuses）`);
+      if ("status" in c && !("quest" in c) && !statusIds.has(c.status)) err(file, at, `未定義の状態異常 '${c.status}'（database.json の statuses）`);
       if ("item" in c && !itemIds.has(c.item)) err(file, at, `未定義のアイテム '${c.item}' を参照しています`);
       if ("done" in c && !doneIds.has(c.done)) err(file, at, `完了IDとして不明な '${c.done}' を参照しています（イベントID、'会話ID/選択肢ID'、markDoneのID）`);
+      if ("quest" in c && !project.quests[c.quest]) err(file, at, `未定義の依頼 '${c.quest}'（project.json の quests）`);
       if ("map" in c && !maps[c.map]) err(file, at, `未定義のマップ '${c.map}'`);
       if ("enemy" in c && !enemyIds.has(c.enemy)) err(file, at, `未定義の敵 '${c.enemy}'`);
       if ("enemyTag" in c && !enemyTags.has(c.enemyTag)) warn(file, at, `どの敵にも付いていないタグ '${c.enemyTag}'`);
@@ -357,6 +358,12 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
           if (effect.type === "placeVehicle") checkPosition(file, here, effect.mapId, effect.x, effect.y, "乗り物の場所");
           break;
         case "unlockAchievement": if (!content.project.achievements[effect.achievement]) err(file, here, `未定義の実績 '${effect.achievement}'（project.json の achievements）`); break;
+        case "quest": {
+          const quest = content.project.quests[effect.quest];
+          if (!quest) err(file, here, `未定義の依頼 '${effect.quest}'（project.json の quests）`);
+          else if (effect.action === "objective" && !quest.objectives.some(o => o.id === effect.objective)) err(file, here, `依頼 '${effect.quest}' に目標 '${effect.objective ?? ""}' がありません`);
+          break;
+        }
         case "showPicture": if (!["background", "portrait", "enemy", "character"].includes(assetById.get(effect.image)?.kind ?? "")) err(file, here, `一枚絵の素材 '${effect.image}' がありません（background・portrait・enemy・character）`); break;
         case "addToSet": case "removeFromSet": case "clearSet": if (!setIds.has(effect.set)) err(file, here, `未宣言の集合 '${effect.set}'`); break;
         case "moveEntity": {
@@ -666,6 +673,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   database.enemies.forEach(a => checkScript(DB, `enemies[${a.id}]`, a.script));
   database.companions.forEach(a => checkScript(DB, `companions[${a.id}]`, a.script));
   for (const [id, map] of Object.entries(maps)) {
+    (map.tints ?? []).forEach((tint, i) => checkCondition(mapFiles[id] ?? id, `tints[${i}].when`, tint.when));
     checkScript(mapFiles[id] ?? id, "", map.script);
     map.entities.forEach(e => e.states.forEach((st, i) => checkScript(mapFiles[id] ?? id, `entities[${e.id}].states[${i}]`, st.script)));
     map.npcs.forEach(n => checkScript(mapFiles[id] ?? id, `npcs[${n.id}]`, n.script));

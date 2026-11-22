@@ -11,7 +11,10 @@ import fs from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
 import { watch, type FSWatcher } from "chokidar";
-import { formatDiagnostic, SCRIPT_PATH } from "../../schema/src/index";
+import {
+  AssetEntrySchema, AssetManifestSchema, IMAGE_KINDS, formatDiagnostic, isSourceEnabled, SCRIPT_PATH, sourcesFor,
+  type AssetEntry,
+} from "../../schema/src/index";
 import { buildProject, REPO_ROOT } from "../../cli/src/build";
 import { loadSystems, runProjectScenarios, systemRefDiagnostics } from "../../cli/src/index";
 import { loadProjectFromDisk, readProjectTexts } from "../../cli/src/load";
@@ -26,9 +29,15 @@ const TEXT_EXT = new Set([".json", ".ts", ".md"]);
 const BINARY_EXT: Record<string, string> = { ".png": "image/png", ".ogg": "audio/ogg", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".woff2": "font/woff2", ".woff": "font/woff", ".ttf": "font/ttf", ".otf": "font/otf" };
 const MAX_TEXT = 4 * 1024 * 1024;
 const MAX_BINARY = 20 * 1024 * 1024;
+const MAX_IMPORT_BODY = Math.ceil(MAX_BINARY * 4 / 3) + 128 * 1024;
 const MAX_IMAGE = 3 * 1024 * 1024;
 const IMAGE_PATH = /^assets\/[a-z0-9][a-z0-9_-]*\/[a-z0-9][a-z0-9_.-]*\.png$/i;
 const IGNORED = /(^|\/)(\.git|node_modules|dist|\.rpg-backup|\.rpg-studio)(\/|$)/;
+const ASSET_FOLDERS: Record<AssetEntry["kind"], string> = {
+  tileset: "assets/tilesets", character: "assets/characters", enemy: "assets/enemies", animation: "assets/animations",
+  portrait: "assets/portraits", background: "assets/backgrounds", bgm: "assets/audio/bgm", sfx: "assets/audio/sfx",
+  song: "assets/audio/songs", font: "assets/fonts",
+};
 
 class HttpError extends Error {
   constructor(readonly status: number, message: string) { super(message); }
@@ -304,6 +313,98 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     });
   }
 
+  /** Import one local image/audio/font and register it in the project's checked asset manifest. */
+  async function importAsset(body: { entry?: unknown; base64?: unknown }) {
+    if (!body || typeof body.base64 !== "string" || !body.entry || typeof body.entry !== "object" || Array.isArray(body.entry)) {
+      throw new HttpError(400, "{entry, base64} が必要です");
+    }
+    if (!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(body.base64)) throw new HttpError(400, "素材データの形式が正しくありません");
+    const bytes = Buffer.from(body.base64, "base64");
+    if (!bytes.length || bytes.length > MAX_BINARY) throw new HttpError(413, "素材は20MBまでです");
+    const mime = bytes.subarray(0, 8).toString("hex") === "89504e470d0a1a0a" ? "image/png"
+      : bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WAVE" ? "audio/wav"
+      : bytes.subarray(0, 4).toString("ascii") === "OggS" ? "audio/ogg"
+      : bytes.subarray(0, 3).toString("ascii") === "ID3" || (bytes[0] === 0xff && (bytes[1]! & 0xe0) === 0xe0) ? "audio/mpeg"
+      : bytes.subarray(0, 4).toString("ascii") === "wOF2" ? "font/woff2"
+      : bytes.subarray(0, 4).toString("ascii") === "wOFF" ? "font/woff"
+      : bytes.subarray(0, 4).toString("ascii") === "OTTO" ? "font/otf"
+      : bytes.subarray(0, 4).toString("hex") === "00010000" || bytes.subarray(0, 4).toString("ascii") === "true" ? "font/ttf"
+      : null;
+    if (!mime) throw new HttpError(415, "PNG・OGG・MP3・WAV・WOFF2・WOFF・TTF・OTFに対応しています");
+
+    const input = body.entry as Record<string, unknown>;
+    const id = typeof input.id === "string" ? input.id.trim() : "";
+    const kind = input.kind as AssetEntry["kind"];
+    if (!/^[a-z0-9][a-z0-9._-]{0,95}$/i.test(id)) throw new HttpError(422, "素材IDは英数字で始め、英数字・._-で指定してください");
+    const ext = mime === "image/png" ? ".png" : mime === "audio/wav" ? ".wav" : mime === "audio/ogg" ? ".ogg" : mime === "audio/mpeg" ? ".mp3"
+      : mime === "font/woff2" ? ".woff2" : mime === "font/woff" ? ".woff" : mime === "font/otf" ? ".otf" : ".ttf";
+    const isImage = IMAGE_KINDS.includes(kind);
+    const isAudio = kind === "bgm" || kind === "sfx";
+    if ((!isImage && !isAudio && kind !== "font") || (isImage && mime !== "image/png") || (isAudio && !mime.startsWith("audio/")) || (kind === "font" && !mime.startsWith("font/"))) {
+      throw new HttpError(422, `素材の種類「${String(kind)}」とファイル形式 ${mime} が合いません`);
+    }
+
+    const loaded = await loadProjectFromDisk(root);
+    if (!loaded.content) throw new HttpError(422, "プロジェクトにエラーがあるため、素材を登録できません");
+    const { project, assets } = loaded.content;
+    if (assets.assets.some(asset => asset.id === id)) throw new HttpError(409, `素材ID「${id}」は既に使われています`);
+    if (bytes.length > project.assetPolicy.budget.maxFileMB * 1024 * 1024) throw new HttpError(413, `1ファイル上限 ${project.assetPolicy.budget.maxFileMB}MB を超えています`);
+    if (mime === "image/png") {
+      if (bytes.length > MAX_IMAGE) throw new HttpError(413, "画像は3MBまでです");
+      if (bytes.subarray(12, 16).toString("latin1") !== "IHDR" || bytes.length < 24) throw new HttpError(422, "PNG画像のヘッダーが正しくありません");
+      const width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20);
+      if (!width || !height || width > 4096 || height > 4096) throw new HttpError(422, "画像の大きさは4096×4096までです");
+    }
+
+    const origin = input.origin;
+    const sourceId = typeof input.sourceId === "string" ? input.sourceId : undefined;
+    const source = sourceId ? sourcesFor(project).find(candidate => candidate.id === sourceId) : undefined;
+    if (sourceId && !source) throw new HttpError(422, `取得元「${sourceId}」がカタログにありません`);
+    if (source && !isSourceEnabled(project, source)) throw new HttpError(422, `取得元「${source.name}」はこのプロジェクトで無効です`);
+    if (source && origin !== source.origin) throw new HttpError(422, `取得元「${source.name}」の種別は「${source.origin}」です`);
+    const category = isImage ? "image" : kind === "bgm" ? "bgm" : kind === "sfx" ? "sfx" : "font";
+    if (source && !source.categories.includes(category)) throw new HttpError(422, `取得元「${source.name}」は${category}素材に対応していません`);
+    if (project.assetPolicy.shareable && source?.redistribution === "prohibited") throw new HttpError(422, `共有用プロジェクトには取得元「${source.name}」の素材を入れられません`);
+    if (project.assetPolicy.shareable && input.redistributable === false) throw new HttpError(422, "共有用プロジェクトには再配布できない素材を入れられません");
+
+    const entryInput: Record<string, unknown> = {
+      ...input,
+      id, kind, mimeType: mime, bytes: bytes.length,
+      path: `${ASSET_FOLDERS[kind]}/${id}${ext}`,
+      source: source?.name ?? (origin === "generated" ? "生成" : "自作"),
+      license: typeof input.license === "string" && input.license ? input.license : "プロジェクト内素材",
+      creditRequired: input.creditRequired === true || source?.creditRequired === "yes",
+      redistributable: input.redistributable !== false && source?.redistribution !== "prohibited",
+      ...(sourceId ? { sourceId } : {}),
+      ...(isImage ? { tileWidth: input.tileWidth ?? bytes.readUInt32BE(16), tileHeight: input.tileHeight ?? bytes.readUInt32BE(20), columns: input.columns ?? 1, rows: input.rows ?? 1 } : {}),
+      ...(isAudio ? { loop: input.loop ?? kind === "bgm" } : {}),
+    };
+    const parsedEntry = AssetEntrySchema.safeParse(entryInput);
+    if (!parsedEntry.success) throw new HttpError(422, parsedEntry.error.issues.map(issue => `${issue.path.join(".")}: ${issue.message}`).join(" ／ "));
+    const manifest = AssetManifestSchema.safeParse({ formatVersion: assets.formatVersion, assets: [...assets.assets, parsedEntry.data] });
+    if (!manifest.success) throw new HttpError(422, manifest.error.issues.map(issue => issue.message).join(" ／ "));
+
+    const relative = parsedEntry.data.path;
+    const target = await securePath(root, relative, { allowMissing: true });
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await securePath(root, relative, { allowMissing: true });
+    let created = false;
+    try {
+      const handle = await fs.open(target, "wx", 0o644);
+      created = true;
+      try { await handle.writeFile(bytes); await handle.sync(); } finally { await handle.close(); }
+      const assetsPath = project.assetsPath;
+      const oldText = loaded.texts[assetsPath];
+      if (oldText === undefined) throw new HttpError(500, `${assetsPath} を読み込めません`);
+      const result = await save({ path: assetsPath, content: `${JSON.stringify(manifest.data, null, 2)}\n`, expectedHash: sha256(Buffer.from(oldText, "utf8")) });
+      if (result.status !== 200) throw new HttpError(result.status, "素材一覧が外部で変更されています。読み込み直してから再度取り込んでください");
+      return { status: 200, json: { asset: parsedEntry.data } };
+    } catch (error) {
+      if (created) await fs.rm(target, { force: true }).catch(() => {});
+      throw error;
+    }
+  }
+
   async function runTests(): Promise<TestResponse> {
     const loaded = await loadProjectFromDisk(root);
     const diagnostics = loaded.diagnostics.map(formatDiagnostic);
@@ -349,12 +450,12 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     res.end(body);
   }
 
-  async function readBody(req: http.IncomingMessage): Promise<unknown> {
+  async function readBody(req: http.IncomingMessage, limit = MAX_TEXT + 4096): Promise<unknown> {
     const chunks: Buffer[] = [];
     let size = 0;
     for await (const chunk of req) {
       size += (chunk as Buffer).length;
-      if (size > MAX_TEXT + 4096) throw new HttpError(413, "リクエストが大きすぎます");
+      if (size > limit) throw new HttpError(413, "リクエストが大きすぎます");
       chunks.push(chunk as Buffer);
     }
     try { return JSON.parse(Buffer.concat(chunks).toString("utf8")); } catch { throw new HttpError(400, "JSON本文が必要です"); }
@@ -417,6 +518,10 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
         }
         case "PUT /api/image": {
           const result = await saveImage(await readBody(req) as ImageSaveRequest);
+          return json(res, result.status, result.json);
+        }
+        case "POST /api/asset/import": {
+          const result = await importAsset(await readBody(req, MAX_IMPORT_BODY) as { entry?: unknown; base64?: unknown });
           return json(res, result.status, result.json);
         }
         case "PUT /api/file": {

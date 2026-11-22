@@ -144,14 +144,19 @@ async function writePwaFiles(stage: string, title: string, version: string) {
   };
   await walk(stage, "");
   files.sort();
-  await fs.writeFile(path.join(stage, "sw.js"), `// 自動生成（rpg build）。版が変わると古いキャッシュを消して入れ替えます。
+  await fs.writeFile(path.join(stage, "sw.js"), `// 自動生成（rpg build）。ネット優先・オフライン時は保存分。版が変わると古いキャッシュを消します。
 const CACHE = ${JSON.stringify(`rpg-${version}`)};
 const FILES = ${JSON.stringify(files)};
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith("rpg-") && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
-  e.respondWith(caches.match(e.request, { ignoreSearch: true }).then(hit => hit || fetch(e.request)));
+  if (new URL(e.request.url).origin !== location.origin) return;
+  // ネットを先に見る: 公開し直したら次に開いたときから新しい版。つながらないときだけ保存しておいた分で遊ぶ。
+  e.respondWith(fetch(e.request).then(res => {
+    if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
+    return res;
+  }).catch(() => caches.match(e.request, { ignoreSearch: true }).then(hit => hit || Response.error())));
 });
 `);
 }

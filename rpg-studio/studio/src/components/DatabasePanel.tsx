@@ -2,14 +2,15 @@ import { useState } from "react";
 import { ScriptField } from "./ScriptsPanel";
 import { z } from "zod";
 import { Plus, Shield, Sword, Trash2, Users, Wand2 } from "lucide-react";
-import { StatModsSchema, type Ability, type Companion, type Enemy, type GameContent, type Item, type Use, type ScriptRef } from "@rpg/schema";
+import { StatModsSchema, type Ability, type Companion, type Enemy, type GameContent, type Item, type Use, type ScriptRef, type Stats } from "@rpg/schema";
 import { MODULES } from "../../../packages/modules/src/index";
 import { Field, JsonField, TextInput } from "./Inspector";
 import { ConditionEditor, EffectListEditor } from "./forms";
 import { RuleEditor } from "./RulesPanel";
+import UsagePanel from "./UsagePanel";
 import type { ProjectStore } from "../lib/useProject";
 
-interface Props { store: ProjectStore; content: GameContent }
+interface Props { store: ProjectStore; content: GameContent; onOpenFile: (file: string) => void }
 type Tab = "enemies" | "items" | "abilities" | "companions";
 type Db = { enemies: Enemy[]; items: Item[]; abilities: Ability[]; companions: Companion[] };
 
@@ -17,9 +18,11 @@ const TABS: Array<[Tab, string, typeof Sword]> = [["enemies", "敵", Sword], ["i
 const uniqueId = (base: string, taken: string[]) => { if (!taken.includes(base)) return base; for (let i = 2; ; i++) if (!taken.includes(`${base}-${i}`)) return `${base}-${i}`; };
 const num = (v: string, min = 0) => Math.max(min, Math.round(Number(v) || 0));
 
-function StatsRow({ stats, onChange }: { stats: { maxHp: number; attack: number; defense: number }; onChange: (s: { maxHp: number; attack: number; defense: number }) => void }) {
+function StatsRow({ stats, onChange, resources = false }: { stats: Stats; onChange: (s: Stats) => void; resources?: boolean }) {
   return <div className="form-row wrap">
     <Field label="最大HP"><TextInput type="number" min={1} value={stats.maxHp} onCommit={v => onChange({ ...stats, maxHp: num(v, 1) })} /></Field>
+    {resources && <Field label="最大MP"><TextInput type="number" min={0} value={stats.maxMp ?? ""} onCommit={v => { const next = { ...stats }; if (v === "") delete next.maxMp; else next.maxMp = num(v); onChange(next); }} /></Field>}
+    {resources && <Field label="最大SP"><TextInput type="number" min={0} value={stats.maxSp ?? ""} onCommit={v => { const next = { ...stats }; if (v === "") delete next.maxSp; else next.maxSp = num(v); onChange(next); }} /></Field>}
     <Field label="攻撃"><TextInput type="number" min={0} value={stats.attack} onCommit={v => onChange({ ...stats, attack: num(v) })} /></Field>
     <Field label="防御"><TextInput type="number" min={0} value={stats.defense} onCommit={v => onChange({ ...stats, defense: num(v) })} /></Field>
   </div>;
@@ -43,13 +46,17 @@ function UseEditor({ use, onChange, content, item }: { use: Use | undefined; onC
       </div>)}
       {Object.keys(content.project.variables).length > 0 && <button className="button" onClick={() => onChange({ ...use, cost: [...use.cost, { var: Object.keys(content.project.variables)[0]!, amount: 1 }] })}><Plus size={12} />消費を足す</button>}
     </div>
+    <div className="form-row wrap">
+      <Field label="MP消費"><TextInput type="number" min={0} value={typeof use.mpCost === "number" ? use.mpCost : ""} onCommit={v => { const next = { ...use }; if (v === "") delete next.mpCost; else next.mpCost = num(v); onChange(next); }} /></Field>
+      <Field label="SP消費"><TextInput type="number" min={0} value={typeof use.spCost === "number" ? use.spCost : ""} onCommit={v => { const next = { ...use }; if (v === "") delete next.spCost; else next.spCost = num(v); onChange(next); }} /></Field>
+    </div>
     <div className="field"><span className="field-label">使える条件</span><ConditionEditor value={use.when} content={content} onChange={w => onChange({ ...use, when: w })} /></div>
     <div className="field"><span className="field-label">効果</span><EffectListEditor value={use.effects} content={content} onChange={v => v.length && onChange({ ...use, effects: v })} /></div>
   </div>;
 }
 
 /** Forms for database.json: enemies, items, abilities and companions. */
-export default function DatabasePanel({ store, content }: Props) {
+export default function DatabasePanel({ store, content, onOpenFile }: Props) {
   const [tab, setTab] = useState<Tab>("enemies");
   const [selected, setSelected] = useState<string | null>(null);
   const path = content.project.databasePath;
@@ -108,6 +115,7 @@ export default function DatabasePanel({ store, content }: Props) {
                 <Field label="名前"><TextInput value={a.name} onCommit={v => v && set(x => { x.actions[i]!.name = v; })} /></Field>
                 <Field label="威力（0 = 攻撃しない）"><TextInput type="number" min={0} value={a.power} onCommit={v => set(x => { x.actions[i]!.power = num(v); })} /></Field>
                 <Field label="セリフ"><TextInput value={a.message ?? ""} onCommit={v => set(x => { x.actions[i]!.message = v || undefined; })} /></Field>
+                <Field label="この行動でBGM"><select value={a.music === null ? "__default" : a.music ?? ""} onChange={v => set(x => { const value = v.target.value; if (!value) delete x.actions[i]!.music; else x.actions[i]!.music = value === "__default" ? null : value; })}><option value="">切り替えない</option><option value="__default">通常の戦闘BGMに戻す</option>{content.assets.assets.filter(a => a.kind === "bgm" || a.kind === "song").map(a => <option key={a.id} value={a.id}>{a.id}</option>)}</select></Field>
                 <Field label="相手"><select value={a.target ?? "one"} onChange={v => set(x => { if (v.target.value === "all") x.actions[i]!.target = "all"; else delete x.actions[i]!.target; })}><option value="one">1人</option><option value="all">全員</option></select></Field>
                 <Field label="回数"><TextInput type="number" min={1} max={20} value={a.hits ?? 1} onCommit={v => set(x => { const n = Math.min(20, Math.max(1, num(v, 1))); if (n === 1) delete x.actions[i]!.hits; else x.actions[i]!.hits = n; })} /></Field>
                 <button className="button" disabled={e.actions.length <= 1} onClick={() => set(x => { x.actions.splice(i, 1); })}><Trash2 size={12} /></button>
@@ -123,7 +131,7 @@ export default function DatabasePanel({ store, content }: Props) {
               <input type="number" min={1} value={d.count} onChange={v => set(x => { x.drops[i]!.count = num(v.target.value, 1); })} style={{ width: "4em" }} />
               <button className="icon-button" onClick={() => set(x => { x.drops.splice(i, 1); })}><Trash2 size={12} /></button>
             </div>)}
-            {db.items.length > 0 && <button className="button" onClick={() => set(x => { x.drops.push({ item: db.items[0]!.id, count: 1 }); })}><Plus size={12} />戦利品を足す</button>}
+            {db.items.length > 0 && <button className="button" onClick={() => set(x => { x.drops.push({ item: db.items[0]!.id, count: 1, chance: 100 }); })}><Plus size={12} />戦利品を足す</button>}
           </div>
           <div className="field"><span className="field-label">戦い方</span>
             <select value={e.battle?.mode ?? "builtin"} onChange={v => set(x => { if (v.target.value === "builtin") delete x.battle; else x.battle = { mode: v.target.value, args: x.battle?.args ?? {} }; })}>
@@ -144,7 +152,7 @@ export default function DatabasePanel({ store, content }: Props) {
             <Field label="回復量（簡易）"><TextInput type="number" min={0} value={it.heal ?? ""} onCommit={v => set(x => { if (Number(v) > 0) x.heal = num(v, 1); else delete x.heal; })} /></Field>
             <label className="field"><span className="field-label">大事なもの</span><input type="checkbox" checked={it.key} onChange={v => set(x => { x.key = v.target.checked; })} /></label>
           </div>
-          <Field label={it.slot ? "装備中の能力補正" : "持っている間の能力補正"} hint='例 {"attack": 2}'><JsonField value={it.statMods} schema={StatModsSchema} onCommit={v => set(x => { if (v) x.statMods = v; else delete x.statMods; })} rows={1} /></Field>
+          <Field label={it.slot ? "装備中の能力補正" : "持っている間の能力補正"} hint='例 {"maxMp": 4, "attack": 2}'><JsonField value={it.statMods} schema={StatModsSchema} onCommit={v => set(x => { if (v) x.statMods = v; else delete x.statMods; })} rows={1} /></Field>
           <div className="field"><span className="field-label">使ったとき</span><UseEditor use={it.use} item content={content} onChange={u => set(x => { if (u) x.use = u; else delete x.use; })} /></div>
           <div className="field"><span className="field-label">{it.slot ? "装備中" : "持っている間"}のルール</span>
             {it.rules.map((r, i) => <RuleEditor key={`${r.id}-${i}`} rule={r} content={content} onChange={nr => set(x => { x.rules[i] = nr; })} onDelete={() => set(x => { x.rules.splice(i, 1); })} />)}
@@ -154,7 +162,8 @@ export default function DatabasePanel({ store, content }: Props) {
 
         {tab === "abilities" && (() => { const ab = current as Ability; const set = (r: (x: Ability) => void) => edit("abilities", ab.id, r); return <>
           <Field label="分類（表示用）"><select value={ab.kind} onChange={v => set(x => { x.kind = v.target.value as Ability["kind"]; })}><option value="passive">常に効く</option><option value="battle">戦闘の技</option><option value="field">フィールドの技</option></select></Field>
-          <Field label="能力補正" hint='例 {"defense": 1}'><JsonField value={ab.statMods} schema={StatModsSchema} onCommit={v => set(x => { if (v) x.statMods = v; else delete x.statMods; })} rows={1} /></Field>
+          {ab.kind === "passive" && content.project.player.passiveCapacity !== undefined && <Field label="装備コスト（パッシブ枠）"><TextInput type="number" min={1} value={ab.passiveCost ?? 1} onCommit={v => set(x => { if (v === "") delete x.passiveCost; else x.passiveCost = num(v, 1); })} /></Field>}
+          <Field label="能力補正" hint='例 {"maxSp": 2, "defense": 1}'><JsonField value={ab.statMods} schema={StatModsSchema} onCommit={v => set(x => { if (v) x.statMods = v; else delete x.statMods; })} rows={1} /></Field>
           <div className="field"><span className="field-label">技として使ったとき</span><UseEditor use={ab.use} content={content} onChange={u => set(x => { if (u) x.use = u; else delete x.use; })} /></div>
           <div className="field"><span className="field-label">持っている間のルール</span>
             {ab.rules.map((r, i) => <RuleEditor key={`${r.id}-${i}`} rule={r} content={content} onChange={nr => set(x => { x.rules[i] = nr; })} onDelete={() => set(x => { x.rules.splice(i, 1); })} />)}
@@ -163,19 +172,22 @@ export default function DatabasePanel({ store, content }: Props) {
         </>; })()}
 
         {tab === "companions" && (() => { const cp = current as Companion; const set = (r: (x: Companion) => void) => edit("companions", cp.id, r); return <>
-          <StatsRow stats={cp.stats} onChange={s => set(x => { x.stats = s; })} />
+          <StatsRow resources stats={cp.stats} onChange={s => set(x => { x.stats = s; })} />
           <Field label="見た目"><select value={cp.sprite ?? ""} onChange={v => set(x => { if (v.target.value) x.sprite = v.target.value; else delete x.sprite; })}><option value="">（なし）</option>{characters.map(id => <option key={id}>{id}</option>)}</select></Field>
           <div className="field"><span className="field-label">行動（手当ては誰かのHPが半分を切ると優先。戦闘中は「なかま」で指示できる）</span>
             {cp.actions.map((a, i) => <div key={i} className="form-row wrap">
-              <input value={a.name} onChange={v => set(x => { x.actions[i]!.name = v.target.value || x.actions[i]!.name; })} />
-              <select value={a.kind} onChange={v => set(x => { x.actions[i]!.kind = v.target.value as typeof a.kind; })}><option value="attack">攻撃</option><option value="heal">手当て</option><option value="guard">守り</option></select>
-              <input type="number" min={0} value={a.power} onChange={v => set(x => { x.actions[i]!.power = num(v.target.value); })} style={{ width: "5em" }} title="威力・回復量" />
+              <input aria-label="行動名" value={a.name} onChange={v => set(x => { x.actions[i]!.name = v.target.value || x.actions[i]!.name; })} />
+              <select aria-label="行動の種類" value={a.kind} onChange={v => set(x => { x.actions[i]!.kind = v.target.value as typeof a.kind; })}><option value="attack">攻撃</option><option value="heal">手当て</option><option value="guard">守り</option></select>
+              <input aria-label="威力・回復量" type="number" min={0} value={a.power} onChange={v => set(x => { x.actions[i]!.power = num(v.target.value); })} style={{ width: "5em" }} title="威力・回復量" />
+              <input aria-label="MP消費" type="number" min={0} placeholder="MP" value={typeof a.mpCost === "number" ? a.mpCost : ""} onChange={v => set(x => { if (v.target.value === "") delete x.actions[i]!.mpCost; else x.actions[i]!.mpCost = num(v.target.value); })} style={{ width: "5em" }} title="MP消費" />
+              <input aria-label="SP消費" type="number" min={0} placeholder="SP" value={typeof a.spCost === "number" ? a.spCost : ""} onChange={v => set(x => { if (v.target.value === "") delete x.actions[i]!.spCost; else x.actions[i]!.spCost = num(v.target.value); })} style={{ width: "5em" }} title="SP消費" />
               <button className="icon-button" disabled={cp.actions.length <= 1} onClick={() => set(x => { x.actions.splice(i, 1); })}><Trash2 size={12} /></button>
             </div>)}
             <button className="button" onClick={() => set(x => { x.actions.push({ name: "攻撃", kind: "attack", power: 0 }); })}><Plus size={12} />行動を足す</button>
           </div>
           <p className="muted small">仲間にするには、会話やイベントの効果「joinParty」を使います（効果フォームでは JSON: {'{"type": "joinParty", "companion": "'}{cp.id}{'"}'}）。</p>
         </>; })()}
+        <UsagePanel id={current.id} store={store} onOpenFile={onOpenFile} />
       </div>}
     </section>
   </div>;

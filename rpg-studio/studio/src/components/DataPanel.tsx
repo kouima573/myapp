@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FileJson2, FileCode2, Wand2 } from "lucide-react";
+import { FileJson2, FileCode2, Wand2, Undo2, Redo2 } from "lucide-react";
 import { formatDiagnostic, type Diagnostic } from "@rpg/schema";
 import type { ProjectStore } from "../lib/useProject";
 
@@ -36,6 +36,7 @@ export default function DataPanel({ store, diagnostics, file, onFile }: Props) {
 
   const isJson = current?.endsWith(".json");
   const readOnly = current?.endsWith(".ts") && store.source.kind === "preview";
+  const history = current ? store.historyState(current) : { canUndo: false, canRedo: false };
   const fileDiagnostics = diagnostics.filter(d => d.file === current);
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
@@ -76,6 +77,8 @@ export default function DataPanel({ store, diagnostics, file, onFile }: Props) {
             <div className="muted small">{LABELS[current] ?? (current.startsWith("systems/") ? "信頼されたTypeScriptの独自ルール（保存すると型検査・再ビルド）" : current.startsWith("tests/") ? "自動プレイテスト（pnpm rpg test / 検証画面で実行）" : "")}</div>
           </div>
           <span className="spacer" />
+          <button className="button" title="元に戻す（Ctrl/⌘+Z）" aria-label="元に戻す" onClick={() => current && store.undo(current)} disabled={!history.canUndo}><Undo2 size={14} /></button>
+          <button className="button" title="やり直す（Ctrl/⌘+Y）" aria-label="やり直す" onClick={() => current && store.redo(current)} disabled={!history.canRedo}><Redo2 size={14} /></button>
           {isJson && <button className="button" onClick={format} disabled={readOnly}><Wand2 size={14} /> 整形して保存</button>}
         </div>
         <textarea
@@ -87,6 +90,8 @@ export default function DataPanel({ store, diagnostics, file, onFile }: Props) {
           onBlur={() => { if (editing.current) commit(draft); }}
           onKeyDown={e => {
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); commit(draft); }
+            if ((e.ctrlKey || e.metaKey) && !editing.current && e.key.toLowerCase() === "z") { e.preventDefault(); if (current) (e.shiftKey ? store.redo(current) : store.undo(current)); }
+            if ((e.ctrlKey || e.metaKey) && !editing.current && e.key.toLowerCase() === "y") { e.preventDefault(); if (current) store.redo(current); }
             if (e.key === "Tab") { e.preventDefault(); const t = e.currentTarget; const s = t.selectionStart; const v = `${draft.slice(0, s)}  ${draft.slice(t.selectionEnd)}`; setDraft(v); if (!editing.current) base.current = text; editing.current = true; requestAnimationFrame(() => { t.selectionStart = t.selectionEnd = s + 2; }); }
           }}
           aria-label={`${current} の内容`}

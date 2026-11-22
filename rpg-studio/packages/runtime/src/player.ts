@@ -2,7 +2,7 @@
  * The playable game: canvas + DOM windows (messages, choices, battle, menu) + keyboard/touch input.
  * Used unchanged by the studio play-test and by the static build, so both always behave identically.
  */
-import type { AssetEntry, Direction, GameContent, GameState } from "../../schema/src/formats";
+import type { AssetEntry, Direction, GameContent, GameState, Use } from "../../schema/src/formats";
 import { createEngine, makeSave, readSave, type Action, type Engine, type GameSystem, type StepResult } from "../../engine/src/index";
 import { directionFromKey, GridMovementAnimator, WALK_ANIMATION_MS, type Point } from "./movement";
 import { drawEnemyPortrait, drawMap, loadImages, npcActors, TILE, type ImageMap } from "./render";
@@ -14,6 +14,9 @@ import { parseMarkup, plainLength, renderMarkup, stripMarkup, typedAt, type Text
 export interface SaveStorage {
   read(key: string): string | null;
   write(key: string, value: string): void;
+  /** Save slots may use asynchronous storage such as IndexedDB. Settings and metadata stay synchronous. */
+  readSave?(key: string): Promise<string | null>;
+  writeSave?(key: string, value: string): Promise<void>;
 }
 
 export interface MountOptions {
@@ -51,10 +54,91 @@ const VIEW_ROWS = 14;
 const TEXT_SPEED_MS = 22;
 const OPPOSITE: Record<Direction, Direction> = { up: "down", down: "up", left: "right", right: "left" };
 
+let savesDbPromise: Promise<IDBDatabase> | null = null;
+const SAVES_DB_NAME = "rpg-studio-saves";
+const SAVES_STORE_NAME = "saves";
+
+function openSavesDb(): Promise<IDBDatabase> {
+  if (typeof indexedDB === "undefined") return Promise.reject(new Error("IndexedDBを利用できません"));
+  if (savesDbPromise) return savesDbPromise;
+  const opening = new Promise<IDBDatabase>((resolve, reject) => {
+    const request = indexedDB.open(SAVES_DB_NAME, 1);
+    let failed = false;
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(SAVES_STORE_NAME)) db.createObjectStore(SAVES_STORE_NAME);
+    };
+    request.onsuccess = () => {
+      if (failed) { request.result.close(); return; }
+      const db = request.result;
+      db.onversionchange = () => { db.close(); savesDbPromise = null; };
+      resolve(db);
+    };
+    request.onerror = () => { failed = true; reject(request.error ?? new Error("IndexedDBを開けません")); };
+    request.onblocked = () => { failed = true; reject(new Error("別のタブがセーブ領域を使用中です")); };
+  });
+  savesDbPromise = opening.catch(error => {
+    savesDbPromise = null;
+    throw error;
+  });
+  return savesDbPromise;
+}
+
+function readSaveFromDb(db: IDBDatabase, key: string): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(SAVES_STORE_NAME, "readonly");
+    const request = transaction.objectStore(SAVES_STORE_NAME).get(key);
+    request.onsuccess = () => resolve(typeof request.result === "string" ? request.result : null);
+    request.onerror = () => reject(request.error ?? new Error("セーブを読み込めません"));
+    transaction.onabort = () => reject(transaction.error ?? new Error("セーブの読込が中断されました"));
+  });
+}
+
+function writeSaveToDb(db: IDBDatabase, key: string, value: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(SAVES_STORE_NAME, "readwrite");
+    transaction.objectStore(SAVES_STORE_NAME).put(value, key);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error ?? new Error("セーブを書き込めません"));
+    transaction.onabort = () => reject(transaction.error ?? new Error("セーブの書込が中断されました"));
+  });
+}
+
 export function browserStorage(): SaveStorage {
   return {
     read(key) { try { return window.localStorage.getItem(key); } catch { return null; } },
     write(key, value) { try { window.localStorage.setItem(key, value); } catch { throw new Error("ブラウザの保存領域を使えません（プライベートモード等）"); } },
+    async readSave(key) {
+      // A local copy exists only when it has not yet migrated or the last IDB write fell back.
+      let legacy: string | null = null;
+      try { legacy = window.localStorage.getItem(key); } catch { /* IndexedDB may still be available. */ }
+      try {
+        const db = await openSavesDb();
+        if (legacy !== null) {
+          try {
+            await writeSaveToDb(db, key, legacy);
+            window.localStorage.removeItem(key);
+          } catch { /* Keep the localStorage copy if migration cannot be committed. */ }
+          return legacy;
+        }
+        return await readSaveFromDb(db, key);
+      } catch {
+        return legacy;
+      }
+    },
+    async writeSave(key, value) {
+      try {
+        const db = await openSavesDb();
+        await writeSaveToDb(db, key, value);
+        try { window.localStorage.removeItem(key); } catch { /* The IndexedDB copy is already durable. */ }
+        return;
+      } catch (idbError) {
+        try { window.localStorage.setItem(key, value); return; } catch {
+          const detail = idbError instanceof Error ? ` (${idbError.message})` : "";
+          throw new Error(`ブラウザのセーブ領域を使えません。空き容量を確認してください${detail}`);
+        }
+      }
+    },
   };
 }
 
@@ -88,10 +172,40 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   const SLOTS = ["auto", "1", "2", "3"] as const;
   type Slot = (typeof SLOTS)[number];
   const slotKey = (slot: Slot) => `${saveKey}:${slot}`;
-  const readSlot = (slot: Slot) => { try { return storage.read(slotKey(slot)) ?? (slot === "1" ? storage.read(saveKey) : null); } catch { return null; } };
+  const slotCache = new Map<Slot, string | null>();
+  const slotVersions = new Map<Slot, number>();
+  for (const slot of SLOTS) {
+    try { slotCache.set(slot, storage.read(slotKey(slot)) ?? (slot === "1" ? storage.read(saveKey) : null)); }
+    catch { slotCache.set(slot, null); }
+    slotVersions.set(slot, 0);
+  }
+  const readSlot = (slot: Slot) => slotCache.get(slot) ?? null;
+  async function readStoredSave(key: string): Promise<string | null> {
+    try { return storage.readSave ? await storage.readSave(key) : storage.read(key); }
+    catch { try { return storage.read(key); } catch { return null; } }
+  }
+  async function readStoredSlot(slot: Slot): Promise<string | null> {
+    const raw = await readStoredSave(slotKey(slot));
+    if (raw !== null || slot !== "1") return raw;
+    return readStoredSave(saveKey);
+  }
+  async function writeStoredSlot(slot: Slot, value: string): Promise<void> {
+    slotVersions.set(slot, (slotVersions.get(slot) ?? 0) + 1);
+    if (storage.writeSave) await storage.writeSave(slotKey(slot), value);
+    else storage.write(slotKey(slot), value);
+    slotCache.set(slot, value);
+  }
+  async function hydrateSlots(): Promise<void> {
+    await Promise.all(SLOTS.map(async slot => {
+      const version = slotVersions.get(slot) ?? 0;
+      const raw = await readStoredSlot(slot);
+      if (slotVersions.get(slot) === version) slotCache.set(slot, raw);
+    }));
+    if (!destroyed) renderUI();
+  }
   const slotLabel = (slot: Slot) => (slot === "auto" ? "オート" : `スロット${slot}`);
   /** "main" menu, the title screen, or the save / load slot lists. */
-  let menuView: "main" | "title" | "save" | "load" | "book" | "achievements" | "formation" | "skills" = "main";
+  let menuView: "main" | "title" | "save" | "load" | "book" | "achievements" | "quests" | "formation" | "skills" = "main";
   /** Skill-board view: whose boards, which board. */
   let skillOwner = "hero";
   let skillBoardId: string | null = null;
@@ -102,6 +216,12 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   const audio = new AudioManager(content, options.resolveAsset, { bgm: true, sfx: true, ...(rawSet as Partial<AudioSettings>) });
   const uiPrefs = {
     textSpeed: (rawSet.textSpeed === "fast" || rawSet.textSpeed === "instant" ? rawSet.textSpeed : "normal") as "normal" | "fast" | "instant",
+    autoAdvance: rawSet.autoAdvance === true,
+    largeText: rawSet.largeText === true,
+    colorAssist: rawSet.colorAssist === true,
+    showControls: typeof rawSet.showControls === "boolean" ? rawSet.showControls : true,
+    clickMove: rawSet.clickMove !== false,
+    reducedMotion: typeof rawSet.reducedMotion === "boolean" ? rawSet.reducedMotion : Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches),
     shake: typeof rawSet.shake === "boolean" ? rawSet.shake : true,
     minimap: typeof rawSet.minimap === "boolean" ? rawSet.minimap : true,
     textSound: typeof rawSet.textSound === "boolean" ? rawSet.textSound : true,
@@ -110,6 +230,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   /** オート戦闘: attack again and again until the battle ends or a key is pressed. */
   let autoBattle = false;
   let autoTimer = 0;
+  let skipHeld = false;
   let creditsOpen = false;
   let backlogOpen = false;
   const backlog: Array<{ speaker?: string; text: string }> = [];
@@ -160,7 +281,10 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   if (options.titleScreen && content.project.titleScreen.enabled && !options.initialState) { menuOpen = true; menuView = "title"; atTitle = true; }
   let toast: { text: string; until: number } | null = null;
   let typing = { text: "", startedAt: 0, done: true };
+  let typingScene: GameState["scene"] | null = null;
+  let typingReadyAt = 0;
   let fadeUntil = 0;
+  let scriptedFade: { from: number; to: number; start: number; end: number; color: string } | null = null;
   /** セリフ音声: play a line's voice once when the line appears (re-renders of the same line do not repeat it). */
   let lastVoiceKey = "";
   function speak(voice: string | undefined, key: string) {
@@ -180,6 +304,10 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   /** Where the camera is now (eased toward state.camera / the hero). */
   let camNow: { x: number; y: number; zoom: number; mapId?: string; at?: number } = { x: 0, y: 0, zoom: 1 };
   let lastCamMs = 600;
+  let mapView: { mapId: string; zoom: number; originX: number; originY: number } | null = null;
+  let clickRoute: Direction[] = [];
+  let clickRouteMap = "";
+  let clickInteract = false;
   /** Battle animations playing (cue "anim"). */
   let anims: Array<{ name: string; target: "player" | "enemy"; slot?: number | "all"; at: number }> = [];
   let destroyed = false;
@@ -217,6 +345,9 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     });
   }
   const screen = el("div", "rpg-screen");
+  const fpsEnabled = (() => { const query = new URLSearchParams(window.location.search); return query.has("fps") || query.has("debug"); })();
+  const fpsMeter = fpsEnabled ? el("div", "rpg-fps", "FPS — · frame — ms · work — ms") : null;
+  fpsMeter?.setAttribute("aria-hidden", "true");
   const canvas = el("canvas", "rpg-canvas");
   canvas.width = VIEW_COLS * TILE; canvas.height = VIEW_ROWS * TILE;
   const ctx = canvas.getContext("2d")!;
@@ -236,7 +367,9 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (document.fullscreenElement) void document.exitFullscreen?.();
     else void root.requestFullscreen?.();
   });
-  screen.append(canvas, pictureLayer, hud, fade, windowLayer, fsBtn, live);
+  screen.append(canvas, pictureLayer, hud, fade, windowLayer, fsBtn);
+  if (fpsMeter) screen.append(fpsMeter);
+  screen.append(live);
   const touch = el("div", "rpg-touch");
   root.append(screen, touch);
   host.appendChild(root);
@@ -295,9 +428,15 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       }
       else if (cue.kind === "bump") audio.cue("bump");
       else if (cue.kind === "battleStart") { audio.cue("encounter"); fadeUntil = performance.now() + (uiPrefs.battleSpeed === "fast" ? 60 : 260); }
+      else if (cue.kind === "fade") {
+        const now = performance.now();
+        const current = scriptedFade ? (scriptedFade.end <= now ? scriptedFade.to : scriptedFade.from + (scriptedFade.to - scriptedFade.from) * Math.max(0, (now - scriptedFade.start) / Math.max(1, scriptedFade.end - scriptedFade.start))) : 0;
+        scriptedFade = { from: current, to: cue.to === "color" ? 1 : 0, start: now, end: now + cue.ms, color: cue.color };
+      }
       else if (cue.kind === "shake") { shakeUntil = performance.now() + cue.ms; shakePower = cue.power; }
       else if (cue.kind === "anim") anims = [...anims.filter(a => performance.now() - a.at < 900), { name: cue.name, target: cue.target, ...(cue.slot !== undefined ? { slot: cue.slot } : {}), at: performance.now() }];
       else if (cue.kind === "achievement") { showToast(`🏆 実績「${cue.title}」を達成！`); audio.cue("item"); }
+      else if (cue.kind === "quest") { showToast(`${cue.action === "start" ? "依頼を受けた" : cue.action === "complete" ? "依頼を達成した" : cue.action === "fail" ? "依頼に失敗した" : "目標を達成した"}：「${cue.title}」`); if (cue.action === "complete") audio.cue("item"); }
       else if (cue.kind === "miss") popups.push({ text: "MISS", target: cue.target, at: performance.now(), n: popups.length });
       else if (cue.kind === "critical") popups.push({ text: "会心！", target: cue.target, at: performance.now(), n: popups.length });
       else if (cue.kind === "hit") { popups.push({ text: String(cue.amount), target: cue.target, at: performance.now(), n: popups.length }); audio.cue(cue.target === "enemy" ? "hit" : "hurt"); if (cue.target === "player" && uiPrefs.shake) shakeUntil = performance.now() + 220; }
@@ -329,7 +468,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (result.log.length) options.onLog?.(result.log, state);
     if (state !== before) options.onStateChange?.(state);
     renderUI();
-    if (autoSaveSoon) autoSave();
+    if (autoSaveSoon) void autoSave();
   }
 
   /* ------------------------------------------------------------ input */
@@ -337,6 +476,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (realtimeDef()) { realtimeHeld.add(dir); return; }
     if (state.scene.kind === "custom") { audio.cue("cursor"); dispatch({ type: "sceneInput", input: { type: dir } }); return; }
     if (state.scene.kind === "field" && !menuOpen) {
+      clickRoute = []; clickInteract = false;
       const fresh = !held.includes(dir);
       if (fresh) held.push(dir);
       // Take the first step on key-down so a quick tap (released before the next frame) still moves / turns.
@@ -413,7 +553,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (asking) { asking = null; selection = 0; renderUI(); return; }
     if (menuOpen && menuView === "title") return;
     if (menuOpen && (menuView === "save" || menuView === "load")) { menuView = slotReturn; selection = 0; renderUI(); return; }
-    if (menuOpen && (menuView === "book" || menuView === "achievements" || menuView === "formation" || menuView === "skills")) { menuView = "main"; selection = 0; renderUI(); return; }
+    if (menuOpen && (menuView === "book" || menuView === "achievements" || menuView === "quests" || menuView === "formation" || menuView === "skills")) { menuView = "main"; selection = 0; renderUI(); return; }
     if (state.scene.kind === "custom") { audio.cue("cancel"); dispatch({ type: "sceneInput", input: { type: "cancel" } }); return; }
     if (creditsOpen) { creditsOpen = false; selection = 0; renderUI(); return; }
     if (backlogOpen) { backlogOpen = false; selection = 0; renderUI(); return; }
@@ -455,6 +595,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (!accepts(event) || event.metaKey || event.ctrlKey || event.altKey) return;
     audio.unlock();
     if (realtimeKey(event, true)) return;
+    if (event.key.toLowerCase() === "s" && (state.scene.kind === "message" || state.scene.kind === "dialogue")) { event.preventDefault(); skipHeld = true; if (!typing.done) finishTyping(); return; }
     const dir = directionFromKey(event.key);
     if (dir) { event.preventDefault(); if (!event.repeat || state.scene.kind === "field") press(dir); return; }
     const key = event.key.toLowerCase();
@@ -469,31 +610,99 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   }
   function onKeyUp(event: KeyboardEvent) {
     dashing = event.shiftKey;
+    if (event.key.toLowerCase() === "s") skipHeld = false;
     if (realtimeKey(event, false)) return;
     const dir = directionFromKey(event.key);
     if (dir) releaseDir(dir);
   }
-  const onBlur = () => { held.length = 0; dashing = false; realtimeHeld.clear(); };
+  const onBlur = () => { held.length = 0; dashing = false; skipHeld = false; realtimeHeld.clear(); };
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("blur", onBlur);
   root.addEventListener("focusout", event => { if (!root.contains(event.relatedTarget as Node | null)) held.length = 0; });
   root.addEventListener("pointerdown", () => audio.unlock(), { capture: true });
-  canvas.addEventListener("pointerdown", () => { root.focus({ preventScroll: true }); if (state.scene.kind !== "field") confirm(); });
+  canvas.addEventListener("pointerdown", event => {
+    root.focus({ preventScroll: true });
+    if (state.scene.kind !== "field") { confirm(); return; }
+    if (!uiPrefs.clickMove || menuOpen || state.routes?.length || !event.isPrimary || event.button !== 0 || !mapView || mapView.mapId !== state.mapId) return;
+    const map = content.maps[state.mapId];
+    if (!map) return;
+    const rect = canvas.getBoundingClientRect();
+    const sx = (event.clientX - rect.left) * canvas.width / rect.width / mapView.zoom;
+    const sy = (event.clientY - rect.top) * canvas.height / rect.height / mapView.zoom;
+    const target = { x: Math.floor((sx - mapView.originX) / TILE), y: Math.floor((sy - mapView.originY) / TILE) };
+    if (target.x < 0 || target.y < 0 || target.x >= map.width || target.y >= map.height) return;
+
+    const npcs = engine.visibleNpcs(state, map);
+    const entities = engine.visibleEntities(state, map);
+    const interactables = engine.visibleInteractables(state, map).filter(item => item.trigger === "action");
+    const actor = npcs.some(n => n.x === target.x && n.y === target.y)
+      || entities.some(e => e.x === target.x && e.y === target.y)
+      || interactables.some(i => i.x === target.x && i.y === target.y);
+    const occupied = new Set([
+      ...npcs.map(n => `${n.x},${n.y}`),
+      ...entities.map(e => `${e.x},${e.y}`),
+      ...interactables.filter(i => i.solid).map(i => `${i.x},${i.y}`),
+    ]);
+    const start = { x: state.player.x, y: state.player.y };
+    const keyOf = (p: { x: number; y: number }) => `${p.x},${p.y}`;
+    const steps: Array<{ dir: Direction; x: number; y: number }> = [
+      { dir: "up", x: 0, y: -1 }, { dir: "right", x: 1, y: 0 }, { dir: "down", x: 0, y: 1 }, { dir: "left", x: -1, y: 0 },
+    ];
+    const opposite: Record<Direction, Direction> = { up: "down", right: "left", down: "up", left: "right" };
+    const edgeWalls = (x: number, y: number) => {
+      const codes = [engine.codeAt(state, map, x, y), ...(map.layers ?? []).filter(layer => !layer.above).map(layer => Array.from(layer.rows[y] ?? "")[x] ?? " ")];
+      return codes.flatMap(code => content.tileset.tiles.find(tile => tile.code === code)?.walls ?? []);
+    };
+    const edgeBlocked = (from: { x: number; y: number }, dir: Direction) => edgeWalls(from.x, from.y).includes(dir)
+      || edgeWalls(from.x + steps.find(step => step.dir === dir)!.x, from.y + steps.find(step => step.dir === dir)!.y).includes(opposite[dir]);
+    const paths = new Map<string, Direction[]>([[keyOf(start), []]]);
+    const queue = [start];
+    for (let i = 0; i < queue.length; i++) {
+      const at = queue[i]!;
+      for (const step of steps) {
+        const next = { x: at.x + step.x, y: at.y + step.y };
+        const key = keyOf(next);
+        if (paths.has(key) || occupied.has(key) || edgeBlocked(at, step.dir) || !engine.isPassable(state, next.x, next.y)) continue;
+        paths.set(key, [...paths.get(keyOf(at))!, step.dir]);
+        queue.push(next);
+      }
+    }
+    let destination = target;
+    let path = paths.get(keyOf(target));
+    if (actor) {
+      const adjacent = steps.map(step => ({ x: target.x + step.x, y: target.y + step.y }))
+        .filter(p => paths.has(keyOf(p)))
+        .sort((a, b) => paths.get(keyOf(a))!.length - paths.get(keyOf(b))!.length);
+      destination = adjacent[0] ?? target;
+      path = paths.get(keyOf(destination));
+    }
+    if (!path) { showToast("そこへは歩いて行けません"); return; }
+    clickRoute = [...path]; clickRouteMap = state.mapId; clickInteract = actor;
+    held.length = 0;
+    if (actor && path.length === 0) {
+      const face = steps.find(step => target.x === start.x + step.x && target.y === start.y + step.y)?.dir;
+      if (face) state = { ...state, player: { ...state.player, facing: face } };
+      clickInteract = false;
+      dispatch({ type: "interact" });
+    }
+  });
 
   /* ------------------------------------------------------------ windows */
   let typingTokens: TextToken[] = [];
   let lastRenderedCount = -1;
   let soundsPlayed = new Set<number>();
   function startTyping(text: string) {
-    if (typing.text === text && typing.startedAt) return;
+    if (typingScene === state.scene && typing.text === text && typing.startedAt) return;
+    typingScene = state.scene;
     typing = { text, startedAt: performance.now(), done: false };
+    typingReadyAt = 0;
     typingTokens = parseMarkup(text);
     soundsPlayed = new Set();
     lastRenderedCount = -1;
     live.textContent = stripMarkup(text);
   }
-  function finishTyping() { typing = { ...typing, done: true }; updateTyping(performance.now()); }
+  function finishTyping() { typing = { ...typing, done: true }; typingReadyAt = performance.now(); updateTyping(typingReadyAt); }
   function updateTyping(now: number) {
     const target = windowLayer.querySelector<HTMLElement>("[data-typing]");
     if (!target) return;
@@ -503,7 +712,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const count = typing.done ? total : typed.count;
     if (!typing.done) for (const i of typed.sounds) if (!soundsPlayed.has(i)) { soundsPlayed.add(i); const tok = typingTokens[i]; if (tok?.kind === "se") audio.playSound(tok.sound); }
     const finished = typed.count >= total && typed.sounds.length === typingTokens.filter(t => t.kind === "se").length;
-    if (finished && !typing.done) { typing = { ...typing, done: true }; renderCaret(); }
+    if (finished && !typing.done) { typing = { ...typing, done: true }; typingReadyAt = now; renderCaret(); }
     if (lastRenderedCount !== count) {
       // 文字送りの音: one blip every other letter while typing.
       if (content.project.audio.textSound && uiPrefs.textSound && !typing.done && Math.floor(count / 2) !== Math.floor(Math.max(0, lastRenderedCount) / 2)) audio.cue("text");
@@ -529,7 +738,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     return canvas;
   }
 
-  function messageWindow(speaker: string | undefined, text: string, extra?: HTMLElement, portrait?: { id: string; face: number }) {
+  function messageWindow(speaker: string | undefined, text: string, extra?: HTMLElement, portrait?: { id: string; face: number }, speakerColor?: string) {
     const plain = stripMarkup(text);
     if (plain.trim()) {
       const last = backlog.at(-1);
@@ -541,7 +750,11 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const box = el("div", "rpg-window rpg-message");
     const face = portrait ? portraitCanvas(portrait.id, portrait.face) : null;
     if (face) { box.classList.add("has-face"); box.appendChild(face); }
-    if (speaker) box.appendChild(el("div", "rpg-speaker", speaker));
+    if (speaker) {
+      const name = el("div", "rpg-speaker", speaker);
+      if (speakerColor) name.style.color = speakerColor;
+      box.appendChild(name);
+    }
     const body = el("div", "rpg-text"); body.dataset.typing = "1";
     box.append(body);
     if (!extra) box.appendChild(el("span", "rpg-caret", "▼"));
@@ -554,12 +767,22 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   function navButton(label: string, onClick: () => void, opts: { disabled?: boolean; hint?: string } = {}) {
     const button = el("button", "rpg-option");
     button.type = "button"; button.dataset.nav = "1";
+    if (opts.hint) button.title = opts.hint;
     button.append(el("span", "rpg-option-label", label));
     if (opts.hint) button.append(el("span", "rpg-option-hint", opts.hint));
     button.disabled = Boolean(opts.disabled);
     button.addEventListener("click", event => { event.stopPropagation(); audio.cue("confirm"); onClick(); root.focus({ preventScroll: true }); });
     button.addEventListener("pointerenter", () => { const i = buttons().indexOf(button); if (i < 0) return; selection = i; highlight(); });
     return button;
+  }
+
+  function useCostHints(use: Use): string {
+    return [
+      ...use.cost.map(cost => `${content.project.variables[cost.var]?.label ?? cost.var} ${typeof cost.amount === "number" ? cost.amount : "消費"}`),
+      ...(use.hpCost === undefined ? [] : [`HP ${typeof use.hpCost === "number" ? use.hpCost : "消費"}`]),
+      ...(use.mpCost === undefined ? [] : [`MP ${typeof use.mpCost === "number" ? use.mpCost : "消費"}`]),
+      ...(use.spCost === undefined ? [] : [`SP ${typeof use.spCost === "number" ? use.spCost : "消費"}`]),
+    ].join("　");
   }
 
   function hpBar(current: number, max: number, className: string) {
@@ -647,6 +870,9 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   }
 
   function renderUI() {
+    root.style.fontSize = uiPrefs.largeText ? "1.2em" : "1em";
+    root.dataset.reducedMotion = String(uiPrefs.reducedMotion);
+    root.dataset.colorAssist = String(uiPrefs.colorAssist);
     syncPictures();
     windowLayer.replaceChildren();
     portraitCanvases = [];
@@ -665,12 +891,15 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const hp = el("div", "rpg-hud-hp");
     const lvInfo = engine.levelInfo(state);
     hp.append(el("span", "rpg-hud-label", `${heroName()}${lvInfo ? `  Lv${lvInfo.level}` : ""}  HP ${state.player.hp}/${eff.maxHp}${statusTags(state.player.statuses)}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
+    if ((eff.maxMp ?? 0) > 0) hp.append(el("span", "rpg-hud-label", `MP ${state.player.mp ?? 0}/${eff.maxMp}`), hpBar(state.player.mp ?? 0, eff.maxMp!, "is-mp"));
+    if ((eff.maxSp ?? 0) > 0) hp.append(el("span", "rpg-hud-label", `SP ${state.player.sp ?? 0}/${eff.maxSp}`), hpBar(state.player.sp ?? 0, eff.maxSp!, "is-sp"));
     const extra = (() => { try { return engine.hudLines(state); } catch { return []; } })();
     if (extra.length) { const box = el("div", "rpg-hud-vars"); for (const line of extra) box.appendChild(el("span", undefined, line)); left.append(box); }
     if (state.carrying) {
       const carried = content.maps[state.carrying.home]?.entities.find(e => e.id === state.carrying!.id);
       left.append(el("div", "rpg-hud-vars", `運んでいる: ${carried?.states.find(st => st.name)?.name ?? carried?.name ?? state.carrying.id}（向いた先の空きマスで決定すると置く）`));
     }
+    if (uiPrefs.showControls && state.scene.kind === "field") left.append(el("div", "rpg-hud-vars", "操作: 矢印 / WASDで移動 · Enter / Zで決定 · Esc / Xでメニュー"));
     const verbs = state.scene.kind === "field" ? availableVerbs() : [];
     if (verbs.length) {
       const bar = el("div", "rpg-verbs");
@@ -694,7 +923,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     else if (scene.kind === "message") { messageWindow(scene.speaker, scene.text, undefined, scene.portrait ? { id: scene.portrait, face: scene.face ?? 0 } : undefined); speak(scene.voice, `msg#${scene.text}`); }
     else if (scene.kind === "dialogue") {
       const dialogue = content.dialogues[scene.dialogueId]!;
-      messageWindow(dialogue.speaker, engine.dialogueLines(state, dialogue.id)[scene.line] ?? "", undefined, dialogue.portrait ? { id: dialogue.portrait, face: engine.dialogueFaces(state, dialogue.id)[scene.line] ?? 0 } : undefined);
+      messageWindow(dialogue.speaker, engine.dialogueLines(state, dialogue.id)[scene.line] ?? "", undefined, dialogue.portrait ? { id: dialogue.portrait, face: engine.dialogueFaces(state, dialogue.id)[scene.line] ?? 0 } : undefined, dialogue.speakerColor);
       speak(engine.dialogueVoices(state, dialogue.id)[scene.line], `${dialogue.id}#${scene.line}`);
     } else if (scene.kind === "choice") {
       const dialogue = content.dialogues[scene.dialogueId]!;
@@ -703,7 +932,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         if (!engine.evaluate(choice.when, state)) continue;
         list.appendChild(navButton(engine.text(state, choice.label), () => dispatch({ type: "choose", choiceId: choice.id })));
       }
-      messageWindow(dialogue.speaker, engine.dialogueLines(state, dialogue.id).at(-1) ?? "", list, dialogue.portrait ? { id: dialogue.portrait, face: engine.dialogueFaces(state, dialogue.id).at(-1) ?? 0 } : undefined);
+      messageWindow(dialogue.speaker, engine.dialogueLines(state, dialogue.id).at(-1) ?? "", list, dialogue.portrait ? { id: dialogue.portrait, face: engine.dialogueFaces(state, dialogue.id).at(-1) ?? 0 } : undefined, dialogue.speakerColor);
       typing = { ...typing, done: true };
     } else if (scene.kind === "prompt") {
       const list = el("div", "rpg-window rpg-choices");
@@ -850,9 +1079,15 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const status = el("div", "rpg-window rpg-battle-status");
     for (const a of anims) if (a.target === "player") status.appendChild(fx(a.name, a.at));
     status.append(el("div", "rpg-speaker", `${heroName()}${engine.levelInfo(state) ? `  Lv${engine.levelInfo(state)!.level}` : ""}${statusTags(state.player.statuses)}`), el("div", "rpg-battle-hp", `HP ${state.player.hp} / ${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
+    if ((eff.maxMp ?? 0) > 0) status.append(el("div", "rpg-battle-resource", `MP ${state.player.mp ?? 0}/${eff.maxMp}`), hpBar(state.player.mp ?? 0, eff.maxMp!, "is-mp"));
+    if ((eff.maxSp ?? 0) > 0) status.append(el("div", "rpg-battle-resource", `SP ${state.player.sp ?? 0}/${eff.maxSp}`), hpBar(state.player.sp ?? 0, eff.maxSp!, "is-sp"));
     for (const member of (state.party ?? []).filter(m => !m.reserve)) {
       const comp = content.database.companions.find(x => x.id === member.id);
-      if (comp) status.append(el("div", "rpg-battle-var", `${comp.name} HP ${member.hp}/${engine.companionStats(state, comp.id).maxHp}${member.hp <= 0 ? "（倒れている）" : battle.orders?.[comp.id] !== undefined ? `（${comp.actions[battle.orders[comp.id]!]?.name}）` : ""}`));
+      if (comp) {
+        const cs = engine.companionStats(state, comp.id);
+        const resourceText = `${(cs.maxMp ?? 0) > 0 ? ` MP ${member.mp ?? 0}/${cs.maxMp}` : ""}${(cs.maxSp ?? 0) > 0 ? ` SP ${member.sp ?? 0}/${cs.maxSp}` : ""}`;
+        status.append(el("div", "rpg-battle-var", `${comp.name} HP ${member.hp}/${cs.maxHp}${resourceText}${member.hp <= 0 ? "（倒れている）" : battle.orders?.[comp.id] !== undefined ? `（${comp.actions[battle.orders[comp.id]!]?.name}）` : ""}`));
+      }
     }
     for (const [id, decl] of Object.entries(content.project.variables)) if (decl.hud) status.appendChild(el("div", "rpg-battle-var", `${decl.label ?? id} ${state.vars[id] ?? decl.initial}`));
     if (battle.wave) status.appendChild(el("div", "rpg-battle-var", `連戦 第${battle.wave}陣 / 全${battle.wave + (battle.waves?.length ?? 0)}陣`));
@@ -875,7 +1110,13 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       if (!comp) {
         for (const m of standing) { const c = content.database.companions.find(x => x.id === m.id); if (c) commands.appendChild(navButton(c.name, () => { orderCompanion = c.id; selection = 0; renderUI(); }, { hint: `HP ${m.hp}` })); }
       } else {
-        comp.actions.forEach((a, i) => commands.appendChild(navButton(a.name, () => { battlePicker = null; orderCompanion = null; dispatch({ type: "battle", command: "order", companion: comp.id, action: i }); }, { hint: { attack: "攻撃", heal: "手当て", guard: "守り" }[a.kind] })));
+        comp.actions.forEach((a, i) => {
+          const costs = [
+            ...(a.mpCost === undefined ? [] : [`MP ${typeof a.mpCost === "number" ? a.mpCost : "消費"}`]),
+            ...(a.spCost === undefined ? [] : [`SP ${typeof a.spCost === "number" ? a.spCost : "消費"}`]),
+          ];
+          commands.appendChild(navButton(a.name, () => { battlePicker = null; orderCompanion = null; dispatch({ type: "battle", command: "order", companion: comp.id, action: i }); }, { hint: [{ attack: "攻撃", heal: "手当て", guard: "守り" }[a.kind], ...costs].join("　") }));
+        });
       }
       commands.appendChild(navButton("もどる", () => { if (orderCompanion) orderCompanion = null; else battlePicker = null; selection = 0; renderUI(); }));
     } else if (battlePicker === "targets") {
@@ -888,8 +1129,9 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     } else if (battlePicker) {
       const list = battlePicker === "items" ? items : skills;
       for (const u of list) {
+        const detail = u.kind === "item" ? content.database.items.find(item => item.id === u.id)?.description : content.database.abilities.find(ability => ability.id === u.id)?.description;
         commands.appendChild(navButton(u.name, () => { battlePicker = null; dispatch(u.kind === "item" ? { type: "battle", command: "item", item: u.id } : { type: "battle", command: "skill", ability: u.id }); }, {
-          hint: u.blocked ?? (u.kind === "item" ? `×${u.count}` : u.use.cost.map(c => `${content.project.variables[c.var]?.label ?? c.var}${typeof c.amount === "number" ? c.amount : ""}`).join(" ")),
+          hint: [u.blocked, u.kind === "item" ? `×${u.count}` : useCostHints(u.use), detail].filter(Boolean).join("　"),
           disabled: Boolean(u.blocked),
         }));
       }
@@ -953,7 +1195,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     audio.setAmbient(scene.kind === "battle" ? null : state.ambient !== undefined ? state.ambient : content.maps[state.mapId]?.ambient ?? null);
     if (scene.kind === "battle" && scene.battle.outcome === "ongoing") {
       const enemy = content.database.enemies.find(e => e.id === scene.battle.enemyId);
-      const battleMusic = enemy?.bgm ?? content.project.audio.battle;
+      const battleMusic = scene.battle.music === null ? enemy?.bgm ?? content.project.audio.battle : scene.battle.music ?? enemy?.bgm ?? content.project.audio.battle;
       if (battleMusic) { audio.setMusic(battleMusic); return; }
     }
     if (scene.kind === "battle" && scene.battle.outcome === "victory" && content.project.audio.victory) { audio.setMusic(null); return; }
@@ -967,6 +1209,16 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     for (const line of creditLines(content)) panel.appendChild(el("div", "rpg-credit-line", line));
     panel.appendChild(navButton("もどる", () => { creditsOpen = false; selection = 0; renderUI(); }));
     windowLayer.appendChild(panel);
+  }
+
+  function openFeedbackPage() {
+    const feedback = content.project.feedback;
+    if (!feedback) return;
+    let url: URL;
+    try { url = new URL(feedback.url); }
+    catch { showToast("フィードバックURLを開けません"); return; }
+    if (url.protocol !== "https:") { showToast("フィードバックURLはHTTPSのみ開けます"); return; }
+    window.open(url.href, "_blank", "noopener,noreferrer");
   }
 
   function slotSummary(slot: Slot): string | null {
@@ -1011,6 +1263,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     list.append(
       navButton("はじめから", () => { atTitle = false; menuOpen = false; menuView = "main"; selection = 0; renderUI(); }),
       navButton("つづきから", () => { slotReturn = "title"; menuView = "load"; selection = 0; renderUI(); }, { disabled: !hasSave }),
+      ...(content.project.feedback ? [navButton(content.project.feedback.label, openFeedbackPage, { hint: "フィードバックページを新しいタブで開く" })] : []),
       navButton("クレジット", () => { creditsOpen = true; selection = 0; renderUI(); }),
     );
     box.append(list);
@@ -1084,7 +1337,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       b.style.width = `${(Math.sqrt(3) / (maxX - minX)) * 100}%`;
       b.title = status === "hidden" ? "？？？" : `${n.name}（${n.cost}）`;
       b.dataset.index = String(before + i);
-      const mods = n.statMods ? (["maxHp", "attack", "defense"] as const).filter(k => typeof n.statMods?.[k] === "number").map(k => `${{ maxHp: "HP", attack: "攻撃", defense: "防御" }[k]}+${n.statMods![k]}`).join(" ") : "";
+      const mods = n.statMods ? (["maxHp", "maxMp", "maxSp", "attack", "defense"] as const).filter(k => typeof n.statMods?.[k] === "number").map(k => `${{ maxHp: "HP", maxMp: "MP", maxSp: "SP", attack: "攻撃", defense: "防御" }[k]}+${n.statMods![k]}`).join(" ") : "";
       const learns = n.abilities.map(a => content.database.abilities.find(x => x.id === a)?.name ?? a).join("・");
       b.dataset.skillName = status === "hidden" ? "？？？" : `${n.name}　${n.cost}ポイント`;
       b.dataset.skillDesc = status === "hidden" ? "条件を満たすと現れる。" : [n.description, mods, learns ? `覚える: ${learns}` : ""].filter(Boolean).join("　");
@@ -1137,6 +1390,28 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     windowLayer.appendChild(panel);
   }
 
+  /** 依頼帳: accepted / completed / failed quests and their completed objectives. */
+  function renderQuests() {
+    const panel = el("div", "rpg-window rpg-menu rpg-book");
+    panel.dataset.src = "packages/runtime/src/player.ts#renderQuests";
+    const visible = Object.entries(content.project.quests).filter(([id, q]) => !q.hidden && state.quests?.[id]);
+    panel.appendChild(el("div", "rpg-menu-title", `依頼帳　${visible.filter(([id]) => state.quests?.[id]?.status === "active").length}件進行中`));
+    if (!visible.length) panel.appendChild(el("div", "rpg-menu-empty", "受けている依頼はありません。"));
+    for (const [id, q] of visible) {
+      const progress = state.quests?.[id];
+      if (!progress) continue;
+      const status = progress.status === "active" ? "進行中" : progress.status === "complete" ? "達成" : "失敗";
+      panel.appendChild(el("div", "rpg-menu-title", `${status}　${q.title}`));
+      if (q.description) panel.appendChild(el("div", "rpg-book-row", q.description));
+      for (const objective of q.objectives) {
+        const done = progress.objectivesDone.includes(objective.id);
+        panel.appendChild(el("div", done ? "rpg-book-row is-got" : "rpg-book-row", `${done ? "✓" : "・"} ${objective.text}`));
+      }
+    }
+    panel.appendChild(navButton("もどる", () => { menuView = "main"; selection = 0; renderUI(); }));
+    windowLayer.appendChild(panel);
+  }
+
   /**
    * project.menu: order of the sections (keys: party, traits, jobs, items, abilities, commands, verbs, records, set:<id>),
    * hidden ones, and ones shown only while a condition holds. Everything before the first section (title, stats) stays on top.
@@ -1163,6 +1438,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (menuView === "save" || menuView === "load") { renderSlots(menuView); return; }
     if (menuView === "book") { renderBook(); return; }
     if (menuView === "achievements") { renderAchievements(); return; }
+    if (menuView === "quests") { renderQuests(); return; }
     if (menuView === "formation") { renderFormation(); return; }
     if (menuView === "skills") { renderSkills(); return; }
     if (backlogOpen) { renderBacklog(); return; }
@@ -1171,7 +1447,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const stats = el("div", "rpg-menu-stats");
     const s = engine.stats(state);
     const lv = engine.levelInfo(state);
-    stats.textContent = `${heroName()}${lv ? `　Lv${lv.level}` : ""}　HP ${state.player.hp}/${s.maxHp}　攻撃 ${s.attack}　防御 ${s.defense}${lv ? `　経験値 ${lv.exp}${lv.next === null ? "（最大）" : `／次まで ${lv.next - lv.exp}`}` : ""}`;
+    stats.textContent = `${heroName()}${lv ? `　Lv${lv.level}` : ""}　HP ${state.player.hp}/${s.maxHp}${(s.maxMp ?? 0) > 0 ? `　MP ${state.player.mp ?? 0}/${s.maxMp}` : ""}${(s.maxSp ?? 0) > 0 ? `　SP ${state.player.sp ?? 0}/${s.maxSp}` : ""}　攻撃 ${s.attack}　防御 ${s.defense}${lv ? `　経験値 ${lv.exp}${lv.next === null ? "（最大）" : `／次まで ${lv.next - lv.exp}`}` : ""}`;
     menu.appendChild(stats);
     // Sections can be reordered, renamed, hidden or shown on a condition (project.menu).
     const section = (title: string, key: string) => { const h = el("div", "rpg-menu-section", content.project.menu?.labels?.[key] ?? title); h.dataset.key = key; return menu.appendChild(h); };
@@ -1195,7 +1471,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         const row = el("div", "rpg-menu-ability");
         const cs = engine.companionStats(state, member.id);
         const gear = Object.values(member.equipment ?? {}).map(i => content.database.items.find(x => x.id === i)?.name ?? i).join("・");
-        row.append(el("strong", undefined, comp?.name ?? member.id), el("span", undefined, `HP ${member.hp}/${cs.maxHp}　攻 ${cs.attack}　防 ${cs.defense}${gear ? `　装備: ${gear}` : ""}${member.hp <= 0 ? "　倒れている" : ""}${member.row === "back" ? "　後列" : ""}${member.reserve ? "　控え" : ""}`));
+        row.append(el("strong", undefined, comp?.name ?? member.id), el("span", undefined, `HP ${member.hp}/${cs.maxHp}${(cs.maxMp ?? 0) > 0 ? `　MP ${member.mp ?? 0}/${cs.maxMp}` : ""}${(cs.maxSp ?? 0) > 0 ? `　SP ${member.sp ?? 0}/${cs.maxSp}` : ""}　攻 ${cs.attack}　防 ${cs.defense}${gear ? `　装備: ${gear}` : ""}${member.hp <= 0 ? "　倒れている" : ""}${member.row === "back" ? "　後列" : ""}${member.reserve ? "　控え" : ""}`));
         menu.appendChild(row);
       }
       menu.appendChild(navButton("隊列・入れ替え", () => { menuView = "formation"; selection = 0; renderUI(); }, { hint: "前列・後列、控え" }));
@@ -1233,7 +1509,9 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       for (const m of (state.party ?? []).filter(x => !x.reserve)) row.appendChild(navButton(`さいきょう（${content.database.companions.find(x => x.id === m.id)?.name ?? m.id}）`, () => { dispatch({ type: "optimizeEquipment", companion: m.id }); renderUI(); }));
       menu.appendChild(row);
     }
-    const owned = Object.entries(state.items);
+    const owned = Object.entries(state.items).sort(([idA, countA], [idB, countB]) => content.project.inventory?.sort === "count"
+      ? countB - countA || (content.database.items.find(i => i.id === idA)?.name ?? idA).localeCompare(content.database.items.find(i => i.id === idB)?.name ?? idB, "ja")
+      : (content.database.items.find(i => i.id === idA)?.name ?? idA).localeCompare(content.database.items.find(i => i.id === idB)?.name ?? idB, "ja"));
     if (!owned.length) menu.appendChild(el("div", "rpg-menu-empty", "何も持っていない"));
     for (const [id, count] of owned) {
       const item = content.database.items.find(i => i.id === id);
@@ -1246,28 +1524,58 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         const who = [heroOn ? heroName() : "", ...wearers].filter(Boolean).join("・");
         if (equipFor === id) {
           menu.appendChild(el("div", "rpg-menu-empty", `${item.name}を誰が装備する？`));
-          menu.appendChild(navButton(heroName(), () => { equipFor = null; dispatch({ type: "equip", item: id }); renderUI(); }, { hint: heroOn ? "外す" : "装備する" }));
+          const heroPreview = engine.run(state, [heroOn ? { type: "unequip", slot } : { type: "equip", item: id }]).state;
+          const heroBefore = engine.stats(state), heroAfter = engine.stats(heroPreview);
+          const heroDiff = (["maxHp", "maxMp", "maxSp", "attack", "defense"] as const).map(key => {
+            const delta = (heroAfter[key] ?? 0) - (heroBefore[key] ?? 0);
+            return delta ? `${{ maxHp: "HP", maxMp: "MP", maxSp: "SP", attack: "攻", defense: "守" }[key]}${delta > 0 ? "+" : ""}${delta}` : "";
+          }).filter(Boolean).join("　");
+          menu.appendChild(navButton(heroName(), () => { equipFor = null; dispatch({ type: "equip", item: id }); renderUI(); }, { hint: `${heroOn ? "外す" : "装備する"}${heroDiff ? `　${heroDiff}` : ""}` }));
           for (const m of state.party ?? []) {
             const c = content.database.companions.find(x => x.id === m.id);
             const on = m.equipment?.[slot] === id;
-            menu.appendChild(navButton(c?.name ?? m.id, () => { equipFor = null; dispatch({ type: "equip", item: id, companion: m.id }); renderUI(); }, { hint: on ? "外す" : "装備する" }));
+            const preview = engine.run(state, [on ? { type: "unequip", slot, companion: m.id } : { type: "equip", item: id, companion: m.id }]).state;
+            const before = engine.companionStats(state, m.id), after = engine.companionStats(preview, m.id);
+            const diff = (["maxHp", "maxMp", "maxSp", "attack", "defense"] as const).map(key => {
+              const delta = (after[key] ?? 0) - (before[key] ?? 0);
+              return delta ? `${{ maxHp: "HP", maxMp: "MP", maxSp: "SP", attack: "攻", defense: "守" }[key]}${delta > 0 ? "+" : ""}${delta}` : "";
+            }).filter(Boolean).join("　");
+            menu.appendChild(navButton(c?.name ?? m.id, () => { equipFor = null; dispatch({ type: "equip", item: id, companion: m.id }); renderUI(); }, { hint: `${on ? "外す" : "装備する"}${diff ? `　${diff}` : ""}` }));
           }
           menu.appendChild(navButton("やめる", () => { equipFor = null; renderUI(); }));
           continue;
         }
-        menu.appendChild(navButton(`${who ? "Ｅ " : ""}${item.name}`, () => { if (state.party?.length) { equipFor = id; selection = 0; renderUI(); } else { dispatch({ type: "equip", item: id }); renderUI(); } }, { hint: `${slotLabel}${who ? `　${who}` : ""}　${!state.party?.length && heroOn ? "外す" : "装備"}` }));
+        const heroPreview = engine.run(state, [heroOn ? { type: "unequip", slot } : { type: "equip", item: id }]).state;
+        const currentStats = engine.stats(state), nextStats = engine.stats(heroPreview);
+        const statDiff = (["maxHp", "maxMp", "maxSp", "attack", "defense"] as const)
+          .map(key => { const delta = (nextStats[key] ?? 0) - (currentStats[key] ?? 0); return delta ? `${{ maxHp: "HP", maxMp: "MP", maxSp: "SP", attack: "攻", defense: "守" }[key]}${delta > 0 ? "+" : ""}${delta}` : ""; })
+          .filter(Boolean).join("　");
+        menu.appendChild(navButton(`${who ? "Ｅ " : ""}${item.name}`, () => { if (state.party?.length) { equipFor = id; selection = 0; renderUI(); } else { dispatch({ type: "equip", item: id }); renderUI(); } }, { hint: `${state.party?.length ? "主人公 " : ""}${slotLabel}${statDiff ? `　${statDiff}` : ""}${who ? `　${who}` : ""}　${!state.party?.length && heroOn ? "外す" : "装備"}` }));
         continue;
       }
-      menu.appendChild(navButton(`${item?.name ?? id}`, () => { if (usable && !usable.blocked) { menuOpen = false; dispatch({ type: "useItem", item: id }); } else showToast(usable?.blocked ?? (item?.description || "使えない。")); }, { hint: `×${count}${usable && !usable.blocked ? "　使う" : ""}` }));
+        menu.appendChild(navButton(`${item?.name ?? id}`, () => { if (usable && !usable.blocked) { menuOpen = false; dispatch({ type: "useItem", item: id }); } else showToast(usable?.blocked ?? (item?.description || "使えない。")); }, { hint: [`×${count}${usable && !usable.blocked ? "　使う" : ""}`, usable ? useCostHints(usable.use) : "", item?.description].filter(Boolean).join("　") }));
+    }
+    const capacity = content.project.player.passiveCapacity;
+    if (capacity !== undefined) {
+      const knownPassives = state.abilities.map(id => content.database.abilities.find(a => a.id === id)).filter(a => a?.kind === "passive");
+      const equipped = new Set(state.equippedPassives ?? []);
+      const used = [...equipped].reduce((sum, id) => sum + (content.database.abilities.find(a => a.id === id)?.passiveCost ?? 1), 0);
+      section("パッシブ", "passives");
+      menu.appendChild(el("div", "rpg-menu-empty", `使用枠 ${used}/${capacity}（特性から得たパッシブは常に有効）`));
+      if (!knownPassives.length) menu.appendChild(el("div", "rpg-menu-empty", "付け替えられるパッシブはありません"));
+      for (const ability of knownPassives) if (ability) {
+        const active = equipped.has(ability.id);
+        menu.appendChild(navButton(`${active ? "● " : "○ "}${ability.name}`, () => { dispatch({ type: "togglePassive", ability: ability.id }); }, { hint: `${ability.passiveCost ?? 1}枠　${active ? "外す" : "装備する"}　${ability.description}` }));
+      }
     }
     section("のうりょく", "abilities");
-    const abilities = engine.abilities(state);
+    const abilities = engine.abilities(state).filter(id => capacity === undefined || content.database.abilities.find(a => a.id === id)?.kind !== "passive");
     if (!abilities.length) menu.appendChild(el("div", "rpg-menu-empty", "なし"));
     for (const id of abilities) {
       const ability = content.database.abilities.find(a => a.id === id);
       const usable = fieldUsable.find(u => u.kind === "ability" && u.id === id);
       if (usable) {
-        menu.appendChild(navButton(usable.name, () => { if (!usable.blocked) { menuOpen = false; dispatch({ type: "useAbility", ability: id }); } else showToast(usable.blocked); }, { hint: usable.blocked ?? "使う" }));
+        menu.appendChild(navButton(usable.name, () => { if (!usable.blocked) { menuOpen = false; dispatch({ type: "useAbility", ability: id }); } else showToast(usable.blocked); }, { hint: [usable.blocked ?? "使う", useCostHints(usable.use), ability?.description].filter(Boolean).join("　") }));
         continue;
       }
       const row = el("div", "rpg-menu-ability");
@@ -1291,32 +1599,49 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       navButton("ロード", () => { slotReturn = "main"; menuView = "load"; selection = 0; renderUI(); }),
       ...(content.project.book ? [navButton("図鑑", () => { menuView = "book"; selection = 0; renderUI(); })] : []),
       ...(Object.keys(content.project.achievements).length ? [navButton("実績", () => { menuView = "achievements"; selection = 0; renderUI(); })] : []),
-      navButton(`BGM: ${!audio.settings.bgm ? "オフ" : `${Math.round((audio.settings.bgmVolume ?? 1) * 100)}%`}`, () => {
-        const cur = !audio.settings.bgm ? 0 : Math.round((audio.settings.bgmVolume ?? 1) * 100);
-        const steps = [100, 80, 60, 40, 20, 0];
-        const nextPct = steps[(steps.indexOf(cur) + 1) % steps.length] ?? 100;
-        savePrefs({ ...audio.settings, bgm: nextPct > 0, bgmVolume: nextPct > 0 ? nextPct / 100 : 1 });
-      }),
-      navButton(`効果音: ${!audio.settings.sfx ? "オフ" : `${Math.round((audio.settings.sfxVolume ?? 1) * 100)}%`}`, () => {
-        const cur = !audio.settings.sfx ? 0 : Math.round((audio.settings.sfxVolume ?? 1) * 100);
-        const steps = [100, 80, 60, 40, 20, 0];
-        const nextPct = steps[(steps.indexOf(cur) + 1) % steps.length] ?? 100;
-        savePrefs({ ...audio.settings, sfx: nextPct > 0, sfxVolume: nextPct > 0 ? nextPct / 100 : 1 });
-      }),
+      ...(Object.keys(content.project.quests).length ? [navButton("依頼帳", () => { menuView = "quests"; selection = 0; renderUI(); })] : []),
       navButton(`文字: ${uiPrefs.textSpeed === "instant" ? "瞬間" : uiPrefs.textSpeed === "fast" ? "はやい" : "ふつう"}`, () => {
         const order: Array<"normal" | "fast" | "instant"> = ["normal", "fast", "instant"];
         uiPrefs.textSpeed = order[(order.indexOf(uiPrefs.textSpeed) + 1) % order.length]!;
         savePrefs(audio.settings);
       }),
+      navButton(`会話オート: ${uiPrefs.autoAdvance ? "あり" : "なし"}`, () => { uiPrefs.autoAdvance = !uiPrefs.autoAdvance; savePrefs(audio.settings); }, { hint: "会話中にS長押しで読み飛ばし" }),
+      navButton(`文字サイズ: ${uiPrefs.largeText ? "大" : "標準"}`, () => { uiPrefs.largeText = !uiPrefs.largeText; savePrefs(audio.settings); }),
+      navButton(`動きの軽減: ${uiPrefs.reducedMotion ? "あり" : "なし"}`, () => { uiPrefs.reducedMotion = !uiPrefs.reducedMotion; savePrefs(audio.settings); }),
+      navButton(`色覚補助: ${uiPrefs.colorAssist ? "あり" : "なし"}`, () => { uiPrefs.colorAssist = !uiPrefs.colorAssist; savePrefs(audio.settings); }, { hint: "HPゲージに模様を追加" }),
+      navButton(`操作説明: ${uiPrefs.showControls ? "表示" : "非表示"}`, () => { uiPrefs.showControls = !uiPrefs.showControls; savePrefs(audio.settings); }),
+      navButton(`クリック移動: ${uiPrefs.clickMove ? "あり" : "なし"}`, () => { uiPrefs.clickMove = !uiPrefs.clickMove; savePrefs(audio.settings); }, { hint: "マップをクリックして歩く" }),
       navButton(`画面揺れ: ${uiPrefs.shake ? "あり" : "なし"}`, () => { uiPrefs.shake = !uiPrefs.shake; savePrefs(audio.settings); }),
       navButton(`戦闘: ${uiPrefs.battleSpeed === "fast" ? "はやい" : "ふつう"}`, () => { uiPrefs.battleSpeed = uiPrefs.battleSpeed === "fast" ? "normal" : "fast"; savePrefs(audio.settings); }),
       ...(content.project.audio.textSound ? [navButton(`文字の音: ${uiPrefs.textSound ? "あり" : "なし"}`, () => { uiPrefs.textSound = !uiPrefs.textSound; savePrefs(audio.settings); })] : []),
       ...(content.project.minimap?.enabled ? [navButton(`ミニマップ: ${uiPrefs.minimap ? "表示" : "隠す"}［N］`, () => { uiPrefs.minimap = !uiPrefs.minimap; savePrefs(audio.settings); })] : []),
       navButton("会話履歴", () => { backlogOpen = true; selection = 0; renderUI(); }),
+      ...(content.project.feedback ? [navButton(content.project.feedback.label, openFeedbackPage, { hint: "フィードバックページを新しいタブで開く" })] : []),
       navButton("クレジット", () => { creditsOpen = true; selection = 0; renderUI(); }),
       navButton("とじる", () => { menuOpen = false; renderUI(); }),
     );
     menu.appendChild(row);
+    const audioControls = el("div", "rpg-audio-controls");
+    const volumeControl = (label: string, kind: "bgm" | "sfx") => {
+      const control = el("label", "rpg-audio-control");
+      const enabled = audio.settings[kind];
+      const volumeKey = `${kind}Volume` as const;
+      const slider = el("input");
+      slider.type = "range"; slider.min = "0"; slider.max = "100"; slider.step = "1";
+      slider.value = String(enabled ? Math.round((audio.settings[volumeKey] ?? 1) * 100) : 0);
+      slider.setAttribute("aria-label", `${label}の音量`);
+      const caption = el("span", undefined, `${label} ${slider.value}%`);
+      slider.addEventListener("input", () => {
+        const percent = Number(slider.value);
+        const next = { ...audio.settings, [kind]: percent > 0, [volumeKey]: percent > 0 ? percent / 100 : 1 };
+        audio.applySettings(next);
+        caption.textContent = `${label} ${percent}%`;
+        try { storage.write(settingsKey, JSON.stringify({ ...next, ...uiPrefs })); } catch { /* settings are optional */ }
+      });
+      control.append(caption, slider); return control;
+    };
+    audioControls.append(volumeControl("BGM", "bgm"), volumeControl("効果音", "sfx"));
+    menu.appendChild(audioControls);
     arrangeMenu(menu);
     windowLayer.appendChild(menu);
   }
@@ -1327,20 +1652,20 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     window.setTimeout(() => { if (!destroyed && toast && toast.until <= performance.now()) { toast = null; renderUI(); } }, ms + 30);
   }
 
-  function save(slot: Slot = "1") {
+  async function save(slot: Slot = "1") {
     try {
-      storage.write(slotKey(slot), JSON.stringify(makeSave(content, state)));
+      await writeStoredSlot(slot, JSON.stringify(makeSave(content, state)));
       menuView = "main";
       showToast(`${slotLabel(slot)}にセーブしました。`);
     } catch (error) { showToast(`セーブできません: ${error instanceof Error ? error.message : String(error)}`); }
   }
   /** Written when entering a map, once nothing is pending (no toast: it should go unnoticed). */
   let autoSaveSoon = false;
-  function autoSave() {
+  async function autoSave() {
     if (!content.project.autosave) { autoSaveSoon = false; return; }
     if (state.scene.kind !== "field" || state.queue.length) return; // try again once the scene settles
     autoSaveSoon = false;
-    try { storage.write(slotKey("auto"), JSON.stringify(makeSave(content, state))); } catch { /* autosave is best effort */ }
+    try { await writeStoredSlot("auto", JSON.stringify(makeSave(content, state))); } catch { /* autosave is best effort */ }
   }
   function exportSave() {
     try {
@@ -1364,9 +1689,10 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     });
     input.click();
   }
-  function load(slot: Slot = "1") {
-    const raw = readSlot(slot);
+  async function load(slot: Slot = "1") {
+    const raw = await readStoredSlot(slot);
     if (!raw) { showToast("セーブデータがありません。"); return; }
+    slotCache.set(slot, raw);
     loadRaw(raw, slotLabel(slot));
   }
   function loadRaw(raw: string, from: string) {
@@ -1381,6 +1707,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
 
   function setState(next: GameState) {
     state = next;
+    clickRoute = []; clickInteract = false;
     animator.reset({ x: state.player.x, y: state.player.y });
     renderPos = animator.currentPosition;
     talkFacing = {};
@@ -1458,18 +1785,30 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
 
   function frame(now: number) {
     if (destroyed) return;
+    const frameStartedAt = fpsMeter ? performance.now() : 0;
     raf = requestAnimationFrame(frame);
     pollGamepads();
     const rt = realtimeDef();
-    if (rt) { realtimeFrame(now, rt); return; }
+    if (rt) { realtimeFrame(now, rt); updateFpsMeter(now, frameStartedAt); return; }
     const speed = dashing ? 1.8 : 1;
     const moving = animator.update(now, speed);
     renderPos = moving.position;
     if (!moving.moving && state.scene.kind === "field" && !menuOpen && held.length) {
       const dir = held[held.length - 1]!;
+      clickRoute = []; clickInteract = false;
       dispatch({ type: "move", direction: dir });
       const after = animator.update(now, speed);
       renderPos = after.position;
+    }
+    if (state.scene.kind !== "field" || menuOpen || (clickRouteMap && clickRouteMap !== state.mapId)) { clickRoute = []; clickInteract = false; }
+    else if (!moving.moving && !held.length && clickRoute.length) {
+      const dir = clickRoute.shift()!;
+      const before = { mapId: state.mapId, x: state.player.x, y: state.player.y };
+      dispatch({ type: "move", direction: dir });
+      if (state.mapId !== before.mapId || (state.player.x === before.x && state.player.y === before.y)) { clickRoute = []; clickInteract = false; }
+    } else if (!moving.moving && !held.length && clickInteract) {
+      clickInteract = false;
+      dispatch({ type: "interact" });
     }
     if (ticking && state.scene.kind === "field" && !menuOpen && now - lastTick > 330) { lastTick = now; dispatch({ type: "tick" }); }
     // Cutscene routes (moveRoute) advance one step at walking pace.
@@ -1491,7 +1830,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       if (state.camera) lastCamMs = state.camera.ms;
       // project.display.tileSize: 32 = 20×14 cells on screen; 16 = twice as wide an area, 64 = closer.
       const zoom = camNow.zoom * ((content.project.display?.tileSize ?? 32) / 32), viewCols = VIEW_COLS / zoom, viewRows = VIEW_ROWS / zoom;
-      const shaking = shakeUntil > now && uiPrefs.shake ? shakePower * ((shakeUntil - now) / 400) : 0;
+      const shaking = shakeUntil > now && uiPrefs.shake && !uiPrefs.reducedMotion ? shakePower * ((shakeUntil - now) / 400) : 0;
       const cam = {
         x: Math.max(0, Math.min(map.width - viewCols, camNow.x - (viewCols - 1) / 2)) + (shaking ? (Math.random() * 2 - 1) * shaking / TILE : 0),
         y: Math.max(0, Math.min(map.height - viewRows, camNow.y - (viewRows - 1) / 2)) + (shaking ? (Math.random() * 2 - 1) * shaking / TILE : 0),
@@ -1515,7 +1854,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       ctx.save();
       if (zoom !== 1) ctx.scale(zoom, zoom);
       const origin = drawMap(ctx, {
-        content, map: rows === map.rows ? map : { ...map, rows }, images, state, time: now,
+        content, map: rows === map.rows ? map : { ...map, rows }, images, state, time: now, cacheStaticData: true,
         view: { camera: cam, cols: viewCols, rows: viewRows },
         interactables: engine.visibleInteractables(state, map),
         stepEffects: stepEffects.filter(fx => now - fx.at < 2600),
@@ -1548,6 +1887,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
           { id: "player", kind: "player" as const, x: renderPos.x, y: renderPos.y, facing: state.player.facing, sprite: (state.riding ? content.project.vehicles?.[state.riding]?.sprite : undefined) ?? state.player.sprite ?? content.project.player.sprite, frame: walkFrame },
         ].map(a => { const e = emotes.get(a.id); return e && e.until > now ? { ...a, emote: e.icon } : a; }),
       });
+      mapView = { mapId: map.id, zoom, originX: origin.originX, originY: origin.originY };
       ctx.restore();
       for (const system of engine.activeSystems(state)) {
         if (!system.drawOverlay) continue;
@@ -1557,10 +1897,18 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
           ctx.restore();
         } catch (error) { ctx.restore(); console.warn(`${system.id}.drawOverlay`, error); }
       }
+    } else mapView = null;
+    if (scriptedFade) {
+      const progress = Math.min(1, Math.max(0, (now - scriptedFade.start) / Math.max(1, scriptedFade.end - scriptedFade.start)));
+      fade.style.backgroundColor = scriptedFade.color;
+      fade.style.opacity = String(scriptedFade.from + (scriptedFade.to - scriptedFade.from) * progress);
+      if (progress >= 1 && scriptedFade.to === 0) scriptedFade = null;
+    } else {
+      const fading = fadeUntil - now;
+      fade.style.backgroundColor = "#000";
+      fade.style.opacity = fading > 0 ? String(Math.min(1, fading / 220)) : "0";
     }
-    const fading = fadeUntil - now;
-    fade.style.opacity = fading > 0 ? String(Math.min(1, fading / 220)) : "0";
-    screen.classList.toggle("is-shaking", shakeUntil > now);
+    screen.classList.toggle("is-shaking", shakeUntil > now && uiPrefs.shake && !uiPrefs.reducedMotion);
     if (portraitCanvases.length && state.scene.kind === "battle") {
       const battle = state.scene.battle;
       const foes = [{ enemyId: battle.enemyId, hp: battle.enemyHp }, ...(battle.foes ?? [])];
@@ -1574,6 +1922,45 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       });
     }
     if (!typing.done) updateTyping(now);
+    if ((state.scene.kind === "message" || state.scene.kind === "dialogue") && typing.done && typingReadyAt > 0) {
+      const delay = skipHeld ? 80 : uiPrefs.autoAdvance ? 1300 : Number.POSITIVE_INFINITY;
+      if (now - typingReadyAt >= delay) { typingReadyAt = 0; dispatch({ type: "advance" }); }
+    }
+    updateFpsMeter(now, frameStartedAt);
+  }
+
+  let fpsWindowStartedAt = 0;
+  let fpsWindowFrames = 0;
+  let fpsIntervalTotal = 0;
+  let fpsIntervalCount = 0;
+  let fpsWorkTotal = 0;
+  let fpsPreviousFrameAt = 0;
+  function updateFpsMeter(now: number, frameStartedAt: number) {
+    if (!fpsMeter) return;
+    if (fpsPreviousFrameAt && now - fpsPreviousFrameAt > 1000) {
+      fpsWindowStartedAt = now;
+      fpsWindowFrames = 0;
+      fpsIntervalTotal = 0;
+      fpsIntervalCount = 0;
+      fpsWorkTotal = 0;
+      fpsPreviousFrameAt = 0;
+    }
+    if (!fpsWindowStartedAt) fpsWindowStartedAt = now;
+    if (fpsPreviousFrameAt) { fpsIntervalTotal += now - fpsPreviousFrameAt; fpsIntervalCount++; }
+    fpsPreviousFrameAt = now;
+    fpsWindowFrames++;
+    fpsWorkTotal += performance.now() - frameStartedAt;
+    const elapsed = now - fpsWindowStartedAt;
+    if (elapsed < 500) return;
+    const fps = fpsIntervalCount * 1000 / elapsed;
+    const frameMs = fpsIntervalCount ? fpsIntervalTotal / fpsIntervalCount : 0;
+    const workMs = fpsWindowFrames ? fpsWorkTotal / fpsWindowFrames : 0;
+    fpsMeter.textContent = `FPS ${fps.toFixed(1)} · frame ${frameMs.toFixed(1)} ms · work ${workMs.toFixed(1)} ms`;
+    fpsWindowStartedAt = now;
+    fpsWindowFrames = 0;
+    fpsIntervalTotal = 0;
+    fpsIntervalCount = 0;
+    fpsWorkTotal = 0;
   }
 
   function currentTween(t: { fx: number; fy: number; tx: number; ty: number; start: number }, now: number) {
@@ -1586,6 +1973,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   audio.preload();
   syncMusic();
   renderUI();
+  void hydrateSlots();
   raf = requestAnimationFrame(frame);
 
   return {

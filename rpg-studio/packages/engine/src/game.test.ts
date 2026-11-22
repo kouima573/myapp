@@ -671,3 +671,22 @@ describe("count-time battle (068)", () => {
     expect(acts).toBe(2);
   });
 });
+
+describe("追加機能の回帰（依頼帳・パッシブ枠）", () => {
+  it("quest conditions are not mistaken for status conditions", () => {
+    const state = { ...start("dwarf"), quests: { hunt: { status: "complete" as const, objectivesDone: [] } } };
+    expect(evaluate({ quest: "hunt", status: "complete" }, state, { content })).toBe(true);
+    expect(evaluate({ quest: "hunt" }, state, { content })).toBe(false);
+    expect(evaluate({ quest: "other", status: "active" }, state, { content })).toBe(false);
+  });
+  it("togglePassive equips within the capacity and keeps the world ticking normally", () => {
+    const passive = content.database.abilities.find(a => a.kind === "passive")!;
+    const custom = createEngine({ ...content, project: { ...content.project, player: { ...content.project.player, passiveCapacity: 1 } } }, systems);
+    let state = start("dwarf");
+    state = { ...state, abilities: [...new Set([...state.abilities, passive.id])] };
+    state = custom.step(state, { type: "togglePassive", ability: passive.id }).state;
+    expect(state.equippedPassives).toContain(passive.id);
+    state = custom.step(state, { type: "togglePassive", ability: passive.id }).state;
+    expect(state.equippedPassives ?? []).not.toContain(passive.id);
+  });
+});

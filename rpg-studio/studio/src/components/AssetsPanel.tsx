@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ClipboardCopy, ExternalLink, Music2, Play, Square, Volume2 } from "lucide-react";
+import { AlertTriangle, ClipboardCopy, ExternalLink, Music2, Play, Square, Upload, Volume2 } from "lucide-react";
 import {
   artPrompt, ArtRequestBundleSchema, isSourceEnabled, SFX_CUES, SOURCE_CATALOG_NOTE, sourcesFor,
   type ArtRequest, type AssetEntry, type GameContent, type GameMap, type ProjectManifest,
@@ -40,8 +40,30 @@ export default function AssetsPanel({ store, content, images }: Props) {
   const [copied, setCopied] = useState<string | null>(null);
   const [preset, setPreset] = useState<SfxPreset>("confirm");
   const [seed, setSeed] = useState(1);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importId, setImportId] = useState("");
+  const [importKind, setImportKind] = useState<AssetEntry["kind"]>("character");
+  const [importOrigin, setImportOrigin] = useState<AssetEntry["origin"]>("original");
+  const [importSourceId, setImportSourceId] = useState("");
+  const [importLicense, setImportLicense] = useState("プロジェクト内素材");
+  const [importTermsDate, setImportTermsDate] = useState("");
+  const [importUrl, setImportUrl] = useState("");
+  const [importAuthor, setImportAuthor] = useState("");
+  const [importCredit, setImportCredit] = useState("");
+  const [importCreditRequired, setImportCreditRequired] = useState(false);
+  const [importRedistributable, setImportRedistributable] = useState(true);
+  const [importGenerator, setImportGenerator] = useState("");
+  const [tileWidth, setTileWidth] = useState(32);
+  const [tileHeight, setTileHeight] = useState(32);
+  const [columns, setColumns] = useState(1);
+  const [rows, setRows] = useState(1);
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [draggingFile, setDraggingFile] = useState(false);
+  const importInput = useRef<HTMLInputElement>(null);
   const audio = useAudio(content, asset => store.source.assetUrl(asset));
   const sources = sourcesFor(project);
+  const importSources = sources.filter(s => s.origin === importOrigin && isSourceEnabled(project, s));
   const budget = project.assetPolicy.budget;
 
   const size = useMemo(() => {
@@ -64,6 +86,65 @@ export default function AssetsPanel({ store, content, images }: Props) {
   const audioAssets = content.assets.assets.filter(a => a.kind === "bgm" || a.kind === "sfx" || a.kind === "song");
   const musicAssets = audioAssets.filter(a => a.kind !== "sfx");
   const soundAssets = audioAssets;
+
+  const chooseImportFile = (file?: File) => {
+    if (!file) return;
+    setImportFile(file);
+    setImportError(null);
+    const id = file.name.replace(/\.[^.]+$/, "").toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^[^a-z0-9]+/, "").slice(0, 96);
+    setImportId(id || "asset");
+    const name = file.name.toLowerCase();
+    if (name.endsWith(".png") || file.type === "image/png") {
+      setImportKind("character");
+      const url = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = () => {
+        setTileWidth(image.naturalWidth || 32);
+        setTileHeight(image.naturalHeight || 32);
+        setColumns(1); setRows(1);
+        URL.revokeObjectURL(url);
+      };
+      image.onerror = () => URL.revokeObjectURL(url);
+      image.src = url;
+    } else if (/\.(woff2?|ttf|otf)$/.test(name)) setImportKind("font");
+    else setImportKind("sfx");
+  };
+
+  const importLocalAsset = async () => {
+    if (!importFile || !store.source.importAsset) return;
+    const external = importOrigin === "site" || importOrigin === "purchased" || importOrigin === "commission";
+    if (!/^[a-z0-9][a-z0-9._-]{0,95}$/i.test(importId.trim())) { setImportError("素材IDは英数字で始め、英数字・._-で指定してください"); return; }
+    if (importFile.size > budget.maxFileMB * MB) { setImportError(`1ファイル上限 ${budget.maxFileMB}MB を超えています`); return; }
+    if (external && !importSourceId) { setImportError("外部素材には取得元を選んでください"); return; }
+    if (external && !importLicense.trim()) { setImportError("規約・ライセンス名を入力してください"); return; }
+    if (external && !importTermsDate) { setImportError("規約を実際に確認した日を入力してください"); return; }
+    if (importOrigin === "site" && !importUrl.trim()) { setImportError("サイト素材には入手したページのURLが必要です"); return; }
+    if (importCreditRequired && !importCredit.trim()) { setImportError("クレジット表記が必要な素材には表示文言を入力してください"); return; }
+    setImporting(true); setImportError(null);
+    try {
+      const entry: Record<string, unknown> = {
+        id: importId.trim(), kind: importKind, origin: importOrigin, license: importLicense.trim(),
+        creditRequired: importCreditRequired, redistributable: importRedistributable,
+        ...(importSourceId ? { sourceId: importSourceId } : {}),
+        ...(importTermsDate ? { termsCheckedAt: importTermsDate } : {}),
+        ...(importUrl.trim() ? { url: importUrl.trim() } : {}),
+        ...(importAuthor.trim() ? { author: importAuthor.trim() } : {}),
+        ...(importCredit.trim() ? { credit: importCredit.trim() } : {}),
+        ...(importOrigin === "generated" ? { generator: { tool: importGenerator.trim() || "工房の素材取り込み" } } : {}),
+        ...(importKind === "tileset" || importKind === "character" || importKind === "enemy" || importKind === "animation" || importKind === "portrait" || importKind === "background"
+          ? { tileWidth: Number(tileWidth), tileHeight: Number(tileHeight), columns: Number(columns), rows: Number(rows) } : {}),
+      };
+      const result = await store.source.importAsset(importFile, entry);
+      if (!result.ok) throw new Error(result.error);
+      await store.reload([content.project.assetsPath]);
+      store.log("ok", `素材 ${result.asset.id} を ${result.asset.path} に取り込みました`);
+      setImportFile(null); setImportId(""); setImportUrl(""); setImportAuthor(""); setImportCredit(""); setImportTermsDate("");
+      if (importInput.current) importInput.current.value = "";
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setImportError(message); store.log("error", `素材を取り込めません: ${message}`);
+    } finally { setImporting(false); }
+  };
 
   const preview = (asset: AssetEntry) => {
     const manager = audio();
@@ -114,6 +195,64 @@ export default function AssetsPanel({ store, content, images }: Props) {
     </section>
 
     <section className="card wide">
+      <header><h3>素材ファイルを取り込む</h3><span className="muted small">画像・音声・フォント</span></header>
+      {store.source.importAsset ? <>
+        <input ref={importInput} className="asset-import-input" type="file" accept=".png,.ogg,.mp3,.wav,.woff2,.woff,.ttf,.otf" onChange={e => chooseImportFile(e.target.files?.[0])} />
+        <button type="button" className={`asset-import-drop ${draggingFile ? "is-dragging" : ""}`} onClick={() => importInput.current?.click()}
+          onDragOver={e => { e.preventDefault(); setDraggingFile(true); }} onDragLeave={() => setDraggingFile(false)}
+          onDrop={e => { e.preventDefault(); setDraggingFile(false); chooseImportFile(e.dataTransfer.files?.[0]); }}>
+          <Upload size={20} /><b>{importFile ? importFile.name : "ファイルをここへドラッグ＆ドロップ"}</b>
+          <span className="muted small">またはクリックして選択（PNG / OGG / MP3 / WAV / WOFF2 / WOFF / TTF / OTF）</span>
+        </button>
+        {importFile && <>
+          <p className="muted small">{(importFile.size / 1024).toFixed(1)}KB ／ 1ファイル上限 {budget.maxFileMB}MB。外部素材は、規約の原文を読んでから取得元・ライセンス・確認日を記録してください。</p>
+          <div className="field-row asset-import-fields">
+            <label className="field"><span className="field-label">素材ID</span><input value={importId} onChange={e => setImportId(e.target.value)} /></label>
+            <label className="field"><span className="field-label">種類</span><select value={importKind} onChange={e => setImportKind(e.target.value as AssetEntry["kind"])}>
+              <option value="tileset">タイル</option><option value="character">キャラ</option><option value="enemy">敵</option><option value="animation">アニメ</option><option value="portrait">立ち絵</option><option value="background">背景</option><option value="bgm">BGM</option><option value="sfx">効果音</option><option value="font">フォント</option>
+            </select></label>
+            <label className="field"><span className="field-label">出どころ</span><select value={importOrigin} onChange={e => {
+              const origin = e.target.value as AssetEntry["origin"];
+              const source = sources.find(s => s.origin === origin && isSourceEnabled(project, s));
+              setImportOrigin(origin);
+              setImportSourceId(source?.id ?? "");
+              setImportCreditRequired(source?.creditRequired === "yes");
+              setImportLicense(origin === "original" ? "プロジェクト内素材" : origin === "generated" ? "プロジェクト内素材（オリジナル生成）" : "");
+            }}><option value="original">自作</option><option value="generated">生成</option><option value="site">サイト</option><option value="purchased">購入</option><option value="commission">依頼</option></select></label>
+            {importOrigin === "generated" && <label className="field"><span className="field-label">生成ツール</span><input value={importGenerator} onChange={e => setImportGenerator(e.target.value)} placeholder="例: Aseprite、画像生成ツール" /></label>}
+          </div>
+          {(importOrigin === "site" || importOrigin === "purchased" || importOrigin === "commission") && <div className="field-row asset-import-fields">
+            <label className="field"><span className="field-label">取得元</span><select value={importSourceId} onChange={e => {
+              const source = importSources.find(s => s.id === e.target.value);
+              setImportSourceId(e.target.value);
+              if (source) setImportCreditRequired(source.creditRequired === "yes");
+            }}><option value="">取得元を選択</option>{importSources.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+            <label className="field"><span className="field-label">ライセンス／規約名</span><input value={importLicense} onChange={e => setImportLicense(e.target.value)} placeholder="規約に書かれた名称" /></label>
+            <label className="field"><span className="field-label">規約を確認した日</span><input type="date" value={importTermsDate} onChange={e => setImportTermsDate(e.target.value)} /></label>
+            <label className="field"><span className="field-label">素材ページURL {importOrigin === "site" ? "（必須）" : ""}</span><input type="url" value={importUrl} onChange={e => setImportUrl(e.target.value)} placeholder="https://…" /></label>
+          </div>}
+          <div className="field-row asset-import-fields">
+            <label className="field"><span className="field-label">作者</span><input value={importAuthor} onChange={e => setImportAuthor(e.target.value)} /></label>
+            <label className="field"><span className="field-label">クレジット表記</span><input value={importCredit} onChange={e => setImportCredit(e.target.value)} /></label>
+            <label className="check"><input type="checkbox" checked={importCreditRequired} onChange={e => setImportCreditRequired(e.target.checked)} />クレジット必須</label>
+            <label className="check"><input type="checkbox" checked={importRedistributable} onChange={e => setImportRedistributable(e.target.checked)} />共有テンプレートへ再配布できる</label>
+          </div>
+          {["tileset", "character", "enemy", "animation", "portrait", "background"].includes(importKind) && <div className="field-row asset-import-fields">
+            <label className="field"><span className="field-label">1コマの幅(px)</span><input type="number" min={1} value={tileWidth} onChange={e => setTileWidth(Number(e.target.value))} /></label>
+            <label className="field"><span className="field-label">1コマの高さ(px)</span><input type="number" min={1} value={tileHeight} onChange={e => setTileHeight(Number(e.target.value))} /></label>
+            <label className="field"><span className="field-label">列数</span><input type="number" min={1} value={columns} onChange={e => setColumns(Number(e.target.value))} /></label>
+            <label className="field"><span className="field-label">行数</span><input type="number" min={1} value={rows} onChange={e => setRows(Number(e.target.value))} /></label>
+            <span className="muted small">画像全体を1枚として使う場合は既定値のままで大丈夫です。</span>
+          </div>}
+          <div className="field-row">
+            <button className="button primary" disabled={importing} onClick={() => void importLocalAsset()}><Upload size={13} />{importing ? "取り込み中…" : "素材を取り込む"}</button>
+            {importError && <span className="text-error small">{importError}</span>}
+          </div>
+        </>}
+      </> : <p className="muted small">Previewでは読み取り専用です。ローカル工房（<code>pnpm studio</code>）で素材を取り込めます。</p>}
+    </section>
+
+    <section className="card wide">
       <header><h3>素材一覧</h3><span className="muted small">{content.assets.assets.length}件</span></header>
       <div className="asset-table">
         {content.assets.assets.map(a => {
@@ -135,7 +274,7 @@ export default function AssetsPanel({ store, content, images }: Props) {
           </div>;
         })}
       </div>
-      <p className="muted small">追加は CLI（<code>pnpm rpg asset add</code> / <code>gen-sfx</code>）かエージェントで行います。工房からは画像・音声ファイルを書き込みません。</p>
+      <p className="muted small">CLI（<code>pnpm rpg asset add</code> / <code>gen-sfx</code>）やエージェントからも追加できます。</p>
     </section>
 
     <section className="card">

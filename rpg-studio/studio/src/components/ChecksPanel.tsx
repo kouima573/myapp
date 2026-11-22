@@ -4,6 +4,7 @@ import { formatDiagnostic, type Diagnostic } from "@rpg/schema";
 import type { TestResponse } from "../../../packages/local-server/src/protocol";
 import type { ProjectStore } from "../lib/useProject";
 import type { GameState } from "@rpg/schema";
+import { createEngine } from "../../../packages/engine/src/game";
 import { runScenario, ScenarioSchema } from "../../../packages/engine/src/scenario";
 import { withModules } from "../../../packages/modules/src/index";
 
@@ -47,10 +48,16 @@ export default function ChecksPanel({ store, diagnostics, onOpenFile, onPlayStat
   const [tests, setTests] = useState<TestResponse | null>(null);
   const [running, setRunning] = useState(false);
   const [task, setTask] = useState(PRESETS[0]!.task);
+  const [startEvent, setStartEvent] = useState("");
   const [copied, setCopied] = useState(false);
   const errors = diagnostics.filter(d => d.severity === "error");
   const warnings = diagnostics.filter(d => d.severity === "warning");
   const build = store.build;
+  const content = store.content ?? store.lastGoodContent;
+  const externalAssets = content?.assets.assets.filter(a => a.origin === "site" || a.origin === "purchased") ?? [];
+  const missingTerms = externalAssets.filter(a => !a.termsCheckedAt);
+  const missingCredits = (content?.assets.assets ?? []).filter(a => a.creditRequired && !a.credit);
+  const publishNeedsReview = Boolean(errors.length || build?.state !== "ready" || missingTerms.length || missingCredits.length || !tests?.ok);
   const projectDir = store.source.kind === "local" ? "<このプロジェクトのフォルダ>" : "projects/sample-rpg";
 
   /** Re-run a failed scenario here in the browser and open the play-test where it stopped (168). */
@@ -80,6 +87,16 @@ export default function ChecksPanel({ store, diagnostics, onOpenFile, onPlayStat
     } finally { setRunning(false); }
   };
 
+  const playFromEvent = () => {
+    if (!content || !startEvent || !onPlayState) return;
+    try {
+      const engine = createEngine(content, withModules(content, store.systems));
+      const result = engine.run(engine.newGame(), [{ type: "event", event: startEvent }]);
+      onPlayState(result.state);
+      store.log("info", `イベント「${content.events[startEvent]?.label ?? startEvent}」から試遊を開始しました`);
+    } catch (error) { store.log("error", `イベントから試遊できません: ${error instanceof Error ? error.message : String(error)}`); }
+  };
+
   const copy = async () => {
     try { await navigator.clipboard.writeText(agentPrompt(task, projectDir)); setCopied(true); window.setTimeout(() => setCopied(false), 1600); }
     catch { store.log("warn", "クリップボードを使えません。文章を選択してコピーしてください"); }
@@ -99,6 +116,24 @@ export default function ChecksPanel({ store, diagnostics, onOpenFile, onPlayStat
           }}><ClipboardCopy size={13} /> このエラーをAIに直してもらう依頼文をセット</button>}
         </>}
     </section>
+
+    <section className="card">
+      <header><h3>公開前の確認</h3><span className="spacer" /><span className={`badge ${publishNeedsReview ? "warn" : "ok"}`}>{publishNeedsReview ? "確認が必要" : "主な項目はOK"}</span></header>
+      <ul className="diag-list">
+        <li className={errors.length ? "error" : "ok"}>{errors.length ? `検証エラー ${errors.length}件を解消` : "データ検証にエラーなし"}{warnings.length ? `（警告 ${warnings.length}件は内容を確認）` : ""}</li>
+        <li className={build?.state === "ready" ? "ok" : "warning"}>{build?.state === "ready" ? "配布用ビルドが作成済み" : "最新データの配布用ビルドを作成"}</li>
+        <li className={missingTerms.length ? "warning" : "ok"}>{missingTerms.length ? `利用条件の確認日がない外部素材 ${missingTerms.length}件` : "外部素材の利用条件を確認済み"}</li>
+        <li className={missingCredits.length ? "warning" : "ok"}>{missingCredits.length ? `クレジット文が未設定の必須素材 ${missingCredits.length}件` : "必須クレジット文を設定済み"}</li>
+        <li className={!tests ? "warning" : tests.ok ? "ok" : "error"}>{!tests ? "自動プレイテストを実行して結果を確認" : tests.ok ? "自動プレイテスト成功" : `自動プレイテスト失敗（${tests.results.filter(r => !r.ok).length}件）`}</li>
+      </ul>
+      <p className="muted small">公開先の規約・素材ごとの条件も別に確認してください。CLI: <code>pnpm rpg audit --project &lt;dir&gt;</code></p>
+    </section>
+
+    {onPlayState && content && Object.keys(content.events).length > 0 && <section className="card">
+      <header><h3>イベントから試遊</h3></header>
+      <p className="muted small">新しいゲームを始め、そのイベントを実行した状態で試遊を開きます。</p>
+      <div className="form-row"><select value={startEvent} onChange={e => setStartEvent(e.target.value)}><option value="">イベントを選ぶ</option>{Object.entries(content.events).map(([id, event]) => <option key={id} value={id}>{event.label}（{id}）</option>)}</select><button className="button" disabled={!startEvent} onClick={playFromEvent}>ここから試遊</button></div>
+    </section>}
 
     <section className="card">
       <header><h3>ビルド</h3>

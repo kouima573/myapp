@@ -8,6 +8,10 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = path.join(root, "dist", "site");
 await fs.rm(out, { recursive: true, force: true });
 await fs.mkdir(out, { recursive: true });
+// 公開中の版を確かめられるように、トップに版とビルド日時を出す（README の見出しの版）。
+const readme = await fs.readFile(path.join(root, "README.md"), "utf8");
+const siteVersion = readme.match(/^# .*?(v\d+(?:\.\d+)+)/m)?.[1] ?? "";
+const builtAt = new Date().toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 const copy = async (from, to) => fs.cp(path.join(root, from), path.join(out, to), { recursive: true });
 await copy("dist/studio", "studio");
 await copy("dist/game/sample-rpg", "play");
@@ -55,12 +59,17 @@ h2{font-size:20px;margin:36px 0 4px}.steps{color:var(--muted);padding-left:1.3em
 <script>document.getElementById("copy").addEventListener("click",function(){navigator.clipboard&&navigator.clipboard.writeText(document.getElementById("ask").textContent);this.textContent="コピーしました";});</script>
 <p><small>自分のゲームを作るには、手元で <code>pnpm studio</code> を起動してください（ファイルの保存・ビルド・自動テストはローカル版の機能です）。<br>
 見本の素材はすべて内蔵ジェネレーター・AI生成・内蔵効果音／楽譜BGMによるもので、第三者のサイト素材は含みません。</small></p>
+<p id="site-version"><small>版: ${siteVersion || "（不明）"}　ビルド: ${builtAt}（日本時間）</small></p>
 </main></body></html>
 `);
 await fs.writeFile(path.join(out, "_headers"), `/*
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   X-Frame-Options: SAMEORIGIN
+/
+  Cache-Control: no-cache
+/*/sw.js
+  Cache-Control: no-cache
 `);
 let files = 0, bytes = 0;
 const walk = async dir => { for (const e of await fs.readdir(dir, { withFileTypes: true })) { const p = path.join(dir, e.name); if (e.isDirectory()) await walk(p); else { files++; bytes += (await fs.stat(p)).size; } } };

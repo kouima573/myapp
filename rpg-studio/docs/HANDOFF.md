@@ -1,4 +1,4 @@
-# 引き継ぎメモ — RPGシステム工房（2026-11-22 更新）
+# 引き継ぎメモ — RPGシステム工房（2026-11-23 更新）
 
 別のAI（Codex／Claude Code など）がこのプロジェクトを引き継ぐためのメモです。**まずこのファイル、次に `AGENTS.md`（Claude Code は `CLAUDE.md` も）を読んでください。**
 
@@ -44,7 +44,7 @@
 cd rpg-studio
 pnpm install
 pnpm check                      # 型チェック
-pnpm test                       # vitest（現在187件）
+pnpm test                       # vitest（現在189件）
 pnpm rpg proofread --project <dir>   # 台詞の長さ・誤字らしき所（v1.9）
 pnpm rpg validate --project projects/sample-rpg     # ← フォルダは --project で指定（位置引数は無視される）
 pnpm rpg test     --project projects/sample-rpg
@@ -127,7 +127,73 @@ BGMのループ位置・環境音、配布版の先読みとホーム画面追�
 
 隊列歩行（ランタイムの `trail`、`project.party.follow`）、仲間の雑談（`chat`・アクション `partyChat`）、確認ダイアログ（`player.ts` の `askConfirm`）、自動生成ダンジョン（`packages/engine/src/dungeon.ts` の `generateDungeon`、`packages/cli/src/mapgen.ts`、工房の NewMapForm）、タイルの大きさ（`display.tileSize` → 拡大率）、カウントタイム戦闘（`ctbSequence`・`BattleState` のゲージ）、セリフ音声（`dialogueVoices`・`speak()`）、フォント素材（`ASSET_KINDS` に font、`ui.fontAsset` を FontFace で読み込み）、画風（`packages/cli/src/artgen/style.ts` の `applyStyle`。描いた後の色変換なので形は同じ）、取得元カタログの見直し（`packages/cli/src/sourceCatalog.ts`。`verify` は `--read-terms` がないと書かない）。
 
+追加実装（ロードマップ 029・042・046・049・051・064・071・090・107・116）: マップ色調と話者色、会話オート／スキップ、画面フェード、依頼帳、MP/SPゲージ・消費・回復・成長・工房フォーム、敵のドロップ率・盗む・調べる、所持品上限・スタック・並べ替え、BGM/効果音の個別音量、見やすさ設定。
+
+## 6.16 ロードマップ第11弾
+
+013 公開前チェック（`ChecksPanel`）、060 会話既読条件（`seenDialogue` / `seenDialogues`）、073 敵行動ごとのBGM（`EnemyAction.music` / `BattleState.music`）、089 装備前後の能力差表示、098 コスト制パッシブ枠（`passiveCapacity` / `passiveCost`）、105 マウス・タッチのクリック移動、110 HUD操作説明の切替、119 技・道具の説明とコストのヒント、162 イベントからの試遊開始、170 工房全体のフォームUndo/Redo（Ctrl/⌘+Z・Ctrl/⌘+Y、トップバーのボタン）を追加。
+
+`packages/schema/src/formats.ts` と `schema/*.schema.json` は同期済み。ただし、この作業環境では `node_modules/.bin/tsx` がなく `pnpm rpg schema` は実行できなかったため、JSON Schema は該当箇所を手動で反映した。依存を復元した後に `pnpm rpg schema` を実行して差分がないことを確認する。今回、テスト・型検査・ビルドは実行していない。
+
+## 6.17 ロードマップ追加実装
+
+131 素材ドラッグ＆ドロップ取り込みをローカル工房に追加。素材画面からPNG・OGG・MP3・WAV・WOFF2・WOFF・TTF・OTFを選び、種類・出どころ・取得元・ライセンス・規約確認日・クレジットを付けて登録できる。ローカルサーバーでファイル署名、素材スキーマ、取得元の有効状態・カテゴリ・共有条件、容量上限を確認し、素材ファイル保存後に衝突検知つきで `assets.json` を更新する。Previewは読み取り専用。`docs/asset-guide.md` に操作手順を追記。
+
+テスト・型検査・ビルドは未実行（依頼なし）。次に環境を整えた際は、ローカル工房でドラッグ＆ドロップ、外部素材の必須項目、重複ID・大容量・不正形式の拒否を受け入れ確認する。
+
+## 6.18 座標ピッカー
+
+174 イベント効果 `teleport` の工房フォームに移動先マップの色分けプレビューを追加。タイル色とNPC・出入口・仕掛け・エンティティの位置を表示し、クリックで目的座標を入力する。マップを切り替えたときは、現在座標を新マップの範囲内に収める。従来のX/Y数値入力も残した。`docs/project-format.md` に操作を追記。
+
+テスト・型検査・ビルドは未実行（依頼なし）。
+
 **注意**: リポジトリ直下には個人情報を含む別ファイルがあるため、公開サイトにリポジトリのURLや取得方法は載せていない（工房一式は作者から共有する前提）。
+
+## 6.19 使用箇所ライブ表示
+
+172 `UsagePanel` を追加し、データ編集フォームのIDからJSON内の完全一致参照とTypeScript内の引用符つきIDをライブ検索する。敵・アイテム・能力・仲間・会話・イベント・マップ上のエンティティ・領域・NPC・出入口・仕掛けの詳細画面で、所有データ名・JSONパスまたはコード行を一覧表示し、クリックで該当ファイルをデータ画面に開く。リストは折りたたみ式、最大80件を表示。
+
+テスト・型検査・ビルドは未実行（依頼なし）。
+
+## 6.20 IndexedDBセーブ
+
+189 ランタイムの手動セーブ枠とオートセーブをIndexedDBに保存するよう変更。タイトル画面とロード一覧は保存領域を非同期に読み、読込完了後に表示を更新する。既存のlocalStorageセーブは読み込み時にIndexedDBへ移行し、IndexedDBが使えない場合や書き込みに失敗した場合はlocalStorageを使う。設定・周回メタデータは小さいため同期localStorageのまま。
+
+テスト・型検査・ビルドは未実行（依頼なし）。
+
+## 6.21 デスクトップ配布ガイド
+
+188 `docs/desktop-app-guide.md` を追加。静的ゲームのビルド出力をTauriの `frontendDist` とElectronのパッケージに含める方法、両方式の要件とセキュリティ、ブラウザセーブの移行、OS別の配布前確認を記載。ラッパー本体とOS別インストーラーは未実装。
+
+ガイドは公式ドキュメントを参照して作成。テスト・型検査・ビルドは未実行（ガイド追加のみ）。
+
+## 6.22 ローカルAIスキル
+
+Codex向け `.agents/skills/rpg-studio/SKILL.md` とClaude Code向け `.claude/skills/rpg-studio/SKILL.md` を同じ本文で追加。ローカルのゲーム制作依頼で共通規約・IDEA・プロジェクト資料を参照し、データ中心で変更する手順を定義。`docs/ai-local-workflow.md` とREADMEに、展開したフォルダーを作業場所として開き `$rpg-studio` / `/rpg-studio` で呼び出す方法を記載。AI APIは追加していない。
+
+2つのスキル本文のハッシュ一致とfrontmatterを目視確認。Skill Creatorの `quick_validate.py` はPython環境にPyYAMLがなく実行不可。アプリ内での自動選択・呼び出し動作も実行確認していない。
+
+## 6.23 描画性能とFPS計測
+
+ロードマップ191を実装。プレイヤー実行中は不変の素材・タイル検索表とマップ行の文字配列を再利用し、毎フレームの再生成を減らす。配布ゲーム／試遊URLに `?fps` または `?debug` を付けると、右上にFPS・平均フレーム間隔・JavaScriptのフレーム処理時間を表示する。実機でのFPS向上幅は計測していない。
+
+テスト・型検査・ビルドは未実行。
+
+## 6.24 フィードバックリンク
+
+ロードマップ192を実装。`project.json` の任意設定 `feedback: { url, label }` をタイトル画面とゲーム内メニューに表示し、HTTPS URLを押した場合だけ新しいタブで開く。データは送らない。形式定義は更新したが、依存パッケージがないため `pnpm rpg schema` は実行できず、`schema/project.schema.json` は該当項目を手動反映。テスト・型検査・ビルドは未実行。
+
+## 6.20 別のAIの追加分の確認（2026-11-23）
+
+上の 6.16〜6.19 は別の環境で、テスト・型検査・ビルドなしに書かれた。取り込み時に全部を実行し、次を直した:
+
+- `game.ts`: アクション `togglePassive` の処理が `tick()`（世界の時間）の途中に貼り込まれていて構文エラーだった → アクションの switch へ移動
+- `conditions.ts` / `validate.ts`: 依頼の条件 `{ quest, status }` が状態異常の条件 `{ status }` と取り違えられていた → 依頼を先に判定
+- `render.ts`: マップの色調 `tints` の型エラー、工房の戦利品追加で `chance`（0〜100%）が抜けていた → 100 を入れる
+- `pnpm rpg schema` で JSON Schema を正式に再生成（手で反映された分は置き換え）
+- 公開サイト: オフライン用の Service Worker が「保存分を先に出す」方式で、公開し直しても古い版が見え続けることがあった → ネット優先・オフライン時だけ保存分に変更。トップページに「版とビルド日時」を表示
+
+確認したこと: check・test（189件）・両見本の validate/test/build/proofread・build:studio・build:site、ブラウザでの見本の起動とメニュー・設定・クリック移動・IndexedDB へのセーブとロード（エラーなし）。新しい工房画面（ドラッグ＆ドロップ取り込み・座標ピッカー・使用箇所表示）は起動エラーがないことだけを確認し、操作の受け入れ確認はまだ。
 
 ## 7. 残っている仕事
 
@@ -139,7 +205,7 @@ BGMのループ位置・環境音、配布版の先読みとホーム画面追�
 3. **Windows 受け入れ確認の 3〜7**（`docs/windows-acceptance.md`）と記録欄の記入。
 4. 公式OAuth/APIでの連携（Freesound・itch.io）は、問い合わせの回答が来てから。
 5. 静的ビルドの縮小（game.js の約444KBが Zod。配布版はビルド時検証済みデータを使って外せる余地）。
-6. **「200の改善指針」の続き**: 第10弾（v2.4）まで完了。次の🔜10件は `docs/roadmap-200.md` の冒頭（時間帯と色調 029・話者名の色分け 042・会話スキップ/オート 046・フェード演出 049・依頼帳 051・MP/SP 064・ドロップ/盗む 071・持ち物の上限と並べ替え 090・音量スライダー 107・見やすさの設定 116）。ユーザーは「お願いします」で約10件ずつ進める。各回の最後に日本語で報告し、`pnpm deploy:site` の再公開を促す（公開サイトはまだ v1.6）
+6. **「200の改善指針」の続き**: 第10弾・第11弾と追加の131・172・174・188・189・191・192まで実装済み。Codex / Claude Codeのローカルスキルは `docs/ai-local-workflow.md` を参照。次のロードマップ対象は `docs/roadmap-200.md` の 🟡／⬜ から優先度を見て選ぶ。公開サイトへの反映はユーザーが望んだ場合に `pnpm deploy:site` で行う。
 7. 乗り物の見本（専用の絵がまだない。今はテストのみ）
 8. 13種族・104効果はユーザー側でAIを使って作る予定（エンジンの部品は用意済み。データで表せないものはスクリプトで）。
 

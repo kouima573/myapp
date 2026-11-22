@@ -2,7 +2,7 @@
  * Form editors for conditions and effect lists. Common shapes get real inputs (selects for flags, items, maps…);
  * everything else stays editable as validated JSON, so no data shape is ever out of reach.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, Braces, Plus, Trash2 } from "lucide-react";
 import { z } from "zod";
 import { ConditionSchema, EffectSchema, type Condition, type Effect, type GameContent } from "@rpg/schema";
@@ -10,6 +10,59 @@ import { MODULES } from "../../../packages/modules/src/index";
 import { JsonField } from "./Inspector";
 
 type Ctx = { content: GameContent };
+
+function MapCoordinatePicker({ mapId, x, y, content, onChange }: { mapId: string; x: number; y: number; content: GameContent; onChange: (x: number, y: number) => void }) {
+  const [open, setOpen] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const map = content.maps[mapId];
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!open || !canvas || !map) return;
+    const cell = Math.max(2, Math.min(12, Math.floor(384 / map.width), Math.floor(288 / map.height)));
+    canvas.width = map.width * cell; canvas.height = map.height * cell;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const colors = new Map(content.tileset.tiles.map(tile => [tile.code, tile.color]));
+    for (let row = 0; row < map.height; row++) {
+      const codes = Array.from(map.rows[row] ?? "");
+      for (let col = 0; col < map.width; col++) {
+        ctx.fillStyle = codes[col] === " " ? "#111612" : colors.get(codes[col] ?? "") ?? "#343c35";
+        ctx.fillRect(col * cell, row * cell, cell, cell);
+      }
+    }
+    const marker = (mx: number, my: number, color: string) => {
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc((mx + .5) * cell, (my + .5) * cell, Math.max(1.5, cell * .28), 0, Math.PI * 2); ctx.fill();
+    };
+    for (const p of map.portals) marker(p.x, p.y, "#67b6d4");
+    for (const p of map.interactables) marker(p.x, p.y, "#e5a860");
+    for (const p of map.npcs) marker(p.x, p.y, "#d786c8");
+    for (const p of map.entities) marker(p.x, p.y, "#a58de0");
+    if (cell >= 5) {
+      ctx.strokeStyle = "rgba(10,15,11,.35)"; ctx.lineWidth = .5;
+      for (let col = 0; col <= map.width; col++) { ctx.beginPath(); ctx.moveTo(col * cell, 0); ctx.lineTo(col * cell, canvas.height); ctx.stroke(); }
+      for (let row = 0; row <= map.height; row++) { ctx.beginPath(); ctx.moveTo(0, row * cell); ctx.lineTo(canvas.width, row * cell); ctx.stroke(); }
+    }
+    if (x >= 0 && y >= 0 && x < map.width && y < map.height) {
+      ctx.strokeStyle = "#fff0b2"; ctx.lineWidth = Math.max(1, cell * .18);
+      ctx.strokeRect(x * cell + .5, y * cell + .5, cell - 1, cell - 1);
+    }
+  }, [open, map, content.tileset.tiles, x, y]);
+  if (!map) return null;
+  return <div className="map-coordinate-picker">
+    <button className="button" type="button" onClick={() => setOpen(value => !value)}>{open ? "マップを閉じる" : "マップ上で座標を選ぶ"}</button>
+    {open && <div className="map-coordinate-preview">
+      <div className="muted small">{map.title} — クリックで移動先を指定（現在 {x}, {y}）</div>
+      <canvas ref={canvasRef} aria-label={`${map.title}の移動先座標マップ`} onClick={event => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        const nextX = Math.max(0, Math.min(map.width - 1, Math.floor((event.clientX - rect.left) / rect.width * map.width)));
+        const nextY = Math.max(0, Math.min(map.height - 1, Math.floor((event.clientY - rect.top) / rect.height * map.height)));
+        onChange(nextX, nextY);
+      }} />
+      <div className="muted small">丸印: 出入口・仕掛け・NPC・エンティティ</div>
+    </div>}
+  </div>;
+}
 
 const Select = ({ value, options, onChange, placeholder }: { value: string; options: Array<[string, string]>; onChange: (v: string) => void; placeholder?: string }) =>
   <select value={value} onChange={e => onChange(e.target.value)}>
@@ -71,6 +124,7 @@ const EFFECT_KINDS: Array<[Effect["type"], string, (c: GameContent) => Effect]> 
   ["giveItem", "アイテムをもらう", c => ({ type: "giveItem", item: c.database.items[0]?.id ?? "" })],
   ["takeItem", "アイテムを渡す", c => ({ type: "takeItem", item: c.database.items[0]?.id ?? "" })],
   ["heal", "回復", () => ({ type: "heal" })],
+  ["recover", "MP / SP 回復", () => ({ type: "recover", resource: "mp" })],
   ["teleport", "移動", c => ({ type: "teleport", mapId: c.project.start.mapId, x: c.project.start.x, y: c.project.start.y })],
   ["battle", "戦闘", c => ({ type: "battle", enemy: c.database.enemies[0]?.id ?? "" })],
   ["dialogue", "会話を始める", c => ({ type: "dialogue", dialogue: Object.keys(c.dialogues)[0] ?? "" })],
@@ -98,7 +152,21 @@ function EffectForm({ effect, onChange, content }: { effect: Effect; onChange: (
     case "setVar": return <><Select value={effect.var} options={ids.vars(content)} onChange={v => set({ var: v })} /><Select value={effect.op ?? "set"} options={[["set", "＝"], ["add", "＋"], ["sub", "－"]]} onChange={v => set({ op: v === "set" ? undefined : v })} />{typeof effect.value === "number" ? <input type="number" value={effect.value} onChange={x => set({ value: Number(x.target.value) })} /> : <code className="small">式</code>}</>;
     case "giveItem": case "takeItem": return <><Select value={effect.item} options={ids.items(content)} onChange={v => set({ item: v })} /><input type="number" min={1} value={effect.count ?? 1} onChange={x => set({ count: Number(x.target.value) > 1 ? Number(x.target.value) : undefined })} style={{ width: "4em" }} /></>;
     case "heal": return <><input type="number" placeholder="全快" value={typeof effect.amount === "number" ? effect.amount : ""} onChange={x => set({ amount: x.target.value === "" ? undefined : Number(x.target.value) })} style={{ width: "6em" }} /><Select value={effect.target ?? "player"} options={[["player", "主人公"], ["party", "仲間"], ["all", "全員"]]} onChange={v => set({ target: v === "player" ? undefined : v })} /></>;
-    case "teleport": return <><Select value={effect.mapId} options={ids.maps(content)} onChange={v => set({ mapId: v })} /><input type="number" value={effect.x} onChange={x => set({ x: Number(x.target.value) })} style={{ width: "4em" }} /><input type="number" value={effect.y} onChange={x => set({ y: Number(x.target.value) })} style={{ width: "4em" }} /></>;
+    case "recover": return <><Select value={effect.resource} options={[["mp", "MP"], ["sp", "SP"]]} onChange={resource => set({ resource: resource as "mp" | "sp" })} /><input type="number" placeholder="全快" value={typeof effect.amount === "number" ? effect.amount : ""} onChange={x => set({ amount: x.target.value === "" ? undefined : Number(x.target.value) })} style={{ width: "6em" }} /><Select value={effect.target ?? "player"} options={[["player", "主人公"], ["party", "仲間"], ["all", "全員"]]} onChange={v => set({ target: v === "player" ? undefined : v })} /></>;
+    case "teleport": {
+      const destination = content.maps[effect.mapId];
+      return <div className="form-nested">
+        <div className="form-row">
+          <Select value={effect.mapId} options={ids.maps(content)} onChange={v => {
+            const next = content.maps[v];
+            set({ mapId: v, ...(next ? { x: Math.min(effect.x, next.width - 1), y: Math.min(effect.y, next.height - 1) } : {}) });
+          }} />
+          <label className="small">X <input aria-label="移動先X座標" type="number" min={0} max={Math.max(0, (destination?.width ?? 1) - 1)} value={effect.x} onChange={event => set({ x: Number(event.target.value) })} style={{ width: "5em" }} /></label>
+          <label className="small">Y <input aria-label="移動先Y座標" type="number" min={0} max={Math.max(0, (destination?.height ?? 1) - 1)} value={effect.y} onChange={event => set({ y: Number(event.target.value) })} style={{ width: "5em" }} /></label>
+        </div>
+        {destination && <MapCoordinatePicker mapId={effect.mapId} x={effect.x} y={effect.y} content={content} onChange={(x, y) => set({ x, y })} />}
+      </div>;
+    }
     case "battle": return <><Select value={effect.enemy} options={ids.enemies(content)} onChange={v => set({ enemy: v })} /><Select value={effect.onDefeat ?? "respawn"} options={[["respawn", "負けたら戻される"], ["continue", "負けても続く"]]} onChange={v => set({ onDefeat: v === "respawn" ? undefined : v })} /></>;
     case "dialogue": return <Select value={effect.dialogue} options={ids.dialogues(content)} onChange={v => set({ dialogue: v })} />;
     case "event": return <Select value={effect.event} options={ids.events(content)} onChange={v => set({ event: v })} />;

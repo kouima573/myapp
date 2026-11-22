@@ -9,6 +9,7 @@ export const RUNTIME_CSS = String.raw`
 @keyframes rpg-shake { 0%,100%{transform:translate(0,0)} 25%{transform:translate(-4px,2px)} 50%{transform:translate(3px,-2px)} 75%{transform:translate(-2px,1px)} }
 .rpg-canvas { position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; image-rendering:crisp-edges; }
 .rpg-fade { position:absolute; inset:0; background:#000; opacity:0; pointer-events:none; }
+.rpg-fps { position:absolute; top:4px; right:4px; z-index:40; padding:3px 5px; border-radius:3px; background:rgba(0,0,0,.72); color:#c8f0bb; font:11px/1.35 ui-monospace,Consolas,monospace; pointer-events:none; white-space:nowrap; }
 .rpg-layer { position:absolute; inset:0; pointer-events:none; }
 .rpg-input { display:flex; gap:8px; align-items:center; }
 .rpg-input-field { flex:1; min-width:0; font:inherit; font-size:18px; padding:6px 10px; border-radius:6px; border:1px solid rgba(255,255,255,.35); background:rgba(0,0,0,.4); color:inherit; }
@@ -57,6 +58,10 @@ export const RUNTIME_CSS = String.raw`
 .rpg-bar-fill { height:100%; background:var(--rpg-hp); transition:width .25s ease; }
 .rpg-bar.is-low .rpg-bar-fill { background:var(--rpg-low); }
 .rpg-bar.is-enemy .rpg-bar-fill { background:var(--rpg-enemy); }
+.rpg-bar.is-mp .rpg-bar-fill { background:#4e9bd0; }
+.rpg-bar.is-sp .rpg-bar-fill { background:#b17aca; }
+.rpg-root[data-color-assist="true"] .rpg-bar { outline:1px solid #fff; }
+.rpg-root[data-color-assist="true"] .rpg-bar.is-low .rpg-bar-fill { background-image:repeating-linear-gradient(135deg, rgba(0,0,0,.75) 0 2px, transparent 2px 5px); }
 .rpg-window { background:var(--rpg-win); border:2px solid var(--rpg-edge); border-radius:var(--rpg-radius,8px); box-shadow:inset 0 0 0 2px rgba(0,0,0,.45), 0 3px 0 rgba(0,0,0,.35); }
 .rpg-message { position:absolute; left:2.5%; right:2.5%; bottom:3%; min-height:26%; padding:.7em 1em 1em; cursor:pointer; line-height:1.65; }
 .rpg-speaker { display:inline-block; margin-bottom:.25em; color:var(--rpg-accent); font-size:.85em; letter-spacing:.08em; }
@@ -117,6 +122,7 @@ export const RUNTIME_CSS = String.raw`
 .rpg-battle-bottom { display:grid; grid-template-columns:1fr 1.6fr 1.2fr; gap:1.5%; padding:0 2.5% 3%; height:38%; }
 .rpg-battle-status, .rpg-battle-log, .rpg-commands { padding:.55em .8em; overflow:hidden; }
 .rpg-battle-hp { font-size:.85em; margin:.2em 0 .4em; }
+.rpg-battle-resource { font-size:.72em; margin-top:.25em; }
 .rpg-battle-log { font-size:.8em; line-height:1.55; display:flex; flex-direction:column; justify-content:flex-end; }
 .rpg-log-line:last-child { color:var(--rpg-ink); }
 .rpg-log-line { color:var(--rpg-dim); }
@@ -151,6 +157,9 @@ export const RUNTIME_CSS = String.raw`
 .rpg-ending-meta { font-size:.75em; color:var(--rpg-dim); }
 .rpg-credit-line { font-size:.8em; line-height:1.6; padding:.15em .5em; color:var(--rpg-ink); }
 .rpg-menu-row { display:grid; grid-template-columns:1fr 1fr; gap:.1em; }
+.rpg-audio-controls { display:grid; grid-template-columns:1fr 1fr; gap:.5em; padding:.3em 0; }
+.rpg-audio-control { display:flex; flex-direction:column; gap:.15em; font-size:.8em; }
+.rpg-audio-control input[type="range"] { padding:0; accent-color:var(--rpg-accent); }
 .rpg-toast { position:absolute; left:50%; top:16%; transform:translateX(-50%); max-width:80%; padding:.5em 1em; background:rgba(14,18,15,.92); border:1px solid var(--rpg-accent); border-radius:6px; font-size:.85em; text-align:center; pointer-events:none; }
 .rpg-touch { display:none; justify-content:space-between; align-items:center; padding:0 4px; touch-action:none; }
 @media (hover:none) and (pointer:coarse) { .rpg-touch { display:flex; } }
@@ -164,4 +173,5 @@ export const RUNTIME_CSS = String.raw`
 .rpg-ab .rpg-a { right:0; top:0; background:#5d4a25; border-color:#a1803f; }
 .rpg-ab .rpg-b { left:0; bottom:0; }
 @media (prefers-reduced-motion: reduce) { .rpg-screen.is-shaking, .rpg-battle, .rpg-menu { animation:none; } .rpg-caret.is-ready { animation:none; } }
+[data-reduced-motion="true"] .rpg-menu, [data-reduced-motion="true"] .rpg-battle, [data-reduced-motion="true"] .rpg-caret.is-ready { animation:none !important; }
 `;

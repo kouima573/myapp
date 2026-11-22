@@ -51,7 +51,7 @@ export default function SkillBoardPanel({ store, content }: { store: ProjectStor
     setNodeId(id);
   };
   const owners = ["hero", ...content.database.companions.map(c => c.id)];
-  const stat = (key: "maxHp" | "attack" | "defense") => (typeof node?.statMods?.[key] === "number" ? String(node.statMods[key]) : "");
+  const stat = (key: "maxHp" | "maxMp" | "maxSp" | "attack" | "defense") => (typeof node?.statMods?.[key] === "number" ? String(node.statMods[key]) : "");
 
   return <div className="panel-page skill-editor">
     <h2><Hexagon size={18} /> スキルボード</h2>
@@ -90,7 +90,7 @@ export default function SkillBoardPanel({ store, content }: { store: ProjectStor
         </div>
         <Field label="説明"><TextInput value={node.description} onCommit={v => editNode(n => { n.description = v; })} /></Field>
         <div className="form-row wrap">
-          {(["maxHp", "attack", "defense"] as const).map(k => <Field key={k} label={{ maxHp: "最大HP +", attack: "攻撃 +", defense: "防御 +" }[k]}><TextInput type="number" value={stat(k)} onCommit={v => editNode(n => { const m = { ...(n.statMods ?? {}) } as Record<string, unknown>; if (v === "" || Number(v) === 0) delete m[k]; else m[k] = Math.round(Number(v)); if (Object.keys(m).length) n.statMods = m as SkillNode["statMods"]; else delete n.statMods; })} /></Field>)}
+          {(["maxHp", "maxMp", "maxSp", "attack", "defense"] as const).map(k => <Field key={k} label={{ maxHp: "最大HP +", maxMp: "最大MP +", maxSp: "最大SP +", attack: "攻撃 +", defense: "防御 +" }[k]}><TextInput type="number" value={stat(k)} onCommit={v => editNode(n => { const m = { ...(n.statMods ?? {}) } as Record<string, unknown>; if (v === "" || Number(v) === 0) delete m[k]; else m[k] = Math.round(Number(v)); if (Object.keys(m).length) n.statMods = m as SkillNode["statMods"]; else delete n.statMods; })} /></Field>)}
         </div>
         {board.owner === "hero" && <Field label="覚える技（Ctrl/⌘+クリックで複数）"><select multiple value={node.abilities} onChange={e => editNode(n => { n.abilities = Array.from(e.target.selectedOptions).map(o => o.value); })} style={{ minHeight: "5em" }}>{content.database.abilities.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}</select></Field>}
         {board.owner === "hero" && <Field label="付く特性"><select multiple value={node.traits} onChange={e => editNode(n => { n.traits = Array.from(e.target.selectedOptions).map(o => o.value); })} style={{ minHeight: "4em" }}>{content.database.traits.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></Field>}

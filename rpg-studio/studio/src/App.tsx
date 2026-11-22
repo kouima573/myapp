@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon, Globe2, Search, GraduationCap, Music, Hexagon, LifeBuoy } from "lucide-react";
+import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon, Globe2, Search, GraduationCap, Music, Hexagon, LifeBuoy, Undo2, Redo2 } from "lucide-react";
 import { GameMapSchema, TilesetSchema, type GameContent, type GameMap, type GameState } from "@rpg/schema";
 import { loadImages, type ImageMap } from "../../packages/runtime/src/render";
 import MapEditor, { type Selection } from "./components/MapEditor";
@@ -81,6 +81,26 @@ export default function App({ source }: { source: ProjectSource }) {
     if (theme === "dark") document.documentElement.removeAttribute("data-theme"); else document.documentElement.dataset.theme = theme;
     try { localStorage.setItem("rpg-studio:theme", theme); } catch { /* optional */ }
   }, [theme]);
+  useEffect(() => {
+    const onHistoryKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || (!event.ctrlKey && !event.metaKey) || event.altKey || section === "map" || store.conflicts.length) return;
+      const key = event.key.toLowerCase();
+      const undo = key === "z" && !event.shiftKey;
+      const redo = key === "y" || (key === "z" && event.shiftKey);
+      if (!undo && !redo) return;
+      const target = event.target;
+      if (target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable)) return;
+      if (target instanceof HTMLInputElement && !["checkbox", "radio", "button", "submit", "reset", "file", "color"].includes(target.type)) return;
+      const file = store.lastEditedFile;
+      if (!file) return;
+      const history = store.historyState(file);
+      if (undo ? !history.canUndo : !history.canRedo) return;
+      event.preventDefault();
+      if (undo) store.undo(file); else store.redo(file);
+    };
+    window.addEventListener("keydown", onHistoryKey);
+    return () => window.removeEventListener("keydown", onHistoryKey);
+  }, [section, store]);
   // 用語の説明 (010): field labels and section names explain themselves on hover.
   useEffect(() => {
     const apply = () => document.querySelectorAll<HTMLElement>(".field-label, .section-tab span, .side-heading, .panel-page h2, .card h3").forEach(el => {
@@ -115,6 +135,8 @@ export default function App({ source }: { source: ProjectSource }) {
 
   const errors = store.diagnostics.filter(d => d.severity === "error").length;
   const warnings = store.diagnostics.length - errors;
+  const historyFile = store.lastEditedFile;
+  const globalHistory = historyFile ? store.historyState(historyFile) : { canUndo: false, canRedo: false };
   const openFile = (file: string) => { setDataFile(file); setSection("data"); };
 
   if (store.status === "loading") return <div className="splash"><Loader2 className="spin" /> プロジェクトを読み込んでいます…</div>;
@@ -138,6 +160,8 @@ export default function App({ source }: { source: ProjectSource }) {
           ビルド {store.build?.state === "ready" ? "OK" : store.build?.state === "error" ? "失敗" : store.build?.state === "building" ? "中" : "待機"}
         </span>}
         <button className={`pill ${findingCode ? "warn" : ""}`} title="画面の部品をクリックすると、その部分を作っているコードの場所を表示（Alt+クリックでもいつでも）" onClick={() => setFindingCode(v => !v)}><Code2 size={12} />{findingCode ? "コードを探す（Escで終了）" : "コードを探す"}</button>
+        <button className="pill" title={`元に戻す${historyFile ? `: ${historyFile}` : ""}（Ctrl/⌘+Z）`} aria-label="元に戻す" disabled={!globalHistory.canUndo} onClick={() => historyFile && store.undo(historyFile)}><Undo2 size={12} /></button>
+        <button className="pill" title={`やり直す${historyFile ? `: ${historyFile}` : ""}（Ctrl/⌘+Y）`} aria-label="やり直す" disabled={!globalHistory.canRedo} onClick={() => historyFile && store.redo(historyFile)}><Redo2 size={12} /></button>
         <button className="pill" title="工房の配色（暗い・明るい・高コントラスト）" onClick={() => setTheme(t => (t === "dark" ? "light" : t === "light" ? "contrast" : "dark"))}>{theme === "dark" ? "配色: 暗い" : theme === "light" ? "配色: 明るい" : "配色: 高コントラスト"}</button>
         <span className={`pill ${store.dirty.size ? "warn" : ""}`} title={[...store.dirty].join("\n")}><Save size={12} />{store.dirty.size ? `保存待ち ${store.dirty.size}` : "保存済み"}</span>
       </div>
@@ -172,15 +196,15 @@ export default function App({ source }: { source: ProjectSource }) {
 
     <section className="workspace">
       {section === "idea" && <IdeaPanel store={store} content={playContent} />}
-      {section === "story" && playContent && <StoryPanel store={store} content={playContent} />}
+      {section === "story" && playContent && <StoryPanel store={store} content={playContent} onOpenFile={openFile} />}
       {section === "rules" && playContent && <RulesPanel store={store} content={playContent} />}
-      {section === "database" && playContent && <DatabasePanel store={store} content={playContent} />}
+      {section === "database" && playContent && <DatabasePanel store={store} content={playContent} onOpenFile={openFile} />}
       {section === "scripts" && playContent && <ScriptsPanel store={store} content={playContent} />}
       {section === "library" && playContent && <LibraryPanel store={store} content={playContent} />}
       {section === "pixel" && playContent && <PixelEditor store={store} content={playContent} images={images} />}
       {section === "map" && editContent && activeMapId && <div className="map-workspace">
         <MapEditor store={store} content={editContent} mapId={activeMapId} images={images} imageRevision={imageRevision} selection={selection} onSelect={setSelection} onPlayFrom={playFrom} />
-        <aside className="inspector-pane"><Inspector store={store} content={editContent} mapId={activeMapId} selection={selection} onSelect={setSelection} onPlayFrom={playFrom} /></aside>
+        <aside className="inspector-pane"><Inspector store={store} content={editContent} mapId={activeMapId} selection={selection} onSelect={setSelection} onPlayFrom={playFrom} onOpenFile={openFile} /></aside>
       </div>}
       {section === "play" && playContent && <PlayPanel store={store} content={playContent} stale={!store.content} systems={store.systems} systemsVersion={store.systemsVersion} source={source} startAt={startAt} startState={playState} />}
       {section === "data" && <DataPanel store={store} diagnostics={store.diagnostics} file={dataFile} onFile={setDataFile} />}

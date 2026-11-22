@@ -24,6 +24,8 @@ export interface ProjectSource {
   runTests?(): Promise<TestResponse>;
   /** PNG from the pixel editor (assets/<folder>/<name>.png). expectedHash "" = new file. */
   saveImage?(path: string, png: Blob, expectedHash: string): Promise<{ ok: true; hash: string; bytes: number } | { ok: false; error: string; conflict?: boolean }>;
+  /** Import one user-selected image/audio/font and add its provenance record to assets.json. */
+  importAsset?(file: Blob, entry: Record<string, unknown>): Promise<{ ok: true; asset: AssetEntry } | { ok: false; error: string }>;
   /** sha256 of an asset's current bytes (for saveImage). */
   assetHash?(path: string): Promise<string>;
   /** Shared generated asset library (library/library.json). */
@@ -110,6 +112,19 @@ export class LocalSource implements ProjectSource {
       if (status !== 200) return { ok: false as const, error: json.error ?? `保存できません (${status})` };
       this.forgetAsset(path);
       return { ok: true as const, hash: json.hash!, bytes: json.bytes ?? bytes.length };
+    } catch (error) {
+      return { ok: false as const, error: error instanceof Error ? error.message : String(error) };
+    }
+  }
+
+  async importAsset(file: Blob, entry: Record<string, unknown>) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    try {
+      const { json } = await this.call<{ asset?: AssetEntry }>("POST", "/api/asset/import", { entry, base64: btoa(binary) });
+      if (!json.asset) return { ok: false as const, error: "素材の登録結果を取得できませんでした" };
+      return { ok: true as const, asset: json.asset };
     } catch (error) {
       return { ok: false as const, error: error instanceof Error ? error.message : String(error) };
     }

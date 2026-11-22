@@ -1,11 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Play, Trash2 } from "lucide-react";
-import { ConditionSchema, EntitySchema, RegionSchema, NpcSchema, type Condition, type Entity, type GameContent, type GameMap, type Interactable, type Npc, type Portal } from "@rpg/schema";
+import { ConditionSchema, EntitySchema, RegionSchema, NpcSchema, MapTintSchema, type Condition, type Entity, type GameContent, type GameMap, type Interactable, type Npc, type Portal } from "@rpg/schema";
 import type { z } from "zod";
 import type { ProjectStore } from "../lib/useProject";
 import type { Selection } from "./MapEditor";
 import EntityForm from "./EntityForm";
 import { ScriptField } from "./ScriptsPanel";
+import UsagePanel from "./UsagePanel";
 
 interface Props {
   store: ProjectStore;
@@ -14,6 +15,7 @@ interface Props {
   selection: Selection;
   onSelect: (selection: Selection) => void;
   onPlayFrom: (x: number, y: number) => void;
+  onOpenFile: (file: string) => void;
 }
 
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
@@ -54,7 +56,7 @@ const DirectionSelect = ({ value, onChange }: { value: string; onChange: (v: str
     <option value="down">下</option><option value="up">上</option><option value="left">左</option><option value="right">右</option>
   </select>;
 
-export default function Inspector({ store, content, mapId, selection, onSelect, onPlayFrom }: Props) {
+export default function Inspector({ store, content, mapId, selection, onSelect, onPlayFrom, onOpenFile }: Props) {
   const map = content.maps[mapId]!;
   const mapPath = content.project.maps.find(m => m.id === mapId)!.path;
   const characters = content.assets.assets.filter(a => a.kind === "character");
@@ -68,6 +70,9 @@ export default function Inspector({ store, content, mapId, selection, onSelect, 
         <Field label="幅"><TextInput type="number" min={4} max={128} value={map.width} onCommit={v => resize(Number(v), map.height)} /></Field>
         <Field label="高さ"><TextInput type="number" min={4} max={128} value={map.height} onCommit={v => resize(map.width, Number(v))} /></Field>
       </div>
+      <Field label="時間帯・画面の色調" hint="条件に合う色を地図全体に重ねます。条件なしなら常時適用。例: 時刻変数で夕方・夜を切り替える">
+        <JsonField value={map.tints} schema={MapTintSchema.array().max(8)} rows={8} placeholder={'[{"when":{"var":"hour","op":">=","value":18},"color":"#263552","opacity":0.32}]'} onCommit={v => edit(d => { if (v?.length) d.tints = v; else delete d.tints; })} />
+      </Field>
       <Field label="ランダムエンカウント" hint="1歩ごとの確率。0で無効。対象タイルが空なら全通行可タイル">
         <div className="field-row">
           <TextInput type="number" min={0} max={100} value={Math.round((map.encounters?.rate ?? 0) * 100)} onCommit={v => edit(d => {
@@ -134,6 +139,7 @@ export default function Inspector({ store, content, mapId, selection, onSelect, 
         ? "states は上から順に、when（条件）を満たす最初の状態が有効になります。どれも満たさなければ消えます。trigger: action（調べる）/ touch（触れる・追いつかれる）/ auto（その状態になった時に1回）/ none。behavior: still / wander / patrol / chase / flee。"
         : "プレイヤーがこの範囲に入る・出る・中を歩く・中で調べる時に効果を実行します。when で有効になる条件を付けられます。条件 inRegion でも参照できます。"}</p>
       {isEntity && <EntityForm store={store} entity={item as Entity} content={content} onChange={v => edit(d => { const i = d.entities.findIndex(e => e.id === item.id); if (i >= 0) d.entities[i] = v; })} />}
+      <UsagePanel id={item.id} store={store} onOpenFile={onOpenFile} />
       {isEntity && <div className="side-heading">JSONで直接編集</div>}
       <JsonField<unknown> value={item} schema={(isEntity ? EntitySchema : RegionSchema) as never} rows={18} onCommit={v => { if (!v) return; edit(d => { const list = d[key] as Array<{ id: string }>; const i = list.findIndex(e => e.id === item.id); if (i >= 0) list[i] = v as never; }); const next = v as { id: string; x: number; y: number }; onSelect({ kind: selection.kind, id: next.id, x: next.x, y: next.y }); }} />
       <p className="muted small">フォーカスを外すと検証して保存します。詳しくは docs/customization-guide.md。</p>
@@ -186,6 +192,7 @@ export default function Inspector({ store, content, mapId, selection, onSelect, 
       </Field>
       <Field label="表示条件 visibleWhen"><JsonField<Condition> value={npc.visibleWhen} schema={ConditionSchema} rows={1} placeholder="常に表示" onCommit={v => set(n => { if (v) n.visibleWhen = v; else delete n.visibleWhen; })} /></Field>
       <p className="muted small">会話本文は「データ」→ dialogues で編集します。</p>
+      <UsagePanel id={npc.id} store={store} onOpenFile={onOpenFile} />
       <details className="raw"><summary>JSON</summary><pre>{JSON.stringify(NpcSchema.parse(npc), null, 2)}</pre></details>
     </div>;
   }
@@ -210,6 +217,7 @@ export default function Inspector({ store, content, mapId, selection, onSelect, 
         <Field label="到着時の向き"><DirectionSelect value={portal.facing ?? "down"} onChange={v => set(p => { p.facing = v as typeof p.facing; })} /></Field>
       </div>
       <Field label="通行条件 when"><JsonField<Condition> value={portal.when} schema={ConditionSchema} rows={1} placeholder="常に通れる" onCommit={v => set(p => { if (v) p.when = v; else delete p.when; })} /></Field>
+      <UsagePanel id={portal.id} store={store} onOpenFile={onOpenFile} />
     </div>;
   }
 
@@ -238,5 +246,6 @@ export default function Inspector({ store, content, mapId, selection, onSelect, 
       {event.when && <div><span className="pill">条件</span> <code>{JSON.stringify(event.when)}</code></div>}
       <ol>{event.effects.map((effect, index) => <li key={index}><code>{effect.type}</code> {"text" in effect ? effect.text : "flag" in effect ? effect.flag : "enemy" in effect ? effect.enemy : "item" in effect ? effect.item : ""}</li>)}</ol>
     </div>}
+    <UsagePanel id={item.id} store={store} onOpenFile={onOpenFile} />
   </div>;
 }

@@ -4,9 +4,10 @@ import { type Dialogue, type GameContent, type GameEvent } from "@rpg/schema";
 import { Field, TextInput } from "./Inspector";
 import { ConditionEditor, EffectListEditor } from "./forms";
 import FlowView from "./FlowView";
+import UsagePanel from "./UsagePanel";
 import type { ProjectStore } from "../lib/useProject";
 
-interface Props { store: ProjectStore; content: GameContent }
+interface Props { store: ProjectStore; content: GameContent; onOpenFile: (file: string) => void }
 type DialogueFile = { formatVersion: number; dialogues: Dialogue[] };
 type EventFile = { formatVersion: number; events: GameEvent[] };
 
@@ -17,7 +18,7 @@ function uniqueId(base: string, taken: Iterable<string>) {
 }
 
 /** Structured editors for dialogues and events: lines and choices as forms, conditions / effects as validated JSON. */
-export default function StoryPanel({ store, content }: Props) {
+export default function StoryPanel({ store, content, onOpenFile }: Props) {
   const [kind, setKind] = useState<"dialogue" | "event">("dialogue");
   const [selected, setSelected] = useState<string | null>(null);
   const dPath = content.project.dialoguesPath, ePath = content.project.eventsPath;
@@ -59,6 +60,10 @@ export default function StoryPanel({ store, content }: Props) {
           <button className="button danger" onClick={() => { if (confirm(`会話 ${d.id} を消しますか？（参照している所は検証エラーになります）`)) { store.updateJson<DialogueFile>(dPath, f => { f.dialogues = f.dialogues.filter(x => x.id !== d.id); }); setSelected(null); } }}><Trash2 size={13} />削除</button>
         </header>
         <Field label="話し手"><TextInput value={d.speaker} onCommit={v => editD(d.id, x => { x.speaker = v || x.speaker; })} /></Field>
+        <Field label="話し手の色（任意）"><div className="field-row">
+          <input type="color" aria-label="話し手の色" value={d.speakerColor ?? "#ffffff"} onChange={e => editD(d.id, x => { x.speakerColor = e.target.value; })} style={{ width: "3em", height: "2em", padding: 0 }} />
+          {d.speakerColor && <button className="button" onClick={() => editD(d.id, x => { delete x.speakerColor; })}>テーマ色に戻す</button>}
+        </div></Field>
         <div className="field"><span className="field-label">台詞（1行ずつ。{"{{var.gold}}"} などの差し込み可。条件つきの行はJSON）</span>
           {d.lines.map((line, i) => <div key={i} className="field-row">
             {typeof line === "string"
@@ -83,6 +88,7 @@ export default function StoryPanel({ store, content }: Props) {
           </div>)}
           <button className="button" onClick={() => editD(d.id, x => { x.choices.push({ id: uniqueId("choice", x.choices.map(c => c.id)), label: "はい", effects: [], once: false }); })}><Plus size={12} />選択肢を足す</button>
         </div>
+        <UsagePanel id={d.id} store={store} onOpenFile={onOpenFile} />
       </div>}
       {e && <div className="card">
         <header><Zap size={15} /><h3>イベント <code>{e.id}</code></h3><span className="spacer" />
@@ -97,6 +103,7 @@ export default function StoryPanel({ store, content }: Props) {
         <Field label="効果" hint="message・giveItem・setFlag・battle・startScene など（docs/project-format.md）"><EffectListEditor value={e.effects} content={content} onChange={v => editE(e.id, x => { x.effects = v; })} /></Field>
         <Field label="条件を満たさないとき"><EffectListEditor value={e.otherwise} content={content} onChange={v => editE(e.id, x => { x.otherwise = v; })} /></Field>
         {e.once && <Field label="2回目以降"><EffectListEditor value={e.afterDone} content={content} onChange={v => editE(e.id, x => { x.afterDone = v; })} /></Field>}
+        <UsagePanel id={e.id} store={store} onOpenFile={onOpenFile} />
       </div>}
       {(d || e) && <FlowView content={content} root={d ? { kind: "dialogue", id: d.id } : { kind: "event", id: e!.id }} onOpen={ref => { setKind(ref.kind); setSelected(ref.id); }} />}
     </section>

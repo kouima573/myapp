@@ -35,6 +35,7 @@ export function useProject(source: ProjectSource) {
   dirtyRef.current = dirty;
   const timers = useRef<Record<string, number>>({});
   const history = useRef<Record<string, { undo: string[]; redo: string[] }>>({});
+  const lastEditedFile = useRef<string | null>(null);
   /** 操作履歴 (176): every undo step made in this studio session, newest last (file, when, text before). */
   const timeline = useRef<Array<{ id: number; at: number; path: string; before: string }>>([]);
   const group = useRef<{ open: boolean; recorded: Set<string> }>({ open: false, recorded: new Set() });
@@ -155,6 +156,7 @@ export function useProject(source: ProjectSource) {
   const setFileText = useCallback((path: string, text: string, options: { record?: boolean } = {}) => {
     const previous = textsRef.current[path];
     if (previous === text) return;
+    lastEditedFile.current = path;
     if (options.record !== false && previous !== undefined) {
       const entry = history.current[path] ??= { undo: [], redo: [] };
       if (!group.current.open || !group.current.recorded.has(path)) {
@@ -257,7 +259,7 @@ export function useProject(source: ProjectSource) {
 
   return {
     source, status, loadError, texts, projectInfo, dirty, conflicts, externallyChanged, build, systems, systemsVersion, logs,
-    content: loaded.content, lastGoodContent: lastGood.current, diagnostics: loaded.diagnostics,
+    content: loaded.content, lastGoodContent: lastGood.current, diagnostics: loaded.diagnostics, lastEditedFile: lastEditedFile.current,
     log, setFileText, updateJson, raiseConflict, beginGroup, endGroup, undo, redo, historyState, resolveConflict, requestBuild, reload,
     timeline: timeline.current,
     /** Undo the file of a timeline step back to just before it (as many undo steps as needed). */

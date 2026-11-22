@@ -4,10 +4,10 @@
 
 | ファイル | 内容 |
 | --- | --- |
-| `project.json` | `formatVersion: 2`、安定ID、タイトル、`start`（マップ・座標・向き）、`player`（名前・スプライト・能力値・初期能力・初期アイテム）、**`flags`（使う全フラグの宣言）**、各ファイルへの参照、`systems` |
+| `project.json` | `formatVersion: 2`、安定ID、タイトル、`start`（マップ・座標・向き）、`player`（名前・スプライト・能力値・初期能力・初期アイテム・任意のパッシブ枠 `passiveCapacity`）、**`flags`（使う全フラグの宣言）**、依頼定義 `quests`、各ファイルへの参照、`systems` |
 | `tiles.json` | タイルコード（1文字）→ 名前・アトラス番号・通行可否・`passableWhen`（条件で通れる）・`openIndex`（開いた時の絵）・代替色 |
 | `maps/*.json` | `rows`（タイルコードの文字列）、`npcs`、`portals`、`interactables`、任意の `encounters` |
-| `dialogues/*.json` | 会話（話者・行・最後の `effects`・`choices`） |
+| `dialogues/*.json` | 会話（話者・任意の話者色 `speakerColor`・行・最後の `effects`・`choices`） |
 | `events/*.json` | イベント（`when` 条件・`effects`・`otherwise`・`once`・`afterDone`） |
 | `database.json` | 特性（種族など）・能力・アイテム・敵 |
 | `rules.json`（任意） | 常に有効な全体ルール（`project.json` の `rulesPath`） |
@@ -30,14 +30,14 @@
 
 ```jsonc
 12                                   // 数
-{ "var": "gold" }  { "count": "herb" }  { "stat": "attack" }  { "hp": true }  { "steps": true }
+{ "var": "gold" }  { "count": "herb" }  { "stat": "attack" }  { "hp": true }  { "mp": true }  { "sp": true }  { "steps": true }
 { "ctx": "damage" }                  // ルール内: damage / turn / enemyHp / enemyMaxHp / enemyAttack / enemyDefense
 { "add": [a, b, ...] } { "sub": [a, b] } { "mul": [...] } { "div": [a, b] } { "mod": [a, b] } { "min": [...] } { "max": [...] }
 { "percent": [value, pct] }          // value × pct ÷ 100（切り捨て）
 { "if": 条件, "then": 式, "else": 式 }
 ```
 
-`{"stat"}` は特性・能力・アイテムによる補正込みの値です。
+`{"stat"}` は特性・能力・アイテムによる補正込みの値です。`mp` / `sp` は現在値、`{"stat":"maxMp"}` / `{"stat":"maxSp"}` は上限を返します。
 
 ## 条件（Condition）
 
@@ -47,11 +47,14 @@
 { "compare": [式, ">", 式] }                        // 任意の式どうしの比較
 { "ability": "beast-trail" }  { "trait": "dwarf" }  { "item": "herb", "atLeast": 2 }
 { "done": "sentinel-battle" }                      // 完了済み（onceイベント、"会話ID/選択肢ID"、markDoneのID）
+{ "seenDialogue": "elder-before" }                // 一度開いた会話か
 { "map": "ruins" }  { "inBattle": true }  { "enemy": "stone-sentinel" }  { "enemyTag": "undead" }
 { "all": [...] } / { "any": [...] } / { "not": {...} }
 ```
 
 ## 効果（Effect）
+
+会話データには任意で `speakerColor` を設定できます（例: `"speakerColor": "#78C8FF"`）。話し手名にだけ反映され、省略すると工房テーマの既定色になります。
 
 上から順に実行されます。`message`・`dialogue`・`choice`・`battle` は画面を止め、プレイヤーが閉じた後に残りの効果が続きます（効果キュー）。戦闘中に実行された場合は、文章は戦闘ログに出ます。`dialogue`・`choice`・`teleport`・`battle` は戦闘が終わった後に実行されます。
 
@@ -68,8 +71,9 @@
 | `grantTrait` / `removeTrait` | `{ "type": "grantTrait", "trait": "dwarf" }`（特性の `onGrant` も実行） |
 | `giveItem` / `takeItem` | `{ "type": "giveItem", "item": "herb", "count": 2 }` |
 | `heal` | `{ "type": "heal", "amount": 8 }`（省略で全回復） |
+| `recover` | `{ "type": "recover", "resource": "mp", "amount": 5, "target": "all" }`（MPまたはSPを回復。amount省略で対象者の上限まで回復） |
 | `damage` | `{ "type": "damage", "target": "enemy", "amount": {...}, "text": "{{ctx.damage}}のダメージ！" }`（フィールドではHPは1未満にならない） |
-| `teleport` | `{ "type": "teleport", "mapId": "ruins", "x": 3, "y": 9, "facing": "right" }` |
+| `teleport` | `{ "type": "teleport", "mapId": "ruins", "x": 3, "y": 9, "facing": "right" }`（工房のフォームでは移動先マップを選び、地図をクリックして座標指定できます） |
 | `setTile` | `{ "type": "setTile", "mapId": "village", "x": 4, "y": 2, "code": "." }`（セーブに残る地形変更） |
 | `dialogue` | `{ "type": "dialogue", "dialogue": "elder-before" }` |
 | `choice` | `{ "type": "choice", "prompt": "どうする？", "options": [{ "id": "buy", "label": "買う", "when": {...}, "effects": [...] }] }`（条件を満たす選択肢だけ表示） |
@@ -78,17 +82,20 @@
 | `battleLog` | 戦闘ログに1行（フィールドではメッセージ） |
 | `endBattle` | `{ "type": "endBattle", "outcome": "victory" }`（即勝利／`fled`で離脱） |
 | `markDone` | `{ "type": "markDone", "id": "elder-thanks" }` |
+| `quest` | `{ "type": "quest", "quest": "herb-request", "action": "start" }`（`complete` / `fail` / `objective` も。目標の達成は `objective` ID を指定） |
+| `fadeScreen` | `{ "type": "fadeScreen", "to": "color", "color": "#000000", "ms": 350 }`。`to: "clear"` で明るく戻す。暗転中に場面を変える場合は間にブロッキング効果（会話など）を置く |
 | `system` | `{ "type": "system", "system": "chronicle", "action": "summary" }`（TypeScriptを呼ぶ） |
 
-文章（message・会話の行・選択肢・戦闘ログ）には `{{var.gold}}` `{{item.herb}}` `{{stat.attack}}` `{{hp}}` `{{maxHp}}` `{{name}}` `{{flag.x}}` `{{enemy}}` `{{ctx.damage}}` `{{trait.種族}}`（そのカテゴリの特性名）を差し込めます。会話の行は `{ "text": "...", "when": {...} }` にすると条件付きで表示されます。
+文章（message・会話の行・選択肢・戦闘ログ）には `{{var.gold}}` `{{item.herb}}` `{{stat.attack}}` `{{hp}}` `{{maxHp}}` `{{mp}}` `{{maxMp}}` `{{sp}}` `{{maxSp}}` `{{name}}` `{{flag.x}}` `{{enemy}}` `{{ctx.damage}}` `{{trait.種族}}`（そのカテゴリの特性名）を差し込めます。会話の行は `{ "text": "...", "when": {...} }` にすると条件付きで表示されます。
 
 ## 特性・能力・アイテム・ルール
 
 - **特性**（`database.json` › `traits`）: `category`（種族・職業など自由）、`statMods`、`abilities`（特性がある間だけ持つ能力）、`rules`、`onGrant`、`tags`。
-- **能力**（`abilities`）: `statMods`、`rules`、`use`（技：`where` battle/field/both、`cost` 変数コスト、`hpCost`、`when`、`effects`）。
+- **能力**（`abilities`）: `statMods`、`rules`、`use`（技：`where` battle/field/both、`mpCost` / `spCost`、`cost` 変数コスト、`hpCost`、`when`、`effects`）。パッシブ枠を使う場合、`project.player.passiveCapacity` を設定し、能力ごとに任意の `passiveCost`（既定1）を指定します。メニューから枠内で付け外しできます。特性から得るパッシブ能力は常時有効です。
+- **MP/SP** `project.player.stats.maxMp` / `maxSp` と仲間の `stats` に上限を設定すると最大値まで補充して開始し、HUD・戦闘・メニューに残量を表示します。技の `use.mpCost` / `spCost` と仲間の `actions[].mpCost` / `spCost` で消費し、効果 `recover` で主人公・仲間・全員を回復できます。レベル成長の `gains.maxMp` / `maxSp` と装備・特性の `statMods` にも指定でき、上限が増えたとき残量が上限いっぱいなら同じ状態を保ちます。未設定のゲージは表示されません。
 - **アイテム**（`items`）: `heal`（簡易）、`use`（汎用、`consume`）、`statMods`・`rules`（持っているだけで効く）。
 - **ルール**（能力・特性・アイテム・敵、または `rulesPath` の `rules.json`）: `on`（auto / step / tick / mapEnter / battleStart / turnEnd / dealDamage / takeDamage / lethalDamage / victory / defeat / **bump**（壁などにぶつかった）/ **examine**（調べたが何もなかった）/ **verb**（動詞を使った。`match` で動詞を指定）/ **signal**（シグナルを受けた。`match` 必須））、`when`、`chance`、`once`（battle / map / game）、`repeat`、`priority`、`modify`（damage / hp）、`effects`。詳しい使い方とレシピは [customization-guide.md](customization-guide.md) を参照。
-- **敵**: `tags`（条件 `enemyTag` 用）、`actions[].when`（条件付き行動）、`actions[].effects`、`rules`（その敵との戦闘中だけ有効）。
+- **敵**: `tags`（条件 `enemyTag` 用）、`actions[].when`（条件付き行動）、`actions[].effects`、`actions[].music`（その行動時のBGM。`null` で敵／プロジェクトの通常戦闘曲に戻す）、`rules`（その敵との戦闘中だけ有効）。
 - **開始時**: `project.json` の `player.traits`（初期特性）と `intro`（新規ゲーム開始時の効果。種族選択など）。
 
 ## 世界の仕組み（エンティティ・領域・調べるタイル・時間・集合・周回）
@@ -98,6 +105,16 @@
 - **調べるタイル** `tiles.json › tiles[].inspect`: `{ when, effects, otherwise }`。
 - **集合** `project.json › sets`: `{ label, description, show, persist, entries }`。効果 `addToSet` / `removeFromSet` / `clearSet`、条件 `{"set", "has"}`、式 `{"size"}`、文中の `{{set.<id>}}`。組み込みの集合 `endings`（到達したエンディング、meta）。
 - **周回** フラグ・変数・集合の `persist: "meta"` は、`newCycle` やゲームの再開をまたいで残る。式 `{"cycle": true}`、文中の `{{cycle}}`。`project.json › endings` と効果 `ending`（エンディング画面 → 閉じると次の周回）。
+- **依頼帳** `project.json › quests` で依頼の題名・説明・目標を定義。効果 `quest` の `start` / `objective` / `complete` / `fail` で進行状況を記録し、メニューの「依頼帳」で確認。条件 `{ "quest": "herb-request", "status": "complete" }` で分岐できます。
+- **持ち物** `project.json › inventory` の `maxItems` で個数上限、`sort`（`name` / `count`）で初期の並び順を設定。アイテムの `maxStack` で種類ごとの上限を設定します。上限を超えた取得は持てる数だけ追加し、戦闘・イベントログに結果を表示します。
+- **敵の戦利品** `database.json › enemies[].drops` は `{ "item": "herb", "count": 1, "chance": 35 }` のように確率を設定できます。能力の `use.effects` に `{ "type": "steal", "chance": 60 }` を置くと、現在の敵から未取得の戦利品を一つ盗み、勝利時の通常ドロップから除外します。`{ "type": "inspectEnemy" }` は現在の敵のHP・攻撃・防御・残りドロップを戦闘ログに表示します。
+- **会話送り** 設定メニューの「会話オート」で台詞後の自動送りを切り替えます。会話中に `S` キーを長押しすると、選択肢で止まりながら文章を読み飛ばします。
+- **会話の既読** `dialogue` 効果で会話を開くと、会話IDがセーブデータの `seenDialogues` に記録されます。条件 `{ "seenDialogue": "elder-before" }` で初回／再訪の会話を分けられます。
+- **マップ操作** マップをクリックまたはタップすると、通れる道を探して主人公が歩きます。NPCや調べられる仕掛けを選ぶと隣まで移動して調べます。設定メニューの「クリック移動」で切り替えられます。画面の操作説明も同じメニューで表示／非表示を選べます。
+- **技・道具の説明** 戦闘中とメニューで説明・使用可否・所持数・設定したコストを見られます。項目のヒントはボタン上にマウスを置くと表示されます。
+- **工房** 検証画面の「公開前の確認」はデータ検証・配布ビルド・外部素材の利用条件・クレジット・自動プレイテストの状況をまとめます。「イベントから試遊」で新しいゲームから指定イベントを実行できます。フォーム変更はトップバーのUndo/Redoボタンか Ctrl/⌘+Z・Ctrl/⌘+Y で戻せます。
+- **遊びやすさ** 設定で文字を大きくする、動きを減らす、画面揺れを止める、色覚補助パターンを使う設定を切り替えられます。設定は端末ごとに保存されます。
+- **音量** 設定メニューのBGM・効果音スライダーは個別に音量を調節し、端末ごとに保存します。
 - **時間** `schedule {id?, after: 式(歩数), effects}` / `cancelSchedule {id}`。ルールの `on: "tick"`。式 `{"ticks": true}`。
 - **その他の効果** `moveEntity {entity, mapId?, x, y, facing?}`、`startScene {system, scene, args}`（独自画面）、`signal {signal}`（シグナルを発信。`on: "signal"` で `match` が一致するルールがその場で動く）、`setPlayer {name?, sprite?}`（変身。`null` で元に戻す）。
 - **動詞** `project.json › verbs`: `{ "listen": { "label": "耳を澄ます", "key": "l", "description": "…", "when": 条件, "effects": [...] } }`。フィールドのメニュー「こうどう」・画面のボタン・キーで使える。`on: "verb"` のルールも反応する。
@@ -106,7 +123,7 @@
 - **シグナル** `project.json › signals`: `{ "whistle": { "description": "…" } }`。未宣言のシグナルは検証エラー。
 - **装備** アイテムに `slot`（`project.json › equipmentSlots` の枠。既定は weapon 武器・armor 防具・accessory 装飾品）を付けると装備品になり、その `statMods` と `rules` は装備している間だけ効く（slot のないアイテムは今までどおり持っているだけで効く）。効果 `equip {item}`・`unequip {slot}`、条件 `{ "equipped": "bronze-sword" }`。最後の1つを手放すと外れる。プレイヤーはメニューの「どうぐ」で付け外しする。
 - **複数の敵** 戦闘効果に `with: ["moss-slime", "cave-bat"]` を付けると、標準の戦闘で何体も同時に戦う。「たたかう」で相手を選び、生きている敵は全員が順に行動し、全員倒すと勝利（戦利品は全員分）。ルールやシステムから見た「敵」は、そのとき攻撃されている・行動している敵。
-- **仲間** `database.json › companions`（`id`・`name`・`stats`・`actions`: kind attack / heal / guard・power・when・message）。効果 `joinParty {companion}` / `leaveParty {companion}`。仲間は標準の戦闘で自分で行動し（誰かのHPが半分を切ると heal を優先）、敵は主人公か仲間を狙う。`heal` の `target`: `player`（既定）/ `party`（倒れた仲間も起こす）/ `all`。主人公が倒れると負け。仲間にも装備させられる（効果 `equip {item, companion}` / `unequip {slot, companion}`、メニューの「なかま」）。戦闘では「なかま」コマンドで、そのターンに仲間が使う行動を指示できる（指示しなければ自分で判断。指示はターン終了で消える）。
+- **仲間** `database.json › companions`（`id`・`name`・`stats`・`actions`: kind attack / heal / guard・power・when・message、必要なら `mpCost` / `spCost`）。効果 `joinParty {companion}` / `leaveParty {companion}`。仲間は標準の戦闘で自分で行動し（誰かのHPが半分を切ると heal を優先）、敵は主人公か仲間を狙う。仲間の行動はリソース不足なら選ばれません。`heal` の `target`: `player`（既定）/ `party`（倒れた仲間も起こす）/ `all`。主人公が倒れると負け。仲間にも装備させられる（効果 `equip {item, companion}` / `unequip {slot, companion}`、メニューの「なかま」）。戦闘では「なかま」コマンドで、そのターンに仲間が使う行動を指示できる（指示しなければ自分で判断。指示はターン終了で消える）。
 - **押す・運ぶ** エンティティの状態に `pushable: true`（歩いてぶつかると1マス押せる）、`carryable: true`（決定で持ち上げ、向いた先の空きマスで決定すると置く。別のマップへ運べる）、`onMoved`（押された・置かれた後の効果）。条件 `{ "entityAt": { "entity": "boulder", "x": 6, "y": 12, "map": "ruins" } }`（今どこにあるか。書いた項目だけ比べる）、`{ "carrying": "crate" }`。`moveEntity` の `mapId` は行き先のマップで、別のマップに定義されたエンティティも移せる。
 - **条件** `{ "front": { "tile": "~", "entity": "…", "npc": "…", "blocked": true } }`: プレイヤーの目の前（書いた項目がすべて一致）。
 - **拡張の呼び出し** 条件 `{"custom": "system.name", "args"}`、式 `{"fn": "system.name", "args": [...]}`。
@@ -137,7 +154,7 @@
 
 ## プレイヤーセーブ（形式 v2）
 
-`{ formatVersion, projectId, savedAt, state }`。`state` には現在地・向き・HP・基本能力値・能力・特性・アイテム・フラグ・変数・地形変更・発動済みルール・完了ID・乱数シード・システム用データを安定IDで記録します。0.3で増えた項目がない古いセーブも既定値で読み込めます。会話や戦闘の途中ではセーブできません。読込時はプロジェクトID・形式・マップの存在・座標を確認し、壊れていても例外にせず理由を表示して新規開始を選べます。v1セーブは読込時に変換します（元データは書き換えません）。後から追加したフラグは初期値で補います。
+`{ formatVersion, projectId, savedAt, state }`。`state` には現在地・向き・HP/MP/SP・基本能力値・能力・特性・アイテム・フラグ・変数・地形変更・発動済みルール・完了ID・乱数シード・システム用データを安定IDで記録します。後から追加された任意ゲージのない古いセーブも既定値で読み込めます。会話や戦闘の途中ではセーブできません。読込時はプロジェクトID・形式・マップの存在・座標を確認し、壊れていても例外にせず理由を表示して新規開始を選べます。v1セーブは読込時に変換します（元データは書き換えません）。後から追加したフラグは初期値で補います。
 
 ## 音
 
@@ -164,22 +181,24 @@
 書くとレベル制になります（書かなければレベルはありません。`rpg new` で作ったプロジェクトは最初から有効）。
 
 ```json
-"leveling": { "maxLevel": 30, "base": 8, "growth": 1.3, "gains": { "maxHp": 4, "attack": 1, "defense": 1 },
+"leveling": { "maxLevel": 30, "base": 8, "growth": 1.3, "gains": { "maxHp": 4, "maxMp": 2, "maxSp": 1, "attack": 1, "defense": 1 },
               "learn": [ { "level": 3, "ability": "fire" } ], "fullHeal": false }
 ```
 
 - 次のレベルまでの経験値: `expTable[レベル-1]`（書いた場合）、なければ `round(base × growth^(レベル-1))`。
+- `gains.maxMp` / `gains.maxSp` は省略時0。レベルアップ時に上限が増えた量だけ補充します。`fullHeal: true` は有効なHP・MP・SPをすべて最大まで戻します。
 - 勝つと倒した敵の `exp` の合計が入る（敵に `exp` がなければ `round((最大HP + 2×攻撃 + 2×防御) / 3)`）。
 - 効果 `{ "type": "gainExp", "amount": 20 }`、式 `{ "level": true }` / `{ "exp": true }`、自動テストの `expect.level`。
 
 ## タイトル画面とセーブ（`project.json › titleScreen` / `autosave`）
 
 - `"titleScreen": { "enabled": true, "subtitle": "…", "background": "背景素材ID" }` — 書き出したゲームは「はじめから／つづきから／クレジット」のタイトル画面で始まる（工房の試遊では出ない）。
+- `"feedback": { "url": "https://example.com/feedback", "label": "不具合を報告" }` を設定すると、タイトル画面とゲーム内メニューにリンクを表示。押したときだけブラウザの別タブで開き、セーブデータやプレイ情報は送信しません。URLはHTTPSのみ。`label` は省略でき、既定は「フィードバックを送る」。
 - セーブはスロット3つと「オート」（`"autosave": true` のとき、マップに入るたびに自動保存）。セーブはファイルに書き出し・読み込みもできる。
 
 ## お店と宿屋（`shop` モジュール）
 
-アイテムに `"price"` を書き、`{ "type": "startScene", "system": "shop", "scene": "buy", "args": { "items": [ { "item": "herb" }, { "item": "iron-sword", "price": 60 } ], "currency": "gold" } }`。売るときは `sellRate`（既定0.5）倍。装備品は今の装備と比べた能力の差を表示。宿屋は `"scene": "inn", "args": { "price": 10 }`（全員全回復）。`project.json › modules` に `"shop": {}` が必要。
+アイテムに `"price"` を書き、`{ "type": "startScene", "system": "shop", "scene": "buy", "args": { "items": [ { "item": "herb" }, { "item": "iron-sword", "price": 60 } ], "currency": "gold" } }`。売るときは `sellRate`（既定0.5）倍。店と持ち物メニューでは装備前後の能力差を表示。宿屋は `"scene": "inn", "args": { "price": 10 }`（全員全回復）。`project.json › modules` に `"shop": {}` が必要。
 
 ## 状態異常・強化・属性（`database.json › statuses`、`project.json › elements`）
 
@@ -250,6 +269,7 @@
 ## v2.0 の追加
 
 - マップの `parallax: { "image": "<背景>", "speed": 0.3 }`: 遠景。下の層を `" "`（空白）にしたマスから見える（歩けない）。`fog: { "image", "opacity", "speedX", "speedY" }`: 霧・雲が流れる
+- マップの `tints`: 条件に応じて画面全体へ色を重ねる（夕焼け・夜・洞窟など）。各項目は `color`（`#RRGGBB`）と `opacity`（0〜0.8）、任意の `when` 条件を持つ。宣言済み変数を使う例: `{ "when": { "var": "hour", "op": ">=", "value": 18 }, "color": "#263552", "opacity": 0.32 }`。時間変数の進行・更新はプロジェクト側で設定し、条件を満たした色が順に重なります（最大8件）
 - タイルの `stepEffect`（`dust`・`splash`・`footprints`・`leaves`）、`footstep`（効果音）、`encounterRate`（そのマスのエンカウント率。マップの `encounters` が必要）
 - `project.json › party: { "size": 3, "backRowTaken": 50, "backRowDealt": 50 }`: 戦う仲間の人数（超えたら控え）と後列の割合。効果 `{ "type": "setFormation", "who": "hero|<仲間>", "row": "front|back", "reserve": true }`
 - `project.json › ui: { "window", "edge", "text", "accent", "radius", "font": "dot|gothic|mincho|rounded", "frame": "<画像>", "frameSlice": 12 }`
@@ -306,3 +326,4 @@
 
 - 起動時に画像と音をすべて先に読み込み、「読み込み中… N%」を表示してからタイトル画面へ。
 - `manifest.webmanifest`・`icon.svg`・`sw.js` を自動で書き出す。http(s) で公開すると、スマホの「ホーム画面に追加」でアプリのように起動でき、一度開けばオフラインでも遊べる。版（`version.json`）が変わると古いキャッシュは自動で入れ替わる。`file://` で開いたときや `?debug` のときは使わない。
+- 描画確認では、配布版または試遊画面のURLに `?fps` を付けるとFPS・平均フレーム間隔・1フレームの処理時間を画面右上に表示する。`?debug` でも同じ表示が出る。`?fps` はサービスワーカーを無効にしない。

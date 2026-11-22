@@ -90,13 +90,37 @@ export interface DrawMapOptions {
     startPoint?: Point | null;
   };
   time: number;
+  /** Enable memoized lookups and row decoding when the caller guarantees these arrays do not mutate in place. */
+  cacheStaticData?: boolean;
+}
+
+const staticAssetLookups = new WeakMap<AssetEntry[], Map<string, AssetEntry>>();
+const staticTileLookups = new WeakMap<TileDef[], Map<string, TileDef>>();
+const staticRowGrids = new WeakMap<string[], string[][]>();
+
+function assetLookup(assets: AssetEntry[]): Map<string, AssetEntry> {
+  let lookup = staticAssetLookups.get(assets);
+  if (!lookup) { lookup = new Map(assets.map(asset => [asset.id, asset])); staticAssetLookups.set(assets, lookup); }
+  return lookup;
+}
+
+function tileLookup(definitions: TileDef[]): Map<string, TileDef> {
+  let lookup = staticTileLookups.get(definitions);
+  if (!lookup) { lookup = new Map(definitions.map(tile => [tile.code, tile])); staticTileLookups.set(definitions, lookup); }
+  return lookup;
+}
+
+function decodedRows(rows: string[]): string[][] {
+  let grid = staticRowGrids.get(rows);
+  if (!grid) { grid = rows.map(row => Array.from(row)); staticRowGrids.set(rows, grid); }
+  return grid;
 }
 
 /** Draws the map; returns where tile (0,0) landed so overlays can align. */
 export function drawMap(ctx: CanvasRenderingContext2D, o: DrawMapOptions): { originX: number; originY: number } {
   const { content, map, images, view, state } = o;
-  const assetById = new Map(content.assets.assets.map(a => [a.id, a]));
-  const tiles = new Map(content.tileset.tiles.map(t => [t.code, t]));
+  const assetById = o.cacheStaticData ? assetLookup(content.assets.assets) : new Map(content.assets.assets.map(a => [a.id, a]));
+  const tiles = o.cacheStaticData ? tileLookup(content.tileset.tiles) : new Map(content.tileset.tiles.map(t => [t.code, t]));
   const width = view.cols * TILE, height = view.rows * TILE;
   ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = "#0e120f";
@@ -112,7 +136,7 @@ export function drawMap(ctx: CanvasRenderingContext2D, o: DrawMapOptions): { ori
   const x1 = Math.min(map.width, x0 + view.cols + 2), y1 = Math.min(map.height, y0 + view.rows + 2);
   /** Draws one layer of tile codes (" " = empty on upper layers). Autotiles connect within the same layer. */
   const drawLayer = (layerRows: string[], base: boolean) => {
-    const grid = layerRows.map(r => Array.from(r));
+    const grid = o.cacheStaticData ? decodedRows(layerRows) : layerRows.map(r => Array.from(r));
     for (let y = y0; y < y1; y++) {
       const row = grid[y] ?? [];
       for (let x = x0; x < x1; x++) {
@@ -163,7 +187,7 @@ export function drawMap(ctx: CanvasRenderingContext2D, o: DrawMapOptions): { ori
 
   for (const fx of o.stepEffects ?? []) drawStepEffect(ctx, fx, o.time);
   const sorted = [...o.actors].sort((a, b) => a.y - b.y || (a.kind === "player" ? 1 : -1));
-  for (const actor of sorted) drawActor(ctx, content, images, actor);
+  for (const actor of sorted) drawActor(ctx, content, images, assetById, actor);
   // Layers above the characters: roofs, tree tops, bridges seen from below.
   for (const layer of map.layers ?? []) if (layer.above && !hidden.includes(layer.id)) drawLayer(layer.rows, false);
 
@@ -171,6 +195,17 @@ export function drawMap(ctx: CanvasRenderingContext2D, o: DrawMapOptions): { ori
   ctx.restore();
   // 霧・雲: drifting over everything (screen space, follows the camera a little).
   if (map.fog && !o.editor) tiled(ctx, images[map.fog.image], width, height, view.camera.x * TILE * 0.5 - (o.time / 1000) * map.fog.speedX, view.camera.y * TILE * 0.5 - (o.time / 1000) * map.fog.speedY, map.fog.opacity);
+  // Time-of-day / atmosphere tints: conditions can read declared project variables or flags.
+  const activeTints = o.editor ? [] : (map.tints ?? []).filter(tint => !tint.when || Boolean(state && evaluate(tint.when, state)));
+  if (activeTints.length) {
+    ctx.save();
+    for (const tint of activeTints) {
+      ctx.globalAlpha = tint.opacity;
+      ctx.fillStyle = tint.color;
+      ctx.fillRect(0, 0, width, height);
+    }
+    ctx.restore();
+  }
   return { originX: offsetX, originY: offsetY };
 }
 
@@ -245,13 +280,13 @@ function drawMarker(ctx: CanvasRenderingContext2D, item: Interactable, time: num
   }
 }
 
-function drawActor(ctx: CanvasRenderingContext2D, content: GameContent, images: ImageMap, actor: ActorDraw) {
+function drawActor(ctx: CanvasRenderingContext2D, content: GameContent, images: ImageMap, assetById: Map<string, AssetEntry>, actor: ActorDraw) {
   const px = actor.x * TILE, py = actor.y * TILE;
   ctx.fillStyle = "rgba(10, 14, 12, .3)";
   ctx.beginPath(); ctx.ellipse(px + 16, py + 28, 10, 3.5, 0, 0, Math.PI * 2); ctx.fill();
   const image = actor.sprite ? images[actor.sprite] : undefined;
   if (ready(image)) {
-    const asset = content.assets.assets.find(a => a.id === actor.sprite);
+    const asset = assetById.get(actor.sprite!);
     const columns = asset?.columns ?? 1, rows = asset?.rows ?? 1;
     const row = Math.min(rows - 1, DIRECTION_ROWS[actor.facing]);
     const column = Math.min(columns - 1, Math.max(0, actor.frame ?? 0));

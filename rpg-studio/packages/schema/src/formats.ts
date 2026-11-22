@@ -21,7 +21,7 @@ export type Direction = z.infer<typeof DirectionSchema>;
 
 /* ------------------------------------------------------------------ Expressions */
 
-export const STAT_NAMES = ["maxHp", "attack", "defense"] as const;
+export const STAT_NAMES = ["maxHp", "maxMp", "maxSp", "attack", "defense"] as const;
 export type StatName = (typeof STAT_NAMES)[number];
 export const CTX_NAMES = ["damage", "turn", "enemyHp", "enemyMaxHp", "enemyAttack", "enemyDefense", "attack", "defense", "power", "variance"] as const;
 export type CtxName = (typeof CTX_NAMES)[number];
@@ -30,7 +30,7 @@ export type CompareOp = (typeof COMPARE_OPS)[number];
 
 /**
  * Numeric expression (JSON, never eval'd). Integers result; division floors.
- *   12 | {"var":"gold"} | {"count":"herb"} | {"stat":"attack"} | {"hp":true} | {"steps":true} | {"ctx":"damage"} | {"level":true} | {"exp":true}
+ *   12 | {"var":"gold"} | {"count":"herb"} | {"stat":"attack"} | {"hp":true} | {"mp":true} | {"sp":true} | {"steps":true} | {"ctx":"damage"} | {"level":true} | {"exp":true}
  *   {"add":[..]} {"sub":[a,b]} {"mul":[..]} {"div":[a,b]} {"mod":[a,b]} {"min":[..]} {"max":[..]} {"if":cond,"then":e,"else":e}
  *   {"percent":[value, pct]}  = floor(value * pct / 100)
  */
@@ -40,6 +40,8 @@ export type Expr =
   | { count: string }
   | { stat: StatName }
   | { hp: true }
+  | { mp: true }
+  | { sp: true }
   | { steps: true }
   | { level: true }
   | { exp: true }
@@ -64,6 +66,8 @@ export const ExprSchema: z.ZodType<Expr> = z.lazy(() => z.union([
   z.object({ count: IdSchema }).strict(),
   z.object({ stat: z.enum(STAT_NAMES) }).strict(),
   z.object({ hp: z.literal(true) }).strict(),
+  z.object({ mp: z.literal(true) }).strict(),
+  z.object({ sp: z.literal(true) }).strict(),
   z.object({ steps: z.literal(true) }).strict(),
   z.object({ level: z.literal(true) }).strict(),
   z.object({ exp: z.literal(true) }).strict(),
@@ -94,6 +98,8 @@ export type Condition =
   | { status: string; target?: "player" | "enemy" }
   | { item: string; atLeast?: number }
   | { done: string }
+  | { seenDialogue: string }
+  | { quest: string; status?: "active" | "complete" | "failed" }
   | { map: string }
   | { inBattle: boolean }
   | { enemy: string }
@@ -123,6 +129,8 @@ export const ConditionSchema: z.ZodType<Condition> = z.lazy(() => z.union([
   z.object({ status: IdSchema, target: z.enum(["player", "enemy"]).optional() }).strict(),
   z.object({ item: IdSchema, atLeast: z.number().int().positive().optional() }).strict(),
   z.object({ done: IdSchema }).strict(),
+  z.object({ seenDialogue: IdSchema }).strict(),
+  z.object({ quest: IdSchema, status: z.enum(["active", "complete", "failed"]).optional() }).strict(),
   z.object({ map: IdSchema }).strict(),
   z.object({ inBattle: z.boolean() }).strict(),
   z.object({ enemy: IdSchema }).strict(),
@@ -170,6 +178,7 @@ export type Effect =
   | { type: "unequip"; slot: string; companion?: string }
   | { type: "takeItem"; item: string; count?: number }
   | { type: "heal"; amount?: Expr; target?: "player" | "party" | "all" }
+  | { type: "recover"; resource: "mp" | "sp"; amount?: Expr; target?: "player" | "party" | "all" }
   | { type: "gainExp"; amount: Expr }
   | { type: "addStatus"; status: string; target?: "player" | "enemy" | "enemies" | "party"; turns?: number; chance?: Expr }
   | { type: "removeStatus"; status?: string; target?: "player" | "enemy" | "enemies" | "party" }
@@ -183,8 +192,11 @@ export type Effect =
   | { type: "event"; event: string }
   | { type: "battle"; enemy: string; with?: string[]; waves?: Array<{ enemy: string; with?: string[] }>; practice?: boolean; onVictory?: Effect[]; onDefeat?: "respawn" | "continue"; canFlee?: boolean; mode?: string; args?: Record<string, unknown> }
   | { type: "battleLog"; text: string }
+  | { type: "steal"; chance?: Expr }
+  | { type: "inspectEnemy" }
   | { type: "endBattle"; outcome: "victory" | "fled" }
   | { type: "markDone"; id: string }
+  | { type: "quest"; quest: string; action: "start" | "complete" | "fail" | "objective"; objective?: string }
   | { type: "playSfx"; sound: string }
   | { type: "addToSet"; set: string; value: string }
   | { type: "removeFromSet"; set: string; value: string }
@@ -207,6 +219,7 @@ export type Effect =
   | { type: "summon"; companion: string; turns?: number }
   | { type: "resetSkills"; who?: string }
   | { type: "camera"; focus?: "player" | { x: number; y: number }; zoom?: number; ms?: number; shake?: { power?: number; ms?: number } }
+  | { type: "fadeScreen"; to: "color" | "clear"; color?: string; ms?: number }
   | { type: "setFormation"; who: string; row?: "front" | "back"; reserve?: boolean }
   | { type: "input"; prompt?: string; speaker?: string; maxLength?: number; initial?: string; saveAs?: string; answers?: InputAnswer[]; otherwise?: Effect[] }
   | { type: "signal"; signal: string }
@@ -244,6 +257,8 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("takeItem"), item: IdSchema, count: z.number().int().positive().optional() }).strict(),
   /** target: "player" (default), "party" (companions, also revives the fallen) or "all". */
   z.object({ type: z.literal("heal"), amount: ExprSchema.optional(), target: z.enum(["player", "party", "all"]).optional() }).strict(),
+  /** Restore MP or SP; omitted amount fills the chosen resource. */
+  z.object({ type: z.literal("recover"), resource: z.enum(["mp", "sp"]), amount: ExprSchema.optional(), target: z.enum(["player", "party", "all"]).optional() }).strict(),
   /** Experience points (project.leveling). Levels up as many times as needed. */
   z.object({ type: z.literal("gainExp"), amount: ExprSchema }).strict(),
   /** Status effects (database.statuses): poison, sleep, attack up… "enemy" = the one being acted on, "enemies" = all, "party" = hero and companions. chance in percent. */
@@ -272,8 +287,13 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
     /** 練習試合: losing costs nothing (HP back to before the fight, no game over); winning gives no experience or items. */
     practice: z.boolean().optional(), onVictory: z.array(EffectSchema).optional(), onDefeat: z.enum(["respawn", "continue"]).optional(), canFlee: z.boolean().optional(), mode: BattleModeSchema.optional(), args: z.record(z.string(), z.unknown()).optional() }).strict(),
   z.object({ type: z.literal("battleLog"), text: z.string().min(1) }).strict(),
+  /** Attempt to steal one unclaimed item drop from the current enemy. A successful theft removes that entry from victory drops. */
+  z.object({ type: z.literal("steal"), chance: ExprSchema.optional() }).strict(),
+  /** Reveal the current enemy's combat stats and remaining drop list in the battle log. */
+  z.object({ type: z.literal("inspectEnemy") }).strict(),
   z.object({ type: z.literal("endBattle"), outcome: z.enum(["victory", "fled"]) }).strict(),
   z.object({ type: z.literal("markDone"), id: IdSchema }).strict(),
+  z.object({ type: z.literal("quest"), quest: IdSchema, action: z.enum(["start", "complete", "fail", "objective"]), objective: IdSchema.optional() }).strict(),
   z.object({ type: z.literal("playSfx"), sound: IdSchema }).strict(),
   z.object({ type: z.literal("addToSet"), set: IdSchema, value: z.string().min(1) }).strict(),
   z.object({ type: z.literal("removeFromSet"), set: IdSchema, value: z.string().min(1) }).strict(),
@@ -321,6 +341,8 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
     zoom: z.number().min(1).max(3).optional(), ms: z.number().int().min(0).max(10000).optional(),
     shake: z.object({ power: z.number().min(1).max(24).default(6), ms: z.number().int().min(50).max(5000).default(400) }).strict().optional(),
   }).strict(),
+  /** Screen fade overlay. Use a blocking message between fade-out and fade-in effects to sequence them. */
+  z.object({ type: z.literal("fadeScreen"), to: z.enum(["color", "clear"]), color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(), ms: z.number().int().min(0).max(10000).optional() }).strict(),
   /**
    * 召喚・お供: a companion fights alongside for this battle only (or `turns` turns), then leaves.
    * Use in a skill / item (in battle). Outside battle it does nothing.
@@ -388,7 +410,7 @@ export const RuleSchema = z.object({
 }).strict();
 export type Rule = z.infer<typeof RuleSchema>;
 
-export const StatModsSchema = z.object({ maxHp: ExprSchema.optional(), attack: ExprSchema.optional(), defense: ExprSchema.optional() }).strict();
+export const StatModsSchema = z.object({ maxHp: ExprSchema.optional(), maxMp: ExprSchema.optional(), maxSp: ExprSchema.optional(), attack: ExprSchema.optional(), defense: ExprSchema.optional() }).strict();
 export type StatMods = z.infer<typeof StatModsSchema>;
 
 /**
@@ -410,6 +432,9 @@ export const UseSchema = z.object({
   cost: z.array(z.object({ var: IdSchema, amount: ExprSchema }).strict()).default([]),
   /** HP cost (never kills: leaves at least 1). */
   hpCost: ExprSchema.optional(),
+  /** Standard resource costs. Unset means free; use.effects can include recover to restore them. */
+  mpCost: ExprSchema.optional(),
+  spCost: ExprSchema.optional(),
   effects: z.array(EffectSchema).min(1),
   /** Item only: remove one after use (default true). */
   consume: z.boolean().default(true),
@@ -472,6 +497,9 @@ export const VarDeclSchema = z.object({
 export type VarDecl = z.infer<typeof VarDeclSchema>;
 export const StatsSchema = z.object({
   maxHp: z.number().int().positive().max(9999),
+  /** Optional standard magic / skill-point gauges; omitted means that resource is not used. */
+  maxMp: z.number().int().nonnegative().max(9999).optional(),
+  maxSp: z.number().int().nonnegative().max(9999).optional(),
   attack: z.number().int().nonnegative().max(999),
   defense: z.number().int().nonnegative().max(999),
 }).strict();
@@ -566,6 +594,8 @@ export const ProjectManifestSchema = z.object({
     sprite: IdSchema.optional(),
     stats: StatsSchema,
     abilities: z.array(IdSchema).default([]),
+    /** Optional capacity for equipped passive abilities; omitted keeps every known passive active. */
+    passiveCapacity: z.number().int().nonnegative().max(999).optional(),
     traits: z.array(IdSchema).default([]),
     items: z.record(IdSchema, z.number().int().positive()).default({}),
     /**
@@ -581,6 +611,10 @@ export const ProjectManifestSchema = z.object({
   variables: z.record(IdSchema, VarDeclSchema).default({}),
   /** Named sets of strings: knowledge, keywords, collected memories, visited places… */
   sets: z.record(IdSchema, SetDeclSchema).default({}),
+  /** Inventory capacity: maximum number of item pieces carried at once; omitted = unlimited. */
+  inventory: z.object({ maxItems: z.number().int().positive().max(9999).optional(), sort: z.enum(["name", "count"]).default("name") }).strict().optional(),
+  /** Quest journal entries; state changes through the quest effect. */
+  quests: z.record(IdSchema, z.object({ title: z.string().min(1), description: z.string().default(""), objectives: z.array(z.object({ id: IdSchema, text: z.string().min(1) }).strict()).default([]), hidden: z.boolean().default(false) }).strict()).default({}),
   /** Endings the game can reach (recorded across cycles in the built-in meta set "endings"). */
   endings: z.record(IdSchema, z.object({ title: z.string().min(1), text: z.string().default("") }).strict()).default({}),
   /**
@@ -658,12 +692,12 @@ export const ProjectManifestSchema = z.object({
     /** Explicit amounts needed per level-up (index 0 = 1→2). Overrides base/growth where given. */
     expTable: z.array(z.number().int().positive()).optional(),
     /** Added to the base stats on every level-up (HP rises by the same amount). */
-    gains: z.object({ maxHp: z.number().int().min(0).default(4), attack: z.number().int().min(0).default(1), defense: z.number().int().min(0).default(1) }).strict().default({ maxHp: 4, attack: 1, defense: 1 }),
+    gains: z.object({ maxHp: z.number().int().min(0).default(4), maxMp: z.number().int().min(0).optional(), maxSp: z.number().int().min(0).optional(), attack: z.number().int().min(0).default(1), defense: z.number().int().min(0).default(1) }).strict().default({ maxHp: 4, attack: 1, defense: 1 }),
     /** Skill points for skill boards, given to the hero and every companion on each level-up. */
     skillPoints: z.number().int().min(0).max(999).optional(),
     /** Abilities learned on reaching a level. */
     learn: z.array(z.object({ level: z.number().int().min(2), ability: IdSchema, message: z.string().optional() }).strict()).default([]),
-    /** Restore all HP on level-up (default: only the HP gained). */
+    /** Restore HP, MP and SP fully on level-up (default: only the maximum-resource gains). */
     fullHeal: z.boolean().default(false),
   }).strict().optional(),
   /** Self-made events. Rules listen with on "signal"; effects fire them with { "type": "signal" }. */
@@ -685,6 +719,11 @@ export const ProjectManifestSchema = z.object({
   modules: z.record(IdSchema, z.record(z.string(), z.unknown())).default({}),
   /** Extra lines for the credits screen (staff, thanks). Asset credits are added automatically. */
   credits: z.array(z.string()).default([]),
+  /** Optional user-initiated feedback / bug-report link shown on the title screen and in the menu. */
+  feedback: z.object({
+    label: z.string().min(1).max(40).default("フィードバックを送る"),
+    url: z.string().url().regex(/^[hH][tT][tT][pP][sS]:\/\//, "フィードバックURLはHTTPSで指定してください"),
+  }).strict().optional(),
   /** Title screen of the built game (はじめから / つづきから). The studio's play view skips it. */
   titleScreen: z.object({
     enabled: z.boolean().default(true),
@@ -911,6 +950,14 @@ export const RegionSchema = z.object({
 }).strict();
 export type Region = z.infer<typeof RegionSchema>;
 
+/** Conditional color overlay for a map (e.g. time-of-day lighting via a declared variable). */
+export const MapTintSchema = z.object({
+  when: ConditionSchema.optional(),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  opacity: z.number().min(0).max(0.8),
+}).strict();
+export type MapTint = z.infer<typeof MapTintSchema>;
+
 export const GameMapSchema = z.object({
   formatVersion: z.literal(PROJECT_FORMAT_VERSION),
   id: IdSchema,
@@ -936,6 +983,8 @@ export const GameMapSchema = z.object({
   parallax: z.object({ image: IdSchema, speed: z.number().min(0).max(2).default(0.3) }).strict().optional(),
   /** Fog / clouds / rain drawn over the whole map, drifting (pixels per second). */
   fog: z.object({ image: IdSchema, opacity: z.number().min(0).max(1).default(0.35), speedX: z.number().min(-200).max(200).default(8), speedY: z.number().min(-200).max(200).default(0) }).strict().optional(),
+  /** Conditional screen color overlays, drawn above the map and actors (e.g. dusk/night). */
+  tints: z.array(MapTintSchema).max(8).optional(),
   /** Show this map on the minimap (project.minimap). false for mazes and secret places. */
   minimap: z.boolean().default(true),
   /**
@@ -1003,6 +1052,8 @@ export type DialogueChoice = z.infer<typeof DialogueChoiceSchema>;
 export const DialogueSchema = z.object({
   id: IdSchema,
   speaker: z.string().min(1),
+  /** Optional per-speaker name color as a six-digit CSS hex color (e.g. #78C8FF). */
+  speakerColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   /** Strings, or {"text","when"?,"face"?} for lines shown only when a condition holds / with an expression. Supports {{var.x}} etc. */
   lines: z.array(z.union([z.string().min(1), z.object({ text: z.string().min(1), when: ConditionSchema.optional(), /** Frame of the portrait (expression). */ face: z.number().int().min(0).optional(), /** Voice (sfx asset) played with the line (セリフ音声). */ voice: IdSchema.optional() }).strict()])).min(1),
   /** Face picture shown next to the text (portrait asset; frames = expressions). */
@@ -1050,6 +1101,8 @@ export const AbilitySchema = z.object({
   description: z.string().default(""),
   /** Display grouping only. Behaviour comes from statMods / rules / use. */
   kind: z.enum(["passive", "field", "battle"]).default("passive"),
+  /** Passive loadout cost when project.player.passiveCapacity is set (default 1). */
+  passiveCost: z.number().int().positive().max(999).optional(),
   /** Added to the player's stats while the ability is held. */
   statMods: StatModsSchema.optional(),
   /** Active while the ability is held. */
@@ -1100,6 +1153,8 @@ export const ItemSchema = z.object({
   resist: z.record(IdSchema, z.number().int().min(0).max(1000)).optional(),
   /** Price in shops (shop.buy). Selling pays shop.sellRate of it. */
   price: z.number().int().min(0).optional(),
+  /** Per-item stack limit in the inventory (default: unlimited). */
+  maxStack: z.number().int().positive().max(9999).optional(),
   /** Equipment slot (project.json › equipmentSlots, e.g. weapon / armor / accessory). Its statMods and rules count only while equipped. */
   /** Weapons: battle animation of the hero's normal attack (default "slash"). */
   animation: z.enum(BATTLE_ANIMATIONS).optional(),
@@ -1121,6 +1176,8 @@ export const EnemyActionSchema = z.object({
   effects: z.array(EffectSchema).default([]),
   /** Battle animation on whoever it hits (default: none for 0 power, "hit" otherwise). */
   animation: z.enum(BATTLE_ANIMATIONS).optional(),
+  /** Battle music to switch to when this conditional action is chosen; null restores the default battle music. */
+  music: IdSchema.nullable().optional(),
   /** "all" hits the hero and every companion standing (全体攻撃). */
   target: z.enum(["one", "all"]).optional(),
   /** Strikes this many times (連続攻撃). Default 1. */
@@ -1135,7 +1192,7 @@ export const EnemySchema = z.object({
   stats: StatsSchema,
   /** Each turn, the available actions (whose `when` holds) are used in order, cycling. */
   actions: z.array(EnemyActionSchema).min(1),
-  drops: z.array(z.object({ item: IdSchema, count: z.number().int().positive().default(1) }).strict()).default([]),
+  drops: z.array(z.object({ item: IdSchema, count: z.number().int().positive().default(1), chance: z.number().min(0).max(100).default(100) }).strict()).default([]),
   /** How this enemy is fought: a genre module scene instead of the command battle (e.g. shooter, cards). */
   battle: z.object({ mode: BattleModeSchema, args: z.record(z.string(), z.unknown()).default({}) }).strict().optional(),
   /** Battle music for this enemy (overrides audio.battle). */
@@ -1177,6 +1234,9 @@ export const CompanionSchema = z.object({
     name: z.string().min(1),
     kind: z.enum(["attack", "heal", "guard"]).default("attack"),
     power: z.number().int().min(0).max(999).default(0),
+    /** Optional MP/SP costs; unaffordable actions are skipped. */
+    mpCost: ExprSchema.optional(),
+    spCost: ExprSchema.optional(),
     when: ConditionSchema.optional(),
     message: z.string().optional(),
   }).strict()).min(1).default([{ name: "攻撃", kind: "attack", power: 0 }]),
@@ -1205,7 +1265,7 @@ export const StatusSchema = z.object({
   /** Cannot use skills (silence). */
   noSkills: z.boolean().default(false),
   /** Added to stats while it lasts (buffs / debuffs; numbers). */
-  statMods: z.object({ maxHp: z.number().int().optional(), attack: z.number().int().optional(), defense: z.number().int().optional() }).strict().optional(),
+  statMods: z.object({ maxHp: z.number().int().optional(), maxMp: z.number().int().optional(), maxSp: z.number().int().optional(), attack: z.number().int().optional(), defense: z.number().int().optional() }).strict().optional(),
   /** Removed when the battle ends (default). false = stays (poison until cured). */
   clearAfterBattle: z.boolean().default(true),
   /** Lines for the battle log. {{name}} = who has it. */
@@ -1406,6 +1466,8 @@ export const scriptIdsOf = (paths: Iterable<string>): string[] => [...paths].map
 export const BattleStateSchema = z.object({
   enemyId: IdSchema,
   enemyHp: z.number().int().nonnegative(),
+  /** Conditional enemy action music override; null means use the enemy/project battle track. */
+  music: IdSchema.nullable().optional(),
   /** Orders for this turn: companion id → index in its actions. */
   orders: z.record(z.string(), z.number().int().nonnegative()).optional(),
   /** Other enemies in the same battle (with). */
@@ -1432,8 +1494,10 @@ export const BattleStateSchema = z.object({
   wave: z.number().int().min(1).optional(),
   /** order "ctb": gauges (0..100) per actor ("player", companion id, "enemy:<slot>"). */
   gauges: z.record(z.string(), z.number()).optional(),
-  /** Practice fight: HP of the hero and companions before it (restored afterwards). */
-  practice: z.object({ hp: z.number().int(), party: z.record(z.string(), z.number().int()) }).strict().optional(),
+  /** Practice fight: HP / MP / SP of the hero and companions before it (restored afterwards). */
+  practice: z.object({ hp: z.number().int(), mp: z.number().int().optional(), sp: z.number().int().optional(), party: z.record(z.string(), z.number().int()), partyResources: z.record(z.string(), z.object({ mp: z.number().int().optional(), sp: z.number().int().optional() }).strict()).optional() }).strict().optional(),
+  /** Drop indexes already taken by stealing, keyed by stable enemy slot. */
+  stolenDrops: z.record(z.string(), z.array(z.number().int().nonnegative())).optional(),
 }).strict();
 export type BattleState = z.infer<typeof BattleStateSchema>;
 
@@ -1464,6 +1528,8 @@ export const GameStateSchema = z.object({
     y: CoordSchema,
     facing: DirectionSchema,
     hp: z.number().int().nonnegative(),
+    mp: z.number().int().nonnegative().optional(),
+    sp: z.number().int().nonnegative().optional(),
     stats: StatsSchema,
     /** Set by setPlayer (transformation). Missing = project.player. */
     name: z.string().optional(),
@@ -1478,6 +1544,8 @@ export const GameStateSchema = z.object({
   }).strict(),
   /** Abilities learned directly (trait abilities are added on top while the trait is held). */
   abilities: z.array(IdSchema),
+  /** Directly learned passive abilities equipped under player.passiveCapacity. */
+  equippedPassives: z.array(IdSchema).optional(),
   traits: z.array(IdSchema).default([]),
   items: z.record(z.string(), z.number().int().positive()),
   flags: z.record(z.string(), z.boolean()),
@@ -1491,7 +1559,7 @@ export const GameStateSchema = z.object({
   entities: z.record(z.string(), z.record(z.string(), z.object({ x: CoordSchema, y: CoordSchema, facing: DirectionSchema, step: z.number().int().nonnegative().optional(), map: z.string().optional() }).strict())).default({}),
   /** Companions with the hero and their HP. */
   party: z.array(z.object({
-    id: z.string(), hp: z.number().int().nonnegative(), /** slot → item id */ equipment: z.record(z.string(), z.string()).optional(),
+    id: z.string(), hp: z.number().int().nonnegative(), mp: z.number().int().nonnegative().optional(), sp: z.number().int().nonnegative().optional(), /** slot → item id */ equipment: z.record(z.string(), z.string()).optional(),
     /** 隊列 (front / back) and 控え (reserve: travels along but does not fight). */
     row: z.enum(["front", "back"]).optional(), reserve: z.boolean().optional(),
     /** Called by summon: leaves after the battle (or when the turns run out; 0 = end of battle). */
@@ -1523,6 +1591,10 @@ export const GameStateSchema = z.object({
   skills: z.object({ points: z.record(z.string(), z.number().int()), learned: z.array(z.string()) }).strict().optional(),
   /** Unlocked achievements, in order (project.achievements). */
   achievements: z.array(IdSchema).optional(),
+  quests: z.record(IdSchema, z.object({ status: z.enum(["active", "complete", "failed"]), objectivesDone: z.array(IdSchema) }).strict()).optional(),
+  /** Dialogues that have been opened at least once. */
+  seenDialogues: z.array(IdSchema).optional(),
+  /** Quest status and completed objective ids. */
   /** Where each vehicle is parked (missing = project.vehicles.start) and the one being ridden. */
   vehicles: z.record(z.string(), z.object({ mapId: z.string(), x: z.number().int(), y: z.number().int() }).strict()).optional(),
   riding: z.string().optional(),

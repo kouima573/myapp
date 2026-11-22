@@ -38,8 +38,13 @@ const MAX_DEPTH = 64;
 export function abilitiesOf(state: GameState, content?: GameContent): string[] {
   if (!content) return state.abilities;
   const set = new Set(state.abilities);
-  for (const id of state.traits ?? []) for (const ability of content.database.traits.find(t => t.id === id)?.abilities ?? []) set.add(ability);
-  for (const node of learnedNodes(state, content, "hero")) for (const ability of node.abilities) set.add(ability);
+  const innate = new Set<string>();
+  for (const id of state.traits ?? []) for (const ability of content.database.traits.find(t => t.id === id)?.abilities ?? []) { set.add(ability); innate.add(ability); }
+  for (const node of learnedNodes(state, content, "hero")) for (const ability of node.abilities) { set.add(ability); innate.add(ability); }
+  if (content.project.player.passiveCapacity !== undefined) {
+    const equipped = new Set(state.equippedPassives ?? []);
+    for (const id of state.abilities) if (!innate.has(id) && content.database.abilities.find(a => a.id === id)?.kind === "passive" && !equipped.has(id)) set.delete(id);
+  }
   return [...set];
 }
 
@@ -77,12 +82,12 @@ export function effectiveStats(state: GameState, content?: GameContent): Stats {
   const env: EvalEnv = { content, baseStats: true };
   const result = { ...base };
   for (const mods of modSources(state, content)) {
-    for (const key of ["maxHp", "attack", "defense"] as const) {
+    for (const key of ["maxHp", "maxMp", "maxSp", "attack", "defense"] as const) {
       const expr = mods[key];
-      if (expr !== undefined) result[key] += evalExpr(expr, state, env);
+      if (expr !== undefined) result[key] = (result[key] ?? 0) + evalExpr(expr, state, env);
     }
   }
-  return { maxHp: Math.max(1, result.maxHp), attack: Math.max(0, result.attack), defense: Math.max(0, result.defense) };
+  return { maxHp: Math.max(1, result.maxHp), ...(result.maxMp !== undefined ? { maxMp: Math.max(0, result.maxMp) } : {}), ...(result.maxSp !== undefined ? { maxSp: Math.max(0, result.maxSp) } : {}), attack: Math.max(0, result.attack), defense: Math.max(0, result.defense) };
 }
 
 function battleOf(state: GameState) {
@@ -111,8 +116,10 @@ export function evalExpr(expr: Expr, state: GameState, env: EvalEnv = {}, depth 
   const e = (x: Expr) => evalExpr(x, state, env, depth + 1);
   if ("var" in expr) return state.vars?.[expr.var] ?? env.content?.project.variables[expr.var]?.initial ?? 0;
   if ("count" in expr) return state.items[expr.count] ?? 0;
-  if ("stat" in expr) return env.baseStats ? state.player.stats[expr.stat] : effectiveStats(state, env.content)[expr.stat];
+  if ("stat" in expr) return (env.baseStats ? state.player.stats[expr.stat] : effectiveStats(state, env.content)[expr.stat]) ?? 0;
   if ("hp" in expr) return state.player.hp;
+  if ("mp" in expr) return state.player.mp ?? 0;
+  if ("sp" in expr) return state.player.sp ?? 0;
   if ("steps" in expr) return state.steps;
   if ("level" in expr) return state.player.level ?? 1;
   if ("exp" in expr) return state.player.exp ?? 0;
@@ -160,6 +167,8 @@ export function evaluate(condition: Condition | undefined, state: GameState, env
   if ("compare" in condition) return compare(evalExpr(condition.compare[0], state, env), condition.compare[1], evalExpr(condition.compare[2], state, env));
   if ("ability" in condition) return abilitiesOf(state, env.content).includes(condition.ability);
   if ("trait" in condition) return (state.traits ?? []).includes(condition.trait);
+  // 依頼の条件も status を持つので、状態異常より先に見る
+  if ("quest" in condition) return (state.quests?.[condition.quest]?.status ?? "unavailable") === (condition.status ?? "active");
   if ("status" in condition) {
     if (condition.target === "enemy") {
       const b = state.scene.kind === "battle" ? state.scene.battle : undefined;
@@ -169,6 +178,7 @@ export function evaluate(condition: Condition | undefined, state: GameState, env
   }
   if ("item" in condition) return (state.items[condition.item] ?? 0) >= (condition.atLeast ?? 1);
   if ("done" in condition) return state.done.includes(condition.done);
+  if ("seenDialogue" in condition) return (state.seenDialogues ?? []).includes(condition.seenDialogue);
   if ("map" in condition) return state.mapId === condition.map;
   if ("inBattle" in condition) return (state.scene.kind === "battle") === condition.inBattle;
   if ("enemy" in condition) return battleOf(state)?.enemyId === condition.enemy;
@@ -230,9 +240,13 @@ export function interpolate(text: string, state: GameState, env: EvalEnv = {}): 
     switch (kind) {
       case "var": return key ? String(evalExpr({ var: key }, state, env)) : whole;
       case "item": return key ? String(state.items[key] ?? 0) : whole;
-      case "stat": return key && ["maxHp", "attack", "defense"].includes(key) ? String(effectiveStats(state, content)[key as "attack"]) : whole;
+      case "stat": return key && ["maxHp", "maxMp", "maxSp", "attack", "defense"].includes(key) ? String(effectiveStats(state, content)[key as "attack"] ?? 0) : whole;
       case "hp": return String(state.player.hp);
       case "maxHp": return String(effectiveStats(state, content).maxHp);
+      case "mp": return String(state.player.mp ?? 0);
+      case "sp": return String(state.player.sp ?? 0);
+      case "maxMp": return String(effectiveStats(state, content).maxMp ?? 0);
+      case "maxSp": return String(effectiveStats(state, content).maxSp ?? 0);
       case "name": return state.player.name ?? content?.project.player.name ?? whole;
       case "text": return key ? state.texts?.[key] ?? "" : whole;
       case "target": return state.target ?? "";
