@@ -1,6 +1,68 @@
 {
   "formatVersion": 2,
-  "abilities": [],
+  "abilities": [
+    {
+      "id": "power-strike",
+      "name": "渾身斬り",
+      "description": "力をこめた一撃。攻撃力の1.5倍のダメージ。",
+      "kind": "battle",
+      "use": {
+        "where": "battle",
+        "hpCost": 2,
+        "animation": "slash",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "enemy",
+            "amount": {
+              "mul": [
+                {
+                  "stat": "attack"
+                },
+                1.5
+              ]
+            },
+            "text": "{{ctx.damage}}のダメージ！"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sweep",
+      "name": "なぎ払い",
+      "description": "敵全員を斬る。",
+      "kind": "battle",
+      "use": {
+        "where": "battle",
+        "hpCost": 3,
+        "animation": "slash",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "enemies",
+            "amount": {
+              "stat": "attack"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "mend",
+      "name": "手当て",
+      "description": "HPを10回復する（戦闘でも移動中でも）。",
+      "kind": "battle",
+      "use": {
+        "where": "both",
+        "effects": [
+          {
+            "type": "heal",
+            "amount": 10
+          }
+        ]
+      }
+    }
+  ],
   "items": [
     {
       "id": "rusty-key",
@@ -532,6 +594,173 @@
       "label": "黙",
       "turns": 2,
       "noSkills": true
+    }
+  ],
+  "skillBoards": [
+    {
+      "id": "sword",
+      "name": "剣",
+      "owner": "hero",
+      "description": "攻める技",
+      "nodes": [
+        {
+          "id": "s1",
+          "name": "攻撃+2",
+          "q": 0,
+          "r": 0,
+          "cost": 1,
+          "start": true,
+          "icon": "攻+2",
+          "statMods": {
+            "attack": 2
+          }
+        },
+        {
+          "id": "s2",
+          "name": "渾身斬り",
+          "description": "力をこめた一撃を覚える",
+          "q": 1,
+          "r": 0,
+          "cost": 2,
+          "icon": "渾身",
+          "abilities": [
+            "power-strike"
+          ]
+        },
+        {
+          "id": "s3",
+          "name": "HP+5",
+          "q": 0,
+          "r": 1,
+          "cost": 1,
+          "icon": "HP+5",
+          "statMods": {
+            "maxHp": 5
+          }
+        },
+        {
+          "id": "s4",
+          "name": "攻撃+3",
+          "q": 1,
+          "r": 1,
+          "cost": 2,
+          "icon": "攻+3",
+          "statMods": {
+            "attack": 3
+          }
+        },
+        {
+          "id": "s5",
+          "name": "なぎ払い",
+          "description": "敵全員を斬る技を覚える",
+          "q": 2,
+          "r": 0,
+          "cost": 3,
+          "icon": "薙",
+          "abilities": [
+            "sweep"
+          ]
+        },
+        {
+          "id": "s6",
+          "name": "守り+2",
+          "q": -1,
+          "r": 1,
+          "cost": 1,
+          "icon": "守+2",
+          "statMods": {
+            "defense": 2
+          }
+        },
+        {
+          "id": "s7",
+          "name": "秘伝",
+          "description": "騎士が仲間になると現れる。攻撃+5",
+          "q": 2,
+          "r": 1,
+          "cost": 3,
+          "icon": "秘",
+          "statMods": {
+            "attack": 5
+          },
+          "hidden": {
+            "flag": "knight-joined"
+          }
+        }
+      ]
+    },
+    {
+      "id": "heart",
+      "name": "心",
+      "owner": "hero",
+      "description": "守りと癒やし",
+      "nodes": [
+        {
+          "id": "h1",
+          "name": "守り+1",
+          "q": 0,
+          "r": 0,
+          "cost": 1,
+          "start": true,
+          "icon": "守+1",
+          "statMods": {
+            "defense": 1
+          }
+        },
+        {
+          "id": "h2",
+          "name": "手当て",
+          "description": "HPを回復する技を覚える",
+          "q": 1,
+          "r": -1,
+          "cost": 2,
+          "icon": "♥",
+          "abilities": [
+            "mend"
+          ]
+        },
+        {
+          "id": "h3",
+          "name": "HP+8",
+          "q": -1,
+          "r": 0,
+          "cost": 2,
+          "icon": "HP+8",
+          "statMods": {
+            "maxHp": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "emma-board",
+      "name": "エマの剣",
+      "owner": "emma",
+      "nodes": [
+        {
+          "id": "e1",
+          "name": "攻撃+2",
+          "q": 0,
+          "r": 0,
+          "cost": 1,
+          "start": true,
+          "icon": "攻+2",
+          "statMods": {
+            "attack": 2
+          }
+        },
+        {
+          "id": "e2",
+          "name": "HP+6",
+          "q": 1,
+          "r": 0,
+          "cost": 1,
+          "icon": "HP+6",
+          "statMods": {
+            "maxHp": 6
+          }
+        }
+      ]
     }
   ]
 }

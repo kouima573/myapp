@@ -25,6 +25,7 @@ export function actionsToSteps(actions: Action[]): { steps: Step[]; skipped: num
       case "choose": steps.push({ choose: a.choiceId }); break;
       case "submitText": steps.push({ input: a.text }); break;
       case "chooseTrait": steps.push({ chooseTrait: a.trait }); break;
+      case "learnSkill": steps.push({ learnSkill: `${a.board}/${a.node}` }); break;
       case "optimizeEquipment": steps.push({ optimize: a.companion ?? "hero" }); break;
       case "formation": steps.push({ effects: [{ type: "setFormation", who: a.who, ...(a.row ? { row: a.row } : {}), ...(a.reserve !== undefined ? { reserve: a.reserve } : {}) }] }); break;
       case "useItem": steps.push({ useItem: a.item }); break;

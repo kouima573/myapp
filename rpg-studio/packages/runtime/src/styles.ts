@@ -13,6 +13,23 @@ export const RUNTIME_CSS = String.raw`
 .rpg-input { display:flex; gap:8px; align-items:center; }
 .rpg-input-field { flex:1; min-width:0; font:inherit; font-size:18px; padding:6px 10px; border-radius:6px; border:1px solid rgba(255,255,255,.35); background:rgba(0,0,0,.4); color:inherit; }
 .rpg-book { max-height:80%; overflow:auto; }
+.rpg-menu.rpg-skills { position:absolute; left:4%; right:4%; top:4%; bottom:4%; width:auto; max-width:none; max-height:none; left:4%; display:flex; flex-direction:column; gap:.4em; overflow:hidden; }
+.rpg-skill-board { position:relative; flex:1; min-height:0; max-height:62%; margin:0 auto; max-width:100%; }
+.rpg-root .rpg-hex { position:absolute; transform:translate(-50%,-50%); aspect-ratio:0.866; padding:0; margin:0; display:flex; align-items:center; justify-content:center;
+  clip-path:polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); border:none; border-radius:0; font-size:.72em; line-height:1.1; text-align:center; color:#cfd6e6; background:#2a3142; }
+.rpg-root .rpg-hex .rpg-option-label { padding:0 12%; }
+.rpg-root .rpg-hex::before { display:none; }
+.rpg-hex.is-learned { background:linear-gradient(160deg,#ffe8a3,#d8a440); color:#3b2500; font-weight:700; }
+.rpg-hex.is-available { background:linear-gradient(160deg,#5a7fc4,#2d4d8c); color:#fff; box-shadow:inset 0 0 0 3px #9fc2ff; }
+.rpg-hex.is-short { background:#34405a; color:#aab4cc; }
+.rpg-hex.is-locked { background:#1d2230; color:#5f6a80; }
+.rpg-hex.is-hidden { background:#151925; color:#7d6aa8; font-size:1em; }
+.rpg-hex.is-selected { outline:none; transform:translate(-50%,-50%) scale(1.1); z-index:2; }
+.rpg-root .rpg-hex.is-selected::after { content:""; position:absolute; inset:0; background:rgba(255,255,255,.3); box-shadow:inset 0 0 0 4px #fff; pointer-events:none; }
+.rpg-skill-detail { min-height:3.6em; padding:.4em .6em; border-top:1px solid rgba(255,255,255,.15); }
+.rpg-skill-name { color:var(--rpg-accent); }
+.rpg-skill-desc { font-size:.85em; }
+.rpg-skill-state { font-size:.78em; color:var(--rpg-dim); }
 .rpg-book-row { font-size:13px; line-height:1.6; padding:2px 4px; border-bottom:1px solid rgba(255,255,255,.06); }
 .rpg-book-row.is-got { color:#f0c36a; }
 .rpg-pictures { position:absolute; inset:0; pointer-events:none; overflow:hidden; }

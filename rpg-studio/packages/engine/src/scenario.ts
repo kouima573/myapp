@@ -27,6 +27,9 @@ const ExpectSchema = z.object({
   /** Statuses the hero has / does not have (database.statuses). */
   statuses: z.array(IdSchema).optional(),
   lacksStatuses: z.array(IdSchema).optional(),
+  /** Skill boards: learned panels ("board/node") and unspent points per owner. */
+  skillsLearned: z.array(z.string()).optional(),
+  skillPoints: z.record(z.string(), z.number().int()).optional(),
   /** Achievements unlocked (project.achievements). */
   achievements: z.array(IdSchema).optional(),
   /** Monster book: enemies met / beaten at least this many times (project.book). */
@@ -67,6 +70,8 @@ const StepSchema = z.union([
   z.object({ interact: z.literal(true) }).strict(),
   z.object({ advance: z.enum(["once", "all"]) }).strict(),
   z.object({ choose: IdSchema }).strict(),
+  /** Learn a skill-board panel: "board/node". */
+  z.object({ learnSkill: z.string().regex(/^[^/]+\/[^/]+$/) }).strict(),
   /** さいきょう装備 (the hero, or a companion id). */
   z.object({ optimize: z.string() }).strict(),
   /** 転職 from the menu (a selectable trait). */
@@ -216,6 +221,8 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
     }
     if (expect.player?.name !== undefined) { const name = state.player.name ?? content.project.player.name; if (name !== expect.player.name) fail(`player.name: 期待 ${expect.player.name} / 実際 ${name}`); }
     if (expect.player?.sprite !== undefined) { const sprite = state.player.sprite ?? null; if (sprite !== expect.player.sprite) fail(`player.sprite: 期待 ${expect.player.sprite} / 実際 ${sprite}`); }
+    for (const key of expect.skillsLearned ?? []) if (!state.skills?.learned.includes(key)) fail(`skillsLearned: ${key} を覚えていません`);
+    for (const [who, n] of Object.entries(expect.skillPoints ?? {})) if ((state.skills?.points[who] ?? 0) !== n) fail(`skillPoints.${who}: 期待 ${n} / 実際 ${state.skills?.points[who] ?? 0}`);
     for (const id of expect.achievements ?? []) if (!state.achievements?.includes(id)) fail(`achievements: 「${id}」が未達成です（達成: ${state.achievements?.join(", ") || "なし"}）`);
     for (const id of expect.bookSeen ?? []) if (!state.book?.seen.includes(id)) fail(`bookSeen: ${id} が図鑑にありません`);
     for (const [id, n] of Object.entries(expect.bookDefeated ?? {})) if ((state.book?.defeated[id] ?? 0) < n) fail(`bookDefeated.${id}: 期待 ${n}以上 / 実際 ${state.book?.defeated[id] ?? 0}`);
@@ -263,6 +270,11 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
       else if ("advance" in s) {
         if (s.advance === "once") step({ type: "advance" });
         else for (let guard = 0; guard < 100 && (state.scene.kind === "message" || state.scene.kind === "dialogue" || (state.scene.kind === "battle" && state.scene.battle.outcome !== "ongoing")); guard++) step({ type: "advance" });
+      } else if ("learnSkill" in s) {
+        const [board, node] = s.learnSkill.split("/") as [string, string];
+        const status = engine.skillStatus(state, board, node);
+        if (status !== "available") throw new ScenarioError(`learnSkill: ${s.learnSkill} は覚えられません（${{ learned: "覚え済み", short: "ポイント不足", locked: "隣のパネルが未習得", hidden: "まだ隠れている", available: "" }[status]}）`);
+        step({ type: "learnSkill", board, node });
       } else if ("optimize" in s) {
         step(s.optimize === "hero" ? { type: "optimizeEquipment" } : { type: "optimizeEquipment", companion: s.optimize });
       } else if ("chooseTrait" in s) {

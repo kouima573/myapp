@@ -67,6 +67,7 @@ export async function loadBuiltContent(fetchJson: <T>(path: string) => Promise<T
     items: rawDb.items ?? [],
     companions: rawDb.companions ?? [],
     enemies: rawDb.enemies ?? [],
+    skillBoards: rawDb.skillBoards ?? [],
     traits: rawDb.traits ?? [],
   } as Database;
   const rawAssets = jsonMap.get(project.assetsPath) as Partial<AssetManifest>;

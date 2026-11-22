@@ -1378,6 +1378,147 @@
         ],
         "additionalProperties": false
       }
+    },
+    "skillBoards": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 96,
+            "pattern": "^[a-z0-9][a-z0-9._-]*$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner": {
+            "default": "hero",
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "default": "",
+            "type": "string"
+          },
+          "nodes": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 96,
+                  "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": {
+                  "default": "",
+                  "type": "string"
+                },
+                "q": {
+                  "type": "integer",
+                  "minimum": -20,
+                  "maximum": 20
+                },
+                "r": {
+                  "type": "integer",
+                  "minimum": -20,
+                  "maximum": 20
+                },
+                "cost": {
+                  "default": 1,
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 999
+                },
+                "start": {
+                  "type": "boolean"
+                },
+                "requires": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 96,
+                    "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                  }
+                },
+                "hidden": {
+                  "$ref": "#/$defs/__schema1"
+                },
+                "icon": {
+                  "type": "string",
+                  "maxLength": 4
+                },
+                "statMods": {
+                  "type": "object",
+                  "properties": {
+                    "maxHp": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "attack": {
+                      "$ref": "#/$defs/__schema0"
+                    },
+                    "defense": {
+                      "$ref": "#/$defs/__schema0"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "abilities": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 96,
+                    "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                  }
+                },
+                "traits": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 96,
+                    "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                  }
+                },
+                "effects": {
+                  "default": [],
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/$defs/__schema2"
+                  }
+                }
+              },
+              "required": [
+                "id",
+                "name",
+                "q",
+                "r"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "nodes"
+        ],
+        "additionalProperties": false
+      }
     }
   },
   "required": [
@@ -3605,6 +3746,46 @@
                 }
               },
               "additionalProperties": false
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "giveSkillPoints"
+            },
+            "amount": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9999
+            },
+            "who": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "type",
+            "amount"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "resetSkills"
+            },
+            "who": {
+              "type": "string",
+              "minLength": 1
             }
           },
           "required": [

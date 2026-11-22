@@ -1,4 +1,4 @@
-import type { CompareOp, Condition, CtxName, Expr, GameContent, GameState, Stats, StatMods } from "../../schema/src/formats";
+import type { CompareOp, Condition, CtxName, Expr, GameContent, GameState, SkillNode, Stats, StatMods } from "../../schema/src/formats";
 import type { GameSystem } from "./systems";
 
 /**
@@ -39,12 +39,25 @@ export function abilitiesOf(state: GameState, content?: GameContent): string[] {
   if (!content) return state.abilities;
   const set = new Set(state.abilities);
   for (const id of state.traits ?? []) for (const ability of content.database.traits.find(t => t.id === id)?.abilities ?? []) set.add(ability);
+  for (const node of learnedNodes(state, content, "hero")) for (const ability of node.abilities) set.add(ability);
   return [...set];
 }
 
 /** Items without a slot work while carried; items with a slot only while equipped. */
 export function itemActive(state: GameState, item: { id: string; slot?: string }): boolean {
   return !item.slot || state.equipment?.[item.slot] === item.id;
+}
+
+/** Learned skill-board panels of one owner ("hero" or a companion id). */
+export function learnedNodes(state: GameState, content: GameContent, owner: string): SkillNode[] {
+  const learned = state.skills?.learned;
+  if (!learned?.length) return [];
+  const out: SkillNode[] = [];
+  for (const board of content.database.skillBoards ?? []) {
+    if (board.owner !== owner) continue;
+    for (const node of board.nodes) if (learned.includes(`${board.id}/${node.id}`)) out.push(node);
+  }
+  return out;
 }
 
 /** Every stat-modifying source the player currently has: abilities, traits and carried items. */
@@ -54,6 +67,7 @@ export function modSources(state: GameState, content: GameContent): StatMods[] {
   for (const id of state.traits ?? []) { const t = content.database.traits.find(x => x.id === id); if (t?.statMods) out.push(t.statMods); }
   for (const id of Object.keys(state.items)) { const i = content.database.items.find(x => x.id === id); if (i?.statMods && itemActive(state, i)) out.push(i.statMods); }
   for (const s of state.player.statuses ?? []) { const d = content.database.statuses?.find(x => x.id === s.id); if (d?.statMods) out.push(d.statMods); }
+  for (const node of learnedNodes(state, content, "hero")) if (node.statMods) out.push(node.statMods);
   return out;
 }
 

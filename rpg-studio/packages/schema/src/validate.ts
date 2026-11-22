@@ -349,6 +349,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         case "script": if (!scriptIds.has(effect.script)) err(file, here, `スクリプト '${effect.script}' がありません（scripts/${effect.script}.ts）`); break;
         case "playSfx": checkAudio(file, here, effect.sound, SOUND, "効果音"); break;
         case "setFormation": if (effect.who !== "hero" && !content.database.companions.some(x => x.id === effect.who)) err(file, here, `'${effect.who}' は "hero" でも仲間（companions）でもありません`); break;
+        case "giveSkillPoints": case "resetSkills": if (effect.who && !["hero", "all"].includes(effect.who) && !content.database.companions.some(x => x.id === effect.who)) err(file, here, `'${effect.who}' は "hero"・"all"・仲間のどれでもありません`); break;
         case "unlockAchievement": if (!content.project.achievements[effect.achievement]) err(file, here, `未定義の実績 '${effect.achievement}'（project.json の achievements）`); break;
         case "showPicture": if (!["background", "portrait", "enemy", "character"].includes(assetById.get(effect.image)?.kind ?? "")) err(file, here, `一枚絵の素材 '${effect.image}' がありません（background・portrait・enemy・character）`); break;
         case "addToSet": case "removeFromSet": case "clearSet": if (!setIds.has(effect.set)) err(file, here, `未宣言の集合 '${effect.set}'`); break;
@@ -448,6 +449,20 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
   }
   for (const [id, a] of Object.entries(project.achievements)) if (a.when) checkCondition(P, `achievements.${id}.when`, a.when);
   for (const [key, cond] of Object.entries(project.menu?.when ?? {})) checkCondition(P, `menu.when.${key}`, cond);
+  // Skill boards: owners, abilities / traits / effects / hidden conditions of every panel.
+  for (const board of content.database.skillBoards) {
+    const at = `skillBoards[${board.id}]`;
+    if (board.owner !== "hero" && !content.database.companions.some(x => x.id === board.owner)) err("database.json", `${at}.owner`, `owner '${board.owner}' は "hero" でも仲間（companions）でもありません`);
+    for (const node of board.nodes) {
+      const here = `${at}.nodes[${node.id}]`;
+      for (const a of node.abilities) if (!abilityIds.has(a)) err("database.json", here, `未定義の能力 '${a}'`);
+      for (const t of node.traits) if (!traitIds.has(t)) err("database.json", here, `未定義の特性 '${t}'`);
+      for (const r of node.requires ?? []) if (!board.nodes.some(n => n.id === r)) err("database.json", here, `requires: このボードにないパネル '${r}'`);
+      if (node.hidden) checkCondition("database.json", `${here}.hidden`, node.hidden);
+      checkEffects("database.json", `${here}.effects`, node.effects);
+      if (board.owner !== "hero" && (node.abilities.length || node.traits.length)) warn("database.json", here, "仲間のボードでは能力値（statMods）と効果だけが使われます（abilities / traits は主人公用）");
+    }
+  }
   for (const t of content.database.traits) if (t.selectableWhen) checkCondition("database.json", `traits[${t.id}].selectableWhen`, t.selectableWhen);
   const verbKeys = new Map<string, string>();
   for (const [id, verb] of Object.entries(project.verbs)) {

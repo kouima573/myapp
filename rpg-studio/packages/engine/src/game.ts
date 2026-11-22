@@ -2,7 +2,7 @@ import type {
   BattleAnimation, BattleState, Direction, Effect, Expr, Enemy, Entity, EntityState, GameContent, GameEvent, GameMap, GameState, Interactable, Npc, Rule, RuleTrigger,
   ScriptRef, Stats, TileDef, Use,
 } from "../../schema/src/formats";
-import { abilitiesOf, effectiveStats, evalExpr, evaluate, interpolate, itemActive, nextRandom, regionsAt, type EvalEnv, type FrontInfo } from "./conditions";
+import { abilitiesOf, learnedNodes, effectiveStats, evalExpr, evaluate, interpolate, itemActive, nextRandom, regionsAt, type EvalEnv, type FrontInfo } from "./conditions";
 import { bindScript, sortSystems, type GameSystem, type PlayerAction, type SceneInput, type ScriptCommand, type ScriptSelf, type SystemActionResult } from "./systems";
 
 /** Values that survive a new cycle (meta-scoped flags, variables, sets, endings seen, cycle number). */
@@ -42,6 +42,8 @@ export type Action =
   | { type: "interact" }
   | { type: "advance" }
   | { type: "choose"; choiceId: string }
+  /** Learn a skill-board panel (field only). */
+  | { type: "learnSkill"; board: string; node: string }
   /** 転職 from the menu: switch to a selectable trait (job) whose selectableWhen holds. Field only. */
   | { type: "chooseTrait"; trait: string }
   /** さいきょう装備: wear the strongest owned equipment in every slot (hero, or a companion). Field only. */
@@ -81,6 +83,8 @@ export type Cue =
   | { kind: "miss"; target: "player" | "enemy" }
   | { kind: "critical"; target: "player" | "enemy" }
   | { kind: "achievement"; id: string; title: string }
+  /** A skill-board panel was learned. */
+  | { kind: "skill"; board: string; node: string }
   /** Screen shake (camera effect). */
   | { kind: "shake"; power: number; ms: number }
   /** Battle animation on the hero ("player") or an enemy by its start-of-battle slot ("all" = every enemy). */
@@ -137,6 +141,8 @@ export interface Engine {
   usableVerbs(state: GameState): string[];
   /** A companion's stats including its equipment. */
   companionStats(state: GameState, id: string): Stats;
+  /** Skill-board panel: learned / available / short (not enough points) / locked / hidden. */
+  skillStatus(state: GameState, board: string, node: string): "learned" | "available" | "short" | "locked" | "hidden";
   /** Who acts this battle turn, in order (project.battle.order "speed" sorts by speed). */
   turnOrder(state: GameState): Array<{ kind: "player" | "companion" | "enemy"; id: string; name: string }>;
   step(state: GameState, action: Action): StepResult;
@@ -184,6 +190,10 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       if (!mods) continue;
       for (const key of ["maxHp", "attack", "defense"] as const) if (mods[key] !== undefined) base[key] += evalExpr(mods[key]!, state, { content, baseStats: true });
     }
+    // Skill-board panels learned for this companion.
+    for (const node of learnedNodes(state, content, id)) {
+      for (const key of ["maxHp", "attack", "defense"] as const) if (node.statMods?.[key] !== undefined) base[key] += evalExpr(node.statMods[key]!, state, { content, baseStats: true });
+    }
     return { maxHp: Math.max(1, base.maxHp), attack: Math.max(0, base.attack), defense: Math.max(0, base.defense) };
   }
   /** Who holds this item equipped: "hero" and/or companion ids. */
@@ -196,6 +206,56 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const p = content.project.party;
     return side === "taken" ? p?.backRowTaken ?? 50 : p?.backRowDealt ?? 50;
   };
+  /* ---------------------------------------------------------------- skill boards */
+  const skillBoards = db.skillBoards ?? [];
+  const boardOf = (id: string) => skillBoards.find(b => b.id === id);
+  const HEX_NEIGHBOURS = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, -1], [-1, 1]] as const;
+  type SkillStatus = "learned" | "available" | "short" | "locked" | "hidden";
+  /** learned / available (can learn now) / short (reachable but not enough points) / locked / hidden (？). */
+  function skillStatus(state: GameState, boardId: string, nodeId: string): SkillStatus {
+    const board = boardOf(boardId);
+    const node = board?.nodes.find(n => n.id === nodeId);
+    if (!board || !node) return "locked";
+    const learned = state.skills?.learned ?? [];
+    if (learned.includes(`${board.id}/${node.id}`)) return "learned";
+    if (node.hidden && !ev(node.hidden, state)) return "hidden";
+    const has = (id: string) => learned.includes(`${board.id}/${id}`);
+    const reachable = node.requires ? node.requires.every(has) : node.start || HEX_NEIGHBOURS.some(([dq, dr]) => board.nodes.some(n => n.q === node.q + dq && n.r === node.r + dr && has(n.id)));
+    if (!reachable) return "locked";
+    return (state.skills?.points[board.owner] ?? 0) >= node.cost ? "available" : "short";
+  }
+  function learnSkill(c: Ctx, state: GameState, boardId: string, nodeId: string): GameState {
+    const board = boardOf(boardId);
+    const node = board?.nodes.find(n => n.id === nodeId);
+    if (!board || !node || skillStatus(state, boardId, nodeId) !== "available") { c.log.push(`スキル ${boardId}/${nodeId} はまだ覚えられない`); return state; }
+    if (board.owner !== "hero" && !state.party?.some(m => m.id === board.owner)) return state;
+    const skills = state.skills ?? { points: {}, learned: [] };
+    state = { ...state, skills: { points: { ...skills.points, [board.owner]: (skills.points[board.owner] ?? 0) - node.cost }, learned: [...skills.learned, `${board.id}/${node.id}`] } };
+    c.log.push(`スキル「${node.name}」を覚えた（${board.name}）`);
+    c.cues.push({ kind: "skill", board: board.id, node: node.id });
+    const after: Effect[] = [...(board.owner === "hero" ? node.traits.map(trait => ({ type: "grantTrait", trait }) as Effect) : []), ...node.effects];
+    return runQueue(c, enqueue(withHpCare(state, s => s), after));
+  }
+  function resetSkills(c: Ctx, state: GameState, who: string): GameState {
+    const owners = who === "all" ? ["hero", ...(state.party ?? []).map(m => m.id)] : [who];
+    const skills = state.skills;
+    if (!skills) return state;
+    const points = { ...skills.points };
+    let learned = skills.learned;
+    let traits = state.traits;
+    for (const board of skillBoards.filter(b => owners.includes(b.owner))) {
+      for (const node of board.nodes) {
+        const key = `${board.id}/${node.id}`;
+        if (!learned.includes(key)) continue;
+        learned = learned.filter(k => k !== key);
+        points[board.owner] = (points[board.owner] ?? 0) + node.cost;
+        if (board.owner === "hero") traits = traits.filter(t => !node.traits.includes(t));
+      }
+    }
+    c.log.push(`スキルをリセット（${owners.join("・")}）`);
+    return withHpCare({ ...state, traits }, s => ({ ...s, skills: { points, learned } }));
+  }
+
   /** Strength of an item for さいきょう装備: numeric stat bonuses (maxHp counts a fifth). Expressions count 0. */
   const gearScore = (itemId: string) => {
     const m = db.items.find(i => i.id === itemId)?.statMods;
@@ -825,6 +885,15 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       case "playAmbient":
         return { ...state, ambient: effect.sound };
       case "unlockAchievement": return unlockAchievement(c, state, effect.achievement);
+      case "giveSkillPoints": {
+        const owners = effect.who === "all" ? ["hero", ...(state.party ?? []).map(m => m.id)] : [effect.who ?? "hero"];
+        const skills = state.skills ?? { points: {}, learned: [] };
+        const points = { ...skills.points };
+        for (const o of owners) points[o] = (points[o] ?? 0) + effect.amount;
+        c.log.push(`スキルポイント +${effect.amount}（${owners.join("・")}）`);
+        return { ...state, skills: { ...skills, points } };
+      }
+      case "resetSkills": return resetSkills(c, state, effect.who ?? "hero");
       case "camera": {
         if (effect.shake) c.cues.push({ kind: "shake", power: effect.shake.power ?? 6, ms: effect.shake.ms ?? 400 });
         if (effect.focus === undefined && effect.zoom === undefined) return state;
@@ -1347,6 +1416,10 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       c.cues.push({ kind: "levelUp", level });
       c.log.push(`レベル${level}`);
       state = say(state, `${name}はレベル${level}に上がった！`);
+      if (lv.skillPoints) {
+        state = applyEffect(c, state, { type: "giveSkillPoints", amount: lv.skillPoints, who: state.party?.length ? "all" : "hero" });
+        state = say(state, `スキルポイントを${lv.skillPoints}手に入れた。`);
+      }
       for (const learn of lv.learn.filter(l => l.level === level)) {
         if (state.abilities.includes(learn.ability)) continue;
         state = { ...state, abilities: [...state.abilities, learn.ability] };
@@ -2194,6 +2267,9 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         else if (scene.kind === "ending") next = runQueue(c, applyEffect(c, { ...state, scene: { kind: "field" } }, { type: "newCycle" }));
         else if (scene.kind === "gameover") next = respawn(c, state);
         break;
+      case "learnSkill":
+        if (scene.kind === "field") next = learnSkill(c, state, action.board, action.node);
+        break;
       case "chooseTrait": {
         const trait = db.traits.find(t => t.id === action.trait);
         if (scene.kind !== "field" || !trait?.selectable || !ev(trait.selectableWhen, state) || state.traits.includes(trait.id)) break;
@@ -2278,6 +2354,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     },
     commands: (state, where) => scriptCommands(state, where),
     turnOrder: state => turnOrder(state).map(a => ({ kind: a.kind, id: a.id, name: a.name })),
+    skillStatus,
     step,
     run,
     isPassable: (state, x, y) => isPassable(state, x, y),

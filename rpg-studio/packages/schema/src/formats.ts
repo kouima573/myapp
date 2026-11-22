@@ -200,6 +200,8 @@ export type Effect =
   | { type: "showPicture"; slot?: string; image: string; at?: "center" | "left" | "right" | "full"; x?: number; y?: number; width?: number; opacity?: number; fadeMs?: number }
   | { type: "hidePicture"; slot?: string; fadeMs?: number }
   | { type: "unlockAchievement"; achievement: string }
+  | { type: "giveSkillPoints"; amount: number; who?: string }
+  | { type: "resetSkills"; who?: string }
   | { type: "camera"; focus?: "player" | { x: number; y: number }; zoom?: number; ms?: number; shake?: { power?: number; ms?: number } }
   | { type: "setFormation"; who: string; row?: "front" | "back"; reserve?: boolean }
   | { type: "input"; prompt?: string; speaker?: string; maxLength?: number; initial?: string; saveAs?: string; answers?: InputAnswer[]; otherwise?: Effect[] }
@@ -313,6 +315,10 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
     zoom: z.number().min(1).max(3).optional(), ms: z.number().int().min(0).max(10000).optional(),
     shake: z.object({ power: z.number().min(1).max(24).default(6), ms: z.number().int().min(50).max(5000).default(400) }).strict().optional(),
   }).strict(),
+  /** Skill points to the hero ("hero", default), a companion, or "all". */
+  z.object({ type: z.literal("giveSkillPoints"), amount: z.number().int().min(1).max(9999), who: z.string().min(1).optional() }).strict(),
+  /** Forget every learned panel of the hero / a companion / "all" and get the points back (traits from panels are removed). */
+  z.object({ type: z.literal("resetSkills"), who: z.string().min(1).optional() }).strict(),
   /** Unlock an achievement now (project.achievements), even without its `when`. */
   z.object({ type: z.literal("unlockAchievement"), achievement: IdSchema }).strict(),
   /** Hide one picture slot, or every picture without `slot`. */
@@ -614,6 +620,8 @@ export const ProjectManifestSchema = z.object({
     expTable: z.array(z.number().int().positive()).optional(),
     /** Added to the base stats on every level-up (HP rises by the same amount). */
     gains: z.object({ maxHp: z.number().int().min(0).default(4), attack: z.number().int().min(0).default(1), defense: z.number().int().min(0).default(1) }).strict().default({ maxHp: 4, attack: 1, defense: 1 }),
+    /** Skill points for skill boards, given to the hero and every companion on each level-up. */
+    skillPoints: z.number().int().min(0).max(999).optional(),
     /** Abilities learned on reaching a level. */
     learn: z.array(z.object({ level: z.number().int().min(2), ability: IdSchema, message: z.string().optional() }).strict()).default([]),
     /** Restore all HP on level-up (default: only the HP gained). */
@@ -1152,6 +1160,53 @@ export const StatusSchema = z.object({
 }).strict();
 export type StatusDef = z.infer<typeof StatusSchema>;
 
+/* ------------------------------------------------------------------ Skill boards */
+
+/**
+ * One panel of a skill board. Boards are hexagonal grids (axial coordinates q, r): a panel can be learned
+ * when it is a `start` panel or touches a learned one (or, with `requires`, when all of those are learned),
+ * and the owner has `cost` skill points. `hidden`: shown as ？ and not learnable until the condition holds.
+ */
+export const SkillNodeSchema = z.object({
+  id: IdSchema,
+  name: z.string().min(1),
+  description: z.string().default(""),
+  q: z.number().int().min(-20).max(20),
+  r: z.number().int().min(-20).max(20),
+  cost: z.number().int().min(0).max(999).default(1),
+  start: z.boolean().optional(),
+  requires: z.array(IdSchema).optional(),
+  hidden: ConditionSchema.optional(),
+  /** Short mark drawn on the panel ("攻", "♥", "剣"…). */
+  icon: z.string().max(4).optional(),
+  statMods: StatModsSchema.optional(),
+  /** Abilities the owner (the hero) has while it is learned. */
+  abilities: z.array(IdSchema).default([]),
+  /** Traits granted when learned (taken back by resetSkills). */
+  traits: z.array(IdSchema).default([]),
+  /** Run once when learned. */
+  effects: z.array(EffectSchema).default([]),
+}).strict();
+export type SkillNode = z.infer<typeof SkillNodeSchema>;
+
+/** A skill board (スキルボード) for the hero ("hero") or a companion; one owner can have several (剣・盾・魔法…). */
+export const SkillBoardSchema = z.object({
+  id: IdSchema,
+  name: z.string().min(1),
+  owner: z.string().min(1).default("hero"),
+  description: z.string().default(""),
+  nodes: z.array(SkillNodeSchema).min(1),
+}).strict().superRefine((board, ctx) => {
+  const ids = new Set<string>(), cells = new Set<string>();
+  board.nodes.forEach((n, i) => {
+    if (ids.has(n.id)) ctx.addIssue({ code: "custom", path: ["nodes", i, "id"], message: `パネルIDが重複しています: ${n.id}` });
+    if (cells.has(`${n.q},${n.r}`)) ctx.addIssue({ code: "custom", path: ["nodes", i], message: `同じ位置 (${n.q}, ${n.r}) にパネルが2つあります` });
+    ids.add(n.id); cells.add(`${n.q},${n.r}`);
+  });
+  if (!board.nodes.some(n => n.start || n.requires)) ctx.addIssue({ code: "custom", path: ["nodes"], message: "start: true のパネルが1つもありません（どこからも覚え始められません）" });
+});
+export type SkillBoard = z.infer<typeof SkillBoardSchema>;
+
 export const DatabaseSchema = z.object({
   formatVersion: z.literal(PROJECT_FORMAT_VERSION),
   abilities: z.array(AbilitySchema).default([]),
@@ -1162,6 +1217,8 @@ export const DatabaseSchema = z.object({
   companions: z.array(CompanionSchema).default([]),
   /** Status effects: poison, sleep, paralysis, silence, attack up, guard down… (effects addStatus / removeStatus). */
   statuses: z.array(StatusSchema).default([]),
+  /** Skill boards (スキルボード): hexagonal panels learned with skill points from level-ups (project.leveling.skillPoints). */
+  skillBoards: z.array(SkillBoardSchema).default([]),
 }).strict();
 export type Database = z.infer<typeof DatabaseSchema>;
 
@@ -1396,6 +1453,8 @@ export const GameStateSchema = z.object({
   ambient: IdSchema.nullable().optional(),
   /** Monster / item book: enemies met, wins per enemy, items ever held (project.book). */
   book: z.object({ seen: z.array(IdSchema), defeated: z.record(IdSchema, z.number().int()), items: z.array(IdSchema) }).strict().optional(),
+  /** Skill boards: unspent points per owner ("hero" / companion id) and learned panels as "board/node". */
+  skills: z.object({ points: z.record(z.string(), z.number().int()), learned: z.array(z.string()) }).strict().optional(),
   /** Unlocked achievements, in order (project.achievements). */
   achievements: z.array(IdSchema).optional(),
   /** Camera set by the camera effect (missing = follow the hero at zoom 1). */

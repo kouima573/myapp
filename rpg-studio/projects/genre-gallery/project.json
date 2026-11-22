@@ -193,7 +193,8 @@
       "maxHp": 4,
       "attack": 1,
       "defense": 1
-    }
+    },
+    "skillPoints": 3
   },
   "elements": {
     "fire": {

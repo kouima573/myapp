@@ -91,7 +91,10 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   const readSlot = (slot: Slot) => { try { return storage.read(slotKey(slot)) ?? (slot === "1" ? storage.read(saveKey) : null); } catch { return null; } };
   const slotLabel = (slot: Slot) => (slot === "auto" ? "オート" : `スロット${slot}`);
   /** "main" menu, the title screen, or the save / load slot lists. */
-  let menuView: "main" | "title" | "save" | "load" | "book" | "achievements" | "formation" = "main";
+  let menuView: "main" | "title" | "save" | "load" | "book" | "achievements" | "formation" | "skills" = "main";
+  /** Skill-board view: whose boards, which board. */
+  let skillOwner = "hero";
+  let skillBoardId: string | null = null;
   let slotReturn: "main" | "title" = "main";
   const settingsKey = `rpg-settings:${content.project.id}`;
   const readRawSettings = () => { try { return JSON.parse(storage.read(settingsKey) ?? "{}") as Record<string, unknown>; } catch { return {}; } };
@@ -331,6 +334,23 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   function navigate(dir: Direction) {
     const list = buttons();
     if (!list.length) return;
+    // Skill board: move to the nearest button in that direction on screen (hexes are not a list).
+    if (menuOpen && menuView === "skills") {
+      const cur = list[Math.min(selection, list.length - 1)]!.getBoundingClientRect();
+      const cx = cur.left + cur.width / 2, cy = cur.top + cur.height / 2;
+      let best = -1, bestScore = Infinity;
+      list.forEach((b, i) => {
+        if (i === selection) return;
+        const r = b.getBoundingClientRect(), dx = r.left + r.width / 2 - cx, dy = r.top + r.height / 2 - cy;
+        const along = dir === "up" ? -dy : dir === "down" ? dy : dir === "left" ? -dx : dx;
+        const across = dir === "up" || dir === "down" ? Math.abs(dx) : Math.abs(dy);
+        if (along <= 2) return;
+        const score = along + across * 2;
+        if (score < bestScore) { bestScore = score; best = i; }
+      });
+      if (best >= 0) { selection = best; audio.cue("cursor"); highlight(); }
+      return;
+    }
     const grid = windowLayer.querySelector("[data-grid]") ? 2 : 1;
     const delta = dir === "up" ? -grid : dir === "down" ? grid : dir === "left" ? -1 : 1;
     if (grid === 1 && (dir === "left" || dir === "right")) return;
@@ -340,6 +360,12 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   }
   function highlight() {
     buttons().forEach((button, index) => button.classList.toggle("is-selected", index === selection));
+    // Skill board: show the panel under the cursor.
+    const detail = windowLayer.querySelector<HTMLElement>(".rpg-skill-detail");
+    if (detail) {
+      const b = buttons()[selection];
+      if (b?.dataset.skillName) detail.replaceChildren(el("div", "rpg-skill-name", b.dataset.skillName), el("div", "rpg-skill-desc", b.dataset.skillDesc ?? ""), el("div", "rpg-skill-state", b.dataset.skillState ?? ""));
+    }
   }
 
   function confirm() {
@@ -363,7 +389,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   function cancel() {
     if (menuOpen && menuView === "title") return;
     if (menuOpen && (menuView === "save" || menuView === "load")) { menuView = slotReturn; selection = 0; renderUI(); return; }
-    if (menuOpen && (menuView === "book" || menuView === "achievements" || menuView === "formation")) { menuView = "main"; selection = 0; renderUI(); return; }
+    if (menuOpen && (menuView === "book" || menuView === "achievements" || menuView === "formation" || menuView === "skills")) { menuView = "main"; selection = 0; renderUI(); return; }
     if (state.scene.kind === "custom") { audio.cue("cancel"); dispatch({ type: "sceneInput", input: { type: "cancel" } }); return; }
     if (creditsOpen) { creditsOpen = false; selection = 0; renderUI(); return; }
     if (backlogOpen) { backlogOpen = false; selection = 0; renderUI(); return; }
@@ -973,6 +999,66 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     panel.appendChild(navButton("もどる", () => { menuView = "main"; selection = 0; renderUI(); }));
     windowLayer.appendChild(panel);
   }
+  /**
+   * スキルボード: hexagonal panels of the chosen owner's boards. A panel next to a learned one (or a start panel)
+   * can be learned with skill points; ？ panels open when their condition holds.
+   */
+  function renderSkills() {
+    const panel = el("div", "rpg-window rpg-menu rpg-skills");
+    panel.dataset.src = "packages/runtime/src/player.ts#renderSkills";
+    const boards = content.database.skillBoards ?? [];
+    const owners = ["hero", ...(state.party ?? []).map(m => m.id)].filter(o => boards.some(b => b.owner === o));
+    if (!owners.includes(skillOwner)) skillOwner = owners[0] ?? "hero";
+    const mine = boards.filter(b => b.owner === skillOwner);
+    if (!mine.some(b => b.id === skillBoardId)) skillBoardId = mine[0]?.id ?? null;
+    const board = mine.find(b => b.id === skillBoardId);
+    const ownerName = (o: string) => (o === "hero" ? heroName() : content.database.companions.find(x => x.id === o)?.name ?? o);
+    const points = state.skills?.points[skillOwner] ?? 0;
+    const head = el("div", "rpg-skills-head");
+    head.append(el("div", "rpg-menu-title", `スキル　${ownerName(skillOwner)}　のこり ${points} ポイント`));
+    const tabs = el("div", "rpg-menu-row");
+    if (owners.length > 1) for (const o of owners) tabs.appendChild(navButton(`${o === skillOwner ? "● " : ""}${ownerName(o)}`, () => { skillOwner = o; skillBoardId = null; selection = 0; renderUI(); }));
+    for (const b of mine) tabs.appendChild(navButton(`${b.id === skillBoardId ? "▶ " : ""}${b.name}`, () => { skillBoardId = b.id; selection = 0; renderUI(); }));
+    head.appendChild(tabs);
+    panel.appendChild(head);
+    if (!board) { panel.appendChild(el("div", "rpg-menu-empty", "スキルボードがありません")); panel.appendChild(navButton("もどる", () => { menuView = "main"; selection = 0; renderUI(); })); windowLayer.appendChild(panel); return; }
+    // Hex layout (pointy-top, axial q/r) fitted into the box.
+    const pos = board.nodes.map(n => ({ n, x: Math.sqrt(3) * (n.q + n.r / 2), y: 1.5 * n.r }));
+    const minX = Math.min(...pos.map(p => p.x)) - 1, maxX = Math.max(...pos.map(p => p.x)) + 1;
+    const minY = Math.min(...pos.map(p => p.y)) - 1.1, maxY = Math.max(...pos.map(p => p.y)) + 1.1;
+    const area = el("div", "rpg-skill-board");
+    area.style.aspectRatio = `${maxX - minX} / ${maxY - minY}`;
+    const detail = el("div", "rpg-skill-detail");
+    const before = panel.querySelectorAll("[data-nav]").length;
+    const hexes = pos.map(({ n, x, y }, i) => {
+      const status = engine.skillStatus(state, board.id, n.id);
+      const label = status === "hidden" ? "？" : n.icon ?? n.name.slice(0, 2);
+      const b = navButton(label, () => {
+        if (status === "available") { dispatch({ type: "learnSkill", board: board.id, node: n.id }); audio.cue("item"); renderUI(); }
+        else showToast(status === "learned" ? `${n.name}は覚えている` : status === "short" ? `スキルポイントが足りない（${n.cost}必要）` : status === "hidden" ? "まだ秘密のパネルだ" : "となりのパネルを先に覚えよう");
+      });
+      b.className = `rpg-option rpg-hex is-${status}`;
+      b.style.left = `${((x - minX) / (maxX - minX)) * 100}%`;
+      b.style.top = `${((y - minY) / (maxY - minY)) * 100}%`;
+      b.style.width = `${(Math.sqrt(3) / (maxX - minX)) * 100}%`;
+      b.title = status === "hidden" ? "？？？" : `${n.name}（${n.cost}）`;
+      b.dataset.index = String(before + i);
+      const mods = n.statMods ? (["maxHp", "attack", "defense"] as const).filter(k => typeof n.statMods?.[k] === "number").map(k => `${{ maxHp: "HP", attack: "攻撃", defense: "防御" }[k]}+${n.statMods![k]}`).join(" ") : "";
+      const learns = n.abilities.map(a => content.database.abilities.find(x => x.id === a)?.name ?? a).join("・");
+      b.dataset.skillName = status === "hidden" ? "？？？" : `${n.name}　${n.cost}ポイント`;
+      b.dataset.skillDesc = status === "hidden" ? "条件を満たすと現れる。" : [n.description, mods, learns ? `覚える: ${learns}` : ""].filter(Boolean).join("　");
+      b.dataset.skillState = { learned: "覚えた", available: "決定で覚える", short: "ポイントが足りない", locked: "となりのパネルを先に覚える", hidden: "" }[status];
+      area.appendChild(b);
+      return { b, n, status };
+    });
+    panel.appendChild(area);
+    panel.appendChild(detail);
+    panel.appendChild(navButton("もどる", () => { menuView = "main"; selection = 0; renderUI(); }));
+    windowLayer.appendChild(panel);
+    // The detail box follows the cursor (filled in highlight()).
+    if (!hexes.some(h => h.b === buttons()[selection])) { const first = hexes.find(h => h.status === "available") ?? hexes[0]!; selection = Math.max(0, buttons().indexOf(first.b)); }
+  }
+
   /** 隊列: front / back row for everyone, and who fights or waits in the reserve (project.party.size). */
   function renderFormation() {
     const panel = el("div", "rpg-window rpg-menu rpg-book");
@@ -1037,6 +1123,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (menuView === "book") { renderBook(); return; }
     if (menuView === "achievements") { renderAchievements(); return; }
     if (menuView === "formation") { renderFormation(); return; }
+    if (menuView === "skills") { renderSkills(); return; }
     if (backlogOpen) { renderBacklog(); return; }
     const menu = el("div", "rpg-window rpg-menu");
     menu.appendChild(el("div", "rpg-menu-title", "メニュー"));
@@ -1071,6 +1158,11 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         menu.appendChild(row);
       }
       menu.appendChild(navButton("隊列・入れ替え", () => { menuView = "formation"; selection = 0; renderUI(); }, { hint: "前列・後列、控え" }));
+    }
+    if ((content.database.skillBoards ?? []).length) {
+      const pts = state.skills?.points.hero ?? 0;
+      section("スキル", "skills");
+      menu.appendChild(navButton("スキルボード", () => { menuView = "skills"; selection = 0; renderUI(); }, { hint: `のこり ${pts} ポイント` }));
     }
     if ((state.cycle ?? 1) > 1 || (state.sets.endings?.length ?? 0) > 0) stats.textContent += `　${state.cycle}周目`;
     if (state.traits.length) {
