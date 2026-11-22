@@ -48,7 +48,8 @@ const USAGE = `RPG Studio CLI
   rpg schema   [--check]                schema/*.schema.json（エディター・AI向けJSON Schema）を生成／最新か確認
   rpg asset    <sources|enable|disable|add|gen-sfx|report|credits> --project <dir>   素材の取得元・追加・生成・容量・クレジット
   rpg art      <list|prompt|check> --project <dir>                                   画像の要件定義（art/requests.json）から生成用プロンプト・納品チェック
-  rpg art      generate [--out library] [--only tiles,characters,monsters,backgrounds] [--no-previews]   内蔵ジェネレーターで共有素材ライブラリを（再）生成
+  rpg asset    catalog <check|verify> --project <dir>                              取得元カタログの見直し（サイトには接続しない・確認日は人が読んだときだけ）
+  rpg art      generate [--out library] [--style standard|retro|pastel|dusk|mono] [--only tiles,characters,monsters,backgrounds] [--no-previews]   内蔵ジェネレーターで共有素材ライブラリを（再）生成
   rpg library  <list|add|preview> [<id...>] [--kind …] [--query …] --project <dir>  共有素材ライブラリを探す・番号つき見本画像・取り込む（タイル定義も追加）
   rpg packs    <list|add|files|use|remove>                                     買った・DLした素材パックをこのPCの台帳でまとめて管理（パスワードは保存しない）
   rpg asset find --kind <bgm|sfx|image…> --words "<言葉>"                        AIが会話で候補を出す用（内蔵素材・取得元の検索URL・条件）
@@ -371,7 +372,8 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "catalog": return cmdCatalog(parsed.flags);
     case "audit": return cmdAudit(parsed.flags);
     case "schema": return cmdSchema(parsed.flags);
-    case "asset": return cmdAsset(parsed.sub, projectDir(parsed.flags), parsed.flags);
+    case "asset": if (parsed.sub === "catalog") { const { cmdSourceCatalog } = await import("./sourceCatalog"); return cmdSourceCatalog(parsed.args[0], parsed.args.slice(1), parsed.flags, projectDir(parsed.flags)); }
+      return cmdAsset(parsed.sub, projectDir(parsed.flags), parsed.flags);
     case "art": {
       if (parsed.sub !== "generate") return cmdArt(parsed.sub, projectDir(parsed.flags), parsed.flags);
       const { generateLibrary } = await import("./artgen/library");
@@ -380,7 +382,11 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       const only = typeof parsed.flags.only === "string" ? parsed.flags.only.split(",").map(s => s.trim()) : [];
       const bad = only.filter(k => !(kinds as readonly string[]).includes(k));
       if (bad.length) { console.log(`ERROR --only は ${kinds.join(",")} から選んでください: ${bad.join(",")}`); return 2; }
-      await generateLibrary(out, { only: only as Array<(typeof kinds)[number]>, previews: !parsed.flags["no-previews"], log: line => console.log(line) });
+      const { isArtStyle, ART_STYLES } = await import("./artgen/style");
+      const style = typeof parsed.flags.style === "string" ? parsed.flags.style : "standard";
+      if (!isArtStyle(style)) { console.log(`ERROR --style は ${ART_STYLES.join(",")} から選んでください: ${style}`); return 2; }
+      if (style !== "standard" && typeof parsed.flags.out !== "string") { console.log(`ERROR 標準以外の画風は --out <フォルダ> を指定してください（共有ライブラリ library/ を上書きしないため）。取り込み: pnpm rpg library add <id> --library <フォルダ> --project <dir>`); return 2; }
+      await generateLibrary(out, { style, only: only as Array<(typeof kinds)[number]>, previews: !parsed.flags["no-previews"], log: line => console.log(line) });
       return 0;
     }
     case "library": return cmdLibrary(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));

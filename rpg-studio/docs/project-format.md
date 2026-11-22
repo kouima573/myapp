@@ -198,6 +198,17 @@
 - 属性: `project.json › elements: { "fire": { "label": "炎" } }`。敵の `resist: { "fire": 150 }`（150 = 弱点、50 = 半減、0 = 無効）、武器の `element`（通常攻撃の属性）、防具・装飾品の `resist`（受けるダメージ）、効果 `damage` の `element`。弱点・半減は戦闘ログに「弱点！」などと出る。
 - 自動テスト: `expect.statuses` / `expect.lacksStatuses`。見本: `projects/genre-gallery/tests/status.scenario.json`。
 
+## v2.4 の追加
+
+- `project.json › party.follow`（既定 true: 仲間が後ろをついて歩く）、仲間の `chat: [{ "when"?: 条件, "text": "…" }]`（メニューの「はなす」で条件に合う最後の一言）
+- `project.json › display: { "tileSize": 16 | 24 | 32 | 48 | 64 }`（既定 32。画面上の1マスの大きさ）
+- `project.json › battle.order: "ctb"`（カウントタイム。素早さでゲージがたまり、速い者ほど多く行動。戦闘画面に次の行動順）
+- 台詞の行 `{ "text": "…", "voice": "<効果音素材>" }`、効果 `message` の `voice`
+- 素材 `kind: "font"`（`assets/fonts/`。woff2・woff・ttf・otf）と `project.json › ui.fontAsset`
+- `pnpm rpg map generate <id> --project <dir> [--width 32 --height 24 --seed 1 --rooms 8 --floor . --wall # --title … --enemies a,b --rate 0.08 --back map:x:y]`（エンジンの `generateDungeon()`。同じシードなら同じ形）
+- `pnpm rpg art generate --style standard|retro|pastel|dusk|mono [--out <フォルダ>]`（標準以外は --out 必須。library.json の `generator.style` に記録）
+- `pnpm rpg asset catalog check [--days 180] [--json]` / `pnpm rpg asset catalog verify <id> --read-terms [--date --summary --credit-required --redistribution --automated-download --notes]`（`verifiedAt` は人が原文を読んだときだけ。project.json の `customSources` はそちらを更新）
+
 ## v2.3 の追加
 
 - マップの `edges: { "east": { "mapId": "field2", "offset": 0 }, "west": …, "north": …, "south": … }`: 端から歩き出すと隣のマップへ（同じ行・列 + offset）。`"wrap": true` で丸い世界

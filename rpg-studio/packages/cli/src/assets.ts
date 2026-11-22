@@ -82,6 +82,7 @@ export async function cmdAsset(sub: string | undefined, root: string, flags: Fla
       --author <作者> --credit <表記> --credit-required --no-redistribute --notes <作者の発言など> --license-url <url>]
       [--tile 64x64 --columns 4 --rows 4 --frame-ms 160] [--volume 0.8 --no-loop] [--request <art request id>] [--replace]
   gen-sfx --preset <${SFX_PRESETS.join("|")}> --id <id> [--seed 1] [--cue confirm]   オリジナル効果音を生成して登録
+  catalog check|verify            取得元カタログの見直し（原文を読むべき取得元の一覧／人が読んだ日の記録）
   report                          容量予算・取得元・クレジット・規約確認の一覧
   unused                          プロジェクト内のどこからも参照されていない素材を一覧
   credits                         クレジット表記`);

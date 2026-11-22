@@ -80,6 +80,14 @@ pnpm deploy:site
 
 公開中: https://rpg-studio-2k3.pages.dev 。工房のPreview版（見本プロジェクトで操作できる。変更はブラウザ内だけ）と見本ゲーム2本を `dist/site/` にまとめ、Cloudflare Pages の `rpg-studio` プロジェクトへ公開します。初回はブラウザで Cloudflare へのログインを求められ、プロジェクトがなければ作成を聞かれます（本番ブランチは `main`）。中身だけ作るなら `pnpm build:site`。見本の素材はすべて内蔵生成・AI生成で、第三者サイトの素材は含みません。
 
+## v2.4の変更（「200の改善指針」第10弾）
+
+- **歩く・話す**: 仲間が主人公の後ろをついて歩く（`project.party.follow: false` で切る）、仲間との雑談（`companions` の `chat`、メニューの「はなす」）
+- **戦闘**: カウントタイム戦闘（`battle.order: "ctb"`。素早い者ほど多く行動し、次の行動順を表示。リアルタイムではなくターン制）
+- **マップ**: 自動生成ダンジョン（`pnpm rpg map generate <id> --project <dir> --seed 7 --rooms 8 --enemies slime,bat`、工房の「新しいマップ」でも）、タイルの大きさ（`project.display.tileSize`: 16/24/32/48/64）
+- **演出**: セリフ音声（台詞の行や message の `voice`）、カスタムフォント（素材 `kind: "font"` と `ui.fontAsset`）、確認ダイアログ（セーブの上書き・ゲーム中のロード・タイトルへ戻る）
+- **素材**: 内蔵ジェネレーターの画風（`pnpm rpg art generate --style retro|pastel|dusk|mono --out <フォルダ>`、取り込みは `pnpm rpg library add <id> --library <フォルダ>`）、取得元カタログの見直し（`pnpm rpg asset catalog check` で原文を読むべき取得元と開くページ、読んだら `pnpm rpg asset catalog verify <id> --read-terms`。ツールはサイトに接続しない）
+
 ## v2.3の変更（「200の改善指針」第9弾）
 
 - **工房**: スキルボードの編集画面（点線の六角形をクリックしてパネルを足す・移動・能力値・技・特性・隠す条件・効果）、「ヘルプ・完成チェック」（完成までのチェックリスト11項目の自動判定と、残りをAIに頼む依頼文・よくある失敗と直し方・用語集・スマホで遊ぶ／見る）、見出しにマウスを乗せると用語の説明
