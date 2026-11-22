@@ -634,7 +634,7 @@ describe("map edges and vehicles (026/033)", () => {
     for (let y = 1; y < map.height - 1 && !spot; y++) for (let x = 1; x < map.width - 2 && !spot; x++) if (base.isPassable(s0, x, y) && !base.isPassable(s0, x + 1, y)) spot = { x, y, code: base.codeAt(s0, map, x + 1, y) };
     const sprite = content.assets.assets.find(a => a.kind === "character")!.id;
     const eng = createEngine({ ...content, project: { ...content.project, vehicles: { boat: { name: "小舟", sprite, crosses: [spot!.code], encounters: false, start: { mapId: map.id, x: spot!.x + 1, y: spot!.y } } } } }, systems);
-    let s = { ...fresh(eng, map.id, spot!.x, spot!.y), player: { ...fresh(eng, map.id, spot!.x, spot!.y).player, facing: "right" as const } };
+    let s: GameState = { ...fresh(eng, map.id, spot!.x, spot!.y), player: { ...fresh(eng, map.id, spot!.x, spot!.y).player, facing: "right" } };
     s = eng.step(s, { type: "interact" }).state;
     expect(s.riding).toBe("boat");
     expect(s.player.x).toBe(spot!.x + 1);
