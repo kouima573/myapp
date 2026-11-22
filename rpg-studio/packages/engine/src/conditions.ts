@@ -220,6 +220,7 @@ export function interpolate(text: string, state: GameState, env: EvalEnv = {}): 
       case "hp": return String(state.player.hp);
       case "maxHp": return String(effectiveStats(state, content).maxHp);
       case "name": return state.player.name ?? content?.project.player.name ?? whole;
+      case "text": return key ? state.texts?.[key] ?? "" : whole;
       case "target": return state.target ?? "";
       case "targetLabel": return targetLabel(state, env) ?? state.target ?? "";
       case "flag": return key ? (state.flags[key] ? "ON" : "OFF") : whole;

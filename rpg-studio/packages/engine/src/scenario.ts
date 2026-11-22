@@ -62,6 +62,8 @@ const StepSchema = z.union([
   z.object({ interact: z.literal(true) }).strict(),
   z.object({ advance: z.enum(["once", "all"]) }).strict(),
   z.object({ choose: IdSchema }).strict(),
+  /** Type text into an input window (effect "input"). */
+  z.object({ input: z.string() }).strict(),
   /** target: which enemy to attack (0 = the first, 1 = the next of `with`…). */
   z.object({ battle: z.enum(["attack", "guard", "flee"]), target: z.number().int().min(0).max(7).optional() }).strict(),
   z.object({ battleItem: IdSchema }).strict(),
@@ -247,6 +249,9 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
       else if ("advance" in s) {
         if (s.advance === "once") step({ type: "advance" });
         else for (let guard = 0; guard < 100 && (state.scene.kind === "message" || state.scene.kind === "dialogue" || (state.scene.kind === "battle" && state.scene.battle.outcome !== "ongoing")); guard++) step({ type: "advance" });
+      } else if ("input" in s) {
+        if (state.scene.kind !== "input") throw new ScenarioError(`input: 文字入力の画面ではありません (scene=${state.scene.kind})`);
+        step({ type: "submitText", text: s.input });
       } else if ("choose" in s) {
         if (state.scene.kind !== "choice" && state.scene.kind !== "prompt") throw new ScenarioError(`choose: 選択肢が表示されていません (scene=${state.scene.kind})`);
         const before = state;

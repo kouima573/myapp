@@ -10,6 +10,10 @@ export const RUNTIME_CSS = String.raw`
 .rpg-canvas { position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; image-rendering:crisp-edges; }
 .rpg-fade { position:absolute; inset:0; background:#000; opacity:0; pointer-events:none; }
 .rpg-layer { position:absolute; inset:0; pointer-events:none; }
+.rpg-input { display:flex; gap:8px; align-items:center; }
+.rpg-input-field { flex:1; min-width:0; font:inherit; font-size:18px; padding:6px 10px; border-radius:6px; border:1px solid rgba(255,255,255,.35); background:rgba(0,0,0,.4); color:inherit; }
+.rpg-pictures { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+.rpg-picture { position:absolute; transform:translate(-50%,-50%); height:auto; image-rendering:pixelated; }
 .rpg-layer > * { pointer-events:auto; }
 .rpg-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
 .rpg-hud { position:absolute; left:2%; top:2.5%; right:2%; display:flex; justify-content:space-between; align-items:flex-start; gap:2%; pointer-events:none; }
@@ -33,6 +37,15 @@ export const RUNTIME_CSS = String.raw`
 .rpg-message { position:absolute; left:2.5%; right:2.5%; bottom:3%; min-height:26%; padding:.7em 1em 1em; cursor:pointer; line-height:1.65; }
 .rpg-speaker { display:inline-block; margin-bottom:.25em; color:var(--rpg-accent); font-size:.85em; letter-spacing:.08em; }
 .rpg-text { white-space:pre-wrap; min-height:3.3em; }
+.rpg-t-b { font-weight:700; }
+.rpg-t-big { font-size:1.35em; }
+.rpg-t-small { font-size:.8em; }
+.rpg-t-letter { display:inline-block; white-space:pre; }
+.rpg-t-shake .rpg-t-letter { animation: rpg-t-shake .18s steps(2) infinite; }
+.rpg-t-wave .rpg-t-letter { animation: rpg-t-wave 1s ease-in-out infinite; }
+@keyframes rpg-t-shake { 0% { transform: translate(0,0); } 50% { transform: translate(1px,-1px); } 100% { transform: translate(-1px,1px); } }
+@keyframes rpg-t-wave { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) { .rpg-t-letter { animation: none !important; } }
 .rpg-caret { position:absolute; right:1em; bottom:.5em; font-size:.75em; color:var(--rpg-accent); opacity:0; }
 .rpg-caret.is-ready { opacity:1; animation:rpg-blink .8s steps(2) infinite; }
 @keyframes rpg-blink { 50% { opacity:0; } }

@@ -3131,6 +3131,157 @@
           "properties": {
             "type": {
               "type": "string",
+              "const": "showPicture"
+            },
+            "slot": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "image": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "at": {
+              "type": "string",
+              "enum": [
+                "center",
+                "left",
+                "right",
+                "full"
+              ]
+            },
+            "x": {
+              "type": "number",
+              "minimum": -50,
+              "maximum": 150
+            },
+            "y": {
+              "type": "number",
+              "minimum": -50,
+              "maximum": 150
+            },
+            "width": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 300
+            },
+            "opacity": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "fadeMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            }
+          },
+          "required": [
+            "type",
+            "image"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "input"
+            },
+            "prompt": {
+              "type": "string"
+            },
+            "speaker": {
+              "type": "string"
+            },
+            "maxLength": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 40
+            },
+            "initial": {
+              "type": "string",
+              "maxLength": 40
+            },
+            "saveAs": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "answers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "match": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "effects": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/__schema2"
+                    }
+                  }
+                },
+                "required": [
+                  "match",
+                  "effects"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "otherwise": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/__schema2"
+              }
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "hidePicture"
+            },
+            "slot": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "fadeMs": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10000
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
               "const": "signal"
             },
             "signal": {

@@ -377,3 +377,40 @@ describe("sample scenarios", () => {
 
 // Keep the Effect type referenced so editors show it when reading this file as an example.
 export type { Effect };
+
+describe("text effects: pictures and input (050/054)", () => {
+  const boot = (eng: Engine) => {
+    let state = eng.newGame(1);
+    while (state.scene.kind === "message") state = eng.step(state, { type: "advance" }).state;
+    state = eng.step(state, { type: "choose", choiceId: "human" }).state;
+    while (state.scene.kind === "message") state = eng.step(state, { type: "advance" }).state;
+    return state;
+  };
+  it("showPicture / hidePicture keep pictures by slot in the state (saved with the game)", () => {
+    const eng = createEngine(content, systems);
+    const bg = content.assets.assets.find(a => a.kind === "background")!.id;
+    let state = eng.run(boot(eng), [{ type: "showPicture", image: bg, at: "full" }, { type: "showPicture", slot: "face", image: bg, at: "left", opacity: 0.5 }]).state;
+    expect(state.pictures).toEqual({ main: { image: bg, x: 50, y: 50, width: 100, opacity: 1, fadeMs: 300 }, face: { image: bg, x: 25, y: 45, width: 40, opacity: 0.5, fadeMs: 300 } });
+    state = eng.run(state, [{ type: "hidePicture", slot: "face" }]).state;
+    expect(Object.keys(state.pictures ?? {})).toEqual(["main"]);
+    state = eng.run(state, [{ type: "hidePicture" }]).state;
+    expect(state.pictures).toBeUndefined();
+  });
+  it("input renames the hero, keeps texts and checks passwords (full-width / case ignored)", () => {
+    const eng = createEngine(content, systems);
+    let state = eng.run(boot(eng), [{ type: "input", prompt: "名前は？", saveAs: "name" }]).state;
+    expect(state.scene.kind).toBe("input");
+    expect(eng.step(state, { type: "submitText", text: "   " }).state.scene.kind).toBe("input"); // a name cannot be empty
+    state = eng.step(state, { type: "submitText", text: "アオイ" }).state;
+    expect(state.player.name).toBe("アオイ");
+    expect(eng.text(state, "{{name}}")).toBe("アオイ");
+    const gold = Object.keys(content.project.variables)[0]!;
+    const password: Effect = { type: "input", saveAs: "word", answers: [{ match: ["open sesame"], effects: [{ type: "setVar", var: gold, value: 77 }] }], otherwise: [{ type: "setVar", var: gold, value: 1 }] };
+    state = eng.run(state, [password]).state;
+    state = eng.step(state, { type: "submitText", text: "ＯＰＥＮ Sesame" }).state;
+    expect(state.vars[gold]).toBe(77);
+    expect(eng.text(state, "{{text.word}}")).toBe("ＯＰＥＮ Sesame");
+    state = eng.step(eng.run(state, [password]).state, { type: "submitText", text: "nope" }).state;
+    expect(state.vars[gold]).toBe(1);
+  });
+});

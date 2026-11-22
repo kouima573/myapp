@@ -85,6 +85,12 @@ export function flowTree(content: GameContent, root: { kind: "dialogue" | "event
             { kind: "choice", label: "いいえ", children: effects(e.else ?? [], depth + 1, path) },
           ] });
           break;
+        case "input":
+          out.push({ kind: "branch", label: `文字入力${e.prompt ? `「${e.prompt}」` : ""}${e.saveAs === "name" ? "（主人公の名前）" : ""}`, children: [
+            ...(e.answers ?? []).map(a => ({ kind: "choice" as const, label: `「${a.match.join("」「")}」と入力`, children: effects(a.effects, depth + 1, path) })),
+            ...(e.answers?.length || e.otherwise?.length ? [{ kind: "choice" as const, label: "それ以外", children: effects(e.otherwise ?? [], depth + 1, path) }] : []),
+          ] });
+          break;
         case "chance":
           out.push({ kind: "branch", label: `確率 ${shortJson(e.percent, 20)}%`, children: [
             { kind: "choice", label: "当たり", children: effects(e.then, depth + 1, path) },

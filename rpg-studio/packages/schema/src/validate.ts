@@ -236,7 +236,12 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       if (kind === "var" && key && !varIds.has(key)) warn(file, at, `文中の {{var.${key}}} は未宣言の変数です`);
       else if (kind === "item" && key && !itemIds.has(key)) warn(file, at, `文中の {{item.${key}}} は未定義のアイテムです`);
       else if (kind === "flag" && key && !flagIds.has(key)) warn(file, at, `文中の {{flag.${key}}} は未宣言のフラグです`);
-      else if (!["var", "item", "flag", "stat", "hp", "maxHp", "name", "ctx", "enemy", "trait", "set", "cycle", "target", "targetLabel"].includes(kind!)) warn(file, at, `文中の {{${kind}}} は使えない差し込みです`);
+      else if (!["var", "item", "flag", "stat", "hp", "maxHp", "name", "ctx", "enemy", "trait", "set", "cycle", "target", "targetLabel", "text"].includes(kind!)) warn(file, at, `文中の {{${kind}}} は使えない差し込みです`);
+    }
+    // Text decoration [se=id] plays a sound while typing.
+    for (const match of text.matchAll(/\[se=([A-Za-z0-9][A-Za-z0-9._-]*)\]/g)) {
+      const kind = assetById.get(match[1]!)?.kind;
+      if (kind !== "sfx" && kind !== "bgm") warn(file, at, `文中の [se=${match[1]}] は効果音の素材ではありません`);
     }
   };
 
@@ -293,6 +298,11 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         case "setFlag": if (!flagIds.has(effect.flag)) err(file, here, `未宣言のフラグ '${effect.flag}' を設定しています`); break;
         case "setVar": if (!varIds.has(effect.var)) err(file, here, `未宣言の変数 '${effect.var}' を設定しています`); checkExpr(file, here, effect.value, ctxAllowed); break;
         case "random": if (!varIds.has(effect.var)) err(file, here, `未宣言の変数 '${effect.var}'`); checkExpr(file, here, effect.min, ctxAllowed); checkExpr(file, here, effect.max, ctxAllowed); break;
+        case "input":
+          (effect.answers ?? []).forEach((a, i) => checkEffects(file, `${here}.answers[${i}]`, a.effects, ctxAllowed));
+          if (effect.otherwise) checkEffects(file, `${here}.otherwise`, effect.otherwise, ctxAllowed);
+          if (effect.prompt) checkText(file, here, effect.prompt);
+          break;
         case "chance": checkExpr(file, here, effect.percent, ctxAllowed); checkEffects(file, `${here}.then`, effect.then, ctxAllowed); if (effect.else) checkEffects(file, `${here}.else`, effect.else, ctxAllowed); break;
         case "setStat": checkExpr(file, here, effect.value, ctxAllowed); break;
         case "unlockAbility": case "removeAbility": if (!abilityIds.has(effect.ability)) err(file, here, `未定義の能力 '${effect.ability}'`); break;
@@ -336,6 +346,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         case "system": if (!systemIds.has(effect.system)) err(file, here, `project.jsonのsystemsにないシステム '${effect.system}'`); break;
         case "script": if (!scriptIds.has(effect.script)) err(file, here, `スクリプト '${effect.script}' がありません（scripts/${effect.script}.ts）`); break;
         case "playSfx": checkAudio(file, here, effect.sound, SOUND, "効果音"); break;
+        case "showPicture": if (!["background", "portrait", "enemy", "character"].includes(assetById.get(effect.image)?.kind ?? "")) err(file, here, `一枚絵の素材 '${effect.image}' がありません（background・portrait・enemy・character）`); break;
         case "addToSet": case "removeFromSet": case "clearSet": if (!setIds.has(effect.set)) err(file, here, `未宣言の集合 '${effect.set}'`); break;
         case "moveEntity": {
           const map = effect.mapId ? maps[effect.mapId] : undefined;
@@ -702,6 +713,7 @@ export function walkEffects(effects: Effect[], visit: (effect: Effect) => void):
     visit(effect);
     if (effect.type === "battle" && effect.onVictory) walkEffects(effect.onVictory, visit);
     if (effect.type === "if" || effect.type === "chance") { walkEffects(effect.then, visit); if (effect.else) walkEffects(effect.else, visit); }
+    if (effect.type === "input") { for (const a of effect.answers ?? []) walkEffects(a.effects, visit); if (effect.otherwise) walkEffects(effect.otherwise, visit); }
     if (effect.type === "choice") effect.options.forEach(option => walkEffects(option.effects, visit));
     if (effect.type === "schedule") walkEffects(effect.effects, visit);
     if (effect.type === "startScene" && effect.args) for (const list of nestedEffectLists(effect.args)) walkEffects(list, visit);

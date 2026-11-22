@@ -9,6 +9,7 @@ import { drawEnemyPortrait, drawMap, loadImages, npcActors, TILE, type ImageMap 
 import { RUNTIME_CSS } from "./styles";
 import { AudioManager, type AudioSettings } from "./audio";
 import { creditLines } from "./credits";
+import { parseMarkup, plainLength, renderMarkup, stripMarkup, typedAt, type TextToken } from "./textmarkup";
 
 export interface SaveStorage {
   read(key: string): string | null;
@@ -168,6 +169,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   const hud = el("div", "rpg-hud");
   const fade = el("div", "rpg-fade");
   const windowLayer = el("div", "rpg-layer");
+  const pictureLayer = el("div", "rpg-pictures");
+  pictureLayer.dataset.src = "packages/runtime/src/player.ts#syncPictures";
   const live = el("div", "rpg-sr"); live.setAttribute("aria-live", "polite");
   const fsBtn = el("button", "rpg-fs", "⛶");
   fsBtn.type = "button";
@@ -179,7 +182,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (document.fullscreenElement) void document.exitFullscreen?.();
     else void root.requestFullscreen?.();
   });
-  screen.append(canvas, hud, fade, windowLayer, fsBtn, live);
+  screen.append(canvas, pictureLayer, hud, fade, windowLayer, fsBtn, live);
   const touch = el("div", "rpg-touch");
   root.append(screen, touch);
   host.appendChild(root);
@@ -297,6 +300,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   }
 
   function confirm() {
+    if (state.scene.kind === "input") { windowLayer.querySelector<HTMLInputElement>(".rpg-input-field")?.focus(); return; }
     if (state.scene.kind === "custom") { dispatch({ type: "sceneInput", input: { type: "confirm" } }); return; }
     if (state.scene.kind === "ending") { const b = buttons()[0]; b?.click(); return; }
     if (menuOpen || state.scene.kind === "choice" || state.scene.kind === "prompt" || state.scene.kind === "battle") {
@@ -383,54 +387,16 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   canvas.addEventListener("pointerdown", () => { root.focus({ preventScroll: true }); if (state.scene.kind !== "field") confirm(); });
 
   /* ------------------------------------------------------------ windows */
-  type TextToken = { kind: "text"; text: string } | { kind: "ruby"; base: string; rt: string };
-  function parseRubyTokens(raw: string): TextToken[] {
-    const tokens: TextToken[] = [];
-    let last = 0;
-    for (const m of raw.matchAll(/\{([^|{}]+)\|([^|{}]+)\}/g)) {
-      if (m.index! > last) tokens.push({ kind: "text", text: raw.slice(last, m.index!) });
-      tokens.push({ kind: "ruby", base: m[1]!, rt: m[2]! });
-      last = m.index! + m[0].length;
-    }
-    if (last < raw.length) tokens.push({ kind: "text", text: raw.slice(last) });
-    return tokens;
-  }
-  function plainLength(tokens: TextToken[]): number {
-    return tokens.reduce((n, t) => n + Array.from(t.kind === "text" ? t.text : t.base).length, 0);
-  }
-  function renderRubyText(target: HTMLElement, tokens: TextToken[], count: number) {
-    target.textContent = "";
-    let rem = count;
-    for (const tok of tokens) {
-      if (rem <= 0) break;
-      if (tok.kind === "text") {
-        const chars = Array.from(tok.text);
-        const take = chars.slice(0, rem).join("");
-        if (take) target.appendChild(document.createTextNode(take));
-        rem -= chars.length;
-      } else {
-        const chars = Array.from(tok.base);
-        const take = chars.slice(0, rem).join("");
-        if (take) {
-          const ruby = document.createElement("ruby");
-          ruby.appendChild(document.createTextNode(take));
-          const rt = document.createElement("rt");
-          rt.textContent = tok.rt;
-          ruby.appendChild(rt);
-          target.appendChild(ruby);
-        }
-        rem -= chars.length;
-      }
-    }
-  }
   let typingTokens: TextToken[] = [];
   let lastRenderedCount = -1;
+  let soundsPlayed = new Set<number>();
   function startTyping(text: string) {
     if (typing.text === text && typing.startedAt) return;
     typing = { text, startedAt: performance.now(), done: false };
-    typingTokens = parseRubyTokens(text);
+    typingTokens = parseMarkup(text);
+    soundsPlayed = new Set();
     lastRenderedCount = -1;
-    live.textContent = text.replace(/\{([^|{}]+)\|[^|{}]+\}/g, "$1");
+    live.textContent = stripMarkup(text);
   }
   function finishTyping() { typing = { ...typing, done: true }; updateTyping(performance.now()); }
   function updateTyping(now: number) {
@@ -438,11 +404,14 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (!target) return;
     const total = plainLength(typingTokens);
     const speedMs = uiPrefs.textSpeed === "instant" ? 0 : uiPrefs.textSpeed === "fast" ? 8 : TEXT_SPEED_MS;
-    const count = typing.done || speedMs === 0 ? total : Math.min(total, Math.floor((now - typing.startedAt) / speedMs));
-    if (count >= total && !typing.done) { typing = { ...typing, done: true }; renderCaret(); }
+    const typed = typedAt(typingTokens, now - typing.startedAt, speedMs);
+    const count = typing.done ? total : typed.count;
+    if (!typing.done) for (const i of typed.sounds) if (!soundsPlayed.has(i)) { soundsPlayed.add(i); const tok = typingTokens[i]; if (tok?.kind === "se") audio.playSound(tok.sound); }
+    const finished = typed.count >= total && typed.sounds.length === typingTokens.filter(t => t.kind === "se").length;
+    if (finished && !typing.done) { typing = { ...typing, done: true }; renderCaret(); }
     if (lastRenderedCount !== count) {
       lastRenderedCount = count;
-      renderRubyText(target, typingTokens, count);
+      renderMarkup(target, typingTokens, count);
     }
   }
   function renderCaret() {
@@ -464,7 +433,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   }
 
   function messageWindow(speaker: string | undefined, text: string, extra?: HTMLElement, portrait?: { id: string; face: number }) {
-    const plain = text.replace(/\{([^|{}]+)\|[^|{}]+\}/g, "$1");
+    const plain = stripMarkup(text);
     if (plain.trim()) {
       const last = backlog.at(-1);
       if (!last || last.speaker !== speaker || last.text !== plain) {
@@ -507,7 +476,50 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   /** One canvas per enemy in the battle (index 0 = primary, then battle.foes). */
   let portraitCanvases: HTMLCanvasElement[] = [];
 
+  /** Still pictures (showPicture): one element per slot, faded in / out; frame 0 of a sheet. */
+  const pictureEls = new Map<string, { image: string; node: HTMLElement }>();
+  function syncPictures() {
+    const wanted = state.pictures ?? {};
+    for (const [slot, shown] of pictureEls) {
+      if (wanted[slot]?.image === shown.image) continue;
+      const node = shown.node;
+      node.style.opacity = "0";
+      window.setTimeout(() => node.remove(), 600);
+      pictureEls.delete(slot);
+    }
+    for (const [slot, pic] of Object.entries(wanted)) {
+      let entry = pictureEls.get(slot);
+      if (!entry) {
+        const asset = content.assets.assets.find(a => a.id === pic.image);
+        const image = images[pic.image];
+        if (!asset || !image) continue;
+        let node: HTMLElement;
+        if ((asset.columns ?? 1) > 1 || (asset.rows ?? 1) > 1) {
+          const tw = asset.tileWidth ?? image.naturalWidth / (asset.columns ?? 1), th = asset.tileHeight ?? image.naturalHeight / (asset.rows ?? 1);
+          const c = el("canvas", "rpg-picture");
+          c.width = tw || 1; c.height = th || 1;
+          const g = c.getContext("2d")!; g.imageSmoothingEnabled = false;
+          if (image.complete && image.naturalWidth) g.drawImage(image, 0, 0, tw, th, 0, 0, tw, th);
+          node = c;
+        } else {
+          const img = el("img", "rpg-picture");
+          img.src = image.src; img.alt = "";
+          node = img;
+        }
+        node.style.opacity = "0";
+        pictureLayer.appendChild(node);
+        entry = { image: pic.image, node };
+        pictureEls.set(slot, entry);
+        void node.offsetWidth; // start the fade from 0
+      }
+      const s = entry.node.style;
+      s.transition = `opacity ${pic.fadeMs}ms ease, left ${pic.fadeMs}ms ease, top ${pic.fadeMs}ms ease, width ${pic.fadeMs}ms ease`;
+      s.left = `${pic.x}%`; s.top = `${pic.y}%`; s.width = `${pic.width}%`; s.opacity = String(pic.opacity);
+    }
+  }
+
   function renderUI() {
+    syncPictures();
     windowLayer.replaceChildren();
     portraitCanvases = [];
     const map = content.maps[state.mapId];
@@ -567,6 +579,21 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       for (const option of scene.options) list.appendChild(navButton(option.label, () => dispatch({ type: "choose", choiceId: option.id })));
       if (scene.prompt) { messageWindow(scene.speaker, scene.prompt, list); typing = { ...typing, done: true }; }
       else windowLayer.appendChild(list);
+    } else if (scene.kind === "input") {
+      // 名前入力・合言葉: a real text box (IME works), Enter or the button sends it.
+      const form = el("form", "rpg-window rpg-input");
+      form.dataset.src = "packages/runtime/src/player.ts#input";
+      const field = el("input", "rpg-input-field");
+      field.type = "text"; field.maxLength = scene.maxLength; field.value = scene.initial; field.autocomplete = "off";
+      field.setAttribute("aria-label", scene.prompt ? stripMarkup(scene.prompt) : "文字を入力");
+      const ok = el("button", "rpg-nav", "決定");
+      ok.type = "submit";
+      form.append(field, ok);
+      form.addEventListener("submit", event => { event.preventDefault(); if (field.value.trim() || scene.saveAs !== "name") dispatch({ type: "submitText", text: field.value }); });
+      field.addEventListener("keydown", event => { if (event.key === "Escape") field.blur(); });
+      if (scene.prompt) { messageWindow(scene.speaker, scene.prompt, form); typing = { ...typing, done: true }; }
+      else windowLayer.appendChild(form);
+      window.setTimeout(() => { field.focus({ preventScroll: true }); field.select(); }, 0);
     } else if (scene.kind === "battle") renderBattle(scene.battle);
     else if (scene.kind === "custom") renderCustomScene(scene);
     else if (scene.kind === "ending") {
@@ -660,8 +687,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     // Turn order (project.battle.order "speed"): who acts next, fastest first.
     if (content.project.battle.order === "speed" && battle.outcome === "ongoing") status.appendChild(el("div", "rpg-battle-var rpg-turn-order", `行動順: ${engine.turnOrder(state).map(a => a.name).join(" → ")}`));
     const log = el("div", "rpg-window rpg-battle-log");
-    for (const line of battle.log.slice(-4)) log.appendChild(el("div", "rpg-log-line", line));
-    live.textContent = battle.log[battle.log.length - 1] ?? "";
+    for (const line of battle.log.slice(-4)) log.appendChild(el("div", "rpg-log-line", stripMarkup(line)));
+    live.textContent = stripMarkup(battle.log[battle.log.length - 1] ?? "");
     const commands = el("div", "rpg-window rpg-commands");
     const usable = engine.usables(state, "battle");
     const skills = usable.filter(u => u.kind === "ability");

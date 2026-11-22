@@ -39,6 +39,8 @@ export type Action =
   | { type: "interact" }
   | { type: "advance" }
   | { type: "choose"; choiceId: string }
+  /** The text typed into an input window (scene "input"). */
+  | { type: "submitText"; text: string }
   | ({ type: "battle" } & BattleCommand)
   | { type: "useItem"; item: string }
   | { type: "useAbility"; ability: string }
@@ -738,6 +740,26 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         return { ...state, music: effect.music };
       case "playAmbient":
         return { ...state, ambient: effect.sound };
+      case "showPicture": {
+        const preset = { center: { x: 50, y: 45, width: 60 }, left: { x: 25, y: 45, width: 40 }, right: { x: 75, y: 45, width: 40 }, full: { x: 50, y: 50, width: 100 } }[effect.at ?? "center"];
+        const slot = effect.slot ?? "main";
+        const { [slot]: _old, ...others } = state.pictures ?? {};
+        return { ...state, pictures: { ...others, [slot]: { image: effect.image, x: effect.x ?? preset.x, y: effect.y ?? preset.y, width: effect.width ?? preset.width, opacity: effect.opacity ?? 1, fadeMs: effect.fadeMs ?? 300 } } };
+      }
+      case "input":
+        return { ...state, scene: {
+          kind: "input",
+          ...(effect.prompt ? { prompt: text(effect.prompt, state) } : {}), ...(effect.speaker ? { speaker: effect.speaker } : {}),
+          maxLength: effect.maxLength ?? (effect.saveAs === "name" ? 8 : 16),
+          initial: effect.initial ?? (effect.saveAs === "name" ? state.player.name ?? content.project.player.name : effect.saveAs ? state.texts?.[effect.saveAs] ?? "" : ""),
+          ...(effect.saveAs ? { saveAs: effect.saveAs } : {}),
+          answers: effect.answers ?? [], otherwise: effect.otherwise ?? [],
+        } };
+      case "hidePicture": {
+        const { [effect.slot ?? ""]: _gone, ...others } = state.pictures ?? {};
+        const { pictures: _all, ...rest } = state;
+        return effect.slot && Object.keys(others).length ? { ...rest, pictures: others } : rest;
+      }
       case "signal": {
         const depth = (c.signalDepth ?? 0) + 1;
         if (depth > 32) throw new Error(`シグナル '${effect.signal}' が32段以上連鎖しました。シグナルどうしが無限に呼び合っていないか確認してください`);
@@ -1975,6 +1997,18 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         } else if (scene.kind === "battle") next = closeBattle(c, state);
         else if (scene.kind === "ending") next = runQueue(c, applyEffect(c, { ...state, scene: { kind: "field" } }, { type: "newCycle" }));
         break;
+      case "submitText": {
+        if (scene.kind !== "input") break;
+        const typed = Array.from(action.text.replace(/[\u0000-\u001f]/g, "").trim()).slice(0, scene.maxLength).join("");
+        if (!typed && scene.saveAs === "name") break; // the hero needs a name
+        let after: GameState = { ...state, scene: { kind: "field" } };
+        if (scene.saveAs === "name") after = { ...after, player: { ...after.player, name: typed } };
+        else if (scene.saveAs) after = { ...after, texts: { ...after.texts, [scene.saveAs]: typed } };
+        const norm = (s: string) => s.normalize("NFKC").replace(/\s+/g, "").toLowerCase();
+        const hit = scene.answers.find(a => a.match.some(m => norm(m) === norm(typed)));
+        next = runQueue(c, enqueue(after, hit ? hit.effects : scene.otherwise));
+        break;
+      }
       case "choose": {
         if (scene.kind === "prompt") {
           const option = scene.options.find(o => o.id === action.choiceId || o.label === action.choiceId);

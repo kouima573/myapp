@@ -150,6 +150,7 @@ export const VAR_OPS = ["set", "add", "sub", "mul", "div", "min", "max"] as cons
 export type VarOp = (typeof VAR_OPS)[number];
 
 export interface ChoiceOption { id?: string; label: string; when?: Condition; effects: Effect[] }
+export interface InputAnswer { match: string[]; effects: Effect[] }
 
 export type Effect =
   | { type: "message"; text: string; speaker?: string; portrait?: string; face?: number }
@@ -196,6 +197,9 @@ export type Effect =
   | { type: "newCycle" }
   | { type: "playBgm"; music: string | null }
   | { type: "playAmbient"; sound: string | null }
+  | { type: "showPicture"; slot?: string; image: string; at?: "center" | "left" | "right" | "full"; x?: number; y?: number; width?: number; opacity?: number; fadeMs?: number }
+  | { type: "hidePicture"; slot?: string; fadeMs?: number }
+  | { type: "input"; prompt?: string; speaker?: string; maxLength?: number; initial?: string; saveAs?: string; answers?: InputAnswer[]; otherwise?: Effect[] }
   | { type: "signal"; signal: string }
   | { type: "learnVerb"; verb: string }
   | { type: "forgetVerb"; verb: string }
@@ -270,6 +274,30 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("playBgm"), music: IdSchema.nullable() }).strict(),
   /** Environmental loop under the BGM (rain, fire, waves). null = silence, map default otherwise. */
   z.object({ type: z.literal("playAmbient"), sound: IdSchema.nullable() }).strict(),
+  /**
+   * A still picture over the map / battle (一枚絵・スチル): background / portrait / enemy art. `slot` names the layer
+   * (default "main"; several slots stack in the order shown). Position by `at` or by `x` / `y` (centre, percent of the screen),
+   * size by `width` (percent). Stays (and is saved) until hidePicture.
+   */
+  z.object({
+    type: z.literal("showPicture"), slot: IdSchema.optional(), image: IdSchema,
+    at: z.enum(["center", "left", "right", "full"]).optional(),
+    x: z.number().min(-50).max(150).optional(), y: z.number().min(-50).max(150).optional(),
+    width: z.number().min(1).max(300).optional(), opacity: z.number().min(0).max(1).optional(),
+    fadeMs: z.number().int().min(0).max(10000).optional(),
+  }).strict(),
+  /**
+   * Text input window (名前入力・合言葉). `saveAs: "name"` renames the hero; any other id keeps the text as {{text.<id>}}.
+   * `answers`: the first whose `match` equals the text (spaces / case / full-width ignored) runs; otherwise `otherwise`.
+   */
+  z.object({
+    type: z.literal("input"), prompt: z.string().optional(), speaker: z.string().optional(),
+    maxLength: z.number().int().min(1).max(40).optional(), initial: z.string().max(40).optional(), saveAs: IdSchema.optional(),
+    answers: z.array(z.lazy(() => z.object({ match: z.array(z.string().min(1)).min(1), effects: z.array(EffectSchema) }).strict())).optional(),
+    otherwise: z.array(EffectSchema).optional(),
+  }).strict(),
+  /** Hide one picture slot, or every picture without `slot`. */
+  z.object({ type: z.literal("hidePicture"), slot: IdSchema.optional(), fadeMs: z.number().int().min(0).max(10000).optional() }).strict(),
   /** Broadcast a self-made event: every rule with on "signal" and match = this id runs right here. */
   z.object({ type: z.literal("signal"), signal: IdSchema }).strict(),
   /** Put on an item you carry (it goes in its slot, replacing what was there) / take off a slot. */
@@ -1176,6 +1204,11 @@ export const SceneSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("dialogue"), dialogueId: IdSchema, line: z.number().int().nonnegative() }).strict(),
   z.object({ kind: z.literal("choice"), dialogueId: IdSchema }).strict(),
   z.object({ kind: z.literal("prompt"), prompt: z.string().optional(), speaker: z.string().optional(), options: z.array(z.object({ id: z.string(), label: z.string(), effects: z.array(EffectSchema) }).strict()) }).strict(),
+  /** Waiting for typed text (effect "input"). */
+  z.object({
+    kind: z.literal("input"), prompt: z.string().optional(), speaker: z.string().optional(), maxLength: z.number().int(), initial: z.string(), saveAs: z.string().optional(),
+    answers: z.array(z.object({ match: z.array(z.string()), effects: z.array(EffectSchema) }).strict()).default([]), otherwise: z.array(EffectSchema).default([]),
+  }).strict(),
   z.object({ kind: z.literal("battle"), battle: BattleStateSchema }).strict(),
   /** A screen provided by a project system (puzzle, card battle, minigame…). `data` is the system's JSON state. */
   z.object({ kind: z.literal("custom"), system: IdSchema, scene: IdSchema, data: z.unknown(), battle: BattleStateSchema.optional() }).strict(),
@@ -1235,6 +1268,10 @@ export const GameStateSchema = z.object({
   music: IdSchema.nullable().optional(),
   /** playAmbient override (same rules as music). */
   ambient: IdSchema.nullable().optional(),
+  /** Texts typed into input windows ({{text.<id>}}). */
+  texts: z.record(IdSchema, z.string()).optional(),
+  /** Pictures shown by showPicture, by slot (in the order shown). */
+  pictures: z.record(IdSchema, z.object({ image: IdSchema, x: z.number(), y: z.number(), width: z.number(), opacity: z.number(), fadeMs: z.number().int() }).strict()).optional(),
   /** Stable IDs of once-events, once-choices and markDone ids. */
   done: z.array(z.string()),
   scene: SceneSchema,
