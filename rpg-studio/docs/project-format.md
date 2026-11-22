@@ -198,6 +198,10 @@
 - 属性: `project.json › elements: { "fire": { "label": "炎" } }`。敵の `resist: { "fire": 150 }`（150 = 弱点、50 = 半減、0 = 無効）、武器の `element`（通常攻撃の属性）、防具・装飾品の `resist`（受けるダメージ）、効果 `damage` の `element`。弱点・半減は戦闘ログに「弱点！」などと出る。
 - 自動テスト: `expect.statuses` / `expect.lacksStatuses`。見本: `projects/genre-gallery/tests/status.scenario.json`。
 
+## タイルのキー（`tiles.json › tiles[].key`）
+
+ライブラリから取り込んだタイルには、画像の中での名前 `key`（例 `carpet-red-c`）が付く。`rpg library add <シート> --project <dir> --replace` は「画像（atlas）＋キー」で既存のタイルを見つけ、シートの並びが変わっていれば `index` だけを新しい番号に直す。マップが使う1文字の記号は変わらないので、地図は崩れない。キーのない古い定義は、番号と名前が一致すればキーを覚える。
+
 ## オートタイル・動くタイル・レイヤー
 
 - **オートタイル**（`tiles.json` のタイルに `autotile`）: 同じ `group` のタイル同士がつながる。`pieces` に9枚組（`tl` `t` `tr` `l` `c` `r` `bl` `b` `br` のアトラス番号）を書くと、1つの記号で塗った範囲の角・辺・中央が自動で選ばれる。`border: "#335577"` は絵がなくても縁に線を引く（道・水辺）。ライブラリの「赤の絨毯（自動でつながる）」がその見本。

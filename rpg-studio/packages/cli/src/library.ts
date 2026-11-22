@@ -133,20 +133,32 @@ export async function add(dir: string, flags: Flags, ids: string[], root: string
 
 async function appendTiles(root: string, tilesetPath: string, atlas: string, tiles: NonNullable<LibraryItem["tiles"]>) {
   const file = path.join(root, tilesetPath);
-  const tileset = JSON.parse(await fs.readFile(file, "utf8")) as { atlas: string; tiles: Array<{ code: string; atlas?: string; index: number; name: string }> };
+  type Def = { code: string; atlas?: string; index: number; name: string; key?: string; frames?: number[]; autotile?: unknown };
+  const tileset = JSON.parse(await fs.readFile(file, "utf8")) as { atlas: string; tiles: Def[] };
   const used = new Set(tileset.tiles.map(t => t.code));
-  const already = new Set(tileset.tiles.filter(t => (t.atlas ?? tileset.atlas) === atlas).map(t => t.index));
+  const inSheet = tileset.tiles.filter(t => (t.atlas ?? tileset.atlas) === atlas);
   const pool = codePool().filter(c => !used.has(c));
-  const added: string[] = [];
+  const added: string[] = [], moved: string[] = [];
   for (const tile of tiles) {
-    if (already.has(tile.index)) continue;
+    // 1) Same picture by key: keep its code (maps use the code) and follow the sheet's current number.
+    const byKey = inSheet.find(t => t.key === tile.key);
+    if (byKey) {
+      if (byKey.index !== tile.index) { moved.push(`${byKey.code}=${tile.name} ${byKey.index}→${tile.index}`); byKey.index = tile.index; }
+      if (tile.frames) byKey.frames = tile.frames; else delete byKey.frames;
+      if (tile.autotile) byKey.autotile = tile.autotile; else delete byKey.autotile;
+      continue;
+    }
+    // 2) Added before keys existed: same number and name → remember the key from now on.
+    const byIndex = inSheet.find(t => t.index === tile.index && !t.key);
+    if (byIndex) { if (byIndex.name === tile.name) byIndex.key = tile.key; continue; }
     const code = pool.shift();
     if (!code) throw new Error("空いているタイルコードがありません");
-    tileset.tiles.push({ code, name: tile.name, atlas, index: tile.index, passable: tile.passable, color: tile.color, ...(tile.frames ? { frames: tile.frames } : {}), ...(tile.autotile ? { autotile: tile.autotile } : {}) } as (typeof tileset.tiles)[number]);
+    tileset.tiles.push({ code, name: tile.name, atlas, index: tile.index, key: tile.key, passable: tile.passable, color: tile.color, ...(tile.frames ? { frames: tile.frames } : {}), ...(tile.autotile ? { autotile: tile.autotile } : {}) } as Def);
     added.push(`${code}=${tile.name}`);
   }
   await fs.writeFile(file, `${JSON.stringify(tileset, null, 2)}\n`);
   console.log(added.length ? `OK tiles.json に ${added.length} 個追加（${atlas}）: ${added.join(" ")}` : `tiles.json: ${atlas} のタイルは追加済みです`);
+  if (moved.length) console.log(`OK 素材の並びが変わったタイルの番号を追従（マップの記号はそのまま）: ${moved.join(" ")}`);
 }
 
 /* ------------------------------------------------------------------ numbered preview sheet */

@@ -565,6 +565,11 @@ export const TileDefSchema = z.object({
   atlas: IdSchema.optional(),
   /** Cell index in the atlas, row-major. */
   index: z.number().int().nonnegative(),
+  /**
+   * Stable name of the picture in its sheet (library tiles: e.g. "carpet-red-c"). `rpg library add --replace`
+   * finds the tile by atlas + key and follows it if the sheet's numbering changes, so maps never show the wrong tile.
+   */
+  key: z.string().regex(/^[a-z0-9][a-z0-9_-]*$/i).optional(),
   passable: z.boolean(),
   /** When this condition holds the tile is passable regardless of `passable`. */
   passableWhen: ConditionSchema.optional(),
@@ -596,7 +601,13 @@ export const TilesetSchema = z.object({
   tiles: z.array(TileDefSchema).min(1),
 }).strict().superRefine((tileset, ctx) => {
   const seen = new Set<string>();
+  const keys = new Set<string>();
   tileset.tiles.forEach((tile, index) => {
+    if (tile.key) {
+      const k = `${tile.atlas ?? tileset.atlas}#${tile.key}`;
+      if (keys.has(k)) ctx.addIssue({ code: "custom", path: ["tiles", index, "key"], message: `同じ画像の中でタイルのキーが重複しています: '${k}'` });
+      keys.add(k);
+    }
     if (seen.has(tile.code)) ctx.addIssue({ code: "custom", path: ["tiles", index, "code"], message: `タイルコードが重複しています: '${tile.code}'` });
     seen.add(tile.code);
   });

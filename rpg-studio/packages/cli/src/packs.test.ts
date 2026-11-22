@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { REPO_ROOT } from "./build";
 import { cmdAsset } from "./assets";
 import { cmdPacks, loadPacks } from "./packs";
-import { cmdLibrary } from "./library";
+import { add as libraryAdd, cmdLibrary } from "./library";
 
 let work: string, project: string, packDir: string;
 let log: string[] = [];
@@ -52,6 +52,31 @@ describe("helpers for choosing in a chat", () => {
     expect(found.out).toContain("楽譜BGM");
     expect(found.out).toContain("opentracks.com");
     expect(found.out).toMatch(/パスワードは預からない/);
+  });
+
+  it("library tiles are matched by key: re-adding a renumbered sheet keeps the map codes and follows the new numbers", async () => {
+    const lib = path.join(work, "lib");
+    await fs.cp(path.join(REPO_ROOT, "library"), lib, { recursive: true });
+    const catalog = JSON.parse(await fs.readFile(path.join(lib, "library.json"), "utf8"));
+    const sheet = catalog.items.find((i: { kind: string }) => i.kind === "tileset");
+    expect((await run(() => libraryAdd(lib, {}, [sheet.id], project))).code).toBe(0);
+    const tilesFile = path.join(project, "tiles.json");
+    const before = JSON.parse(await fs.readFile(tilesFile, "utf8")).tiles.filter((t: { atlas?: string }) => t.atlas === sheet.id);
+    const [a, b] = sheet.tiles;
+    expect(before.find((t: { key?: string }) => t.key === a.key)?.index).toBe(a.index);
+    // The sheet is regenerated with the first two pictures swapped.
+    [a.index, b.index] = [b.index, a.index];
+    await fs.writeFile(path.join(lib, "library.json"), JSON.stringify(catalog));
+    const again = await run(() => libraryAdd(lib, { replace: true }, [sheet.id], project));
+    expect(again.code).toBe(0);
+    expect(again.out).toContain("番号を追従");
+    const after = JSON.parse(await fs.readFile(tilesFile, "utf8")).tiles.filter((t: { atlas?: string }) => t.atlas === sheet.id);
+    expect(after.length).toBe(before.length);
+    for (const key of [a.key, b.key]) {
+      const was = before.find((t: { key?: string }) => t.key === key), now = after.find((t: { key?: string }) => t.key === key);
+      expect(now.code).toBe(was.code); // maps keep working
+      expect(now.index).toBe(sheet.tiles.find((t: { key: string }) => t.key === key).index);
+    }
   });
 
   it("library preview writes a numbered contact sheet", async () => {

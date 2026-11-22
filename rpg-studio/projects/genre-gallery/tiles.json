@@ -351,7 +351,8 @@
       "atlas": "lib-tiles-field",
       "index": 0,
       "passable": true,
-      "color": "#659e45"
+      "color": "#659e45",
+      "key": "grass"
     },
     {
       "code": "1",
@@ -359,7 +360,8 @@
       "atlas": "lib-tiles-field",
       "index": 1,
       "passable": true,
-      "color": "#659d46"
+      "color": "#659d46",
+      "key": "grass-2"
     },
     {
       "code": "2",
@@ -367,7 +369,8 @@
       "atlas": "lib-tiles-field",
       "index": 2,
       "passable": true,
-      "color": "#4e873a"
+      "color": "#4e873a",
+      "key": "grass-dark"
     },
     {
       "code": "3",
@@ -375,7 +378,8 @@
       "atlas": "lib-tiles-field",
       "index": 3,
       "passable": true,
-      "color": "#407536"
+      "color": "#407536",
+      "key": "tall-grass"
     },
     {
       "code": "4",
@@ -383,7 +387,8 @@
       "atlas": "lib-tiles-field",
       "index": 4,
       "passable": true,
-      "color": "#689e46"
+      "color": "#689e46",
+      "key": "flowers-red"
     },
     {
       "code": "5",
@@ -391,7 +396,8 @@
       "atlas": "lib-tiles-field",
       "index": 5,
       "passable": true,
-      "color": "#5f9945"
+      "color": "#5f9945",
+      "key": "flowers-blue"
     },
     {
       "code": "6",
@@ -399,7 +405,8 @@
       "atlas": "lib-tiles-field",
       "index": 6,
       "passable": true,
-      "color": "#9b744d"
+      "color": "#9b744d",
+      "key": "dirt"
     },
     {
       "code": "7",
@@ -407,7 +414,8 @@
       "atlas": "lib-tiles-field",
       "index": 7,
       "passable": true,
-      "color": "#a07d53"
+      "color": "#a07d53",
+      "key": "dirt-2"
     },
     {
       "code": "8",
@@ -415,7 +423,8 @@
       "atlas": "lib-tiles-field",
       "index": 8,
       "passable": true,
-      "color": "#dbc282"
+      "color": "#dbc282",
+      "key": "sand"
     },
     {
       "code": "9",
@@ -423,7 +432,8 @@
       "atlas": "lib-tiles-field",
       "index": 9,
       "passable": true,
-      "color": "#dabd7d"
+      "color": "#dabd7d",
+      "key": "sand-shells"
     },
     {
       "code": "q",
@@ -431,7 +441,8 @@
       "atlas": "lib-tiles-field",
       "index": 10,
       "passable": true,
-      "color": "#e9f1f7"
+      "color": "#e9f1f7",
+      "key": "snow"
     },
     {
       "code": "t",
@@ -439,7 +450,8 @@
       "atlas": "lib-tiles-field",
       "index": 11,
       "passable": true,
-      "color": "#e9f1f7"
+      "color": "#e9f1f7",
+      "key": "snow-2"
     },
     {
       "code": "u",
@@ -447,7 +459,8 @@
       "atlas": "lib-tiles-field",
       "index": 12,
       "passable": true,
-      "color": "#8dc6e7"
+      "color": "#8dc6e7",
+      "key": "ice"
     },
     {
       "code": "v",
@@ -455,7 +468,8 @@
       "atlas": "lib-tiles-field",
       "index": 13,
       "passable": true,
-      "color": "#725436"
+      "color": "#725436",
+      "key": "mud"
     },
     {
       "code": "x",
@@ -463,7 +477,8 @@
       "atlas": "lib-tiles-field",
       "index": 14,
       "passable": true,
-      "color": "#3c552c"
+      "color": "#3c552c",
+      "key": "swamp"
     },
     {
       "code": "y",
@@ -471,7 +486,8 @@
       "atlas": "lib-tiles-field",
       "index": 15,
       "passable": true,
-      "color": "#704a2f"
+      "color": "#704a2f",
+      "key": "soil"
     },
     {
       "code": "z",
@@ -479,7 +495,8 @@
       "atlas": "lib-tiles-field",
       "index": 16,
       "passable": false,
-      "color": "#3666ae"
+      "color": "#3666ae",
+      "key": "water"
     },
     {
       "code": "!",
@@ -487,7 +504,8 @@
       "atlas": "lib-tiles-field",
       "index": 17,
       "passable": false,
-      "color": "#26478e"
+      "color": "#26478e",
+      "key": "water-deep"
     },
     {
       "code": "#",
@@ -495,7 +513,8 @@
       "atlas": "lib-tiles-field",
       "index": 18,
       "passable": false,
-      "color": "#a66b44"
+      "color": "#a66b44",
+      "key": "lava"
     },
     {
       "code": "$",
@@ -503,7 +522,8 @@
       "atlas": "lib-tiles-field",
       "index": 19,
       "passable": false,
-      "color": "#5b8e83"
+      "color": "#5b8e83",
+      "key": "shore-n"
     },
     {
       "code": "%",
@@ -511,7 +531,8 @@
       "atlas": "lib-tiles-field",
       "index": 20,
       "passable": false,
-      "color": "#568a87"
+      "color": "#568a87",
+      "key": "shore-s"
     },
     {
       "code": "&",
@@ -519,7 +540,8 @@
       "atlas": "lib-tiles-field",
       "index": 21,
       "passable": false,
-      "color": "#5e918a"
+      "color": "#5e918a",
+      "key": "shore-w"
     },
     {
       "code": "'",
@@ -527,7 +549,8 @@
       "atlas": "lib-tiles-field",
       "index": 22,
       "passable": false,
-      "color": "#54827f"
+      "color": "#54827f",
+      "key": "shore-e"
     },
     {
       "code": "(",
@@ -535,7 +558,8 @@
       "atlas": "lib-tiles-field",
       "index": 23,
       "passable": false,
-      "color": "#386ea3"
+      "color": "#386ea3",
+      "key": "lily"
     },
     {
       "code": ")",
@@ -543,7 +567,8 @@
       "atlas": "lib-tiles-field",
       "index": 24,
       "passable": false,
-      "color": "#45719d"
+      "color": "#45719d",
+      "key": "reeds"
     },
     {
       "code": "+",
@@ -551,7 +576,8 @@
       "atlas": "lib-tiles-field",
       "index": 25,
       "passable": false,
-      "color": "#528740"
+      "color": "#528740",
+      "key": "tree"
     },
     {
       "code": ",",
@@ -559,7 +585,8 @@
       "atlas": "lib-tiles-field",
       "index": 26,
       "passable": false,
-      "color": "#598a42"
+      "color": "#598a42",
+      "key": "tree-fruit"
     },
     {
       "code": "-",
@@ -567,7 +594,8 @@
       "atlas": "lib-tiles-field",
       "index": 27,
       "passable": false,
-      "color": "#797439"
+      "color": "#797439",
+      "key": "tree-autumn"
     },
     {
       "code": "/",
@@ -575,7 +603,8 @@
       "atlas": "lib-tiles-field",
       "index": 28,
       "passable": false,
-      "color": "#43763d"
+      "color": "#43763d",
+      "key": "pine"
     },
     {
       "code": ";",
@@ -583,7 +612,8 @@
       "atlas": "lib-tiles-field",
       "index": 29,
       "passable": false,
-      "color": "#adbdbd"
+      "color": "#adbdbd",
+      "key": "pine-snow"
     },
     {
       "code": "<",
@@ -591,7 +621,8 @@
       "atlas": "lib-tiles-field",
       "index": 30,
       "passable": false,
-      "color": "#aca16a"
+      "color": "#aca16a",
+      "key": "palm"
     },
     {
       "code": "=",
@@ -599,7 +630,8 @@
       "atlas": "lib-tiles-field",
       "index": 31,
       "passable": false,
-      "color": "#88694a"
+      "color": "#88694a",
+      "key": "dead-tree"
     },
     {
       "code": ">",
@@ -607,7 +639,8 @@
       "atlas": "lib-tiles-field",
       "index": 32,
       "passable": false,
-      "color": "#538d40"
+      "color": "#538d40",
+      "key": "bush"
     },
     {
       "code": "?",
@@ -615,7 +648,8 @@
       "atlas": "lib-tiles-field",
       "index": 33,
       "passable": false,
-      "color": "#558d43"
+      "color": "#558d43",
+      "key": "bush-berry"
     },
     {
       "code": "@",
@@ -623,7 +657,8 @@
       "atlas": "lib-tiles-field",
       "index": 34,
       "passable": false,
-      "color": "#3e773f"
+      "color": "#3e773f",
+      "key": "hedge"
     },
     {
       "code": "[",
@@ -631,7 +666,8 @@
       "atlas": "lib-tiles-field",
       "index": 35,
       "passable": false,
-      "color": "#65954a"
+      "color": "#65954a",
+      "key": "rock"
     },
     {
       "code": "]",
@@ -639,7 +675,8 @@
       "atlas": "lib-tiles-field",
       "index": 36,
       "passable": false,
-      "color": "#638950"
+      "color": "#638950",
+      "key": "boulder"
     },
     {
       "code": "^",
@@ -647,7 +684,8 @@
       "atlas": "lib-tiles-field",
       "index": 37,
       "passable": false,
-      "color": "#597d38"
+      "color": "#597d38",
+      "key": "stump"
     },
     {
       "code": "_",
@@ -655,7 +693,8 @@
       "atlas": "lib-tiles-field",
       "index": 38,
       "passable": false,
-      "color": "#65843d"
+      "color": "#65843d",
+      "key": "log"
     },
     {
       "code": "`",
@@ -663,7 +702,8 @@
       "atlas": "lib-tiles-field",
       "index": 39,
       "passable": true,
-      "color": "#5b733c"
+      "color": "#5b733c",
+      "key": "mushrooms"
     },
     {
       "code": "{",
@@ -671,7 +711,8 @@
       "atlas": "lib-tiles-field",
       "index": 40,
       "passable": false,
-      "color": "#aeaa6f"
+      "color": "#aeaa6f",
+      "key": "cactus"
     },
     {
       "code": "|",
@@ -679,7 +720,8 @@
       "atlas": "lib-tiles-field",
       "index": 41,
       "passable": false,
-      "color": "#c4a46e"
+      "color": "#c4a46e",
+      "key": "desert-rock"
     },
     {
       "code": "}",
@@ -687,7 +729,8 @@
       "atlas": "lib-tiles-field",
       "index": 42,
       "passable": false,
-      "color": "#bec7d2"
+      "color": "#bec7d2",
+      "key": "snow-rock"
     },
     {
       "code": "α",
@@ -695,7 +738,8 @@
       "atlas": "lib-tiles-field",
       "index": 43,
       "passable": false,
-      "color": "#a47e49"
+      "color": "#a47e49",
+      "key": "crops-wheat"
     },
     {
       "code": "β",
@@ -703,7 +747,8 @@
       "atlas": "lib-tiles-field",
       "index": 44,
       "passable": false,
-      "color": "#566132"
+      "color": "#566132",
+      "key": "crops-cabbage"
     },
     {
       "code": "γ",
@@ -711,7 +756,8 @@
       "atlas": "lib-tiles-field",
       "index": 45,
       "passable": false,
-      "color": "#7a685a"
+      "color": "#7a685a",
+      "key": "cliff"
     },
     {
       "code": "δ",
@@ -719,7 +765,8 @@
       "atlas": "lib-tiles-field",
       "index": 46,
       "passable": false,
-      "color": "#68724a"
+      "color": "#68724a",
+      "key": "cliff-top"
     },
     {
       "code": "ε",
@@ -727,7 +774,8 @@
       "atlas": "lib-tiles-town",
       "index": 0,
       "passable": true,
-      "color": "#8c887f"
+      "color": "#8c887f",
+      "key": "cobble"
     },
     {
       "code": "ζ",
@@ -735,7 +783,8 @@
       "atlas": "lib-tiles-town",
       "index": 1,
       "passable": true,
-      "color": "#9f876f"
+      "color": "#9f876f",
+      "key": "cobble-warm"
     },
     {
       "code": "η",
@@ -743,7 +792,8 @@
       "atlas": "lib-tiles-town",
       "index": 2,
       "passable": true,
-      "color": "#996658"
+      "color": "#996658",
+      "key": "brick-road"
     },
     {
       "code": "θ",
@@ -751,7 +801,8 @@
       "atlas": "lib-tiles-town",
       "index": 3,
       "passable": true,
-      "color": "#a79f8f"
+      "color": "#a79f8f",
+      "key": "plaza"
     },
     {
       "code": "ι",
@@ -759,7 +810,8 @@
       "atlas": "lib-tiles-town",
       "index": 4,
       "passable": false,
-      "color": "#955848"
+      "color": "#955848",
+      "key": "brick-wall"
     },
     {
       "code": "κ",
@@ -767,7 +819,8 @@
       "atlas": "lib-tiles-town",
       "index": 5,
       "passable": false,
-      "color": "#8c8b87"
+      "color": "#8c8b87",
+      "key": "stone-wall"
     },
     {
       "code": "λ",
@@ -775,7 +828,8 @@
       "atlas": "lib-tiles-town",
       "index": 6,
       "passable": false,
-      "color": "#bb9463"
+      "color": "#bb9463",
+      "key": "sandstone-wall"
     },
     {
       "code": "μ",
@@ -783,7 +837,8 @@
       "atlas": "lib-tiles-town",
       "index": 7,
       "passable": false,
-      "color": "#9d643a"
+      "color": "#9d643a",
+      "key": "plank-wall"
     },
     {
       "code": "ν",
@@ -791,7 +846,8 @@
       "atlas": "lib-tiles-town",
       "index": 8,
       "passable": false,
-      "color": "#c1a982"
+      "color": "#c1a982",
+      "key": "plaster-wall"
     },
     {
       "code": "ξ",
@@ -799,7 +855,8 @@
       "atlas": "lib-tiles-town",
       "index": 9,
       "passable": false,
-      "color": "#98453f"
+      "color": "#98453f",
+      "key": "roof-red"
     },
     {
       "code": "ο",
@@ -807,7 +864,8 @@
       "atlas": "lib-tiles-town",
       "index": 10,
       "passable": false,
-      "color": "#3c5291"
+      "color": "#3c5291",
+      "key": "roof-blue"
     },
     {
       "code": "π",
@@ -815,7 +873,8 @@
       "atlas": "lib-tiles-town",
       "index": 11,
       "passable": false,
-      "color": "#487b4b"
+      "color": "#487b4b",
+      "key": "roof-green"
     },
     {
       "code": "ρ",
@@ -823,7 +882,8 @@
       "atlas": "lib-tiles-town",
       "index": 12,
       "passable": false,
-      "color": "#7d4f36"
+      "color": "#7d4f36",
+      "key": "roof-brown"
     },
     {
       "code": "σ",
@@ -831,7 +891,8 @@
       "atlas": "lib-tiles-town",
       "index": 13,
       "passable": false,
-      "color": "#565c6c"
+      "color": "#565c6c",
+      "key": "roof-slate"
     },
     {
       "code": "τ",
@@ -839,7 +900,8 @@
       "atlas": "lib-tiles-town",
       "index": 14,
       "passable": false,
-      "color": "#654a7e"
+      "color": "#654a7e",
+      "key": "roof-purple"
     },
     {
       "code": "υ",
@@ -847,7 +909,8 @@
       "atlas": "lib-tiles-town",
       "index": 15,
       "passable": false,
-      "color": "#caa556"
+      "color": "#caa556",
+      "key": "roof-thatch"
     },
     {
       "code": "φ",
@@ -855,7 +918,8 @@
       "atlas": "lib-tiles-town",
       "index": 16,
       "passable": true,
-      "color": "#8c6749"
+      "color": "#8c6749",
+      "key": "door-wood"
     },
     {
       "code": "χ",
@@ -863,7 +927,8 @@
       "atlas": "lib-tiles-town",
       "index": 17,
       "passable": true,
-      "color": "#8c6048"
+      "color": "#8c6048",
+      "key": "door-brick"
     },
     {
       "code": "ψ",
@@ -871,7 +936,8 @@
       "atlas": "lib-tiles-town",
       "index": 18,
       "passable": true,
-      "color": "#816f60"
+      "color": "#816f60",
+      "key": "door-arch"
     },
     {
       "code": "ω",
@@ -879,7 +945,8 @@
       "atlas": "lib-tiles-town",
       "index": 19,
       "passable": false,
-      "color": "#938069"
+      "color": "#938069",
+      "key": "window"
     },
     {
       "code": "ぁ",
@@ -887,7 +954,8 @@
       "atlas": "lib-tiles-town",
       "index": 20,
       "passable": false,
-      "color": "#a48458"
+      "color": "#a48458",
+      "key": "window-lit"
     },
     {
       "code": "あ",
@@ -895,7 +963,8 @@
       "atlas": "lib-tiles-town",
       "index": 21,
       "passable": false,
-      "color": "#835e56"
+      "color": "#835e56",
+      "key": "window-brick"
     },
     {
       "code": "ぃ",
@@ -903,7 +972,8 @@
       "atlas": "lib-tiles-town",
       "index": 22,
       "passable": true,
-      "color": "#878681"
+      "color": "#878681",
+      "key": "stairs-up"
     },
     {
       "code": "い",
@@ -911,7 +981,8 @@
       "atlas": "lib-tiles-town",
       "index": 23,
       "passable": true,
-      "color": "#676463"
+      "color": "#676463",
+      "key": "stairs-down"
     },
     {
       "code": "ぅ",
@@ -919,7 +990,8 @@
       "atlas": "lib-tiles-town",
       "index": 24,
       "passable": true,
-      "color": "#806151"
+      "color": "#806151",
+      "key": "bridge-h"
     },
     {
       "code": "う",
@@ -927,7 +999,8 @@
       "atlas": "lib-tiles-town",
       "index": 25,
       "passable": true,
-      "color": "#826352"
+      "color": "#826352",
+      "key": "bridge-v"
     },
     {
       "code": "ぇ",
@@ -935,7 +1008,8 @@
       "atlas": "lib-tiles-town",
       "index": 26,
       "passable": false,
-      "color": "#727d41"
+      "color": "#727d41",
+      "key": "fence"
     },
     {
       "code": "え",
@@ -943,7 +1017,8 @@
       "atlas": "lib-tiles-town",
       "index": 27,
       "passable": false,
-      "color": "#656468"
+      "color": "#656468",
+      "key": "fence-iron"
     },
     {
       "code": "ぉ",
@@ -951,7 +1026,8 @@
       "atlas": "lib-tiles-town",
       "index": 28,
       "passable": false,
-      "color": "#596a42"
+      "color": "#596a42",
+      "key": "well"
     },
     {
       "code": "お",
@@ -959,7 +1035,8 @@
       "atlas": "lib-tiles-town",
       "index": 29,
       "passable": false,
-      "color": "#6d8742"
+      "color": "#6d8742",
+      "key": "signpost"
     },
     {
       "code": "か",
@@ -967,7 +1044,8 @@
       "atlas": "lib-tiles-town",
       "index": 30,
       "passable": false,
-      "color": "#79756d"
+      "color": "#79756d",
+      "key": "lamp"
     },
     {
       "code": "が",
@@ -975,7 +1053,8 @@
       "atlas": "lib-tiles-town",
       "index": 31,
       "passable": false,
-      "color": "#777c82"
+      "color": "#777c82",
+      "key": "fountain"
     },
     {
       "code": "き",
@@ -983,7 +1062,8 @@
       "atlas": "lib-tiles-town",
       "index": 32,
       "passable": false,
-      "color": "#83705f"
+      "color": "#83705f",
+      "key": "bench"
     },
     {
       "code": "ぎ",
@@ -991,7 +1071,8 @@
       "atlas": "lib-tiles-town",
       "index": 33,
       "passable": false,
-      "color": "#807461"
+      "color": "#807461",
+      "key": "planter"
     },
     {
       "code": "く",
@@ -999,7 +1080,8 @@
       "atlas": "lib-tiles-town",
       "index": 34,
       "passable": false,
-      "color": "#8f7161"
+      "color": "#8f7161",
+      "key": "market-stall"
     },
     {
       "code": "ぐ",
@@ -1007,7 +1089,8 @@
       "atlas": "lib-tiles-town",
       "index": 35,
       "passable": false,
-      "color": "#839547"
+      "color": "#839547",
+      "key": "hay"
     },
     {
       "code": "け",
@@ -1015,7 +1098,8 @@
       "atlas": "lib-tiles-town",
       "index": 36,
       "passable": false,
-      "color": "#5e8153"
+      "color": "#5e8153",
+      "key": "gravestone"
     },
     {
       "code": "げ",
@@ -1023,7 +1107,8 @@
       "atlas": "lib-tiles-town",
       "index": 37,
       "passable": false,
-      "color": "#85837c"
+      "color": "#85837c",
+      "key": "statue"
     },
     {
       "code": "こ",
@@ -1031,7 +1116,8 @@
       "atlas": "lib-tiles-town",
       "index": 38,
       "passable": false,
-      "color": "#747886"
+      "color": "#747886",
+      "key": "banner-wall"
     },
     {
       "code": "ご",
@@ -1039,7 +1125,8 @@
       "atlas": "lib-tiles-town",
       "index": 39,
       "passable": false,
-      "color": "#88786c"
+      "color": "#88786c",
+      "key": "barrel-out"
     },
     {
       "code": "さ",
@@ -1047,7 +1134,8 @@
       "atlas": "lib-tiles-town",
       "index": 40,
       "passable": false,
-      "color": "#98836e"
+      "color": "#98836e",
+      "key": "crate-out"
     },
     {
       "code": "ざ",
@@ -1055,7 +1143,8 @@
       "atlas": "lib-tiles-town",
       "index": 41,
       "passable": false,
-      "color": "#7c7a77"
+      "color": "#7c7a77",
+      "key": "anvil"
     },
     {
       "code": "し",
@@ -1063,7 +1152,8 @@
       "atlas": "lib-tiles-interior",
       "index": 0,
       "passable": true,
-      "color": "#9b6138"
+      "color": "#9b6138",
+      "key": "floor-wood"
     },
     {
       "code": "じ",
@@ -1071,7 +1161,8 @@
       "atlas": "lib-tiles-interior",
       "index": 1,
       "passable": true,
-      "color": "#75462a"
+      "color": "#75462a",
+      "key": "floor-wood-dark"
     },
     {
       "code": "す",
@@ -1079,7 +1170,8 @@
       "atlas": "lib-tiles-interior",
       "index": 2,
       "passable": true,
-      "color": "#bd8c61"
+      "color": "#bd8c61",
+      "key": "floor-wood-light"
     },
     {
       "code": "ず",
@@ -1111,7 +1203,8 @@
       "atlas": "lib-tiles-interior",
       "index": 6,
       "passable": true,
-      "color": "#9a9695"
+      "color": "#9a9695",
+      "key": "floor-checker"
     },
     {
       "code": "ぞ",
@@ -1119,7 +1212,8 @@
       "atlas": "lib-tiles-interior",
       "index": 7,
       "passable": true,
-      "color": "#c6c2b5"
+      "color": "#c6c2b5",
+      "key": "floor-tile"
     },
     {
       "code": "た",
@@ -1127,7 +1221,8 @@
       "atlas": "lib-tiles-interior",
       "index": 8,
       "passable": true,
-      "color": "#aaa76a"
+      "color": "#aaa76a",
+      "key": "tatami"
     },
     {
       "code": "だ",
@@ -1135,7 +1230,8 @@
       "atlas": "lib-tiles-interior",
       "index": 9,
       "passable": false,
-      "color": "#b39873"
+      "color": "#b39873",
+      "key": "wall-wallpaper"
     },
     {
       "code": "ち",
@@ -1143,7 +1239,8 @@
       "atlas": "lib-tiles-interior",
       "index": 10,
       "passable": false,
-      "color": "#8e867c"
+      "color": "#8e867c",
+      "key": "wall-stone-in"
     },
     {
       "code": "ぢ",
@@ -1151,7 +1248,8 @@
       "atlas": "lib-tiles-interior",
       "index": 11,
       "passable": false,
-      "color": "#976540"
+      "color": "#976540",
+      "key": "table"
     },
     {
       "code": "っ",
@@ -1159,7 +1257,8 @@
       "atlas": "lib-tiles-interior",
       "index": 12,
       "passable": false,
-      "color": "#b08c74"
+      "color": "#b08c74",
+      "key": "table-cloth"
     },
     {
       "code": "つ",
@@ -1167,7 +1266,8 @@
       "atlas": "lib-tiles-interior",
       "index": 13,
       "passable": false,
-      "color": "#925d38"
+      "color": "#925d38",
+      "key": "chair"
     },
     {
       "code": "づ",
@@ -1175,7 +1275,8 @@
       "atlas": "lib-tiles-interior",
       "index": 14,
       "passable": false,
-      "color": "#945d38"
+      "color": "#945d38",
+      "key": "stool"
     },
     {
       "code": "て",
@@ -1183,7 +1284,8 @@
       "atlas": "lib-tiles-interior",
       "index": 15,
       "passable": false,
-      "color": "#816c6d"
+      "color": "#816c6d",
+      "key": "bed"
     },
     {
       "code": "で",
@@ -1191,7 +1293,8 @@
       "atlas": "lib-tiles-interior",
       "index": 16,
       "passable": false,
-      "color": "#9a5b45"
+      "color": "#9a5b45",
+      "key": "bed-red"
     },
     {
       "code": "と",
@@ -1199,7 +1302,8 @@
       "atlas": "lib-tiles-interior",
       "index": 17,
       "passable": false,
-      "color": "#7d644f"
+      "color": "#7d644f",
+      "key": "bookshelf"
     },
     {
       "code": "ど",
@@ -1207,7 +1311,8 @@
       "atlas": "lib-tiles-interior",
       "index": 18,
       "passable": false,
-      "color": "#9d663e"
+      "color": "#9d663e",
+      "key": "counter"
     },
     {
       "code": "な",
@@ -1215,7 +1320,8 @@
       "atlas": "lib-tiles-interior",
       "index": 19,
       "passable": false,
-      "color": "#8a6a55"
+      "color": "#8a6a55",
+      "key": "cupboard"
     },
     {
       "code": "に",
@@ -1223,7 +1329,8 @@
       "atlas": "lib-tiles-interior",
       "index": 20,
       "passable": false,
-      "color": "#875532"
+      "color": "#875532",
+      "key": "wardrobe"
     },
     {
       "code": "ぬ",
@@ -1231,7 +1338,8 @@
       "atlas": "lib-tiles-interior",
       "index": 21,
       "passable": false,
-      "color": "#6f5f57"
+      "color": "#6f5f57",
+      "key": "fireplace"
     },
     {
       "code": "ね",
@@ -1239,7 +1347,8 @@
       "atlas": "lib-tiles-interior",
       "index": 22,
       "passable": false,
-      "color": "#6d5143"
+      "color": "#6d5143",
+      "key": "stove"
     },
     {
       "code": "の",
@@ -1247,7 +1356,8 @@
       "atlas": "lib-tiles-interior",
       "index": 23,
       "passable": false,
-      "color": "#945937"
+      "color": "#945937",
+      "key": "pot"
     },
     {
       "code": "は",
@@ -1255,7 +1365,8 @@
       "atlas": "lib-tiles-interior",
       "index": 24,
       "passable": false,
-      "color": "#905c3b"
+      "color": "#905c3b",
+      "key": "barrel"
     },
     {
       "code": "ば",
@@ -1263,7 +1374,8 @@
       "atlas": "lib-tiles-interior",
       "index": 25,
       "passable": false,
-      "color": "#9d663f"
+      "color": "#9d663f",
+      "key": "crate"
     },
     {
       "code": "ぱ",
@@ -1271,7 +1383,8 @@
       "atlas": "lib-tiles-interior",
       "index": 26,
       "passable": false,
-      "color": "#9b5b35"
+      "color": "#9b5b35",
+      "key": "chest"
     },
     {
       "code": "ひ",
@@ -1279,7 +1392,8 @@
       "atlas": "lib-tiles-interior",
       "index": 27,
       "passable": false,
-      "color": "#965534"
+      "color": "#965534",
+      "key": "chest-open"
     },
     {
       "code": "び",
@@ -1287,7 +1401,8 @@
       "atlas": "lib-tiles-interior",
       "index": 28,
       "passable": true,
-      "color": "#a36347"
+      "color": "#a36347",
+      "key": "rug"
     },
     {
       "code": "ぴ",
@@ -1295,7 +1410,8 @@
       "atlas": "lib-tiles-interior",
       "index": 29,
       "passable": false,
-      "color": "#836439"
+      "color": "#836439",
+      "key": "plant"
     },
     {
       "code": "ふ",
@@ -1303,7 +1419,8 @@
       "atlas": "lib-tiles-interior",
       "index": 30,
       "passable": false,
-      "color": "#95603c"
+      "color": "#95603c",
+      "key": "candle-table"
     },
     {
       "code": "ぶ",
@@ -1311,7 +1428,8 @@
       "atlas": "lib-tiles-interior",
       "index": 31,
       "passable": false,
-      "color": "#855a3c"
+      "color": "#855a3c",
+      "key": "clock"
     },
     {
       "code": "ぷ",
@@ -1319,7 +1437,8 @@
       "atlas": "lib-tiles-interior",
       "index": 32,
       "passable": false,
-      "color": "#8b5b3c"
+      "color": "#8b5b3c",
+      "key": "desk"
     },
     {
       "code": "へ",
@@ -1327,7 +1446,8 @@
       "atlas": "lib-tiles-interior",
       "index": 33,
       "passable": true,
-      "color": "#9d6e48"
+      "color": "#9d6e48",
+      "key": "stairs-up-in"
     },
     {
       "code": "べ",
@@ -1335,7 +1455,8 @@
       "atlas": "lib-tiles-interior",
       "index": 34,
       "passable": true,
-      "color": "#75533a"
+      "color": "#75533a",
+      "key": "stairs-down-in"
     },
     {
       "code": "ぺ",
@@ -1343,7 +1464,8 @@
       "atlas": "lib-tiles-interior",
       "index": 35,
       "passable": true,
-      "color": "#9e7e60"
+      "color": "#9e7e60",
+      "key": "door-in"
     },
     {
       "code": "ほ",
@@ -1351,7 +1473,8 @@
       "atlas": "lib-tiles-interior",
       "index": 36,
       "passable": false,
-      "color": "#a69880"
+      "color": "#a69880",
+      "key": "window-in"
     },
     {
       "code": "ぼ",
@@ -1359,7 +1482,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 0,
       "passable": true,
-      "color": "#63646a"
+      "color": "#63646a",
+      "key": "dungeon-floor"
     },
     {
       "code": "ぽ",
@@ -1367,7 +1491,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 1,
       "passable": true,
-      "color": "#56575d"
+      "color": "#56575d",
+      "key": "dungeon-floor-cracked"
     },
     {
       "code": "ま",
@@ -1375,7 +1500,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 2,
       "passable": true,
-      "color": "#70825b"
+      "color": "#70825b",
+      "key": "moss-floor"
     },
     {
       "code": "み",
@@ -1383,7 +1509,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 3,
       "passable": true,
-      "color": "#6d6059"
+      "color": "#6d6059",
+      "key": "cave-floor"
     },
     {
       "code": "む",
@@ -1391,7 +1518,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 4,
       "passable": true,
-      "color": "#746961"
+      "color": "#746961",
+      "key": "cave-floor-2"
     },
     {
       "code": "め",
@@ -1399,7 +1527,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 5,
       "passable": true,
-      "color": "#9f9990"
+      "color": "#9f9990",
+      "key": "castle-floor"
     },
     {
       "code": "も",
@@ -1407,7 +1536,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 6,
       "passable": false,
-      "color": "#62544e"
+      "color": "#62544e",
+      "key": "cave-wall"
     },
     {
       "code": "ゃ",
@@ -1415,7 +1545,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 7,
       "passable": false,
-      "color": "#4f4f57"
+      "color": "#4f4f57",
+      "key": "dungeon-wall"
     },
     {
       "code": "や",
@@ -1423,7 +1554,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 8,
       "passable": false,
-      "color": "#7ab3db"
+      "color": "#7ab3db",
+      "key": "ice-wall"
     },
     {
       "code": "ゅ",
@@ -1431,7 +1563,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 9,
       "passable": false,
-      "color": "#504d51"
+      "color": "#504d51",
+      "key": "wall-torch"
     },
     {
       "code": "ゆ",
@@ -1439,7 +1572,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 10,
       "passable": false,
-      "color": "#978f86"
+      "color": "#978f86",
+      "key": "pillar"
     },
     {
       "code": "ょ",
@@ -1447,7 +1581,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 11,
       "passable": false,
-      "color": "#788263"
+      "color": "#788263",
+      "key": "pillar-broken"
     },
     {
       "code": "よ",
@@ -1455,7 +1590,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 12,
       "passable": false,
-      "color": "#8d7e81"
+      "color": "#8d7e81",
+      "key": "altar"
     },
     {
       "code": "ら",
@@ -1463,7 +1599,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 13,
       "passable": false,
-      "color": "#5f5f67"
+      "color": "#5f5f67",
+      "key": "statue-dungeon"
     },
     {
       "code": "り",
@@ -1471,7 +1608,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 14,
       "passable": false,
-      "color": "#6e7d81"
+      "color": "#6e7d81",
+      "key": "crystal-blue"
     },
     {
       "code": "る",
@@ -1479,7 +1617,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 15,
       "passable": false,
-      "color": "#7b657e"
+      "color": "#7b657e",
+      "key": "crystal-purple"
     },
     {
       "code": "れ",
@@ -1487,7 +1626,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 16,
       "passable": false,
-      "color": "#8b6665"
+      "color": "#8b6665",
+      "key": "crystal-red"
     },
     {
       "code": "ろ",
@@ -1495,7 +1635,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 17,
       "passable": false,
-      "color": "#68544e"
+      "color": "#68544e",
+      "key": "chest-dungeon"
     },
     {
       "code": "ゎ",
@@ -1503,7 +1644,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 18,
       "passable": false,
-      "color": "#705b59"
+      "color": "#705b59",
+      "key": "chest-dungeon-open"
     },
     {
       "code": "わ",
@@ -1511,7 +1653,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 19,
       "passable": false,
-      "color": "#6b6966"
+      "color": "#6b6966",
+      "key": "chest-iron"
     },
     {
       "code": "ゐ",
@@ -1519,7 +1662,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 20,
       "passable": true,
-      "color": "#4b4b51"
+      "color": "#4b4b51",
+      "key": "stairs-down-stone"
     },
     {
       "code": "ゑ",
@@ -1527,7 +1671,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 21,
       "passable": true,
-      "color": "#626368"
+      "color": "#626368",
+      "key": "stairs-up-stone"
     },
     {
       "code": "を",
@@ -1535,7 +1680,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 22,
       "passable": true,
-      "color": "#5d5f68"
+      "color": "#5d5f68",
+      "key": "door-iron"
     },
     {
       "code": "ん",
@@ -1543,7 +1689,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 23,
       "passable": false,
-      "color": "#575b67"
+      "color": "#575b67",
+      "key": "gate"
     },
     {
       "code": "ァ",
@@ -1551,7 +1698,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 24,
       "passable": true,
-      "color": "#575960"
+      "color": "#575960",
+      "key": "gate-open"
     },
     {
       "code": "ア",
@@ -1559,7 +1707,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 25,
       "passable": false,
-      "color": "#2c2b31"
+      "color": "#2c2b31",
+      "key": "pit"
     },
     {
       "code": "ィ",
@@ -1567,7 +1716,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 26,
       "passable": false,
-      "color": "#0b0a11"
+      "color": "#0b0a11",
+      "key": "chasm"
     },
     {
       "code": "イ",
@@ -1575,7 +1725,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 27,
       "passable": true,
-      "color": "#5a5b63"
+      "color": "#5a5b63",
+      "key": "spikes"
     },
     {
       "code": "ゥ",
@@ -1583,7 +1734,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 28,
       "passable": true,
-      "color": "#656363"
+      "color": "#656363",
+      "key": "pressure-plate"
     },
     {
       "code": "ウ",
@@ -1591,7 +1743,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 29,
       "passable": false,
-      "color": "#4d4c52"
+      "color": "#4d4c52",
+      "key": "lever"
     },
     {
       "code": "ェ",
@@ -1599,7 +1752,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 30,
       "passable": true,
-      "color": "#72635a"
+      "color": "#72635a",
+      "key": "bones"
     },
     {
       "code": "エ",
@@ -1607,7 +1761,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 31,
       "passable": true,
-      "color": "#68696e"
+      "color": "#68696e",
+      "key": "cobweb"
     },
     {
       "code": "ォ",
@@ -1615,7 +1770,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 32,
       "passable": false,
-      "color": "#676465"
+      "color": "#676465",
+      "key": "rubble"
     },
     {
       "code": "オ",
@@ -1623,7 +1779,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 33,
       "passable": true,
-      "color": "#65767d"
+      "color": "#65767d",
+      "key": "magic-circle"
     },
     {
       "code": "カ",
@@ -1631,7 +1788,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 34,
       "passable": false,
-      "color": "#605f6c"
+      "color": "#605f6c",
+      "key": "sealed-door"
     },
     {
       "code": "ガ",
@@ -1639,7 +1797,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 35,
       "passable": false,
-      "color": "#3f5c7a"
+      "color": "#3f5c7a",
+      "key": "water-pool"
     },
     {
       "code": "キ",
@@ -1647,7 +1806,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 36,
       "passable": false,
-      "color": "#7b6a5d"
+      "color": "#7b6a5d",
+      "key": "lava-crack"
     },
     {
       "code": "ギ",
@@ -1655,7 +1815,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 37,
       "passable": false,
-      "color": "#716d6a"
+      "color": "#716d6a",
+      "key": "sarcophagus"
     },
     {
       "code": "ク",
@@ -1663,7 +1824,8 @@
       "atlas": "lib-tiles-dungeon",
       "index": 38,
       "passable": false,
-      "color": "#615c5e"
+      "color": "#615c5e",
+      "key": "brazier"
     },
     {
       "code": "グ",
@@ -1671,7 +1833,8 @@
       "atlas": "lib-tiles-interior",
       "index": 37,
       "passable": true,
-      "color": "#bd5c3f"
+      "color": "#bd5c3f",
+      "key": "rug-red-tl"
     },
     {
       "code": "ケ",
@@ -1679,7 +1842,8 @@
       "atlas": "lib-tiles-interior",
       "index": 38,
       "passable": true,
-      "color": "#c2573e"
+      "color": "#c2573e",
+      "key": "rug-red-t"
     },
     {
       "code": "ゲ",
@@ -1687,7 +1851,8 @@
       "atlas": "lib-tiles-interior",
       "index": 39,
       "passable": true,
-      "color": "#bd5c3e"
+      "color": "#bd5c3e",
+      "key": "rug-red-tr"
     },
     {
       "code": "コ",
@@ -1695,7 +1860,8 @@
       "atlas": "lib-tiles-interior",
       "index": 40,
       "passable": true,
-      "color": "#bf553e"
+      "color": "#bf553e",
+      "key": "rug-red-l"
     },
     {
       "code": "ゴ",
@@ -1703,7 +1869,8 @@
       "atlas": "lib-tiles-interior",
       "index": 41,
       "passable": true,
-      "color": "#c44e3d"
+      "color": "#c44e3d",
+      "key": "rug-red-c"
     },
     {
       "code": "サ",
@@ -1711,7 +1878,8 @@
       "atlas": "lib-tiles-interior",
       "index": 42,
       "passable": true,
-      "color": "#bf553e"
+      "color": "#bf553e",
+      "key": "rug-red-r"
     },
     {
       "code": "ザ",
@@ -1719,7 +1887,8 @@
       "atlas": "lib-tiles-interior",
       "index": 43,
       "passable": true,
-      "color": "#ba593d"
+      "color": "#ba593d",
+      "key": "rug-red-bl"
     },
     {
       "code": "シ",
@@ -1727,7 +1896,8 @@
       "atlas": "lib-tiles-interior",
       "index": 44,
       "passable": true,
-      "color": "#bf543c"
+      "color": "#bf543c",
+      "key": "rug-red-b"
     },
     {
       "code": "ジ",
@@ -1735,7 +1905,8 @@
       "atlas": "lib-tiles-interior",
       "index": 45,
       "passable": true,
-      "color": "#ba593d"
+      "color": "#ba593d",
+      "key": "rug-red-br"
     },
     {
       "code": "ス",
@@ -1743,7 +1914,8 @@
       "atlas": "lib-tiles-interior",
       "index": 46,
       "passable": true,
-      "color": "#6b708c"
+      "color": "#6b708c",
+      "key": "rug-blue-tl"
     },
     {
       "code": "ズ",
@@ -1751,7 +1923,8 @@
       "atlas": "lib-tiles-interior",
       "index": 47,
       "passable": true,
-      "color": "#60709c"
+      "color": "#60709c",
+      "key": "rug-blue-t"
     },
     {
       "code": "セ",
@@ -1759,7 +1932,8 @@
       "atlas": "lib-tiles-interior",
       "index": 48,
       "passable": true,
-      "color": "#6b708c"
+      "color": "#6b708c",
+      "key": "rug-blue-tr"
     },
     {
       "code": "ゼ",
@@ -1767,7 +1941,8 @@
       "atlas": "lib-tiles-interior",
       "index": 49,
       "passable": true,
-      "color": "#5e6e9b"
+      "color": "#5e6e9b",
+      "key": "rug-blue-l"
     },
     {
       "code": "ソ",
@@ -1775,7 +1950,8 @@
       "atlas": "lib-tiles-interior",
       "index": 50,
       "passable": true,
-      "color": "#506dad"
+      "color": "#506dad",
+      "key": "rug-blue-c"
     },
     {
       "code": "ゾ",
@@ -1783,7 +1959,8 @@
       "atlas": "lib-tiles-interior",
       "index": 51,
       "passable": true,
-      "color": "#5e6d9a"
+      "color": "#5e6d9a",
+      "key": "rug-blue-r"
     },
     {
       "code": "タ",
@@ -1791,7 +1968,8 @@
       "atlas": "lib-tiles-interior",
       "index": 52,
       "passable": true,
-      "color": "#696d8a"
+      "color": "#696d8a",
+      "key": "rug-blue-bl"
     },
     {
       "code": "ダ",
@@ -1799,7 +1977,8 @@
       "atlas": "lib-tiles-interior",
       "index": 53,
       "passable": true,
-      "color": "#5e6d99"
+      "color": "#5e6d99",
+      "key": "rug-blue-b"
     },
     {
       "code": "チ",
@@ -1807,7 +1986,8 @@
       "atlas": "lib-tiles-interior",
       "index": 54,
       "passable": true,
-      "color": "#696d8a"
+      "color": "#696d8a",
+      "key": "rug-blue-br"
     },
     {
       "code": "ヂ",
@@ -1820,7 +2000,8 @@
         47,
         48,
         49
-      ]
+      ],
+      "key": "water-anim-1"
     },
     {
       "code": "ッ",
@@ -1828,7 +2009,8 @@
       "atlas": "lib-tiles-field",
       "index": 48,
       "passable": false,
-      "color": "#3768b0"
+      "color": "#3768b0",
+      "key": "water-anim-2"
     },
     {
       "code": "ツ",
@@ -1836,7 +2018,8 @@
       "atlas": "lib-tiles-field",
       "index": 49,
       "passable": false,
-      "color": "#3667af"
+      "color": "#3667af",
+      "key": "water-anim-3"
     },
     {
       "code": "ヅ",
@@ -1858,7 +2041,8 @@
           "b": 44,
           "br": 45
         }
-      }
+      },
+      "key": "rug-red-auto"
     },
     {
       "code": "テ",
@@ -1880,7 +2064,8 @@
           "b": 53,
           "br": 54
         }
-      }
+      },
+      "key": "rug-blue-auto"
     }
   ]
 }

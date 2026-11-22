@@ -10,7 +10,7 @@
 
 - 公開中: **https://rpg-studio-2k3.pages.dev**（トップ・見本ゲーム `/play/`・ジャンルの回廊 `/gallery/`・工房のPreview版 `/studio/`）
 - リポジトリ: `kouima573/myapp` の **`rpg-studio/` フォルダだけ**が対象
-- 作業ブランチ: `claude/eloquent-knuth-u58z8y`（最新 `2ddc8d6` の時点で全チェックOK）
+- 作業ブランチ: `claude/eloquent-knuth-u58z8y`（v1.7 のコミット時点で全チェックOK）
 
 ## 2. 必ず守ること（ユーザーとの約束）
 
@@ -43,7 +43,7 @@
 cd rpg-studio
 pnpm install
 pnpm check                      # 型チェック
-pnpm test                       # vitest（現在140件）
+pnpm test                       # vitest（現在144件）
 pnpm rpg validate --project projects/sample-rpg     # ← フォルダは --project で指定（位置引数は無視される）
 pnpm rpg test     --project projects/sample-rpg
 pnpm rpg build    --project projects/sample-rpg
@@ -92,6 +92,10 @@ Gemini でまとめた200項目の改善案を受け取り、`docs/roadmap-200.m
 ## 6.7 v1.6（第2弾）
 
 状態異常・属性、オートタイル・レイヤー・動くタイル、フキダシ・顔グラ・移動ルート、`rpg refs` / `rpg rename`、試遊の録画からの自動テスト。次は `docs/roadmap-200.md` の 🔜。
+
+## 6.8 v1.7（第3弾）
+
+BGMのループ位置・環境音、配布版の先読みとホーム画面追加（PWA: `sw.js` は `rpg build` が版ごとに生成）、工房の保存履歴（`.rpg-studio/history/`、ローカルサーバーの `/api/history*`）と変更の要約（`packages/local-server/src/history.ts`）、会話・イベントの分岐図（`studio/src/lib/flow.ts`）、タイルの `key`（`rpg library add --replace` が画像＋キーで照合）。次は `docs/roadmap-200.md` の 🔜。
 
 ## 7. 残っている仕事
 
