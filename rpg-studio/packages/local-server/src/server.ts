@@ -346,7 +346,9 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
       if (!allowedHosts.has(host)) throw new HttpError(403, "Hostが許可されていません");
       const origin = req.headers.origin;
       if (origin !== undefined && !allowedOrigins.has(origin)) throw new HttpError(403, "Originが一致しません");
-      const url = new URL(req.url ?? "/", `http://${host}`);
+      const rawUrl = req.url ?? "/";
+      if (!rawUrl.startsWith("/") || rawUrl.startsWith("//")) throw new HttpError(400, "不正なリクエストURLです");
+      const url = new URL(rawUrl, `http://${host}`);
       if (!url.pathname.startsWith("/api/")) {
         if (req.method !== "GET" && req.method !== "HEAD") throw new HttpError(405, "method not allowed");
         await serveUi(url.pathname, res);
@@ -384,7 +386,8 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
           const body = await readBody(req) as { ids?: unknown; tiles?: unknown };
           const ids = Array.isArray(body?.ids) ? body.ids.filter((x): x is string => typeof x === "string" && /^[a-z0-9][a-z0-9_-]*$/i.test(x)) : [];
           if (!ids.length || ids.length > 50) throw new HttpError(400, "ids（1〜50件）が必要です");
-          const code = await libraryAdd(DEFAULT_LIBRARY, {}, ids, root);
+          const tiles = typeof body?.tiles === "string" ? body.tiles : Array.isArray(body?.tiles) ? body.tiles.filter((x): x is string => typeof x === "string").join(",") : undefined;
+          const code = await libraryAdd(DEFAULT_LIBRARY, tiles ? { tiles } : {}, ids, root);
           return json(res, code === 0 ? 200 : 422, { ok: code === 0 });
         }
         case "PUT /api/image": {

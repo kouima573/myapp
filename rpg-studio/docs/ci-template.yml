@@ -1,0 +1,29 @@
+# GitHub Actions テンプレート（リポジトリの .github/workflows/rpg-check.yml にコピーして使えます）
+name: RPG Studio Check
+on:
+  push:
+    paths: ["rpg-studio/**"]
+  pull_request:
+    paths: ["rpg-studio/**"]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rpg-studio
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: rpg-studio/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: pnpm test
+      - run: pnpm rpg validate --project projects/sample-rpg
+      - run: pnpm rpg test --project projects/sample-rpg
+      - run: pnpm rpg build --project projects/sample-rpg
+      - run: pnpm build:studio

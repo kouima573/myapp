@@ -11,10 +11,10 @@ import { formatDiagnostic, migrateProjectV1toV2, type Diagnostic, type GameConte
 import type { GameSystem } from "../../engine/src/index";
 import { runScenario, ScenarioSchema, type ScenarioResult } from "../../engine/src/scenario";
 import { buildProject, importSystemModule, REPO_ROOT } from "./build";
-import { catalog, jsonSchemas } from "./catalog";
+import { auditProject, catalog, jsonSchemas } from "./catalog";
 import { cmdArt, cmdAsset } from "./assets";
 import { loadProjectFromDisk, readProjectTexts, resolveInside } from "./load";
-import { newProject } from "./scaffold";
+import { newProject, type ProjectTheme } from "./scaffold";
 import { cmdMod } from "./mods";
 import { cmdPacks } from "./packs";
 import { cmdLibrary } from "./library";
@@ -22,12 +22,13 @@ import { genreAtlasMarkdown, GENRES, LEVEL_LABEL, searchGenres } from "../../mod
 
 const USAGE = `RPG Studio CLI
 
-  rpg new      <id> [--title <名前>] [--dir projects]  発想を育てる空のプロジェクト（IDEA.md つき）を作る
+  rpg new      <id> [--title <名前>] [--theme default|fantasy|mystery|scifi|minimal] [--dir projects]  新しいプロジェクトを作る
   rpg genres   [--query <言葉>] [--write]  ジャンル地図（どのジャンルをどう作るか）。--write で docs/genre-atlas.md を更新
   rpg mod      <list|add|export> [<id>] --project <dir>  作り手の仕組み（mod）を共有: 一覧・取り込み・書き出し（出どころは mods.json）
   rpg validate --project <dir>          形式・参照・素材を検証
   rpg test     --project <dir>          検証 + システム読込 + tests/*.scenario.json の自動プレイ
-  rpg build    --project <dir> [--out <dir>]  型検査・bundleして dist/game/<id>/ に静的ゲームを出力
+  rpg build    --project <dir> [--out <dir>] [--zip]  型検査・bundleして dist/game/<id>/ に静的ゲームを出力（--zipで公開用ZIPも作成）
+  rpg audit    --project <dir>          未到達マップ・未使用会話・未使用イベントを検出
   rpg dev      --project <dir> [--port 4174]  ビルドして127.0.0.1で配信、変更で自動再ビルド
   rpg migrate  --project <dir> [--write]      旧形式を移行（既定は差分表示のみ。--writeでバックアップ後に保存）
   rpg catalog  --project <dir>          定義済みのID・フラグ・変数・特性・ルールの一覧（Markdown）
@@ -40,16 +41,24 @@ const USAGE = `RPG Studio CLI
   rpg asset find --kind <bgm|sfx|image…> --words "<言葉>"                        AIが会話で候補を出す用（内蔵素材・取得元の検索URL・条件）
 `;
 
+const SUBCOMMANDS = new Set(["new", "genres", "mod", "asset", "art", "library", "packs", "help", "--help"]);
+
 function parseArgs(argv: string[]) {
   const [command, ...afterCommand] = argv;
-  const sub = afterCommand[0] && !afterCommand[0].startsWith("--") ? afterCommand[0] : undefined;
+  const takesSub = command !== undefined && SUBCOMMANDS.has(command);
+  const sub = takesSub && afterCommand[0] && !afterCommand[0].startsWith("--") ? afterCommand[0] : undefined;
   const rest = sub ? afterCommand.slice(1) : afterCommand;
   const flags: Record<string, string | boolean> = {};
   const positional: string[] = [];
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i]!;
     if (arg === "--") continue;
-    if (!arg.startsWith("--")) { if ((positional.length && command !== "library") || !sub) throw new Error(`不明な引数: ${arg}`); positional.push(arg); continue; }
+    if (!arg.startsWith("--")) {
+      if (!takesSub) throw new Error(`不明な引数: ${arg}（プロジェクトは --project <dir> で指定してください）`);
+      if ((positional.length && command !== "library") || !sub) throw new Error(`不明な引数: ${arg}`);
+      positional.push(arg);
+      continue;
+    }
     const key = arg.slice(2);
     const next = rest[i + 1];
     if (next !== undefined && !next.startsWith("--")) { flags[key] = next; i++; } else flags[key] = true;
@@ -173,11 +182,28 @@ async function cmdTest(flags: Record<string, string | boolean>): Promise<number>
 
 async function cmdBuild(flags: Record<string, string | boolean>): Promise<number> {
   const root = projectDir(flags);
-  const result = await buildProject(root, { outDir: typeof flags.out === "string" ? path.resolve(flags.out) : undefined });
+  const result = await buildProject(root, { outDir: typeof flags.out === "string" ? path.resolve(flags.out) : undefined, zip: Boolean(flags.zip) });
   const { errors } = report(result.diagnostics);
   if (!result.ok || errors) { console.log("FAILED build: 前回のビルド成果物はそのまま残っています"); return 1; }
-  console.log(`OK build: ${path.relative(process.cwd(), result.outDir!)} (version ${result.version})`);
+  const kb = (b: number) => `${(b / 1024).toFixed(1)}KB`;
+  const s = result.sizeSummary;
+  console.log(`OK build: ${path.relative(process.cwd(), result.outDir!)} (version ${result.version})${s ? ` — 合計 ${kb(s.totalBytes)}（game.js ${kb(s.jsBytes)} / JSON ${kb(s.dataBytes)} / 素材 ${kb(s.assetBytes)}）` : ""}`);
+  if (result.zipPath) console.log(`OK zip: ${path.relative(process.cwd(), result.zipPath)}`);
   console.log("   静的HTTPサーバーで配信して遊べます。例: pnpm rpg dev --project <dir>  または  npx serve <outDir>");
+  return 0;
+}
+
+async function cmdAudit(flags: Record<string, string | boolean>): Promise<number> {
+  const loaded = await loadProjectFromDisk(projectDir(flags));
+  if (!loaded.content) { report(loaded.diagnostics); console.log("FAILED audit: 先に validate のエラーを直してください"); return 1; }
+  const a = auditProject(loaded.content);
+  if (!a.unreachableMaps.length && !a.unusedDialogues.length && !a.unusedEvents.length) {
+    console.log("OK audit: 未到達マップ・未使用会話・未使用イベントはありません");
+    return 0;
+  }
+  if (a.unreachableMaps.length) console.log(`WARN  未到達マップ: ${a.unreachableMaps.join(", ")}`);
+  if (a.unusedDialogues.length) console.log(`WARN  未使用会話: ${a.unusedDialogues.join(", ")}`);
+  if (a.unusedEvents.length) console.log(`WARN  未使用イベント: ${a.unusedEvents.join(", ")}`);
   return 0;
 }
 
@@ -247,7 +273,7 @@ async function cmdDev(flags: Record<string, string | boolean>): Promise<number> 
     const url = new URL(req.url ?? "/", "http://localhost");
     if (url.pathname === "/__version") { res.writeHead(200, { "content-type": "text/plain", "cache-control": "no-store" }); res.end(version); return; }
     const rel = decodeURIComponent(url.pathname === "/" ? "/index.html" : url.pathname).slice(1);
-    if (rel.split("/").some(part => part === ".." || part.startsWith("."))) { res.writeHead(404); res.end(); return; }
+    if (!rel || rel.includes("\\") || rel.includes("\0") || rel.split("/").some(part => !part || part === "." || part === ".." || part.startsWith("."))) { res.writeHead(404); res.end(); return; }
     try {
       let body: Buffer | string = await fs.readFile(path.join(outDir, ...rel.split("/")));
       if (rel === "index.html") body = body.toString("utf8").replace("</body>", `<script type="module" src="./__reload.js"></script></body>`);
@@ -305,7 +331,9 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "new": {
       if (!parsed.sub) { console.error("ERROR rpg new <id> の形で、プロジェクトIDを指定してください"); return 2; }
       try {
-        const dir = await newProject(parsed.sub, typeof parsed.flags.title === "string" ? parsed.flags.title : parsed.sub, typeof parsed.flags.dir === "string" ? path.resolve(process.cwd(), parsed.flags.dir) : undefined);
+        const theme = (typeof parsed.flags.theme === "string" ? parsed.flags.theme : "default") as ProjectTheme;
+        if (!["default", "fantasy", "mystery", "scifi", "minimal"].includes(theme)) { console.error("ERROR --theme は default|fantasy|mystery|scifi|minimal から選んでください"); return 2; }
+        const dir = await newProject(parsed.sub, typeof parsed.flags.title === "string" ? parsed.flags.title : parsed.sub, typeof parsed.flags.dir === "string" ? path.resolve(process.cwd(), parsed.flags.dir) : undefined, theme);
         const rel = path.relative(process.cwd(), dir);
         console.log(`OK new: ${rel}\n次に ${rel}/IDEA.md に発想を書き、AIに「IDEA.md の発想を形にして」と頼んでください。\n  pnpm rpg test --project ${rel}`);
         return 0;
@@ -326,6 +354,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "dev": return cmdDev(parsed.flags);
     case "migrate": return cmdMigrate(parsed.flags);
     case "catalog": return cmdCatalog(parsed.flags);
+    case "audit": return cmdAudit(parsed.flags);
     case "schema": return cmdSchema(parsed.flags);
     case "asset": return cmdAsset(parsed.sub, projectDir(parsed.flags), parsed.flags);
     case "art": {
@@ -341,10 +370,27 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     }
     case "library": return cmdLibrary(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
     case "packs": return cmdPacks(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
-    default: console.log(USAGE); return parsed.command && parsed.command !== "help" && parsed.command !== "--help" ? 2 : 0;
+    default: {
+      if (parsed.command && parsed.command !== "help" && parsed.command !== "--help") {
+        const cmds = ["new", "genres", "mod", "validate", "test", "build", "dev", "migrate", "catalog", "audit", "schema", "asset", "art", "library", "packs"];
+        const dist = (a: string, b: string) => {
+          const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+          for (let j = 0; j <= b.length; j++) dp[0]![j] = j;
+          for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) {
+            dp[i]![j] = a[i - 1] === b[j - 1] ? dp[i - 1]![j - 1]! : 1 + Math.min(dp[i - 1]![j]!, dp[i]![j - 1]!, dp[i - 1]![j - 1]!);
+          }
+          return dp[a.length]![b.length]!;
+        };
+        const near = cmds.map(c => ({ c, d: dist(parsed.command!, c) })).sort((x, y) => x.d - y.d)[0];
+        if (near && near.d <= 3) console.error(`不明なコマンド "${parsed.command}" です。もしかして: pnpm rpg ${near.c}`);
+      }
+      console.log(USAGE);
+      return parsed.command && parsed.command !== "help" && parsed.command !== "--help" ? 2 : 0;
+    }
   }
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+const sameEntry = (a: string, b: string) => (process.platform === "win32" ? a.toLowerCase() === b.toLowerCase() : a === b);
+if (process.argv[1] && sameEntry(path.resolve(process.argv[1]), fileURLToPath(import.meta.url))) {
   main().then(code => { process.exitCode = code; }, error => { console.error(`ERROR ${error instanceof Error ? error.stack : String(error)}`); process.exitCode = 1; });
 }

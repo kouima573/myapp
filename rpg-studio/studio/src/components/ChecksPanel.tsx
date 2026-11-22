@@ -11,6 +11,8 @@ interface Props {
 }
 
 const PRESETS: Array<{ label: string; task: string }> = [
+  { label: "初心者：おまかせで村を作る", task: "今のプロジェクトに、最初の村の会話イベントと、森で戦える弱い敵を1種類追加して、すぐ遊べるようにして。専門用語は使わずに変更内容を教えて。" },
+  { label: "初心者：難易度をやさしく", task: "最初の戦闘で負けにくいように、主人公の初期HPを少し上げて、回復アイテムを2個持った状態で始まるように調整して。" },
   { label: "種族を追加", task: "次の種族を特性(traits)として追加して。各効果は docs/customization-guide.md のレシピ（statMods・rules・use）で実装し、データで書けないものは一覧にして相談して。\n\n種族名：\n説明：\n効果1：\n効果2：" },
   { label: "仕様書から効果を実装", task: "添付の仕様書の効果を、1種族ずつ database.json の traits / abilities と rules に実装して。仕様にない効果は推測で作らず、表現できない効果はリストアップして。各効果に tests/*.scenario.json の動作確認を付けて。" },
   { label: "仕組みを追加", task: "次の仕組みをフラグ・変数・rules.json のルールで追加して（例：昼夜、好感度、評判、空腹度）。\n\n仕組み：" },
@@ -68,7 +70,14 @@ export default function ChecksPanel({ store, diagnostics, onOpenFile }: Props) {
       <header><h3>データ検証</h3>{errors.length ? <span className="badge error"><XCircle size={12} /> エラー {errors.length}</span> : <span className="badge ok"><CheckCircle2 size={12} /> 正常</span>}{warnings.length > 0 && <span className="badge warn">警告 {warnings.length}</span>}</header>
       <p className="muted small">スキーマ、ID参照、フラグ宣言、座標、タイルコードを、変更のたびに全ファイル横断で確認します（CLIの <code>rpg validate</code> と同じ処理）。</p>
       {diagnostics.length === 0 ? <p className="text-green">問題は見つかりませんでした。</p>
-        : <ul className="diag-list">{diagnostics.map((d, i) => <li key={i} className={d.severity}><button className="link" onClick={() => d.file && onOpenFile(d.file)}>{formatDiagnostic(d)}</button></li>)}</ul>}
+        : <>
+          <ul className="diag-list">{diagnostics.map((d, i) => <li key={i} className={d.severity}><button className="link" onClick={() => d.file && onOpenFile(d.file)}>{formatDiagnostic(d)}</button></li>)}</ul>
+          {errors.length > 0 && <button className="button" onClick={() => {
+            const list = errors.slice(0, 10).map(e => `- ${formatDiagnostic(e)}`).join("\n");
+            setTask(`次の検証エラーが出てゲームが動かなくなりました。原因をやさしい言葉で説明し、直してください:\n\n${list}`);
+            store.log("info", "下の「Codex／Claude Codeへの依頼文」欄にエラー修正用プロンプトをセットしました");
+          }}><ClipboardCopy size={13} /> このエラーをAIに直してもらう依頼文をセット</button>}
+        </>}
     </section>
 
     <section className="card">

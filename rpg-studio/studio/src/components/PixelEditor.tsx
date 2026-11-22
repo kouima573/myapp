@@ -70,6 +70,7 @@ export default function PixelEditor({ store, content, images }: Props) {
   const [copyTo, setCopyTo] = useState(0);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overviewRef = useRef<HTMLCanvasElement>(null);
+  const animRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const last = useRef<{ x: number; y: number } | null>(null);
   // Pointer events can arrive faster than React re-renders: always paint on the newest pixels.
@@ -156,6 +157,29 @@ export default function PixelEditor({ store, content, images }: Props) {
       og.strokeRect(frameX * scale + 1, frameY * scale + 1, frame.w * scale - 2, frame.h * scale - 2);
     }
   }, [data, frame, zoom, pixel, mirror, current, frameX, frameY]);
+
+  useEffect(() => {
+    const anim = animRef.current;
+    if (!anim || !data || cols * rows <= 1) return;
+    anim.width = frame.w; anim.height = frame.h;
+    const ag = anim.getContext("2d")!;
+    ag.imageSmoothingEnabled = false;
+    let step = 0;
+    const draw = () => {
+      const rowStart = Math.floor(current / cols) * cols;
+      const f = rowStart + (step % cols);
+      const sx = (f % cols) * frame.w, sy = Math.floor(f / cols) * frame.h;
+      ag.clearRect(0, 0, frame.w, frame.h);
+      const tmp = document.createElement("canvas");
+      tmp.width = data.width; tmp.height = data.height;
+      tmp.getContext("2d")!.putImageData(data, 0, 0);
+      ag.drawImage(tmp, sx, sy, frame.w, frame.h, 0, 0, frame.w, frame.h);
+      step++;
+    };
+    draw();
+    const timer = window.setInterval(draw, 180);
+    return () => window.clearInterval(timer);
+  }, [data, frame, cols, rows, current]);
 
   /* ------------------------------------------------ editing */
   const commit = (next: ImageData) => { dataRef.current = next; setData(next); };
@@ -389,7 +413,7 @@ export default function PixelEditor({ store, content, images }: Props) {
             onPointerUp={() => { drawing.current = false; last.current = null; }} onPointerCancel={() => { drawing.current = false; last.current = null; }} />
         </div>
         {cols * rows > 1 && <div className="pixel-frames">
-          <span className="field-label">コマ（全体図をクリックで選ぶ）: {frameLabel(current)}</span>
+          <div className="form-row"><span className="field-label">コマ（全体図をクリックで選ぶ）: {frameLabel(current)}</span><span className="spacer" /><canvas ref={animRef} title="アニメーションプレビュー" style={{ width: 48, height: 48, imageRendering: "pixelated", border: "1px solid rgba(255,255,255,.15)", borderRadius: 4 }} /></div>
           <canvas ref={overviewRef} className="pixel-overview" onClick={e => {
             const r = e.currentTarget.getBoundingClientRect();
             const fx = Math.floor((e.clientX - r.left) / r.width * cols), fy = Math.floor((e.clientY - r.top) / r.height * rows);

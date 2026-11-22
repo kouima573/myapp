@@ -18,6 +18,9 @@ export function creditLines(content: GameContent): string[] {
   for (const [label, names] of groups) lines.push(`${label}: ${[...names].join(" ／ ")}`);
   const generated = content.assets.assets.filter(a => a.origin === "generated").map(a => KIND_LABEL[a.kind]);
   if (generated.length) lines.push(`${[...new Set(generated)].join("・")}の一部はオリジナル生成`);
+  if (content.assets.assets.some(a => !a.redistributable || a.sourceId === "dova-syndrome")) {
+    lines.push("利用規約: 収録されている素材ファイルを抽出し、ゲームとは別の用途で利用・転用・再配布することを禁止します。利用者は本規約を遵守してください。");
+  }
   lines.push("Made with RPGシステム工房");
   return lines;
 }

@@ -80,9 +80,16 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   const storage = options.storage ?? browserStorage();
   const saveKey = `rpg-save:${content.project.id}`;
   const settingsKey = `rpg-settings:${content.project.id}`;
-  const readSettings = (): AudioSettings => { try { return { bgm: true, sfx: true, ...JSON.parse(storage.read(settingsKey) ?? "{}") }; } catch { return { bgm: true, sfx: true }; } };
-  const audio = new AudioManager(content, options.resolveAsset, readSettings());
+  const readRawSettings = () => { try { return JSON.parse(storage.read(settingsKey) ?? "{}") as Record<string, unknown>; } catch { return {}; } };
+  const rawSet = readRawSettings();
+  const audio = new AudioManager(content, options.resolveAsset, { bgm: true, sfx: true, ...(rawSet as Partial<AudioSettings>) });
+  const uiPrefs = {
+    textSpeed: (rawSet.textSpeed === "fast" || rawSet.textSpeed === "instant" ? rawSet.textSpeed : "normal") as "normal" | "fast" | "instant",
+    shake: typeof rawSet.shake === "boolean" ? rawSet.shake : true,
+  };
   let creditsOpen = false;
+  let backlogOpen = false;
+  const backlog: Array<{ speaker?: string; text: string }> = [];
   const metaKey = `rpg-meta:${content.project.id}`;
   const readMeta = () => { try { const raw = storage.read(metaKey); return raw ? JSON.parse(raw) : undefined; } catch { return undefined; } };
   let lastMeta = "";
@@ -115,6 +122,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   let walkFrame = 0;
   let lastFrameSwap = 0;
   const held: Direction[] = [];
+  let dashing = false;
   let talkFacing: Record<string, Direction> = {};
   let selection = 0;
   let menuOpen = false;
@@ -139,7 +147,17 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   const fade = el("div", "rpg-fade");
   const windowLayer = el("div", "rpg-layer");
   const live = el("div", "rpg-sr"); live.setAttribute("aria-live", "polite");
-  screen.append(canvas, hud, fade, windowLayer, live);
+  const fsBtn = el("button", "rpg-fs", "⛶");
+  fsBtn.type = "button";
+  fsBtn.title = "全画面表示の切り替え";
+  fsBtn.setAttribute("aria-label", "全画面表示の切り替え");
+  fsBtn.style.cssText = "position:absolute;top:8px;left:50%;transform:translateX(-50%);opacity:.75;z-index:12;background:rgba(13,17,14,.68);color:#e9e2cb;border:1px solid rgba(255,255,255,.22);border-radius:6px;padding:3px 8px;font-size:13px;cursor:pointer;line-height:1.2";
+  fsBtn.addEventListener("click", event => {
+    event.stopPropagation();
+    if (document.fullscreenElement) void document.exitFullscreen?.();
+    else void root.requestFullscreen?.();
+  });
+  screen.append(canvas, hud, fade, windowLayer, fsBtn, live);
   const touch = el("div", "rpg-touch");
   root.append(screen, touch);
   host.appendChild(root);
@@ -185,7 +203,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       if (cue.kind === "moved") { animator.enqueue({ x: state.player.x, y: state.player.y }); }
       else if (cue.kind === "bump") audio.cue("bump");
       else if (cue.kind === "battleStart") { audio.cue("encounter"); fadeUntil = performance.now() + 260; }
-      else if (cue.kind === "hit") { audio.cue(cue.target === "enemy" ? "hit" : "hurt"); if (cue.target === "player") shakeUntil = performance.now() + 220; }
+      else if (cue.kind === "hit") { audio.cue(cue.target === "enemy" ? "hit" : "hurt"); if (cue.target === "player" && uiPrefs.shake) shakeUntil = performance.now() + 220; }
       else if (cue.kind === "battleEnd") {
         if (cue.outcome === "victory") { const v = content.project.audio.victory; if (v) audio.playSound(v); else audio.cue("victory"); }
         else if (cue.outcome === "defeat") audio.cue("defeat");
@@ -270,6 +288,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   function cancel() {
     if (state.scene.kind === "custom") { audio.cue("cancel"); dispatch({ type: "sceneInput", input: { type: "cancel" } }); return; }
     if (creditsOpen) { creditsOpen = false; selection = 0; renderUI(); return; }
+    if (backlogOpen) { backlogOpen = false; selection = 0; renderUI(); return; }
     if (state.scene.kind === "battle" && battlePicker) { battlePicker = null; selection = 0; renderUI(); return; }
     if (state.scene.kind !== "field") return;
     menuOpen = !menuOpen; selection = 0; held.length = 0; equipFor = null;
@@ -304,6 +323,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   function useVerb(id: string) { menuOpen = false; audio.cue("confirm"); dispatch({ type: "verb", verb: id }); }
 
   function onKeyDown(event: KeyboardEvent) {
+    dashing = event.shiftKey;
     if (!accepts(event) || event.metaKey || event.ctrlKey || event.altKey) return;
     audio.unlock();
     if (realtimeKey(event, true)) return;
@@ -319,11 +339,12 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     }
   }
   function onKeyUp(event: KeyboardEvent) {
+    dashing = event.shiftKey;
     if (realtimeKey(event, false)) return;
     const dir = directionFromKey(event.key);
     if (dir) releaseDir(dir);
   }
-  const onBlur = () => { held.length = 0; realtimeHeld.clear(); };
+  const onBlur = () => { held.length = 0; dashing = false; realtimeHeld.clear(); };
   window.addEventListener("keydown", onKeyDown);
   window.addEventListener("keyup", onKeyUp);
   window.addEventListener("blur", onBlur);
@@ -332,25 +353,81 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   canvas.addEventListener("pointerdown", () => { root.focus({ preventScroll: true }); if (state.scene.kind !== "field") confirm(); });
 
   /* ------------------------------------------------------------ windows */
+  type TextToken = { kind: "text"; text: string } | { kind: "ruby"; base: string; rt: string };
+  function parseRubyTokens(raw: string): TextToken[] {
+    const tokens: TextToken[] = [];
+    let last = 0;
+    for (const m of raw.matchAll(/\{([^|{}]+)\|([^|{}]+)\}/g)) {
+      if (m.index! > last) tokens.push({ kind: "text", text: raw.slice(last, m.index!) });
+      tokens.push({ kind: "ruby", base: m[1]!, rt: m[2]! });
+      last = m.index! + m[0].length;
+    }
+    if (last < raw.length) tokens.push({ kind: "text", text: raw.slice(last) });
+    return tokens;
+  }
+  function plainLength(tokens: TextToken[]): number {
+    return tokens.reduce((n, t) => n + Array.from(t.kind === "text" ? t.text : t.base).length, 0);
+  }
+  function renderRubyText(target: HTMLElement, tokens: TextToken[], count: number) {
+    target.textContent = "";
+    let rem = count;
+    for (const tok of tokens) {
+      if (rem <= 0) break;
+      if (tok.kind === "text") {
+        const chars = Array.from(tok.text);
+        const take = chars.slice(0, rem).join("");
+        if (take) target.appendChild(document.createTextNode(take));
+        rem -= chars.length;
+      } else {
+        const chars = Array.from(tok.base);
+        const take = chars.slice(0, rem).join("");
+        if (take) {
+          const ruby = document.createElement("ruby");
+          ruby.appendChild(document.createTextNode(take));
+          const rt = document.createElement("rt");
+          rt.textContent = tok.rt;
+          ruby.appendChild(rt);
+          target.appendChild(ruby);
+        }
+        rem -= chars.length;
+      }
+    }
+  }
+  let typingTokens: TextToken[] = [];
+  let lastRenderedCount = -1;
   function startTyping(text: string) {
     if (typing.text === text && typing.startedAt) return;
     typing = { text, startedAt: performance.now(), done: false };
-    live.textContent = text;
+    typingTokens = parseRubyTokens(text);
+    lastRenderedCount = -1;
+    live.textContent = text.replace(/\{([^|{}]+)\|[^|{}]+\}/g, "$1");
   }
   function finishTyping() { typing = { ...typing, done: true }; updateTyping(performance.now()); }
   function updateTyping(now: number) {
     const target = windowLayer.querySelector<HTMLElement>("[data-typing]");
     if (!target) return;
-    const count = typing.done ? typing.text.length : Math.min(typing.text.length, Math.floor((now - typing.startedAt) / TEXT_SPEED_MS));
-    if (count >= typing.text.length && !typing.done) { typing = { ...typing, done: true }; renderCaret(); }
-    const visible = Array.from(typing.text).slice(0, count).join("");
-    if (target.textContent !== visible) target.textContent = visible;
+    const total = plainLength(typingTokens);
+    const speedMs = uiPrefs.textSpeed === "instant" ? 0 : uiPrefs.textSpeed === "fast" ? 8 : TEXT_SPEED_MS;
+    const count = typing.done || speedMs === 0 ? total : Math.min(total, Math.floor((now - typing.startedAt) / speedMs));
+    if (count >= total && !typing.done) { typing = { ...typing, done: true }; renderCaret(); }
+    if (lastRenderedCount !== count) {
+      lastRenderedCount = count;
+      renderRubyText(target, typingTokens, count);
+    }
   }
   function renderCaret() {
     windowLayer.querySelector(".rpg-caret")?.classList.toggle("is-ready", typing.done);
   }
 
   function messageWindow(speaker: string | undefined, text: string, extra?: HTMLElement) {
+    const plain = text.replace(/\{([^|{}]+)\|[^|{}]+\}/g, "$1");
+    if (plain.trim()) {
+      const last = backlog.at(-1);
+      if (!last || last.speaker !== speaker || last.text !== plain) {
+        backlog.push({ speaker, text: plain });
+        if (backlog.length > 40) backlog.shift();
+      }
+    }
     const box = el("div", "rpg-window rpg-message");
     if (speaker) box.appendChild(el("div", "rpg-speaker", speaker));
     const body = el("div", "rpg-text"); body.dataset.typing = "1";
@@ -579,10 +656,22 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     windowLayer.appendChild(panel);
   }
 
-  function setAudio(next: AudioSettings) {
-    audio.applySettings(next);
-    try { storage.write(settingsKey, JSON.stringify(next)); } catch { /* settings are optional */ }
+  function savePrefs(nextAudio: AudioSettings) {
+    audio.applySettings(nextAudio);
+    try { storage.write(settingsKey, JSON.stringify({ ...nextAudio, ...uiPrefs })); } catch { /* settings are optional */ }
     renderUI();
+  }
+  function renderBacklog() {
+    const panel = el("div", "rpg-window rpg-menu");
+    panel.appendChild(el("div", "rpg-menu-title", "会話履歴"));
+    if (!backlog.length) panel.appendChild(el("div", "rpg-menu-empty", "まだ会話がありません"));
+    for (const entry of backlog.slice(-20).reverse()) {
+      const row = el("div", "rpg-menu-ability");
+      row.append(el("strong", undefined, entry.speaker ?? "ナレーション"), el("span", undefined, entry.text));
+      panel.appendChild(row);
+    }
+    panel.appendChild(navButton("もどる", () => { backlogOpen = false; selection = 0; renderUI(); }));
+    windowLayer.appendChild(panel);
   }
 
   /** Which BGM should play now: enemy / battle music, a playBgm override, or the map's. */
@@ -607,6 +696,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
 
   function renderMenu() {
     if (creditsOpen) { renderCredits(); return; }
+    if (backlogOpen) { renderBacklog(); return; }
     const menu = el("div", "rpg-window rpg-menu");
     menu.appendChild(el("div", "rpg-menu-title", "メニュー"));
     const stats = el("div", "rpg-menu-stats");
@@ -706,8 +796,25 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     row.append(
       navButton("セーブ", () => save()),
       navButton("ロード", () => load()),
-      navButton(`BGM: ${audio.settings.bgm ? "オン" : "オフ"}`, () => { setAudio({ ...audio.settings, bgm: !audio.settings.bgm }); }),
-      navButton(`効果音: ${audio.settings.sfx ? "オン" : "オフ"}`, () => { setAudio({ ...audio.settings, sfx: !audio.settings.sfx }); }),
+      navButton(`BGM: ${!audio.settings.bgm ? "オフ" : `${Math.round((audio.settings.bgmVolume ?? 1) * 100)}%`}`, () => {
+        const cur = !audio.settings.bgm ? 0 : Math.round((audio.settings.bgmVolume ?? 1) * 100);
+        const steps = [100, 80, 60, 40, 20, 0];
+        const nextPct = steps[(steps.indexOf(cur) + 1) % steps.length] ?? 100;
+        savePrefs({ ...audio.settings, bgm: nextPct > 0, bgmVolume: nextPct > 0 ? nextPct / 100 : 1 });
+      }),
+      navButton(`効果音: ${!audio.settings.sfx ? "オフ" : `${Math.round((audio.settings.sfxVolume ?? 1) * 100)}%`}`, () => {
+        const cur = !audio.settings.sfx ? 0 : Math.round((audio.settings.sfxVolume ?? 1) * 100);
+        const steps = [100, 80, 60, 40, 20, 0];
+        const nextPct = steps[(steps.indexOf(cur) + 1) % steps.length] ?? 100;
+        savePrefs({ ...audio.settings, sfx: nextPct > 0, sfxVolume: nextPct > 0 ? nextPct / 100 : 1 });
+      }),
+      navButton(`文字: ${uiPrefs.textSpeed === "instant" ? "瞬間" : uiPrefs.textSpeed === "fast" ? "はやい" : "ふつう"}`, () => {
+        const order: Array<"normal" | "fast" | "instant"> = ["normal", "fast", "instant"];
+        uiPrefs.textSpeed = order[(order.indexOf(uiPrefs.textSpeed) + 1) % order.length]!;
+        savePrefs(audio.settings);
+      }),
+      navButton(`画面揺れ: ${uiPrefs.shake ? "あり" : "なし"}`, () => { uiPrefs.shake = !uiPrefs.shake; savePrefs(audio.settings); }),
+      navButton("会話履歴", () => { backlogOpen = true; selection = 0; renderUI(); }),
       navButton("クレジット", () => { creditsOpen = true; selection = 0; renderUI(); }),
       navButton("とじる", () => { menuOpen = false; renderUI(); }),
     );
@@ -822,16 +929,17 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     pollGamepads();
     const rt = realtimeDef();
     if (rt) { realtimeFrame(now, rt); return; }
-    const moving = animator.update(now);
+    const speed = dashing ? 1.8 : 1;
+    const moving = animator.update(now, speed);
     renderPos = moving.position;
     if (!moving.moving && state.scene.kind === "field" && !menuOpen && held.length) {
       const dir = held[held.length - 1]!;
       dispatch({ type: "move", direction: dir });
-      const after = animator.update(now);
+      const after = animator.update(now, speed);
       renderPos = after.position;
     }
     if (ticking && state.scene.kind === "field" && !menuOpen && now - lastTick > 330) { lastTick = now; dispatch({ type: "tick" }); }
-    if (moving.moving && now - lastFrameSwap > WALK_ANIMATION_MS / 2) { walkFrame = (walkFrame + 1) % 4; lastFrameSwap = now; }
+    if (moving.moving && now - lastFrameSwap > (WALK_ANIMATION_MS / speed) / 2) { walkFrame = (walkFrame + 1) % 4; lastFrameSwap = now; }
     if (!moving.moving && !held.length) walkFrame = 0;
 
     const map = content.maps[state.mapId];

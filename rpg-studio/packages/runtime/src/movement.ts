@@ -69,11 +69,12 @@ export class GridMovementAnimator {
     this.queue.push({ ...target });
   }
 
-  update(now: number): GridMovementFrame {
+  update(now: number, speed = 1): GridMovementFrame {
     this.beginNext(now);
     if (!this.tween) return { position: { ...this.position }, moving: false };
     const active = this.tween;
-    const progress = this.durationMs <= 0 ? 1 : Math.max(0, Math.min(1, (now - active.startedAt) / this.durationMs));
+    const dur = this.durationMs / Math.max(0.5, speed);
+    const progress = dur <= 0 ? 1 : Math.max(0, Math.min(1, (now - active.startedAt) / dur));
     if (progress < 1) {
       this.position = interpolateGridPosition(active.from, active.to, progress, this.tileSize);
       return { position: { ...this.position }, moving: true };

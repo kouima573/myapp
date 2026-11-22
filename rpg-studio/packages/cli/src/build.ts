@@ -35,6 +35,8 @@ export interface BuildResult {
   version?: string;
   /** Bundled systems module for the studio (ESM, exports `systems`). */
   systemsBundle?: string;
+  zipPath?: string;
+  sizeSummary?: { totalBytes: number; jsBytes: number; dataBytes: number; assetBytes: number };
 }
 
 const posix = (p: string) => p.split(path.sep).join("/");
@@ -95,6 +97,9 @@ function gameHtml(title: string): string {
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'">
 <title>${safe}</title>
+<meta property="og:type" content="website">
+<meta property="og:title" content="${safe}">
+<meta property="og:description" content="${safe} — RPGシステム工房で制作されたブラウザRPG">
 <style>
   :root { color-scheme: dark; }
   html, body { margin: 0; min-height: 100%; background: #0d110e; color: #e9e2cb; font-family: system-ui, sans-serif; }
@@ -129,6 +134,78 @@ export interface BuildOptions {
   /** Final location; default dist/game/<project id>. */
   outDir?: string;
   minify?: boolean;
+  /** Also package dist/game/<id>.zip for upload to itch.io etc. */
+  zip?: boolean;
+}
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) {
+    let c = i;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xedb88320 ^ (c >>> 1)) : (c >>> 1);
+    t[i] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(buf: Buffer): number {
+  let c = 0xffffffff;
+  for (let i = 0; i < buf.length; i++) c = CRC_TABLE[(c ^ buf[i]!) & 0xff]! ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+async function writeStoreZip(dir: string, outFile: string) {
+  const files: Array<{ name: string; data: Buffer }> = [];
+  const walk = async (cur: string, rel = "") => {
+    for (const e of (await fs.readdir(cur, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+      const p = path.join(cur, e.name), r = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) await walk(p, r);
+      else files.push({ name: r, data: await fs.readFile(p) });
+    }
+  };
+  await walk(dir);
+  const parts: Buffer[] = [], central: Buffer[] = [];
+  let offset = 0;
+  for (const f of files) {
+    const nameBuf = Buffer.from(f.name, "utf8");
+    const crc = crc32(f.data);
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(20, 4); local.writeUInt16LE(0x0800, 6);
+    local.writeUInt32LE(crc, 14); local.writeUInt32LE(f.data.length, 18); local.writeUInt32LE(f.data.length, 22);
+    local.writeUInt16LE(nameBuf.length, 26);
+    parts.push(local, nameBuf, f.data);
+    const cd = Buffer.alloc(46);
+    cd.writeUInt32LE(0x02014b50, 0); cd.writeUInt16LE(20, 4); cd.writeUInt16LE(20, 6); cd.writeUInt16LE(0x0800, 8);
+    cd.writeUInt32LE(crc, 16); cd.writeUInt32LE(f.data.length, 20); cd.writeUInt32LE(f.data.length, 24);
+    cd.writeUInt16LE(nameBuf.length, 28); cd.writeUInt32LE(offset, 42);
+    central.push(cd, nameBuf);
+    offset += local.length + nameBuf.length + f.data.length;
+  }
+  const cdSize = central.reduce((s, b) => s + b.length, 0);
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0); eocd.writeUInt16LE(files.length, 8); eocd.writeUInt16LE(files.length, 10);
+  eocd.writeUInt32LE(cdSize, 12); eocd.writeUInt32LE(offset, 16);
+  await fs.writeFile(outFile, Buffer.concat([...parts, ...central, eocd]));
+}
+
+/** Writes the runtime JSON files from the parsed content (schema defaults applied), at the paths project.json names. */
+async function writeNormalizedData(content: GameContent, outData: string) {
+  const { project } = content;
+  const v = project.formatVersion;
+  const files: Record<string, unknown> = {
+    "project.json": project,
+    [project.tilesetPath]: content.tileset,
+    [project.dialoguesPath]: { formatVersion: v, dialogues: Object.values(content.dialogues) },
+    [project.eventsPath]: { formatVersion: v, events: Object.values(content.events) },
+    [project.databasePath]: content.database,
+    [project.assetsPath]: content.assets,
+    ...(project.rulesPath ? { [project.rulesPath]: { formatVersion: v, rules: content.rules } } : {}),
+  };
+  for (const ref of project.maps) files[ref.path] = content.maps[ref.id];
+  for (const asset of content.assets.assets) if (asset.kind === "song" && content.songs[asset.id]) files[asset.path] = content.songs[asset.id];
+  for (const [relative, value] of Object.entries(files)) {
+    const target = path.join(outData, ...relative.split("/"));
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, JSON.stringify(value));
+  }
 }
 
 /**
@@ -167,8 +244,10 @@ export async function buildProject(projectRoot: string, options: BuildOptions = 
     }
     await fs.writeFile(path.join(stage, "index.html"), gameHtml(content.project.title));
     await fs.writeFile(path.join(stage, "CREDITS.md"), creditsMarkdown(content));
-    for (const relative of Object.keys(loaded.texts)) if (relative.endsWith(".json")) await copyFile(projectRoot, relative, path.join(stage, "data"));
     for (const asset of content.assets.assets) await copyFile(projectRoot, asset.path, path.join(stage, "data"));
+    // The game loads data without Zod, so it gets the validated content with every default filled in
+    // (e.g. an entity state without "solid" must still be solid in the built game, as in tests and the studio).
+    await writeNormalizedData(content, path.join(stage, "data"));
 
     const hash = crypto.createHash("sha256");
     for (const name of ["game.js", ...Object.keys(loaded.texts).sort()]) {
@@ -191,7 +270,20 @@ export async function buildProject(projectRoot: string, options: BuildOptions = 
     }
     if (moved) await fs.rm(previous, { recursive: true, force: true });
     const systemsBundle = await fs.readFile(path.join(outDir, "systems.js"), "utf8");
-    return { ok: true, diagnostics, outDir, version, systemsBundle };
+    const jsBytes = (await fs.stat(path.join(outDir, "game.js"))).size;
+    let dataBytes = 0, assetBytes = 0;
+    const sumDir = async (d: string) => {
+      for (const e of await fs.readdir(d, { withFileTypes: true })) {
+        const p = path.join(d, e.name);
+        if (e.isDirectory()) await sumDir(p);
+        else { const sz = (await fs.stat(p)).size; if (e.name.endsWith(".json")) dataBytes += sz; else assetBytes += sz; }
+      }
+    };
+    await sumDir(path.join(outDir, "data")).catch(() => {});
+    const sizeSummary = { totalBytes: jsBytes + dataBytes + assetBytes, jsBytes, dataBytes, assetBytes };
+    let zipPath: string | undefined;
+    if (options.zip) { zipPath = `${outDir}.zip`; await writeStoreZip(outDir, zipPath); }
+    return { ok: true, diagnostics, outDir, version, systemsBundle, zipPath, sizeSummary };
   } finally {
     await fs.rm(work, { recursive: true, force: true });
   }

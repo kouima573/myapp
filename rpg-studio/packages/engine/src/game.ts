@@ -244,7 +244,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const r = refOf(ref);
     const system = r && byId.get(r.id);
     if (!r || !system) return;
-    const key = `${r.id}@${kind}:${id}`;
+    const key = index !== undefined ? `${r.id}@${kind}:${id}#${index}` : `${r.id}@${kind}:${id}`;
     if (out.some(s => s.id === key)) return;
     let bound = boundCache.get(key);
     if (!bound) { bound = bindScript(system, { kind, id, args: r.args, ...(index !== undefined ? { index } : {}) }, key); boundCache.set(key, bound); }
@@ -270,23 +270,30 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     }
     const battle = state.scene.kind === "battle" ? state.scene.battle : undefined;
     if (battle) {
-      const ids = [battle.enemyId, ...(battle.foes ?? []).map(f => f.enemyId)];
-      ids.forEach((eid, i) => attach(extra, db.enemies.find(e => e.id === eid)?.script, "enemy", eid, i));
+      const slots = [{ id: battle.enemyId, slot: battle.slot ?? 0 }, ...(battle.foes ?? []).map((f, k) => ({ id: f.enemyId, slot: f.slot ?? k + 1 }))];
+      for (const { id: eid, slot } of slots) attach(extra, db.enemies.find(e => e.id === eid)?.script, "enemy", eid, slot);
     }
     const list = extra.length ? sortSystems([...globalSystems, ...extra]) : globalSystems;
     activeCache.set(state, list);
     return list;
   }
   /** Scripts attached to an enemy / companion only steer their own turns. */
-  const steers = (system: GameSystem, kind: "enemy" | "companion", id: string) => {
+  /** For enemies, `slot` is the start-of-battle position of the enemy that is acting now. */
+  const steers = (system: GameSystem, kind: "enemy" | "companion", id: string, slot?: number) => {
     const self = system.scope === "attached" ? boundSelf(system) : undefined;
-    return !self || (self.kind !== "enemy" && self.kind !== "companion") || (self.kind === kind && self.id === id);
+    if (!self || (self.kind !== "enemy" && self.kind !== "companion")) return true;
+    if (self.kind !== kind || self.id !== id) return false;
+    return kind !== "enemy" || self.index === undefined || self.index === (slot ?? 0);
   };
   const boundSelf = (system: GameSystem): ScriptSelf | undefined => {
     const at = system.id.indexOf("@");
     if (at < 0) return undefined;
     const [kind, ...rest] = system.id.slice(at + 1).split(":");
-    return { kind: kind as ScriptSelf["kind"], id: rest.join(":"), args: {} };
+    const raw = rest.join(":");
+    const hash = raw.lastIndexOf("#");
+    const index = hash >= 0 && /^\d+$/.test(raw.slice(hash + 1)) ? Number(raw.slice(hash + 1)) : undefined;
+    const id = index !== undefined ? raw.slice(0, hash) : raw;
+    return { kind: kind as ScriptSelf["kind"], id, args: {}, ...(index !== undefined ? { index } : {}) };
   };
   function scriptCommands(state: GameState, where: "battle" | "field"): Array<ScriptCommand & { source: string }> {
     const out: Array<ScriptCommand & { source: string }> = [];
@@ -803,7 +810,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       enemyId: enemy.id, enemyHp: enemy.stats.maxHp, turn: 0, guarding: false,
       canFlee: effect.canFlee ?? (enemy.canFlee && others.every(o => o.canFlee)), onDefeat: effect.onDefeat ?? "respawn", onVictory: effect.onVictory ?? [],
       log: [others.length ? `${[enemy, ...others].map(e => e.name).join("と")}が現れた！` : `${enemy.name}が現れた！`], systemData: {}, outcome: "ongoing", fired: [], after: [],
-      ...(others.length ? { foes: others.map(o => ({ enemyId: o.id, hp: o.stats.maxHp })) } : {}),
+      ...(others.length ? { foes: others.map((o, k) => ({ enemyId: o.id, hp: o.stats.maxHp, slot: k + 1 })) } : {}),
     };
     state = setBattle(state, battle);
     for (const system of active(state)) {
@@ -994,8 +1001,9 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const b = battleOf(state);
     if (!b || i <= 0 || !b.foes?.[i - 1]) return state;
     const foe = b.foes[i - 1]!;
-    const foes = b.foes.map((f, k) => (k === i - 1 ? { enemyId: b.enemyId, hp: b.enemyHp } : f));
-    return setBattle(state, { ...b, enemyId: foe.enemyId, enemyHp: foe.hp, foes });
+    // Each enemy keeps its start-of-battle slot, so attached scripts keep their own memory while the order changes.
+    const foes = b.foes.map((f, k) => (k === i - 1 ? { enemyId: b.enemyId, hp: b.enemyHp, slot: b.slot ?? 0 } : f));
+    return setBattle(state, { ...b, enemyId: foe.enemyId, enemyHp: foe.hp, slot: foe.slot ?? i, foes });
   }
   const firstAlive = (b: BattleState) => { for (let i = 0; i < enemyCount(b); i++) if (enemyHpAt(b, i) > 0) return i; return 0; };
 
@@ -1086,7 +1094,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const battle = battleOf(state)!;
     const enemy = enemyOf(battle.enemyId);
     for (const system of active(state)) {
-      if (!system.enemyTurn || !steers(system, "enemy", enemy.id)) continue;
+      if (!system.enemyTurn || !steers(system, "enemy", enemy.id, battleOf(state)!.slot ?? 0)) continue;
       const result = system.enemyTurn({ content, state, battle: battleOf(state)!, enemy });
       if (result) return applyNow(c, state, result);
     }

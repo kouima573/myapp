@@ -217,6 +217,42 @@ describe("determinism and saves", () => {
   });
 });
 
+describe("attached scripts", () => {
+  it("binds one script instance per enemy (stable slot) when identical enemies appear", () => {
+    const seen: Array<{ id: string; index?: number }> = [];
+    const enemy = content.database.enemies[0]!;
+    const taggedContent: GameContent = {
+      ...content,
+      database: {
+        ...content.database,
+        enemies: content.database.enemies.map((e, i) => (i === 0 ? { ...e, script: "multi-foe" } : e)),
+      },
+    };
+    const multiEngine = createEngine(taggedContent, [
+      ...systems,
+      {
+        id: "multi-foe",
+        scope: "attached",
+        enemyTurn(ctx) {
+          seen.push({ id: ctx.self?.id ?? "", index: ctx.self?.index });
+          return undefined;
+        },
+      },
+    ]);
+    let state = multiEngine.newGame(1);
+    while (state.scene.kind === "message") state = multiEngine.step(state, { type: "advance" }).state;
+    state = multiEngine.step(state, { type: "choose", choiceId: "dwarf" }).state;
+    while (state.scene.kind === "message") state = multiEngine.step(state, { type: "advance" }).state;
+    state = multiEngine.run(state, [{ type: "battle", enemy: enemy.id, with: [enemy.id] }]).state;
+    const activeIds = multiEngine.activeSystems(state).map(s => s.id);
+    expect(activeIds).toContain(`multi-foe@enemy:${enemy.id}#0`);
+    expect(activeIds).toContain(`multi-foe@enemy:${enemy.id}#1`);
+    multiEngine.step(state, { type: "battle", command: "guard" });
+    // Both enemies act through their own binding, each keeping its start-of-battle slot.
+    expect(seen).toEqual([{ id: enemy.id, index: 0 }, { id: enemy.id, index: 1 }]);
+  });
+});
+
 describe("sample scenarios", () => {
   it("all tests/*.scenario.json pass", async () => {
     const results = await runProjectScenarios(root, content, systems);

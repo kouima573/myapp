@@ -2,10 +2,11 @@
  * Browser audio: BGM files (ogg/mp3/wav), text-score songs synthesized live, and sound effects.
  * Unassigned cues fall back to a tiny synthesized blip so every game has basic feedback.
  */
-import { parseNotes, SongSchema, type AssetEntry, type GameContent, type SfxCue, type Song } from "../../schema/src/formats";
+import type { AssetEntry, GameContent, SfxCue } from "../../schema/src/formats";
+import { parseNotes, type Song } from "../../schema/src/song";
 import { presetParams, renderSfx, type SfxPreset } from "./sfx";
 
-export interface AudioSettings { bgm: boolean; sfx: boolean }
+export interface AudioSettings { bgm: boolean; sfx: boolean; bgmVolume?: number; sfxVolume?: number }
 
 type Loaded = { kind: "buffer"; buffer: AudioBuffer } | { kind: "song"; song: Song };
 
@@ -131,8 +132,8 @@ export class AudioManager {
       try { this.ctx = new AudioContext(); } catch { return; }
       const vol = this.content.project.audio.volume;
       const bgm = this.ctx.createGain(), sfx = this.ctx.createGain();
-      bgm.gain.value = this.settings.bgm ? vol.bgm : 0;
-      sfx.gain.value = this.settings.sfx ? vol.sfx : 0;
+      bgm.gain.value = this.settings.bgm ? vol.bgm * (this.settings.bgmVolume ?? 1) : 0;
+      sfx.gain.value = this.settings.sfx ? vol.sfx * (this.settings.sfxVolume ?? 1) : 0;
       bgm.connect(this.ctx.destination); sfx.connect(this.ctx.destination);
       this.master = { bgm, sfx };
       const noise = this.ctx.createBuffer(1, this.ctx.sampleRate, this.ctx.sampleRate);
@@ -151,8 +152,8 @@ export class AudioManager {
     this.settings = settings;
     if (!this.master || !this.ctx) return;
     const vol = this.content.project.audio.volume;
-    this.master.bgm.gain.setTargetAtTime(settings.bgm ? vol.bgm : 0, this.ctx.currentTime, 0.05);
-    this.master.sfx.gain.setTargetAtTime(settings.sfx ? vol.sfx : 0, this.ctx.currentTime, 0.05);
+    this.master.bgm.gain.setTargetAtTime(settings.bgm ? vol.bgm * (settings.bgmVolume ?? 1) : 0, this.ctx.currentTime, 0.05);
+    this.master.sfx.gain.setTargetAtTime(settings.sfx ? vol.sfx * (settings.sfxVolume ?? 1) : 0, this.ctx.currentTime, 0.05);
   }
 
   private load(id: string): Promise<Loaded | null> {
@@ -166,7 +167,7 @@ export class AudioManager {
         const known = this.content.songs[id];
         if (known) return { kind: "song", song: known } as const;
         const response = await fetch(await this.resolve(asset));
-        return { kind: "song", song: SongSchema.parse(await response.json()) } as const;
+        return { kind: "song", song: (await response.json()) as Song } as const;
       }
       const response = await fetch(await this.resolve(asset));
       const buffer = await this.ctx.decodeAudioData(await response.arrayBuffer());

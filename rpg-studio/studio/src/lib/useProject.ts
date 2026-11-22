@@ -209,6 +209,7 @@ export function useProject(source: ProjectSource) {
 
   /* ---------------------------------------------------------- conflicts */
   const resolveConflict = useCallback(async (path: string, choice: "theirs" | "mine") => {
+    window.clearTimeout(timers.current[path]);
     const conflict = conflicts.find(c => c.path === path);
     if (!conflict) return;
     setConflicts(current => current.filter(c => c.path !== path));

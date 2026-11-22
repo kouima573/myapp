@@ -2,7 +2,8 @@
  * Deterministic, one-step format migrations. Pure functions: file texts in, file texts out.
  * Writing, backup and user confirmation are handled by the CLI (`rpg migrate`).
  */
-import { PROJECT_FORMAT_VERSION, SAVE_FORMAT_VERSION, type Condition, type Effect, type GameContent, type GameSave, type GameState } from "./formats";
+import { PROJECT_FORMAT_VERSION, SAVE_FORMAT_VERSION } from "./constants";
+import type { Condition, Effect, GameContent, GameSave, GameState } from "./formats";
 import type { ProjectFileTexts } from "./validate";
 
 export interface MigrationResult {

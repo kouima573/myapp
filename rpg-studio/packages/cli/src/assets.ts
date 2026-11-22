@@ -64,6 +64,7 @@ export async function cmdAsset(sub: string | undefined, root: string, flags: Fla
     case "add": return addAsset(root, flags);
     case "gen-sfx": return genSfx(root, flags);
     case "report": return report(root);
+    case "unused": return unusedAssets(root);
     case "credits": { const loaded = await loadProjectFromDisk(root); if (!loaded.content) { console.log("FAILED: validate のエラーを直してください"); return 1; } console.log(creditLines(loaded.content).join("\n")); return 0; }
     default:
       console.log(`rpg asset sources|enable|disable|add|gen-sfx|report|credits --project <dir>
@@ -76,6 +77,7 @@ export async function cmdAsset(sub: string | undefined, root: string, flags: Fla
       [--tile 64x64 --columns 4 --rows 4 --frame-ms 160] [--volume 0.8 --no-loop] [--request <art request id>] [--replace]
   gen-sfx --preset <${SFX_PRESETS.join("|")}> --id <id> [--seed 1] [--cue confirm]   オリジナル効果音を生成して登録
   report                          容量予算・取得元・クレジット・規約確認の一覧
+  unused                          プロジェクト内のどこからも参照されていない素材を一覧
   credits                         クレジット表記`);
       return sub ? 2 : 0;
   }
@@ -131,13 +133,14 @@ export async function addAsset(root: string, flags: Flags, extra: Partial<AssetE
   const origin = (str(flags, "origin") ?? (source ? source.origin : "original")) as AssetEntry["origin"];
   if (source && source.redistribution === "prohibited" && parsed.assetPolicy.shareable) { console.log(`ERROR 共有用プロジェクトに「${source.name}」の素材は入れられません（再配布禁止）`); return 1; }
 
+  if (!str(flags, "license") && origin !== "original" && origin !== "generated") { console.log("ERROR 外部素材（site/purchased/commission）には --license <規約名> を必ず指定してください"); return 2; }
   const relative = `${FOLDERS[kind]}/${id}${kindOfFile.ext}`;
   const target = resolveInside(root, relative);
   await fs.mkdir(path.dirname(target), { recursive: true });
   const raw: Record<string, unknown> = {
     id, path: relative, kind, mimeType: kindOfFile.mime, bytes: bytes.length,
     source: source?.name ?? (origin === "generated" ? "生成" : "自作"),
-    license: str(flags, "license") ?? (source?.origin === "generated" ? "プロジェクト内素材" : "プロジェクト内素材"),
+    license: str(flags, "license") ?? "プロジェクト内素材",
     origin, ...(sourceId ? { sourceId } : {}),
     ...(str(flags, "url") ? { url: str(flags, "url") } : {}),
     ...(str(flags, "author") ? { author: str(flags, "author") } : {}),
@@ -153,6 +156,7 @@ export async function addAsset(root: string, flags: Flags, extra: Partial<AssetE
   if (isImage) {
     const info = pngInfo(bytes)!;
     const [tw, th] = (str(flags, "tile") ?? "64x64").split("x").map(Number);
+    if (!Number.isInteger(tw) || !Number.isInteger(th) || tw! <= 0 || th! <= 0) { console.log("ERROR --tile は 64x64 のような正の整数で指定してください"); return 2; }
     raw.tileWidth = tw; raw.tileHeight = th;
     raw.columns = Number(str(flags, "columns") ?? Math.max(1, Math.floor(info.width / tw!)));
     raw.rows = Number(str(flags, "rows") ?? Math.max(1, Math.floor(info.height / th!)));
@@ -186,7 +190,7 @@ async function genSfx(root: string, flags: Flags): Promise<number> {
   await addEntry(root, AssetEntrySchema.parse({
     id, path: relative, kind: "sfx", mimeType: "audio/wav", bytes: wav.length, source: "内蔵効果音ジェネレーター", license: "プロジェクト内素材（オリジナル生成）",
     origin: "generated", sourceId: "builtin-sfx", generator: { tool: "rpg asset gen-sfx", preset, seed }, loop: false,
-  }), Boolean(flags.replace) || true);
+  }), Boolean(flags.replace));
   const cue = str(flags, "cue");
   if (cue) {
     const { raw } = await manifest(root);
@@ -207,6 +211,18 @@ export async function projectSize(root: string): Promise<{ total: number; byKind
     try { const stat = await fs.stat(resolveInside(root, asset.path)); byKind[asset.kind] = (byKind[asset.kind] ?? 0) + stat.size; files.push({ path: asset.path, bytes: stat.size }); } catch { /* reported by validate */ }
   }
   return { total: files.reduce((s, f) => s + f.bytes, 0), byKind, largest: files.sort((a, b) => b.bytes - a.bytes).slice(0, 5) };
+}
+
+async function unusedAssets(root: string): Promise<number> {
+  const loaded = await loadProjectFromDisk(root);
+  if (!loaded.content) { console.log("FAILED: validate のエラーを直してください"); return 1; }
+  const assetsPath = loaded.content.project.assetsPath;
+  const corpus = Object.entries(loaded.texts).filter(([p]) => p !== assetsPath).map(([, t]) => t).join("\n");
+  const unused = loaded.content.assets.assets.filter(a => !corpus.includes(a.id));
+  if (!unused.length) { console.log("OK unused: すべての素材がプロジェクト内で参照されています"); return 0; }
+  console.log(`# 未使用の可能性がある素材（${unused.length}件）`);
+  for (const a of unused) console.log(`- ${a.id} (${a.kind})  ${a.path}`);
+  return 0;
 }
 
 async function report(root: string): Promise<number> {

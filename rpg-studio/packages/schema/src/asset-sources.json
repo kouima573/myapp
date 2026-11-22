@@ -1,6 +1,6 @@
 {
   "formatVersion": 1,
-  "note": "規約の要約は2026-11時点の一般情報で、このツールの作成環境からは各サイトの規約原文に接続できず未照合です（verifiedAt: null）。素材を追加するたびに termsUrl の原文を読み、checklist を確認したうえで assets.json に termsCheckedAt を記録してください。規約は変わります。 2026-11-15: 34サイトを調査（ネットワーク制限のため検索の抜粋・解説記事から。research.method = \"secondary\"）。verifiedAt は原文を読んだ人だけが入れる。",
+  "note": "規約の要約は2026-11時点の一般情報で、このツールの作成環境からは各サイトの規約原文に接続できず未照合です（verifiedAt: null）。素材を追加するたびに termsUrl の原文を読み、checklist を確認したうえで assets.json に termsCheckedAt を記録してください。規約は変わります。 2026-11-15: 37件（外部サイト等33件）を調査（ネットワーク制限のため検索の抜粋・解説記事から。research.method = \"secondary\"）。verifiedAt は原文を読んだ人だけが入れる。",
   "sources": [
     {
       "id": "builtin-sfx",
@@ -281,16 +281,16 @@
         "checkedAt": "2026-11-15",
         "urls": [
           "https://opentracks.com/help/articles/game_trpg/",
+          "https://opentracks.com/news/detail/15",
+          "https://opentracks.com/news/detail/17",
           "https://opentracks.com/en/help/articles/license/",
-          "https://opentracks.com/en/help/articles/license-prohibitions/",
-          "https://www.gamespark.jp/article/2026/11/13/174826.html",
-          "https://www.gamebusiness.jp/article/2026/11/12/28655.html"
+          "https://opentracks.com/en/help/articles/license-prohibitions/"
         ]
       },
       "preview": "https://opentracks.com/bgm/detail/<id>（試聴ページ）",
-      "contact": "https://opentracks.com/help/（問い合わせ先URL未確認）",
+      "contact": "https://opentracks.com/help/articles/game_trpg/（記事下部に問い合わせフォームあり）",
       "cautions": [
-        "2026-09-15 に OpenTracks へ改称（URL は opentracks.com）。2026-11 に「ゲームでは通常の操作で音源を取り出せない形で組み込む」条件が案内され、取り出せる場合も3点の条件を満たせば可とされた（3点の中身は未確認）。HTML5 書き出しの本ツールは「取り出せる」側にあたる可能性が高いので、使う前に必ず原文を確認する"
+        "2026-09-15 に OpenTracks へ改称（URL は opentracks.com）。2026-11-20 のお知らせ（12/1 規約反映予定）により、HTML5等で暗号化が困難な場合は「①利用規約等に音源の抽出・別用途利用禁止を明記」「②利用者に遵守を求める」「③違反時に適切な対応を行う」の3条件で通常ライセンス利用可と明文化（音楽ゲーム・リズムゲームは2027/1/1以降の新規公開でクレジット必須）"
       ],
       "notes": ""
     },

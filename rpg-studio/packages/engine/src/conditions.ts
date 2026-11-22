@@ -20,6 +20,7 @@ export interface FrontInfo { tile: string; entities: string[]; npcs: string[]; b
 
 function splitRef(ref: string): [string, string] {
   const dot = ref.lastIndexOf(".");
+  if (dot <= 0 || dot === ref.length - 1) return ["", ""];
   return [ref.slice(0, dot), ref.slice(dot + 1)];
 }
 

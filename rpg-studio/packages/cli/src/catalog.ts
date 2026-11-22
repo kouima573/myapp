@@ -29,7 +29,11 @@ export function catalog(content: GameContent): string {
   const out: string[] = [];
   const h = (title: string) => out.push("", `## ${title}`);
   const ruleLine = (r: Rule) => `${r.id}（on: ${r.on}${r.once ? `, once: ${r.once}` : ""}${r.chance !== undefined ? ", 確率あり" : ""}）${r.description ? ` — ${r.description}` : ""}`;
-  out.push(`# ${project.title} (${project.id})`, "", `開始: ${project.start.mapId} (${project.start.x}, ${project.start.y})　主人公: ${project.player.name}　基本能力: HP${project.player.stats.maxHp} 攻${project.player.stats.attack} 防${project.player.stats.defense}`);
+  const mapCount = Object.keys(content.maps).length;
+  const dlgCount = Object.keys(content.dialogues).length;
+  const evtCount = Object.keys(content.events).length;
+  const estMin = Math.max(2, mapCount * 3 + Math.ceil((dlgCount + evtCount) * 0.5));
+  out.push(`# ${project.title} (${project.id})`, "", `開始: ${project.start.mapId} (${project.start.x}, ${project.start.y})　主人公: ${project.player.name}　基本能力: HP${project.player.stats.maxHp} 攻${project.player.stats.attack} 防${project.player.stats.defense}`, `規模目安: マップ${mapCount}・会話${dlgCount}・イベント${evtCount}・敵${db.enemies.length}（想定プレイ時間 約${estMin}〜${estMin + 5}分）`);
   h("フラグ (flags)");
   for (const [id, d] of Object.entries(project.flags)) out.push(`- \`${id}\` 初期${d.initial}${d.description ? ` — ${d.description}` : ""}`);
   h("変数 (variables)");
@@ -69,4 +73,24 @@ export function catalog(content: GameContent): string {
   h("独自システム (systems)");
   for (const s of project.systems) out.push(`- \`${s.id}\` ${s.path} — ${s.title}`);
   return `${out.join("\n")}\n`;
+}
+
+/** Finds unreachable maps, unreferenced dialogues, and unreferenced events. */
+export function auditProject(content: GameContent): { unreachableMaps: string[]; unusedDialogues: string[]; unusedEvents: string[] } {
+  const reachable = new Set<string>([content.project.start.mapId]);
+  const queue = [content.project.start.mapId];
+  const allJson = JSON.stringify({ intro: content.project.intro, events: content.events, dialogues: content.dialogues, rules: content.rules });
+  while (queue.length) {
+    const id = queue.shift()!;
+    const map = content.maps[id];
+    if (!map) continue;
+    for (const p of map.portals) if (!reachable.has(p.targetMapId)) { reachable.add(p.targetMapId); queue.push(p.targetMapId); }
+  }
+  for (const id of Object.keys(content.maps)) if (!reachable.has(id) && allJson.includes(`"mapId":"${id}"`)) reachable.add(id);
+  const unreachableMaps = Object.keys(content.maps).filter(id => !reachable.has(id));
+  const mapCorpus = JSON.stringify(content.maps) + JSON.stringify(content.events) + JSON.stringify(content.rules) + JSON.stringify(content.project.intro ?? []);
+  const unusedDialogues = Object.keys(content.dialogues).filter(id => !mapCorpus.includes(`"${id}"`));
+  const eventCorpus = JSON.stringify(content.maps) + JSON.stringify(content.dialogues) + JSON.stringify(content.rules) + JSON.stringify(content.project.intro ?? []);
+  const unusedEvents = Object.keys(content.events).filter(id => !eventCorpus.includes(`"${id}"`));
+  return { unreachableMaps, unusedDialogues, unusedEvents };
 }

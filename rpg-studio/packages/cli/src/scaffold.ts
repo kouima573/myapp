@@ -14,7 +14,18 @@ const BORROWED_ASSETS = new Set(["village-tiles", "adventurer", "sfx-cursor", "s
 
 const json = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
 
-export async function newProject(id: string, title: string, root = path.join(REPO_ROOT, "projects")): Promise<string> {
+export type ProjectTheme = "default" | "fantasy" | "mystery" | "scifi" | "minimal";
+
+const THEMES: Record<ProjectTheme, { playerName: string; place: string; intro: (t: string) => string; stats: { maxHp: number; attack: number; defense: number } }> = {
+  default: { playerName: "主人公", place: "はじまりの場所", intro: t => `${t}。ここから、まだ誰も遊んだことのないゲームが始まる。`, stats: { maxHp: 20, attack: 5, defense: 1 } },
+  fantasy: { playerName: "見習い騎士", place: "緑の辺境村", intro: t => `${t}。剣と魔法の旅が、静かな辺境の村から幕を開ける。`, stats: { maxHp: 24, attack: 6, defense: 2 } },
+  mystery: { playerName: "探偵助手", place: "霧の洋館前", intro: t => `${t}。古い洋館に残された謎を解くため、調査が始まった。`, stats: { maxHp: 18, attack: 4, defense: 1 } },
+  scifi: { playerName: "航宙士", place: "軌道ステーション", intro: t => `${t}。未知の信号を追って、宇宙港のハッチが開く。`, stats: { maxHp: 22, attack: 5, defense: 2 } },
+  minimal: { playerName: "主人公", place: "スタート地点", intro: t => `${t}。`, stats: { maxHp: 20, attack: 5, defense: 1 } },
+};
+
+export async function newProject(id: string, title: string, root = path.join(REPO_ROOT, "projects"), theme: ProjectTheme = "default"): Promise<string> {
+  const preset = THEMES[theme] ?? THEMES.default;
   if (!/^[a-z0-9][a-z0-9-]{1,40}$/.test(id)) throw new Error(`プロジェクトID '${id}' は英小文字・数字・ハイフン（2〜41文字）にしてください`);
   const dir = path.join(root, id);
   try { await fs.access(dir); throw new Error(`${path.relative(process.cwd(), dir)} はすでにあります`); } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
@@ -37,11 +48,11 @@ export async function newProject(id: string, title: string, root = path.join(REP
       formatVersion: 2, id, title,
       engineCompatibility: { min: "0.7.0" },
       start: { mapId: "start", x: 7, y: 6, facing: "down" },
-      player: { name: "主人公", sprite: "adventurer", stats: { maxHp: 20, attack: 5, defense: 1 }, abilities: [], items: {}, traits: [] },
+      player: { name: preset.playerName, sprite: "adventurer", stats: preset.stats, abilities: [], items: {}, traits: [] },
       flags: {}, variables: {}, sets: {}, endings: {},
       verbs: {}, signals: {},
-      intro: [{ type: "message", text: `${title}。ここから、まだ誰も遊んだことのないゲームが始まる。` }],
-      maps: [{ id: "start", path: "maps/start.json", title: "はじまりの場所" }],
+      intro: [{ type: "message", text: preset.intro(title) }],
+      maps: [{ id: "start", path: "maps/start.json", title: preset.place }],
       tilesetPath: "tiles.json", dialoguesPath: "dialogues/dialogues.json", eventsPath: "events/events.json",
       databasePath: "database.json", rulesPath: "rules.json", assetsPath: "assets.json",
       systems: [],
@@ -49,7 +60,7 @@ export async function newProject(id: string, title: string, root = path.join(REP
       audio: { battle: "song-battle", victory: "sfx-victory", sfx: Object.fromEntries(["cursor", "confirm", "cancel", "bump", "hit", "hurt", "heal", "encounter", "victory", "defeat", "door", "item", "save", "menu"].map(cue => [cue, `sfx-${cue}`])) },
       credits: [`企画: ${title} の作者`, "タイル・主人公・効果音: RPGシステム工房 サンプル素材（MIT）"],
     },
-    "maps/start.json": { formatVersion: 2, id: "start", title: "はじまりの場所", width, height, rows, npcs: [], portals: [], interactables: [], entities: [] },
+    "maps/start.json": { formatVersion: 2, id: "start", title: preset.place, width, height, rows, npcs: [], portals: [], interactables: [], entities: [] },
     "dialogues/dialogues.json": { formatVersion: 2, dialogues: [] },
     "events/events.json": { formatVersion: 2, events: [] },
     "database.json": { formatVersion: 2, abilities: [], items: [], enemies: [], traits: [] },
