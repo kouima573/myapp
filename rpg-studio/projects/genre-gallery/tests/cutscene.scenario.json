@@ -1,0 +1,21 @@
+{
+  "name": "演出: 顔グラフィックつき会話・フキダシ・移動ルート（終わるまで操作と次の効果を待つ）",
+  "seed": 2,
+  "steps": [
+    { "advance": "all" },
+    { "effects": [{ "type": "teleport", "mapId": "garden", "x": 6, "y": 7, "facing": "up" }] },
+    { "interact": true },
+    { "expect": { "scene": "dialogue", "textIncludes": "旅の者" } },
+    { "advance": "once" },
+    { "advance": "once" },
+    { "expect": { "scene": "message", "textIncludes": "横に並べ" } },
+    { "advance": "once" },
+    { "expect": { "scene": "field", "at": { "x": 6, "y": 7 } } },
+    { "move": "down" },
+    { "expect": { "at": { "x": 6, "y": 7 } } },
+    { "routes": "finish" },
+    { "expect": { "at": { "x": 5, "y": 6 }, "scene": "message", "textIncludes": "気のせい" } },
+    { "advance": "all" },
+    { "expect": { "scene": "field" } }
+  ]
+}

@@ -75,6 +75,8 @@ export const RUNTIME_CSS = String.raw`
 .rpg-ending { position:absolute; left:10%; right:10%; top:14%; bottom:14%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.6em; padding:1.2em; text-align:center; animation:rpg-in .6s ease-out; }
 .rpg-ending-label { letter-spacing:.4em; color:var(--rpg-accent); font-size:.8em; }
 .rpg-ending-title { font-size:1.5em; letter-spacing:.1em; }
+.rpg-message.has-face { padding-left:calc(1em + 6.2em); min-height:6.6em; }
+.rpg-face { position:absolute; left:.8em; top:50%; transform:translateY(-50%); width:5.6em; height:5.6em; image-rendering:pixelated; border:2px solid rgba(233,220,184,.45); border-radius:6px; background:rgba(0,0,0,.35); }
 .rpg-pop { position:absolute; left:50%; top:30%; z-index:6; pointer-events:none; font-size:1.6em; font-weight:700; color:#fff2c4; text-shadow:0 2px 0 #000, 0 0 6px rgba(0,0,0,.8); transform:translate(calc(-50% + var(--dx, 0px)), 0); animation:rpg-pop .9s ease-out forwards; }
 .rpg-pop.is-player { top:62%; left:22%; color:#ff9a8a; }
 @keyframes rpg-pop { 0% { opacity:0; transform:translate(calc(-50% + var(--dx, 0px)), .4em) scale(.8); } 15% { opacity:1; transform:translate(calc(-50% + var(--dx, 0px)), 0) scale(1.15); } 70% { opacity:1; } 100% { opacity:0; transform:translate(calc(-50% + var(--dx, 0px)), -1.4em) scale(1); } }

@@ -202,3 +202,9 @@
 - **動くタイル**: `"frames": [47, 48, 49], "frameMs": 250`（同じアトラスの番号を順に表示）。ライブラリの「浅い水（動く）」。
 - **レイヤー**（マップに `layers`）: `[{ "id": "decor", "above": false, "rows": [...] }, { "id": "upper", "above": true, "rows": [...] }]`。行は地面と同じ大きさで、空白 `" "` は何もなし。`above: false` は地面の上に重ねる物（通れないタイルなら道をふさぐ）、`above: true` はキャラの頭上に描く（屋根・木の葉、道はふさがない）。工房のマップ画面の「層」で塗る層を選べる。
 
+## 演出: フキダシ・顔グラフィック・移動ルート
+
+- **フキダシ** `{ "type": "emote", "target": "player" | NPCのID | エンティティのID, "icon": "！" }` — 頭上に1.5秒ほど表示（「？」「♪」「…」「♥」など短い文字なら何でも）。
+- **顔グラフィックと表情**: 会話に `"portrait": "素材ID"`（portrait か character の素材。コマ＝表情）、行ごとに `{ "text": "…", "face": 2 }`。メッセージ効果にも `"portrait"` と `"face"`。
+- **移動ルート** `{ "type": "moveRoute", "target": "player" | エンティティのID, "steps": ["up", "up", "left", "face:down", "wait"], "wait": true, "through": false }` — 1歩ずつ歩く。`wait: true` なら歩き終わるまで次の効果とプレイヤーの操作を止める（イベントの演出）。`through: true` で壁を通り抜ける。NPCは位置が決まっているので、動かしたい人物はエンティティで置く。自動テストでは `{ "routes": "finish" }` で最後まで進める。見本: `projects/genre-gallery/tests/cutscene.scenario.json`。
+

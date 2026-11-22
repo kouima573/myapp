@@ -152,7 +152,9 @@ export type VarOp = (typeof VAR_OPS)[number];
 export interface ChoiceOption { id?: string; label: string; when?: Condition; effects: Effect[] }
 
 export type Effect =
-  | { type: "message"; text: string; speaker?: string }
+  | { type: "message"; text: string; speaker?: string; portrait?: string; face?: number }
+  | { type: "emote"; target: string; icon: string }
+  | { type: "moveRoute"; target: string; steps: string[]; wait?: boolean; through?: boolean }
   | { type: "setFlag"; flag: string; value?: boolean }
   | { type: "setVar"; var: string; value: Expr; op?: VarOp }
   | { type: "random"; var: string; min: Expr; max: Expr }
@@ -207,7 +209,14 @@ const ChoiceOptionSchema: z.ZodType<ChoiceOption> = z.lazy(() => z.object({
 }).strict());
 
 export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion("type", [
-  z.object({ type: z.literal("message"), text: z.string().min(1), speaker: z.string().min(1).optional() }).strict(),
+  z.object({ type: z.literal("message"), text: z.string().min(1), speaker: z.string().min(1).optional(), /** Face picture (portrait asset) and its frame (expression). */ portrait: IdSchema.optional(), face: z.number().int().min(0).optional() }).strict(),
+  /** Speech-bubble icon over the hero ("player"), an NPC or an entity: "！" "？" "♪" "…" "♥" or any short text. */
+  z.object({ type: z.literal("emote"), target: z.string().min(1), icon: z.string().min(1).max(4) }).strict(),
+  /**
+   * Walk the hero ("player") or an entity step by step: "up" "down" "left" "right", "face:left", "wait".
+   * wait: true holds the following effects (and the player's input) until the route ends. through: ignore walls.
+   */
+  z.object({ type: z.literal("moveRoute"), target: z.string().min(1), steps: z.array(z.string().regex(/^(up|down|left|right|wait|face:(up|down|left|right))$/)).min(1).max(200), wait: z.boolean().optional(), through: z.boolean().optional() }).strict(),
   z.object({ type: z.literal("setFlag"), flag: IdSchema, value: z.boolean().optional() }).strict(),
   z.object({ type: z.literal("setVar"), var: IdSchema, value: ExprSchema, op: z.enum(VAR_OPS).optional() }).strict(),
   z.object({ type: z.literal("random"), var: IdSchema, min: ExprSchema, max: ExprSchema }).strict(),
@@ -774,8 +783,10 @@ export type DialogueChoice = z.infer<typeof DialogueChoiceSchema>;
 export const DialogueSchema = z.object({
   id: IdSchema,
   speaker: z.string().min(1),
-  /** Strings, or {"text","when"} for lines shown only when a condition holds. Supports {{var.x}} etc. */
-  lines: z.array(z.union([z.string().min(1), z.object({ text: z.string().min(1), when: ConditionSchema }).strict()])).min(1),
+  /** Strings, or {"text","when"?,"face"?} for lines shown only when a condition holds / with an expression. Supports {{var.x}} etc. */
+  lines: z.array(z.union([z.string().min(1), z.object({ text: z.string().min(1), when: ConditionSchema.optional(), /** Frame of the portrait (expression). */ face: z.number().int().min(0).optional() }).strict()])).min(1),
+  /** Face picture shown next to the text (portrait asset; frames = expressions). */
+  portrait: IdSchema.optional(),
   /** Effects after the last line when there are no choices (or before choices are shown). */
   effects: z.array(EffectSchema).default([]),
   choices: z.array(DialogueChoiceSchema).default([]),
@@ -1114,7 +1125,7 @@ export type BattleState = z.infer<typeof BattleStateSchema>;
 
 export const SceneSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("field") }).strict(),
-  z.object({ kind: z.literal("message"), text: z.string(), speaker: z.string().optional() }).strict(),
+  z.object({ kind: z.literal("message"), text: z.string(), speaker: z.string().optional(), portrait: z.string().optional(), face: z.number().int().optional() }).strict(),
   z.object({ kind: z.literal("dialogue"), dialogueId: IdSchema, line: z.number().int().nonnegative() }).strict(),
   z.object({ kind: z.literal("choice"), dialogueId: IdSchema }).strict(),
   z.object({ kind: z.literal("prompt"), prompt: z.string().optional(), speaker: z.string().optional(), options: z.array(z.object({ id: z.string(), label: z.string(), effects: z.array(EffectSchema) }).strict()) }).strict(),
@@ -1184,6 +1195,8 @@ export const GameStateSchema = z.object({
   systemData: z.record(z.string(), z.unknown()),
   rng: z.number().int().nonnegative(),
   steps: z.number().int().nonnegative(),
+  /** moveRoute in progress (cutscenes). */
+  routes: z.array(z.object({ target: z.string(), steps: z.array(z.string()), wait: z.boolean(), through: z.boolean() }).strict()).optional(),
 }).strict();
 export type GameState = z.infer<typeof GameStateSchema>;
 

@@ -13,7 +13,50 @@
       "id": "garden-knight",
       "speaker": "騎士",
       "lines": [
-        "タイルは library/ に165種類ある。pnpm rpg library list --kind tile で探せるぞ。"
+        {
+          "text": "む、旅の者か。",
+          "face": 0
+        },
+        {
+          "text": "……何か聞こえたな。",
+          "face": 2
+        }
+      ],
+      "portrait": "chr-knight",
+      "effects": [
+        {
+          "type": "emote",
+          "target": "garden-knight",
+          "icon": "！"
+        },
+        {
+          "type": "message",
+          "speaker": "騎士",
+          "text": "こっちだ、横に並べ！",
+          "portrait": "chr-knight",
+          "face": 1
+        },
+        {
+          "type": "moveRoute",
+          "target": "player",
+          "steps": [
+            "left",
+            "up",
+            "face:right"
+          ],
+          "wait": true
+        },
+        {
+          "type": "emote",
+          "target": "player",
+          "icon": "？"
+        },
+        {
+          "type": "message",
+          "speaker": "騎士",
+          "text": "……気のせいだったか。",
+          "portrait": "chr-knight"
+        }
       ]
     },
     {

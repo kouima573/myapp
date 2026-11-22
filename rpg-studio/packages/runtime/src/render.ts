@@ -20,6 +20,8 @@ export interface ActorDraw {
   frame?: number;
   label?: string;
   kind: "player" | "npc";
+  /** Speech-bubble icon (emote effect). */
+  emote?: string;
 }
 
 export interface RenderView {
@@ -219,6 +221,14 @@ function drawActor(ctx: CanvasRenderingContext2D, content: GameContent, images: 
     const w = Math.max(26, ctx.measureText(actor.label).width + 8);
     ctx.fillStyle = "rgba(18, 23, 20, .85)"; ctx.fillRect(px + 16 - w / 2, py - 11, w, 12);
     ctx.fillStyle = "#f1e4c2"; ctx.fillText(actor.label, px + 16, py);
+  }
+  if (actor.emote) {
+    ctx.font = "bold 13px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const w = Math.max(20, ctx.measureText(actor.emote).width + 10), bx = px + 16 - w / 2, by = py - 24;
+    ctx.fillStyle = "#fbf6e8"; ctx.strokeStyle = "#2a241c"; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.roundRect(bx, by, w, 18, 6); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px + 12, by + 18); ctx.lineTo(px + 16, by + 23); ctx.lineTo(px + 20, by + 18); ctx.fillStyle = "#fbf6e8"; ctx.fill();
+    ctx.fillStyle = "#2a241c"; ctx.fillText(actor.emote, px + 16, by + 9.5);
   }
 }
 

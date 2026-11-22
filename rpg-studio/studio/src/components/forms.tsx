@@ -83,6 +83,10 @@ const EFFECT_KINDS: Array<[Effect["type"], string, (c: GameContent) => Effect]> 
   ["joinParty", "仲間に加える", c => ({ type: "joinParty", companion: c.database.companions[0]?.id ?? "" })],
   ["leaveParty", "仲間から外す", c => ({ type: "leaveParty", companion: c.database.companions[0]?.id ?? "" })],
   ["equip", "装備させる", c => ({ type: "equip", item: c.database.items.find(i => i.slot)?.id ?? "" })],
+  ["emote", "フキダシを出す", () => ({ type: "emote", target: "player", icon: "！" })],
+  ["moveRoute", "歩かせる（移動ルート）", () => ({ type: "moveRoute", target: "player", steps: ["up", "up", "face:down"], wait: true })],
+  ["addStatus", "状態異常にする", c => ({ type: "addStatus", status: c.database.statuses[0]?.id ?? "", target: "enemy" })],
+  ["gainExp", "経験値を与える", () => ({ type: "gainExp", amount: 10 })],
 ];
 
 function EffectForm({ effect, onChange, content }: { effect: Effect; onChange: (e: Effect) => void } & Ctx) {
@@ -102,6 +106,19 @@ function EffectForm({ effect, onChange, content }: { effect: Effect; onChange: (
     case "markDone": return <input placeholder="完了ID" value={effect.id} onChange={x => set({ id: x.target.value })} />;
     case "startScene": return <SceneArgsForm effect={effect} onChange={onChange} content={content} />;
     case "joinParty": case "leaveParty": return <Select value={effect.companion} options={content.database.companions.map(x => [x.id, `${x.name}（${x.id}）`] as [string, string])} onChange={v => set({ companion: v })} />;
+    case "emote": {
+      const targets: Array<[string, string]> = [["player", "主人公"], ...Object.values(content.maps).flatMap(m => [...m.npcs.map(n => [n.id, `${n.name}（NPC）`] as [string, string]), ...m.entities.map(e => [e.id, `${e.name}`] as [string, string])])];
+      return <><Select value={effect.target} options={targets} onChange={v => set({ target: v })} /><Select value={effect.icon} options={["！", "？", "♪", "…", "♥", "💧", "怒"].map(i => [i, i] as [string, string])} onChange={v => set({ icon: v })} /></>;
+    }
+    case "moveRoute": {
+      const targets: Array<[string, string]> = [["player", "主人公"], ...Object.values(content.maps).flatMap(m => m.entities.map(e => [e.id, e.name] as [string, string]))];
+      return <><Select value={effect.target} options={targets} onChange={v => set({ target: v })} />
+        <input className="grow" placeholder="up up left face:down wait" defaultValue={effect.steps.join(" ")} onBlur={x => { const steps = x.target.value.split(/\s+/).filter(s => /^(up|down|left|right|wait|face:(up|down|left|right))$/.test(s)); if (steps.length) set({ steps }); }} />
+        <label className="small"><input type="checkbox" checked={effect.wait ?? false} onChange={x => set({ wait: x.target.checked || undefined })} />終わるまで待つ</label>
+        <label className="small"><input type="checkbox" checked={effect.through ?? false} onChange={x => set({ through: x.target.checked || undefined })} />壁を通り抜ける</label></>;
+    }
+    case "addStatus": return <><Select value={effect.status} options={content.database.statuses.map(s => [s.id, s.name] as [string, string])} onChange={v => set({ status: v })} /><Select value={effect.target ?? "enemy"} options={[["enemy", "今の敵"], ["enemies", "敵全員"], ["player", "主人公"]]} onChange={v => set({ target: v as "enemy" })} /></>;
+    case "gainExp": return <input type="number" value={typeof effect.amount === "number" ? effect.amount : 0} onChange={x => set({ amount: Number(x.target.value) })} style={{ width: "6em" }} />;
     case "equip": return <><Select value={effect.item} options={content.database.items.filter(i => i.slot).map(i => [i.id, `${i.name}（${i.id}）`] as [string, string])} onChange={v => set({ item: v })} /><Select value={effect.companion ?? ""} options={[["", "主人公"], ...content.database.companions.map(x => [x.id, x.name] as [string, string])]} onChange={v => set({ companion: v || undefined })} /></>;
     case "choice": return <div className="form-nested">
       <div className="form-row"><input placeholder="話し手（任意）" value={effect.speaker ?? ""} onChange={x => set({ speaker: x.target.value || undefined })} style={{ maxWidth: "8em" }} /><input className="grow" placeholder="問いかけ" value={effect.prompt ?? ""} onChange={x => set({ prompt: x.target.value || undefined })} /></div>

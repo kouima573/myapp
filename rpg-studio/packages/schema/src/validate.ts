@@ -294,6 +294,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         case "setStat": checkExpr(file, here, effect.value, ctxAllowed); break;
         case "unlockAbility": case "removeAbility": if (!abilityIds.has(effect.ability)) err(file, here, `未定義の能力 '${effect.ability}'`); break;
         case "grantTrait": case "removeTrait": if (!traitIds.has(effect.trait)) err(file, here, `未定義の特性 '${effect.trait}'`); break;
+        case "emote": case "moveRoute": if (effect.target !== "player" && !entityIds.has(effect.target) && !(effect.type === "emote" && npcIds.has(effect.target))) err(file, here, `'${effect.target}' は ${effect.type === "emote" ? "player・NPC・エンティティ" : "player・エンティティ（NPCは動かせないのでエンティティで置く）"} のどれでもありません`); break;
+        case "message": if (effect.portrait && !["portrait", "character"].includes(assetById.get(effect.portrait)?.kind ?? "")) err(file, here, `顔グラフィックの素材 '${effect.portrait}' がありません（portrait か character）`); break;
         case "addStatus": if (!statusIds.has(effect.status)) err(file, here, `未定義の状態異常 '${effect.status}'（database.json の statuses）`); break;
         case "removeStatus": if (effect.status && !statusIds.has(effect.status)) err(file, here, `未定義の状態異常 '${effect.status}'`); break;
         case "damage": if (effect.element && !elementIds.has(effect.element)) err(file, here, `未定義の属性 '${effect.element}'（project.json の elements）`); break;
@@ -555,6 +557,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
 
   // Dialogues & events.
   for (const dialogue of Object.values(dialogues)) {
+    if (dialogue.portrait && !["portrait", "character"].includes(assetById.get(dialogue.portrait)?.kind ?? "")) err(project.dialoguesPath, `dialogues[${dialogue.id}].portrait`, `顔グラフィックの素材 '${dialogue.portrait}' がありません（portrait か character）`);
     const at = `dialogues[${dialogue.id}]`;
     dialogue.lines.forEach((line, i) => {
       if (typeof line === "string") checkText(project.dialoguesPath, `${at}.lines[${i}]`, line);

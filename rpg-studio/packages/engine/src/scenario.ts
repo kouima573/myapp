@@ -71,6 +71,8 @@ const StepSchema = z.union([
   z.object({ equip: IdSchema, companion: IdSchema.optional() }).strict(),
   /** Tell a companion which of its actions to use this turn (index in its actions). */
   z.object({ battleOrder: z.object({ companion: IdSchema, action: z.number().int().min(0) }).strict() }).strict(),
+  /** Run moveRoute cutscenes to the end (as the runtime does a few steps per second). */
+  z.object({ routes: z.literal("finish") }).strict(),
   /** A command added by a script (battle or field menu), by its id (and label or source when ids clash). */
   z.object({ command: z.string().min(1), source: z.string().optional() }).strict(),
   /** Use a self-made verb (project.json › verbs). */
@@ -281,6 +283,10 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
       else if ("equip" in s) {
         if (state.scene.kind !== "field") throw new ScenarioError(`equip: フィールドではありません (scene=${state.scene.kind})`);
         step({ type: "equip", item: s.equip, ...(s.companion ? { companion: s.companion } : {}) });
+      }
+      else if ("routes" in s) {
+        for (let i = 0; i < 500 && state.routes?.length; i++) step({ type: "routeStep" });
+        if (state.routes?.length) throw new ScenarioError("routes: 500歩で終わりませんでした");
       }
       else if ("command" in s) {
         const where = state.scene.kind === "battle" ? "battle" : "field";

@@ -934,11 +934,80 @@
             "speaker": {
               "type": "string",
               "minLength": 1
+            },
+            "portrait": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "face": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
             }
           },
           "required": [
             "type",
             "text"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "emote"
+            },
+            "target": {
+              "type": "string",
+              "minLength": 1
+            },
+            "icon": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "icon"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "const": "moveRoute"
+            },
+            "target": {
+              "type": "string",
+              "minLength": 1
+            },
+            "steps": {
+              "minItems": 1,
+              "maxItems": 200,
+              "type": "array",
+              "items": {
+                "type": "string",
+                "pattern": "^(up|down|left|right|wait|face:(up|down|left|right))$"
+              }
+            },
+            "wait": {
+              "type": "boolean"
+            },
+            "through": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "target",
+            "steps"
           ],
           "additionalProperties": false
         },

@@ -50,7 +50,9 @@ export type Action =
   /** Equip an item (or take it off if it is already equipped). Field only. */
   | { type: "equip"; item: string; companion?: string }
   /** A field command added by a script (engine.commands(state, "field")). */
-  | { type: "command"; source: string; id: string };
+  | { type: "command"; source: string; id: string }
+  /** One step of every moveRoute in progress (the runtime sends it a few times per second). */
+  | { type: "routeStep" };
 
 /** Presentation hints for the runtime (sound, animation). Never needed for correctness. */
 export type Cue =
@@ -63,7 +65,9 @@ export type Cue =
   | { kind: "sfx"; sound: string }
   | { kind: "item" }
   | { kind: "heal" }
-  | { kind: "levelUp"; level: number };
+  | { kind: "levelUp"; level: number }
+  /** Speech bubble over "player", an NPC or an entity. */
+  | { kind: "emote"; target: string; icon: string };
 
 export interface StepResult {
   state: GameState;
@@ -102,6 +106,8 @@ export interface Engine {
   regions(state: GameState): string[];
   /** HUD lines from systems. */
   hudLines(state: GameState): string[];
+  /** Portrait frame (expression) of each visible line of a dialogue, aligned with dialogueLines. */
+  dialogueFaces(state: GameState, dialogueId: string): Array<number | undefined>;
   /** Level, experience and what the next level needs (undefined without project.leveling). */
   levelInfo(state: GameState): { level: number; exp: number; next: number | null } | undefined;
   /** Project systems plus the scripts attached to whatever is active right now (abilities, items, enemies, map…). */
@@ -364,6 +370,37 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     return passable;
   }
 
+  /** Advances every route by one step: walk (respecting walls unless `through`), turn or wait. */
+  function routeStep(c: Ctx, state: GameState): GameState {
+    const routes = state.routes ?? [];
+    if (!routes.length) return state;
+    const map = content.maps[state.mapId];
+    const next: NonNullable<GameState["routes"]> = [];
+    for (const route of routes) {
+      const [stepName, ...rest] = route.steps;
+      if (stepName && stepName !== "wait") {
+        const face = stepName.startsWith("face:") ? (stepName.slice(5) as Direction) : undefined;
+        const dir = face ?? (stepName as Direction);
+        if (route.target === "player") {
+          const to = { x: state.player.x + DELTAS[dir].x, y: state.player.y + DELTAS[dir].y };
+          if (face || (!route.through && !isPassable(state, to.x, to.y))) state = { ...state, player: { ...state.player, facing: dir } };
+          else { c.cues.push({ kind: "moved", from: { x: state.player.x, y: state.player.y } }); state = { ...state, player: { ...state.player, ...to, facing: dir } }; }
+        } else if (map) {
+          const view = visibleEntities(state).find(v => v.entity.id === route.target);
+          if (view) {
+            const home = map.entities.some(e => e.id === view.entity.id) ? map.id : entityHome.get(view.entity.id)!;
+            const to = { x: view.x + DELTAS[dir].x, y: view.y + DELTAS[dir].y };
+            const blocked = !face && !route.through && (!tilePassable(state, map, to.x, to.y) || (state.player.x === to.x && state.player.y === to.y) || visibleEntities(state).some(v => v.entity.id !== view.entity.id && v.state.solid && v.x === to.x && v.y === to.y));
+            state = placeEntity(state, view.entity.id, home, face || blocked ? view.x : to.x, face || blocked ? view.y : to.y, dir, map.id);
+          }
+        }
+      }
+      if (rest.length) next.push({ ...route, steps: rest });
+    }
+    state = next.length ? { ...state, routes: next } : (({ routes: _r, ...s }) => s as GameState)(state);
+    return routeHolds(state) ? state : runQueue(c, state);
+  }
+
   function dialogueLines(state: GameState, dialogueId: string): string[] {
     const dialogue = content.dialogues[dialogueId];
     if (!dialogue) return [];
@@ -485,9 +522,11 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   }
 
   /* ---------------------------------------------------------------- effects */
+  /** A moveRoute with wait: true holds the queue (and the player's input) until it ends. */
+  const routeHolds = (state: GameState) => Boolean(state.routes?.some(r => r.wait));
   function runQueue(c: Ctx, state: GameState): GameState {
     let guard = 0;
-    while (state.scene.kind === "field" && state.queue.length) {
+    while (state.scene.kind === "field" && state.queue.length && !routeHolds(state)) {
       if (++guard > 2000) throw new Error("効果キューが2000件を超えました。会話やイベントが自分自身を無限に呼んでいないか確認してください");
       const [effect, ...rest] = state.queue;
       state = applyEffect(c, { ...state, queue: rest }, effect!);
@@ -522,7 +561,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         const line = text(effect.text, state, ctxValues);
         if (inBattle) return battleLog(state, line);
         if (inScene) return { ...state, queue: [...state.queue, { ...effect, type: "message", text: line } as Effect] };
-        return { ...state, scene: { kind: "message", text: line, ...(effect.type === "message" && effect.speaker ? { speaker: effect.speaker } : {}) } };
+        return { ...state, scene: { kind: "message", text: line, ...(effect.type === "message" && effect.speaker ? { speaker: effect.speaker } : {}), ...(effect.type === "message" && effect.portrait ? { portrait: effect.portrait, ...(effect.face !== undefined ? { face: effect.face } : {}) } : {}) } };
       }
       case "setFlag":
         c.log.push(`フラグ ${effect.flag} = ${effect.value ?? true}`);
@@ -767,6 +806,13 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         return { ...state, sets: { ...state.sets, [effect.set]: (state.sets[effect.set] ?? []).filter(v => v !== effect.value) } };
       case "clearSet":
         return { ...state, sets: { ...state.sets, [effect.set]: [] } };
+      case "emote":
+        c.cues.push({ kind: "emote", target: effect.target, icon: effect.icon });
+        return state;
+      case "moveRoute": {
+        const route = { target: effect.target, steps: [...effect.steps], wait: effect.wait ?? false, through: effect.through ?? false };
+        return { ...state, routes: [...(state.routes ?? []), route] };
+      }
       case "moveEntity": {
         // mapId = the destination map. An entity defined on another map moves there (cross-map).
         const dest = effect.mapId ?? state.mapId;
@@ -1780,6 +1826,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       state = changed;
       if (result.action) action = result.action as unknown as Action;
     }
+    // During a cutscene route (wait: true) the player cannot act; time and the route itself go on.
+    if (routeHolds(state) && !["routeStep", "tick", "sceneInput", "advance", "choose"].includes(action.type)) return { state, log: c.log, cues: c.cues };
     let next = state;
     const scene = state.scene;
     switch (action.type) {
@@ -1815,6 +1863,9 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       }
       case "sceneInput":
         next = sceneInput(c, state, action.input);
+        break;
+      case "routeStep":
+        next = routeStep(c, state);
         break;
       case "command": {
         if (scene.kind !== "field") break;
@@ -1880,6 +1931,11 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     regions: state => regionsAt(state, content, env),
     hudLines: state => active(state).flatMap(sys => sys.hud?.({ content, state }) ?? []),
     activeSystems: state => active(state),
+    dialogueFaces: (state, id) => {
+      const dialogue = content.dialogues[id];
+      if (!dialogue) return [];
+      return dialogue.lines.filter(line => typeof line === "string" || ev(line.when, state)).map(line => (typeof line === "string" ? undefined : line.face));
+    },
     levelInfo: state => {
       const lv = content.project.leveling;
       if (!lv) return undefined;

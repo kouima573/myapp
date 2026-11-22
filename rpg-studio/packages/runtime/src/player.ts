@@ -137,6 +137,9 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   let talkFacing: Record<string, Direction> = {};
   let selection = 0;
   let menuOpen = false;
+  /** Speech bubbles over actors (emote effect): id ("player", NPC or entity id) → icon until a time. */
+  const emotes = new Map<string, { icon: string; until: number }>();
+  let lastRouteStep = 0;
   /** Damage numbers shown over the battle (070). */
   const POPUP_MS = 900;
   let popups: Array<{ text: string; target: "enemy" | "player"; at: number; n: number }> = [];
@@ -229,6 +232,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       else if (cue.kind === "item") audio.cue("item");
       else if (cue.kind === "heal") audio.cue("heal");
       else if (cue.kind === "levelUp") audio.cue("victory");
+      else if (cue.kind === "emote") emotes.set(cue.target, { icon: cue.icon, until: performance.now() + 1500 });
       else if (cue.kind === "mapChanged") { audio.cue("door"); autoSaveSoon = true; }
     }
     if (state.mapId !== before.mapId || result.cues.some(c => c.kind === "mapChanged") || Math.abs(state.player.x - before.player.x) + Math.abs(state.player.y - before.player.y) > 1) {
@@ -440,7 +444,21 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     windowLayer.querySelector(".rpg-caret")?.classList.toggle("is-ready", typing.done);
   }
 
-  function messageWindow(speaker: string | undefined, text: string, extra?: HTMLElement) {
+  /** Face picture next to the text: frame `face` of a portrait (or character) sheet. */
+  function portraitCanvas(id: string, face: number): HTMLCanvasElement | null {
+    const asset = content.assets.assets.find(a => a.id === id);
+    const image = images[id];
+    if (!asset || !image?.complete || !image.naturalWidth) return null;
+    const columns = asset.columns ?? 1, tw = asset.tileWidth ?? image.naturalWidth / columns, th = asset.tileHeight ?? image.naturalHeight / (asset.rows ?? 1);
+    const canvas = el("canvas", "rpg-face");
+    canvas.width = tw; canvas.height = th;
+    const g = canvas.getContext("2d")!;
+    g.imageSmoothingEnabled = false;
+    g.drawImage(image, (face % columns) * tw, Math.floor(face / columns) * th, tw, th, 0, 0, tw, th);
+    return canvas;
+  }
+
+  function messageWindow(speaker: string | undefined, text: string, extra?: HTMLElement, portrait?: { id: string; face: number }) {
     const plain = text.replace(/\{([^|{}]+)\|[^|{}]+\}/g, "$1");
     if (plain.trim()) {
       const last = backlog.at(-1);
@@ -450,6 +468,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       }
     }
     const box = el("div", "rpg-window rpg-message");
+    const face = portrait ? portraitCanvas(portrait.id, portrait.face) : null;
+    if (face) { box.classList.add("has-face"); box.appendChild(face); }
     if (speaker) box.appendChild(el("div", "rpg-speaker", speaker));
     const body = el("div", "rpg-text"); body.dataset.typing = "1";
     box.append(body);
@@ -524,10 +544,10 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
 
     const scene = state.scene;
     if (menuOpen && atTitle) { hud.hidden = true; typing = { ...typing, done: true }; renderMenu(); }
-    else if (scene.kind === "message") messageWindow(scene.speaker, scene.text);
+    else if (scene.kind === "message") messageWindow(scene.speaker, scene.text, undefined, scene.portrait ? { id: scene.portrait, face: scene.face ?? 0 } : undefined);
     else if (scene.kind === "dialogue") {
       const dialogue = content.dialogues[scene.dialogueId]!;
-      messageWindow(dialogue.speaker, engine.dialogueLines(state, dialogue.id)[scene.line] ?? "");
+      messageWindow(dialogue.speaker, engine.dialogueLines(state, dialogue.id)[scene.line] ?? "", undefined, dialogue.portrait ? { id: dialogue.portrait, face: engine.dialogueFaces(state, dialogue.id)[scene.line] ?? 0 } : undefined);
     } else if (scene.kind === "choice") {
       const dialogue = content.dialogues[scene.dialogueId]!;
       const list = el("div", "rpg-window rpg-choices");
@@ -535,7 +555,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         if (!engine.evaluate(choice.when, state)) continue;
         list.appendChild(navButton(engine.text(state, choice.label), () => dispatch({ type: "choose", choiceId: choice.id })));
       }
-      messageWindow(dialogue.speaker, engine.dialogueLines(state, dialogue.id).at(-1) ?? "", list);
+      messageWindow(dialogue.speaker, engine.dialogueLines(state, dialogue.id).at(-1) ?? "", list, dialogue.portrait ? { id: dialogue.portrait, face: engine.dialogueFaces(state, dialogue.id).at(-1) ?? 0 } : undefined);
       typing = { ...typing, done: true };
     } else if (scene.kind === "prompt") {
       const list = el("div", "rpg-window rpg-choices");
@@ -1061,6 +1081,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       renderPos = after.position;
     }
     if (ticking && state.scene.kind === "field" && !menuOpen && now - lastTick > 330) { lastTick = now; dispatch({ type: "tick" }); }
+    // Cutscene routes (moveRoute) advance one step at walking pace.
+    if (state.routes?.length && state.scene.kind === "field" && !menuOpen && now - lastRouteStep > 230 && !moving.moving) { lastRouteStep = now; dispatch({ type: "routeStep" }); }
     if (moving.moving && now - lastFrameSwap > (WALK_ANIMATION_MS / speed) / 2) { walkFrame = (walkFrame + 1) % 4; lastFrameSwap = now; }
     if (!moving.moving && !held.length) walkFrame = 0;
 
@@ -1094,8 +1116,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         actors: [
           ...npcActors(content, map, npcs, { facingOverride: talkFacing }),
           ...entityActors,
-          { id: "player", kind: "player", x: renderPos.x, y: renderPos.y, facing: state.player.facing, sprite: state.player.sprite ?? content.project.player.sprite, frame: walkFrame },
-        ],
+          { id: "player", kind: "player" as const, x: renderPos.x, y: renderPos.y, facing: state.player.facing, sprite: state.player.sprite ?? content.project.player.sprite, frame: walkFrame },
+        ].map(a => { const e = emotes.get(a.id); return e && e.until > now ? { ...a, emote: e.icon } : a; }),
       });
       for (const system of engine.activeSystems(state)) {
         if (!system.drawOverlay) continue;
