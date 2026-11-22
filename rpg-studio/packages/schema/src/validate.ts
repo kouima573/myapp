@@ -481,6 +481,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       if (board.owner !== "hero" && (node.abilities.length || node.traits.length)) warn("database.json", here, "仲間のボードでは能力値（statMods）と効果だけが使われます（abilities / traits は主人公用）");
     }
   }
+  for (const comp of content.database.companions) (comp.chat ?? []).forEach((l, i) => { if (l.when) checkCondition("database.json", `companions[${comp.id}].chat[${i}].when`, l.when); checkText("database.json", `companions[${comp.id}].chat[${i}]`, l.text); });
   for (const t of content.database.traits) if (t.selectableWhen) checkCondition("database.json", `traits[${t.id}].selectableWhen`, t.selectableWhen);
   const verbKeys = new Map<string, string>();
   for (const [id, verb] of Object.entries(project.verbs)) {

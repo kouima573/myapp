@@ -42,6 +42,8 @@ export type Action =
   | { type: "interact" }
   | { type: "advance" }
   | { type: "choose"; choiceId: string }
+  /** なかまと話す: every companion in the party says its current chat line (field only). */
+  | { type: "partyChat" }
   /** Learn a skill-board panel (field only). */
   | { type: "learnSkill"; board: string; node: string }
   /** 転職 from the menu: switch to a selectable trait (job) whose selectableWhen holds. Field only. */
@@ -2367,6 +2369,16 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         else if (scene.kind === "ending") next = runQueue(c, applyEffect(c, { ...state, scene: { kind: "field" } }, { type: "newCycle" }));
         else if (scene.kind === "gameover") next = respawn(c, state);
         break;
+      case "partyChat": {
+        if (scene.kind !== "field") break;
+        const lines: Effect[] = (state.party ?? []).flatMap(m => {
+          const comp = companionOf(m.id);
+          const line = [...(comp?.chat ?? [])].reverse().find(l => ev(l.when, state));
+          return comp && line ? [{ type: "message", speaker: comp.name, text: line.text } as Effect] : [];
+        });
+        next = runQueue(c, enqueue(state, lines.length ? lines : [{ type: "message", text: "（今は話すことがないようだ）" }]));
+        break;
+      }
       case "learnSkill":
         if (scene.kind === "field") next = learnSkill(c, state, action.board, action.node);
         break;

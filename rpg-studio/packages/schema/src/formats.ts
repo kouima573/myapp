@@ -587,7 +587,7 @@ export const ProjectManifestSchema = z.object({
    * Party rules: `size` = companions fighting at once (the rest wait in reserve, swapped in the menu's 隊列),
    * back row: damage taken / dealt by normal attacks in percent.
    */
-  party: z.object({ size: z.number().int().min(0).max(7).optional(), backRowTaken: z.number().int().min(0).max(100).default(50), backRowDealt: z.number().int().min(0).max(100).default(50) }).strict().optional(),
+  party: z.object({ follow: z.boolean().optional(), size: z.number().int().min(0).max(7).optional(), backRowTaken: z.number().int().min(0).max(100).default(50), backRowDealt: z.number().int().min(0).max(100).default(50) }).strict().optional(),
   /**
    * Field menu layout (メニューの並べ替え): `order` of section keys (party, traits, jobs, items, abilities, commands, verbs, records, set:<id>),
    * `hidden` keys, `when` = show a section only while a condition holds, `labels` = new titles.
@@ -1160,6 +1160,8 @@ export const CompanionSchema = z.object({
   description: z.string().default(""),
   sprite: IdSchema.optional(),
   stats: StatsSchema,
+  /** 仲間との雑談: what it says from the menu's 「なかまと話す」 — the last line whose condition holds is used. */
+  chat: z.array(z.object({ when: ConditionSchema.optional(), text: z.string().min(1) }).strict()).optional(),
   /** Turn order with project.battle.order "speed". Default 10. */
   speed: z.number().int().min(0).max(999).optional(),
   /** What it does each turn: heal is used when someone in the party is below half HP; otherwise attacks / guards in order. */

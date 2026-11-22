@@ -13,6 +13,8 @@ export const RUNTIME_CSS = String.raw`
 .rpg-input { display:flex; gap:8px; align-items:center; }
 .rpg-input-field { flex:1; min-width:0; font:inherit; font-size:18px; padding:6px 10px; border-radius:6px; border:1px solid rgba(255,255,255,.35); background:rgba(0,0,0,.4); color:inherit; }
 .rpg-book { max-height:80%; overflow:auto; }
+.rpg-confirm { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); min-width:50%; max-width:80%; padding:1em 1.2em; z-index:20; display:flex; flex-direction:column; gap:.8em; box-shadow:0 0 0 100vmax rgba(0,0,0,.45); }
+.rpg-confirm-text { white-space:pre-line; }
 .rpg-menu.rpg-skills { position:absolute; left:4%; right:4%; top:4%; bottom:4%; width:auto; max-width:none; max-height:none; left:4%; display:flex; flex-direction:column; gap:.4em; overflow:hidden; }
 .rpg-skill-board { position:relative; flex:1; min-height:0; max-height:62%; margin:0 auto; max-width:100%; }
 .rpg-root .rpg-hex { position:absolute; transform:translate(-50%,-50%); aspect-ratio:0.866; padding:0; margin:0; display:flex; align-items:center; justify-content:center;

@@ -644,3 +644,17 @@ describe("map edges and vehicles (026/033)", () => {
     expect(s.vehicles?.boat).toEqual({ mapId: map.id, x: spot!.x + 1, y: spot!.y });
   });
 });
+
+describe("party chat (094)", () => {
+  it("each companion says its last line whose condition holds", () => {
+    const flag = Object.keys(content.project.flags)[0]!;
+    const comp = { id: "pal", name: "相棒", description: "", stats: { maxHp: 9, attack: 3, defense: 0 }, actions: [{ name: "斬る", kind: "attack" as const, power: 0 }], chat: [{ text: "よろしく。" }, { when: { flag }, text: "やったね！" }] };
+    const eng = createEngine({ ...content, database: { ...content.database, companions: [...content.database.companions, comp] } }, systems);
+    let s = eng.run(start("dwarf"), [{ type: "joinParty", companion: "pal" }]).state;
+    let r = eng.step(s, { type: "partyChat" }).state;
+    expect(r.scene.kind === "message" && r.scene.text).toBe("よろしく。");
+    s = eng.run(s, [{ type: "setFlag", flag }]).state;
+    r = eng.step(s, { type: "partyChat" }).state;
+    expect(r.scene.kind === "message" && r.scene.text).toBe("やったね！");
+  });
+});

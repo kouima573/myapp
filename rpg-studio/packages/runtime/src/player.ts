@@ -161,6 +161,11 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   let toast: { text: string; until: number } | null = null;
   let typing = { text: "", startedAt: 0, done: true };
   let fadeUntil = 0;
+  /** 確認ダイアログ: a yes / no question over everything; "いいえ" is selected first. */
+  let asking: { text: string; yes: () => void } | null = null;
+  function askConfirm(text: string, yes: () => void) { asking = { text, yes }; selection = 1; renderUI(); }
+  /** 隊列歩行: the hero's last positions; companions walk on them. */
+  let trail: Array<{ x: number; y: number; facing: Direction; mapId: string }> = [];
   /** Footprints / splashes (tile.stepEffect). */
   let stepEffects: Array<{ x: number; y: number; kind: "dust" | "splash" | "footprints" | "leaves"; at: number; facing?: string }> = [];
   let shakeUntil = 0;
@@ -260,6 +265,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     for (const cue of result.cues) {
       if (cue.kind === "moved") {
         animator.enqueue({ x: state.player.x, y: state.player.y });
+        trail = [{ ...cue.from, facing: state.player.facing, mapId: state.mapId }, ...trail.filter(t => t.mapId === state.mapId)].slice(0, 8);
         // The tile stepped on: its footstep sound and little effect (water splash, snow footprints…).
         const map = content.maps[state.mapId];
         const code = map ? Array.from(engine.rowsFor(state, map.id)[state.player.y] ?? "")[state.player.x] : undefined;
@@ -387,6 +393,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (state.scene.kind === "field" && !animator.update(performance.now()).moving) dispatch({ type: "interact" });
   }
   function cancel() {
+    if (asking) { asking = null; selection = 0; renderUI(); return; }
     if (menuOpen && menuView === "title") return;
     if (menuOpen && (menuView === "save" || menuView === "load")) { menuView = slotReturn; selection = 0; renderUI(); return; }
     if (menuOpen && (menuView === "book" || menuView === "achievements" || menuView === "formation" || menuView === "skills")) { menuView = "main"; selection = 0; renderUI(); return; }
@@ -534,7 +541,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (opts.hint) button.append(el("span", "rpg-option-hint", opts.hint));
     button.disabled = Boolean(opts.disabled);
     button.addEventListener("click", event => { event.stopPropagation(); audio.cue("confirm"); onClick(); root.focus({ preventScroll: true }); });
-    button.addEventListener("pointerenter", () => { selection = buttons().indexOf(button); highlight(); });
+    button.addEventListener("pointerenter", () => { const i = buttons().indexOf(button); if (i < 0) return; selection = i; highlight(); });
     return button;
   }
 
@@ -714,7 +721,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       const hasSave = SLOTS.some(slot => readSlot(slot));
       if (hasSave) box.appendChild(navButton("ロードする", () => { menuOpen = true; slotReturn = "main"; menuView = "load"; selection = 0; renderUI(); }));
       if (go.retry) box.appendChild(navButton("もう一度立ち上がる", () => dispatch({ type: "advance" })));
-      box.appendChild(navButton("タイトルへ", () => { setState(engine.newGame(options.seed)); if (content.project.titleScreen.enabled) { menuOpen = true; menuView = "title"; atTitle = true; } renderUI(); }));
+      box.appendChild(navButton("タイトルへ", () => askConfirm("タイトルに戻りますか？", () => { setState(engine.newGame(options.seed)); if (content.project.titleScreen.enabled) { menuOpen = true; menuView = "title"; atTitle = true; } renderUI(); })));
       windowLayer.appendChild(box);
     }
     else if (scene.kind === "ending") {
@@ -728,6 +735,18 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       windowLayer.appendChild(box);
     }
     else if (menuOpen) renderMenu();
+    if (asking) {
+      const q = asking;
+      const box = el("div", "rpg-window rpg-confirm");
+      box.setAttribute("role", "alertdialog");
+      box.append(el("div", "rpg-confirm-text", q.text));
+      const row = el("div", "rpg-menu-row");
+      row.append(navButton("はい", () => { asking = null; selection = 0; q.yes(); renderUI(); }), navButton("いいえ", () => { asking = null; selection = 0; renderUI(); }));
+      box.appendChild(row);
+      // Only the dialog's buttons are reachable while it is open.
+      windowLayer.querySelectorAll<HTMLElement>("[data-nav]").forEach(b => { b.removeAttribute("data-nav"); b.setAttribute("aria-hidden", "true"); });
+      windowLayer.appendChild(box);
+    }
     if (toast && toast.until > performance.now()) windowLayer.appendChild(el("div", "rpg-toast", toast.text));
     selection = Math.min(selection, Math.max(0, buttons().length - 1));
     highlight();
@@ -948,7 +967,11 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     for (const slot of SLOTS) {
       if (mode === "save" && slot === "auto") continue;
       const summary = slotSummary(slot);
-      panel.appendChild(navButton(slotLabel(slot), () => (mode === "save" ? save(slot) : load(slot)), { hint: summary ?? "（空き）", disabled: mode === "load" && !summary }));
+      panel.appendChild(navButton(slotLabel(slot), () => {
+        if (mode === "save") { if (summary) askConfirm(`${slotLabel(slot)}に上書きしますか？\n（${summary}）`, () => save(slot)); else save(slot); }
+        else if (!atTitle) askConfirm(`${slotLabel(slot)}をロードしますか？\nいまの進み具合のうち、セーブしていない分はなくなります。`, () => load(slot));
+        else load(slot);
+      }, { hint: summary ?? "（空き）", disabled: mode === "load" && !summary }));
     }
     const row = el("div", "rpg-menu-row");
     if (mode === "load") row.appendChild(navButton("ファイルから読み込む", () => importSave()));
@@ -1158,6 +1181,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         menu.appendChild(row);
       }
       menu.appendChild(navButton("隊列・入れ替え", () => { menuView = "formation"; selection = 0; renderUI(); }, { hint: "前列・後列、控え" }));
+      if ((state.party ?? []).some(m => content.database.companions.find(x => x.id === m.id)?.chat?.length)) menu.appendChild(navButton("なかまと話す", () => { menuOpen = false; dispatch({ type: "partyChat" }); }, { hint: "いまの気持ちを聞く" }));
     }
     if ((content.database.skillBoards ?? []).length) {
       const pts = state.skills?.points.hero ?? 0;
@@ -1485,6 +1509,23 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
             const at = state.vehicles?.[id] ?? v.start;
             return id !== state.riding && at && at.mapId === map.id ? [{ id: `vehicle:${id}`, kind: "npc" as const, x: at.x, y: at.y, facing: "down" as const, sprite: v.sprite, frame: 0 }] : [];
           }),
+          // 隊列歩行: companions follow on the hero's trail (project.party.follow, on unless false).
+          ...(content.project.party?.follow === false || state.riding ? [] : (state.party ?? []).filter(m => !m.reserve && m.summoned === undefined && m.hp > 0).flatMap((m, i) => {
+            const comp = content.database.companions.find(x => x.id === m.id);
+            const spot = trail.filter(t => t.mapId === map.id)[i];
+            if (!comp?.sprite || !spot) return [];
+            const key = `follow:${m.id}`;
+            let tween = entityTweens.get(key);
+            if (!tween || tween.tx !== spot.x || tween.ty !== spot.y) {
+              const cur = tween ? currentTween(tween, now) : { x: spot.x, y: spot.y };
+              tween = { fx: cur.x, fy: cur.y, tx: spot.x, ty: spot.y, start: now };
+              if (Math.abs(cur.x - spot.x) + Math.abs(cur.y - spot.y) > 1.5) { tween.fx = spot.x; tween.fy = spot.y; }
+              entityTweens.set(key, tween);
+            }
+            const pos = currentTween(tween, now);
+            const walking = pos.x !== spot.x || pos.y !== spot.y;
+            return [{ id: key, kind: "npc" as const, x: pos.x, y: pos.y, facing: spot.facing, sprite: comp.sprite, frame: walking ? walkFrame : 0 }];
+          })),
           { id: "player", kind: "player" as const, x: renderPos.x, y: renderPos.y, facing: state.player.facing, sprite: (state.riding ? content.project.vehicles?.[state.riding]?.sprite : undefined) ?? state.player.sprite ?? content.project.player.sprite, frame: walkFrame },
         ].map(a => { const e = emotes.get(a.id); return e && e.until > now ? { ...a, emote: e.icon } : a; }),
       });

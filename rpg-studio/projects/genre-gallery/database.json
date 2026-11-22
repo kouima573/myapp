@@ -573,7 +573,19 @@
           "kind": "heal",
           "power": 6
         }
-      ]
+      ],
+      "chat": [
+        {
+          "text": "見習いでも、剣の腕には自信あるんだから。"
+        },
+        {
+          "when": {
+            "flag": "knight-joined"
+          },
+          "text": "騎士さまと一緒なんて夢みたい。足を引っぱらないようにしなきゃ。"
+        }
+      ],
+      "sprite": "chr-hero-swordsman"
     },
     {
       "id": "forest-fox",
@@ -589,6 +601,11 @@
           "name": "ひっかく",
           "kind": "attack",
           "power": 1
+        }
+      ],
+      "chat": [
+        {
+          "text": "コン。（ちょっとだけ手伝ってあげる）"
         }
       ]
     }
