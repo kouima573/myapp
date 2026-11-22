@@ -437,3 +437,10 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 .skill-node.is-selected polygon { fill: rgba(111,168,220,.35); stroke: var(--blue); stroke-width: 3; }
 .skill-node text { fill: var(--text); font-size: 11px; pointer-events: none; }
 .skill-node .skill-cost { fill: var(--muted); font-size: 9px; }
+.faq { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.faq summary { cursor: pointer; font-weight: 600; }
+.glossary { display: grid; grid-template-columns: 1fr; gap: 6px; margin: 0; }
+.glossary div { border-bottom: 1px solid var(--line-soft); padding: 4px 0; }
+.glossary dt { font-weight: 600; }
+.glossary dd { margin: 2px 0 0; color: var(--muted); }
+.has-gloss { text-decoration: underline dotted rgba(127,127,127,.6); text-underline-offset: 3px; cursor: help; }

@@ -5,38 +5,12 @@
  * Only reports; never rewrites. Exit code 1 when something was found (so an agent can loop until clean).
  */
 import { readProjectTexts } from "./load";
-import { stripMarkup } from "../../runtime/src/textmarkup";
+import { proofreadText } from "./proofreadText";
+export { proofreadText } from "./proofreadText";
+
+const SHOWN = new Set(["text", "lines", "label", "prompt", "name", "description", "greeting", "message", "title", "subtitle", "speaker"]);
 
 export interface ProofIssue { file: string; at: string; text: string; message: string }
-
-/** Keys whose string values are shown to players. */
-const SHOWN = new Set(["text", "lines", "label", "prompt", "name", "description", "greeting", "message", "title", "subtitle", "speaker"]);
-/** Full-width = 1, half-width = 0.5 (roughly how wide the message window is). */
-const width = (s: string) => Array.from(s).reduce((w, ch) => w + (/[\u0000-ÿ｡-ﾟ]/.test(ch) ? 0.5 : 1), 0);
-const PAIRS: Array<[string, string]> = [["「", "」"], ["『", "』"], ["（", "）"], ["(", ")"], ["【", "】"]];
-const PARTICLES = ["のの", "をを", "がが", "でで", "へへ"];
-
-export function proofreadText(text: string, opts: { width: number; lines: number; message: boolean }): string[] {
-  const out: string[] = [];
-  const plain = stripMarkup(text.replace(/\{\{[^}]*\}\}/g, "〇〇")); // {{name}} etc. counted as 2 letters
-  if (opts.message) {
-    // The window wraps long rows by itself: count the lines it will really take.
-    const lines = plain.split("\n").reduce((n, row) => n + Math.max(1, Math.ceil(width(row) / opts.width)), 0);
-    if (lines > opts.lines) out.push(`ウィンドウに収まりません（約${lines}行 > ${opts.lines}行。2つの台詞に分けて）`);
-  }
-  for (const m of plain.matchAll(/([。、！？!?…])\1{1,}/g)) if (!/^(…+|！+|？+|!+|\?+)$/.test(m[0]) || m[0].length > 3) out.push(`記号の重なり「${m[0]}」`);
-  for (const p of PARTICLES) if (plain.replace(/ののし/g, "").includes(p)) out.push(`同じ助詞が続いています「${p}」（誤字かも）`);
-  for (const [open, close] of PAIRS) {
-    const a = plain.split(open).length - 1, b = plain.split(close).length - 1;
-    if (a !== b) out.push(`かっこの数が合いません（${open}${a}個・${close}${b}個）`);
-  }
-  if (/^[ 　]|[ 　]$/.test(plain)) out.push("先頭か末尾に空白があります");
-  for (const tag of ["c", "color", "b", "big", "small", "shake", "wave"]) {
-    const opens = (text.match(new RegExp(`\\[${tag}(=[^\\]]+)?\\]`, "g")) ?? []).length, closes = (text.match(new RegExp(`\\[/${tag}\\]`, "g")) ?? []).length;
-    if (opens > closes) out.push(`装飾 [${tag}] が閉じていません（[/${tag}]）`);
-  }
-  return out;
-}
 
 function walk(node: unknown, at: string, key: string, file: string, out: ProofIssue[], opts: { width: number; lines: number }) {
   if (Array.isArray(node)) {

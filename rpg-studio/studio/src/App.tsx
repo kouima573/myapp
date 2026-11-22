@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon, Globe2, Search, GraduationCap, Music, Hexagon } from "lucide-react";
+import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon, Globe2, Search, GraduationCap, Music, Hexagon, LifeBuoy } from "lucide-react";
 import { GameMapSchema, TilesetSchema, type GameContent, type GameMap, type GameState } from "@rpg/schema";
 import { loadImages, type ImageMap } from "../../packages/runtime/src/render";
 import MapEditor, { type Selection } from "./components/MapEditor";
@@ -21,12 +21,14 @@ import SearchPanel from "./components/SearchPanel";
 import TutorialPanel from "./components/TutorialPanel";
 import SongPanel from "./components/SongPanel";
 import SkillBoardPanel from "./components/SkillBoardPanel";
+import HelpPanel from "./components/HelpPanel";
+import { glossaryLookup } from "./lib/glossary";
 import CodeFinder from "./components/CodeFinder";
 import ConflictDialog from "./components/ConflictDialog";
 import { useProject } from "./lib/useProject";
 import type { ProjectSource } from "./lib/source";
 
-type Section = "idea" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history" | "world" | "search" | "tutorial" | "song" | "skills";
+type Section = "idea" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history" | "world" | "search" | "tutorial" | "song" | "skills" | "help";
 const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
   { id: "tutorial", label: "はじめての5分", icon: GraduationCap },
   { id: "idea", label: "発想", icon: Lightbulb },
@@ -46,6 +48,7 @@ const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
   { id: "assets", label: "素材", icon: ImageIcon },
   { id: "checks", label: "検証", icon: FlaskConical },
   { id: "history", label: "保存履歴", icon: HistoryIcon },
+  { id: "help", label: "ヘルプ・完成チェック", icon: LifeBuoy },
 ];
 
 /** For the editor: the last valid project, with any map/tileset that parses on its own swapped in, so painting stays live even while another file has an error. */
@@ -77,6 +80,19 @@ export default function App({ source }: { source: ProjectSource }) {
     if (theme === "dark") document.documentElement.removeAttribute("data-theme"); else document.documentElement.dataset.theme = theme;
     try { localStorage.setItem("rpg-studio:theme", theme); } catch { /* optional */ }
   }, [theme]);
+  // 用語の説明 (010): field labels and section names explain themselves on hover.
+  useEffect(() => {
+    const apply = () => document.querySelectorAll<HTMLElement>(".field-label, .section-tab span, .side-heading, .panel-page h2, .card h3").forEach(el => {
+      if (el.title || el.dataset.glossed) return;
+      const tip = glossaryLookup(el.textContent ?? "");
+      el.dataset.glossed = "1";
+      if (tip) { el.title = tip; el.classList.add("has-gloss"); }
+    });
+    apply();
+    const observer = new MutationObserver(() => apply());
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
   const [consoleOpen, setConsoleOpen] = useState(() => !window.matchMedia?.("(max-width: 900px)").matches);
 
   const playContent = store.content ?? store.lastGoodContent;
@@ -169,6 +185,7 @@ export default function App({ source }: { source: ProjectSource }) {
       {section === "data" && <DataPanel store={store} diagnostics={store.diagnostics} file={dataFile} onFile={setDataFile} />}
       {section === "assets" && playContent && <AssetsPanel store={store} content={playContent} images={images} />}
       {section === "world" && playContent && <WorldPanel content={playContent} onOpenMap={id => { setMapId(id); setSelection(null); setSection("map"); }} />}
+      {section === "help" && playContent && <HelpPanel store={store} content={playContent} />}
       {section === "skills" && playContent && <SkillBoardPanel store={store} content={playContent} />}
       {section === "song" && playContent && <SongPanel store={store} content={playContent} />}
       {section === "tutorial" && playContent && <TutorialPanel store={store} content={playContent} onGo={s => setSection(s as Section)} />}
