@@ -14,25 +14,27 @@ import { buildProject, importSystemModule, REPO_ROOT } from "./build";
 import { auditProject, catalog, jsonSchemas } from "./catalog";
 import { cmdArt, cmdAsset } from "./assets";
 import { loadProjectFromDisk, readProjectTexts, resolveInside } from "./load";
-import { newProject, type ProjectTheme } from "./scaffold";
+import { applyStage, newProject, type ProjectTheme } from "./scaffold";
 import { cmdMod } from "./mods";
 import { cmdPacks } from "./packs";
 import { cmdRefs, cmdRename } from "./refs";
 import { cmdProofread } from "./proofread";
 import { cmdFind } from "./find";
 import { cmdSample } from "./sample";
+import { cmdDevlog } from "./devlog";
 import { cmdLibrary } from "./library";
 import { genreAtlasMarkdown, GENRES, LEVEL_LABEL, searchGenres } from "../../modules/src/genres";
 
 const USAGE = `RPG Studio CLI
 
-  rpg new      <id> [--title <名前>] [--theme default|fantasy|mystery|scifi|minimal] [--dir projects]  新しいプロジェクトを作る
+  rpg new      <id> [--title <名前>] [--theme default|fantasy|mystery|scifi|minimal] [--stage 1|2|3] [--dir projects]  新しいプロジェクトを作る（--stage: 段階別の見本。1 会話 / 2 +戦闘・宝箱 / 3 +鍵と門・エンディング）
   rpg genres   [--query <言葉>] [--write]  ジャンル地図（どのジャンルをどう作るか）。--write で docs/genre-atlas.md を更新
   rpg mod      <list|add|export> [<id>] --project <dir>  作り手の仕組み（mod）を共有: 一覧・取り込み・書き出し（出どころは mods.json）
   rpg validate --project <dir>          形式・参照・素材を検証
   rpg test     --project <dir>          検証 + システム読込 + tests/*.scenario.json の自動プレイ
   rpg build    --project <dir> [--out <dir>] [--zip]  型検査・bundleして dist/game/<id>/ に静的ゲームを出力（--zipで公開用ZIPも作成）
   rpg audit    --project <dir>          未到達マップ・未使用会話・未使用イベントを検出
+  rpg devlog   --project <dir> [--days 7] [--out DEVLOG.md]   制作日誌の下書き（いまの内容・コミット・保存履歴の要約）
   rpg sample reset --project projects/<id> [--write]   見本を元の状態に戻す（壊して学ぶ用）
   rpg find     <文字> --project <dir> [--regex] [--case] [--replace <新しい文字> --write]   データの文章を横断検索・置換
   rpg proofread --project <dir> [--width 40] [--lines 3]   台詞の長さ・行数・誤字らしき所・かっこの対応を確かめる
@@ -343,6 +345,8 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         const theme = (typeof parsed.flags.theme === "string" ? parsed.flags.theme : "default") as ProjectTheme;
         if (!["default", "fantasy", "mystery", "scifi", "minimal"].includes(theme)) { console.error("ERROR --theme は default|fantasy|mystery|scifi|minimal から選んでください"); return 2; }
         const dir = await newProject(parsed.sub, typeof parsed.flags.title === "string" ? parsed.flags.title : parsed.sub, typeof parsed.flags.dir === "string" ? path.resolve(process.cwd(), parsed.flags.dir) : undefined, theme);
+        const stage = Number(parsed.flags.stage ?? 0);
+        if (stage) { if (![1, 2, 3].includes(stage)) { console.error("ERROR --stage は 1・2・3"); return 2; } await applyStage(dir, stage); }
         const rel = path.relative(process.cwd(), dir);
         console.log(`OK new: ${rel}\n次に ${rel}/IDEA.md に発想を書き、AIに「IDEA.md の発想を形にして」と頼んでください。\n  pnpm rpg test --project ${rel}`);
         return 0;
@@ -378,6 +382,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       return 0;
     }
     case "library": return cmdLibrary(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
+    case "devlog": return cmdDevlog(parsed.flags, projectDir(parsed.flags));
     case "sample": return cmdSample(parsed.sub, parsed.flags, projectDir(parsed.flags));
     case "find": return cmdFind(parsed.sub ? [parsed.sub, ...parsed.args] : parsed.args, parsed.flags, projectDir(parsed.flags));
     case "proofread": return cmdProofread(parsed.flags, projectDir(parsed.flags));
@@ -386,7 +391,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "packs": return cmdPacks(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
     default: {
       if (parsed.command && parsed.command !== "help" && parsed.command !== "--help") {
-        const cmds = ["new", "genres", "mod", "validate", "test", "build", "dev", "migrate", "catalog", "audit", "refs", "rename", "proofread", "find", "sample", "schema", "asset", "art", "library", "packs"];
+        const cmds = ["new", "genres", "mod", "validate", "test", "build", "dev", "migrate", "catalog", "audit", "refs", "rename", "proofread", "find", "sample", "devlog", "schema", "asset", "art", "library", "packs"];
         const dist = (a: string, b: string) => {
           const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
           for (let j = 0; j <= b.length; j++) dp[0]![j] = j;

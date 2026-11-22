@@ -198,6 +198,12 @@
 - 属性: `project.json › elements: { "fire": { "label": "炎" } }`。敵の `resist: { "fire": 150 }`（150 = 弱点、50 = 半減、0 = 無効）、武器の `element`（通常攻撃の属性）、防具・装飾品の `resist`（受けるダメージ）、効果 `damage` の `element`。弱点・半減は戦闘ログに「弱点！」などと出る。
 - 自動テスト: `expect.statuses` / `expect.lacksStatuses`。見本: `projects/genre-gallery/tests/status.scenario.json`。
 
+## v2.3 の追加
+
+- マップの `edges: { "east": { "mapId": "field2", "offset": 0 }, "west": …, "north": …, "south": … }`: 端から歩き出すと隣のマップへ（同じ行・列 + offset）。`"wrap": true` で丸い世界
+- `project.json › vehicles: { "boat": { "name": "小舟", "sprite": "<キャラ素材>", "crosses": ["~"], "encounters": false, "start": { "mapId", "x", "y" } } }`。`crosses` は進めるタイルの記号（`"*"` で全部＝飛空艇）。向かって決定で乗る／降りる。効果 `board`・`disembark`・`placeVehicle`
+- `pnpm rpg new <名前> --stage 1|2|3`、`pnpm rpg devlog --project <dir> [--days 7] [--out DEVLOG.md]`、`pnpm rpg sample reset --project projects/<id> [--write]`
+
 ## v2.2 の追加
 
 ### スキルボード（`database.json › skillBoards`）

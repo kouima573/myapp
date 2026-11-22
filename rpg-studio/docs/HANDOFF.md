@@ -10,7 +10,7 @@
 
 - 公開中: **https://rpg-studio-2k3.pages.dev**（トップ・見本ゲーム `/play/`・ジャンルの回廊 `/gallery/`・工房のPreview版 `/studio/`）
 - リポジトリ: `kouima573/myapp` の **`rpg-studio/` フォルダだけ**が対象
-- 作業ブランチ: `claude/eloquent-knuth-u58z8y`（v2.2 のコミット時点で全チェックOK）
+- 作業ブランチ: `claude/eloquent-knuth-u58z8y`（v2.3 のコミット時点で全チェックOK）
 
 ## 2. 必ず守ること（ユーザーとの約束）
 
@@ -44,7 +44,7 @@
 cd rpg-studio
 pnpm install
 pnpm check                      # 型チェック
-pnpm test                       # vitest（現在178件）
+pnpm test                       # vitest（現在181件）
 pnpm rpg proofread --project <dir>   # 台詞の長さ・誤字らしき所（v1.9）
 pnpm rpg validate --project projects/sample-rpg     # ← フォルダは --project で指定（位置引数は無視される）
 pnpm rpg test     --project projects/sample-rpg
@@ -118,6 +118,12 @@ BGMのループ位置・環境音、配布版の先読みとホーム画面追�
 ## 6.13 v2.2（第8弾）
 
 スキルボード（`database.skillBoards`、`state.skills`、`skillStatus()`、アクション `learnSkill`、`learnedNodes()` が能力値・技に反映、画面は `renderSkills` と CSS `.rpg-hex`）、召喚（`summon`・仲間の `summoned`）、練習試合（`BattleState.practice`）、見た目選び（`player.looks` → 始めの選択肢）、工房の「はじめての5分」（`TutorialPanel`）・「楽譜BGM」（`SongPanel`・`studio/src/lib/stepgrid.ts`・`previewSong`）・スタンプ・オニオンスキン・操作履歴（`store.timeline`・`rewindTo`。要約は `packages/local-server/src/summary.ts` を工房と共用）。
+
+## 6.14 v2.3（第9弾）
+
+工房のスキルボード編集（`SkillBoardPanel`）、ヘルプ（`HelpPanel`・`studio/src/lib/glossary.ts`）、端のつながり（`acrossEdge`）、乗り物（`state.vehicles`・`state.riding`・`interact` で乗り降り・`maybeEncounter` を分離）、`rpg new --stage`（`applyStage`）、`rpg devlog`、`rpg sample reset`（git で `projects/<id>` だけ元に戻す）、公開サイトの「AIと作ってみる」。台詞の点検は `packages/cli/src/proofreadText.ts`（工房と共用）。
+
+**注意**: リポジトリ直下には個人情報を含む別ファイルがあるため、公開サイトにリポジトリのURLや取得方法は載せていない（工房一式は作者から共有する前提）。
 
 ## 7. 残っている仕事
 

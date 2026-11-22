@@ -79,3 +79,49 @@ export async function newProject(id: string, title: string, root = path.join(REP
   await fs.writeFile(path.join(dir, "README.md"), `# ${title}\n\n発想は [IDEA.md](IDEA.md) に書きます。AIに頼むときは「IDEA.md の発想を形にして」と伝えてください（進め方: docs/idea-to-game.md）。\n\n\`\`\`sh\npnpm rpg test  --project projects/${id}\npnpm rpg build --project projects/${id}\n\`\`\`\n`);
   return dir;
 }
+
+/**
+ * 段階別の見本 (roadmap 012): `rpg new <id> --stage 1|2|3` grows the blank project step by step, each stage small
+ * enough to read in a few minutes, with its own scenario test:
+ *   1 talk: a villager and a sign.   2 +fight: a slime in the grass, a herb, a chest (once).
+ *   3 +quest: a second map through a gate that opens with a key the villager gives (flag), and an ending.
+ */
+export async function applyStage(dir: string, stage: number): Promise<void> {
+  const read = async (f: string) => JSON.parse(await fs.readFile(path.join(dir, f), "utf8"));
+  const write = async (f: string, v: unknown) => { await fs.mkdir(path.dirname(path.join(dir, f)), { recursive: true }); await fs.writeFile(path.join(dir, f), json(v)); };
+  const project = await read("project.json"), map = await read("maps/start.json"), dialogues = await read("dialogues/dialogues.json"), events = await read("events/events.json"), db = await read("database.json");
+  // Stage 1: someone to talk to, and a sign.
+  map.npcs.push({ id: "villager", name: "村人", x: 5, y: 4, facing: "down", sprite: "adventurer", dialogues: [{ dialogue: "villager-hello" }] });
+  dialogues.dialogues.push({ id: "villager-hello", speaker: "村人", lines: ["やあ、旅の人。", "東の草むらには魔物が出るから気をつけて。"], effects: [], choices: [] });
+  map.interactables.push({ id: "sign", label: "看板", x: 9, y: 4, trigger: "action", marker: "sign", event: "read-sign" });
+  events.events.push({ id: "read-sign", label: "看板", effects: [{ type: "message", text: "「ここは はじまりの村」" }], otherwise: [], once: false, afterDone: [] });
+  await write("tests/stage1.scenario.json", { name: "段階1: 村人と話す・看板を読む", seed: 1, steps: [{ advance: "all" }, { effects: [{ type: "teleport", mapId: "start", x: 5, y: 5, facing: "up" }] }, { interact: true }, { expect: { textIncludes: "やあ、旅の人" } }, { advance: "all" }, { effects: [{ type: "teleport", mapId: "start", x: 9, y: 5, facing: "up" }] }, { interact: true }, { expect: { textIncludes: "はじまりの村" } }, { advance: "all" }] });
+  if (stage >= 2) {
+    db.items.push({ id: "herb", name: "薬草", description: "HPを10回復する。", heal: 10, price: 8, rules: [], key: false });
+    db.enemies.push({ id: "slime", name: "スライム", tags: ["monster"], stats: { maxHp: 8, attack: 3, defense: 0 }, actions: [{ name: "体当たり", power: 1, effects: [] }], drops: [{ item: "herb", count: 1 }], rules: [], canFlee: true, resist: {}, immune: [] });
+    project.player.items = { herb: 1 };
+    map.encounters = { rate: 0.1, enemies: ["slime"], tiles: [] };
+    map.interactables.push({ id: "chest", label: "宝箱", x: 12, y: 8, trigger: "action", marker: "chest", event: "open-chest" });
+    events.events.push({ id: "open-chest", label: "宝箱", effects: [{ type: "giveItem", item: "herb", count: 2 }, { type: "message", text: "宝箱に薬草が2つ入っていた。" }], otherwise: [], once: true, afterDone: [{ type: "message", text: "空っぽだ。" }] });
+    await write("tests/stage2.scenario.json", { name: "段階2: 宝箱は一度だけ・スライムに勝つと薬草", seed: 2, steps: [{ advance: "all" }, { effects: [{ type: "teleport", mapId: "start", x: 12, y: 9, facing: "up" }] }, { interact: true }, { advance: "all" }, { expect: { items: { herb: 3 } } }, { interact: true }, { expect: { textIncludes: "空っぽ" } }, { advance: "all" }, { expect: { items: { herb: 3 } } }, { effects: [{ type: "battle", enemy: "slime" }] }, { fight: "auto" }, { advance: "all" }, { expect: { scene: "field" } }] });
+  }
+  if (stage >= 3) {
+    project.flags = { ...project.flags, "has-key": { initial: false, description: "村人から門の鍵をもらった" } };
+    project.endings = { ...project.endings, "garden-end": { title: "庭にたどり着いた", text: "門の向こうには、静かな庭が広がっていた。" } };
+    project.maps.push({ id: "garden", path: "maps/garden.json", title: "門の向こうの庭" });
+    const width = 10, height = 8;
+    await write("maps/garden.json", { formatVersion: 2, id: "garden", title: "門の向こうの庭", width, height, rows: Array.from({ length: height }, (_, y) => Array.from({ length: width }, (_, x) => (x === 0 || y === 0 || x === width - 1 || y === height - 1 ? "T" : ".")).join("")), npcs: [], portals: [{ id: "garden-back", x: 1, y: 4, targetMapId: "start", targetX: 13, targetY: 5 }], interactables: [{ id: "flower", label: "花", x: 6, y: 3, trigger: "action", marker: "sparkle", event: "the-end" }], entities: [] });
+    map.portals.push({ id: "gate", x: 14, y: 5, targetMapId: "garden", targetX: 2, targetY: 4, when: { flag: "has-key" } });
+    map.interactables.push({ id: "locked-gate", label: "門", x: 14, y: 4, trigger: "action", marker: "statue", event: "gate-check" });
+    events.events.push({ id: "gate-check", label: "門", when: { flag: "has-key" }, effects: [{ type: "message", text: "鍵が合った。門は開いている（右下のマスから入れる）。" }], otherwise: [{ type: "message", text: "門には鍵がかかっている。村人が何か知っているかも。" }], once: false, afterDone: [] });
+    events.events.push({ id: "the-end", label: "花", effects: [{ type: "message", text: "見たことのない花が咲いている。" }, { type: "ending", ending: "garden-end" }], otherwise: [], once: false, afterDone: [] });
+    const hello = dialogues.dialogues.find((d: { id: string }) => d.id === "villager-hello");
+    hello.choices = [{ id: "ask-gate", label: "門のことを聞く", effects: [{ type: "setFlag", flag: "has-key" }, { type: "message", text: "これが門の鍵だ。持っていくといい。" }], once: true }, { id: "bye", label: "またね", effects: [], once: false }];
+    // Talking to the villager now ends in a choice: the stage-1 test says goodbye.
+    await write("tests/stage1.scenario.json", { name: "段階1: 村人と話す・看板を読む", seed: 1, steps: [{ advance: "all" }, { effects: [{ type: "teleport", mapId: "start", x: 5, y: 5, facing: "up" }] }, { interact: true }, { expect: { textIncludes: "やあ、旅の人" } }, { advance: "all" }, { choose: "bye" }, { advance: "all" }, { effects: [{ type: "teleport", mapId: "start", x: 9, y: 5, facing: "up" }] }, { interact: true }, { expect: { textIncludes: "はじまりの村" } }, { advance: "all" }] });
+    // The gate column must be walkable for the portal.
+    map.rows = map.rows.map((r: string, y: number) => (y === 5 ? `${r.slice(0, 14)}.${r.slice(15)}` : r));
+    await write("tests/stage3.scenario.json", { name: "段階3: 鍵をもらって門の向こうへ、花でエンディング", seed: 3, steps: [{ advance: "all" }, { effects: [{ type: "teleport", mapId: "start", x: 5, y: 5, facing: "up" }] }, { interact: true }, { advance: "all" }, { choose: "ask-gate" }, { advance: "all" }, { expect: { flags: { "has-key": true } } }, { effects: [{ type: "teleport", mapId: "start", x: 13, y: 5, facing: "right" }] }, { move: "right" }, { expect: { mapId: "garden" } }, { effects: [{ type: "teleport", mapId: "garden", x: 6, y: 4, facing: "up" }] }, { interact: true }, { advance: "once" }, { expect: { scene: "ending" } }] });
+  }
+  await write("project.json", project); await write("maps/start.json", map); await write("dialogues/dialogues.json", dialogues); await write("events/events.json", events); await write("database.json", db);
+}
