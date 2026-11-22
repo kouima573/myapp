@@ -29,6 +29,8 @@ export interface MountOptions {
   seed?: number;
   /** Load cross-cycle memories (meta) from storage on start. Default true. */
   useMeta?: boolean;
+  /** Every action the game handled (studio: record play as a scenario test). */
+  onAction?: (action: Action, after: GameState) => void;
   /** Show the title screen first (built games). The studio skips it. */
   titleScreen?: boolean;
 }
@@ -213,6 +215,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     let result: StepResult;
     try { result = engine.step(state, action); } catch (error) { fail(error); return null; }
     apply(result, action);
+    options.onAction?.(action, state);
     return result;
   }
 

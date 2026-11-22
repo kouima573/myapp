@@ -1,10 +1,12 @@
 import { withModules } from "../../../packages/modules/src/index";
 import { useEffect, useRef, useState } from "react";
-import { RotateCcw, AlertTriangle, Bug } from "lucide-react";
+import { RotateCcw, AlertTriangle, Bug, Circle, Square } from "lucide-react";
 import type { GameContent, GameState } from "@rpg/schema";
 import type { GameSystem } from "@rpg/engine";
 import { mountGame, type GameHandle } from "../../../packages/runtime/src/player";
 import type { ProjectSource } from "../lib/source";
+import { actionsToSteps, finalExpect } from "../lib/recorder";
+import type { Action } from "@rpg/engine";
 import type { ProjectStore } from "../lib/useProject";
 
 interface Props {
@@ -28,6 +30,9 @@ export default function PlayPanel({ store, content, stale, systems, systemsVersi
   const handleRef = useRef<GameHandle | null>(null);
   const [state, setState] = useState<GameState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Recording play as a scenario test (167): actions since "録画" was pressed, from a fresh game. */
+  const recording = useRef<Action[] | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
 
   // Remount when content, systems or the requested start change. Engine state is intentionally reset.
   useEffect(() => {
@@ -46,6 +51,7 @@ export default function PlayPanel({ store, content, stale, systems, systemsVersi
         keyboard: "focus",
         onLog: lines => lines.forEach(line => store.log("info", `試遊: ${line}`)),
         onStateChange: setState,
+        onAction: action => { recording.current?.push(action); },
         onError: err => { setError(err.message); store.log("error", `試遊中のエラー: ${err.message}`); },
       });
       if (startAt && content.maps[startAt.mapId]) {
@@ -103,6 +109,20 @@ export default function PlayPanel({ store, content, stale, systems, systemsVersi
   return <div className="play-panel">
     <div className="play-bar">
       <button className="button" onClick={() => { handleRef.current?.restart(); handleRef.current?.focus(); store.log("info", "試遊を最初からやり直しました"); }}><RotateCcw size={14} /> 最初から</button>
+      {!isRecording
+        ? <button className="button" title="最初から遊び直し、操作を自動テスト（tests/*.scenario.json）として記録します" onClick={() => { const h = handleRef.current; if (h) h.setState(h.engine.newGame(1)); recording.current = []; setIsRecording(true); handleRef.current?.focus(); store.log("info", "録画開始: 最初から遊んだ操作を自動テストとして記録します"); }}><Circle size={12} color="#e06c5c" fill="#e06c5c" /> 録画してテストを作る</button>
+        : <button className="button primary" onClick={() => {
+            const actions = recording.current ?? [];
+            recording.current = null; setIsRecording(false);
+            const handle = handleRef.current;
+            if (!handle || !actions.length) { store.log("warn", "録画した操作がありません"); return; }
+            const { steps, skipped } = actionsToSteps(actions);
+            const stamp = new Date().toISOString().replace(/[-:T]/g, "").slice(0, 12);
+            const path = `tests/recorded-${stamp}.scenario.json`;
+            const scenario = { name: `試遊の録画（${new Date().toLocaleString("ja-JP")}）。最後の状態を確かめる`, steps: [...steps, finalExpect(handle.getState(), content)] };
+            store.setFileText(path, `${JSON.stringify(scenario, null, 2)}\n`);
+            store.log("ok", `${path} に保存しました（${steps.length}手順${skipped ? `・リアルタイム画面の入力${skipped}件は記録していません` : ""}）。「検証」画面の自動テストで確かめられます`);
+          }}><Square size={12} /> 録画を止めて保存</button>}
       <span className="muted small">クリックで操作対象に · 矢印/WASD 移動 · Enter/Z 調べる · Esc/X メニュー</span>
       <span className="spacer" />
       {stale && <span className="badge warn"><AlertTriangle size={12} /> 最新データに検証エラー：直前の正常版で試遊中</span>}

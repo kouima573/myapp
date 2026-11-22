@@ -17,6 +17,7 @@ import { loadProjectFromDisk, readProjectTexts, resolveInside } from "./load";
 import { newProject, type ProjectTheme } from "./scaffold";
 import { cmdMod } from "./mods";
 import { cmdPacks } from "./packs";
+import { cmdRefs, cmdRename } from "./refs";
 import { cmdLibrary } from "./library";
 import { genreAtlasMarkdown, GENRES, LEVEL_LABEL, searchGenres } from "../../modules/src/genres";
 
@@ -29,6 +30,8 @@ const USAGE = `RPG Studio CLI
   rpg test     --project <dir>          検証 + システム読込 + tests/*.scenario.json の自動プレイ
   rpg build    --project <dir> [--out <dir>] [--zip]  型検査・bundleして dist/game/<id>/ に静的ゲームを出力（--zipで公開用ZIPも作成）
   rpg audit    --project <dir>          未到達マップ・未使用会話・未使用イベントを検出
+  rpg refs     <id> --project <dir>     そのID（フラグ・変数・アイテム・マップ・敵・素材…）がどこで使われているか
+  rpg rename   <今のID> <新しいID> --project <dir> [--write]  IDをプロジェクト全体で書き換える（既定は変更予定の表示だけ）
   rpg dev      --project <dir> [--port 4174]  ビルドして127.0.0.1で配信、変更で自動再ビルド
   rpg migrate  --project <dir> [--write]      旧形式を移行（既定は差分表示のみ。--writeでバックアップ後に保存）
   rpg catalog  --project <dir>          定義済みのID・フラグ・変数・特性・ルールの一覧（Markdown）
@@ -41,7 +44,7 @@ const USAGE = `RPG Studio CLI
   rpg asset find --kind <bgm|sfx|image…> --words "<言葉>"                        AIが会話で候補を出す用（内蔵素材・取得元の検索URL・条件）
 `;
 
-const SUBCOMMANDS = new Set(["new", "genres", "mod", "asset", "art", "library", "packs", "help", "--help"]);
+const SUBCOMMANDS = new Set(["new", "genres", "mod", "asset", "art", "library", "packs", "refs", "rename", "help", "--help"]);
 
 function parseArgs(argv: string[]) {
   const [command, ...afterCommand] = argv;
@@ -369,10 +372,12 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       return 0;
     }
     case "library": return cmdLibrary(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
+    case "refs": return cmdRefs(parsed.sub ? [parsed.sub] : [], projectDir(parsed.flags));
+    case "rename": return cmdRename(parsed.sub ? [parsed.sub, ...parsed.args] : parsed.args, parsed.flags, projectDir(parsed.flags));
     case "packs": return cmdPacks(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
     default: {
       if (parsed.command && parsed.command !== "help" && parsed.command !== "--help") {
-        const cmds = ["new", "genres", "mod", "validate", "test", "build", "dev", "migrate", "catalog", "audit", "schema", "asset", "art", "library", "packs"];
+        const cmds = ["new", "genres", "mod", "validate", "test", "build", "dev", "migrate", "catalog", "audit", "refs", "rename", "schema", "asset", "art", "library", "packs"];
         const dist = (a: string, b: string) => {
           const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
           for (let j = 0; j <= b.length; j++) dp[0]![j] = j;

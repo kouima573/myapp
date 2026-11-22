@@ -43,7 +43,7 @@
 cd rpg-studio
 pnpm install
 pnpm check                      # 型チェック
-pnpm test                       # vitest（現在135件）
+pnpm test                       # vitest（現在140件）
 pnpm rpg validate --project projects/sample-rpg     # ← フォルダは --project で指定（位置引数は無視される）
 pnpm rpg test     --project projects/sample-rpg
 pnpm rpg build    --project projects/sample-rpg
@@ -88,6 +88,10 @@ pnpm build:site / pnpm deploy:site   # 公開用サイト（dist/site）
 ## 6.6 v1.5（「200の改善指針」第1弾）
 
 Gemini でまとめた200項目の改善案を受け取り、`docs/roadmap-200.md` に1項目ずつ状態を記録した（✅済・🟡一部・🔜次・⬜未）。第1弾としてレベル制・タイトル画面・セーブ3枠＋オート・書き出し/読み込み・ダメージ数値・お店と宿屋（`shop` モジュール）を実装。**次はこの表の 🔜 から**（TODO.md「第2弾の候補」）。
+
+## 6.7 v1.6（第2弾）
+
+状態異常・属性、オートタイル・レイヤー・動くタイル、フキダシ・顔グラ・移動ルート、`rpg refs` / `rpg rename`、試遊の録画からの自動テスト。次は `docs/roadmap-200.md` の 🔜。
 
 ## 7. 残っている仕事
 

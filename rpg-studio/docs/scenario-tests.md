@@ -27,6 +27,7 @@
 | `{ "tick": 10 }` | 世界の時間を進める（エンティティの移動・tickルール）。フィールド以外になったら止まる |
 | `{ "sceneInput": "up" }` / `{ "sceneInput": { "custom": 値 } }` | 独自画面に入力を送る |
 | `{ "equip": "bronze-sword" }` / `{ "equip": "squire-blade", "companion": "emma" }` | 装備する（装備中なら外す）。`companion` で仲間に装備させる |
+| `{ "routes": "finish" }` | 移動ルート（moveRoute）を最後まで進める |
 | `{ "command": "stop" }` | スクリプトが足したコマンド（戦闘・メニュー「とくしゅ」）を id か表示名で押す。`source` でスクリプトを絞れる |
 | `{ "battleOrder": { "companion": "emma", "action": 1 } }` | 戦闘中、仲間にこのターン使う行動（actions の何番目か）を指示する。ターンは消費しない |
 | `{ "battle": "attack", "target": 1 }` | 複数の敵のうち、何番目を攻撃するか（0 = 最初の敵） |
@@ -41,3 +42,8 @@
 
 - 既定ではランダムエンカウントを無効にして実行します（`"encounters": true` で有効）。乱数は `seed` で固定され、毎回同じ結果になります。
 - 失敗すると `ERROR tests/xxx.scenario.json › steps[12]: flags.sentinelCalmed: 期待 true / 実際 false` のように、何番目の手順で何が違ったかを表示します。
+
+## 録画して作る
+
+工房の「試遊」で「録画してテストを作る」を押すと、最初から遊び直した操作がそのまま `tests/recorded-<日時>.scenario.json` になります（最後に、そのときの場所・フラグ・変数・持ち物を確かめる `expect` が付きます）。リアルタイム画面（弾幕など）の入力は記録しないので、その部分は `frames` を手で書いてください。
+
