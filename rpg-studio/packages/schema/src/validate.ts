@@ -431,6 +431,14 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     if (flagIds.has(id)) warn(P, `variables.${id}`, "同じ名前のフラグがあります。紛らわしいので別名にしてください");
   }
   checkEffects(P, "intro", project.intro);
+  if (project.gameOver) {
+    const go = project.gameOver;
+    if (go.respawn) checkPosition(P, "gameOver.respawn", go.respawn.mapId, go.respawn.x, go.respawn.y, "復活する場所");
+    if (go.image && !["background", "portrait"].includes(assetById.get(go.image)?.kind ?? "")) err(P, "gameOver.image", `画像の素材 '${go.image}' がありません`);
+    checkAudio(P, "gameOver.music", go.music, ["bgm", "song", "sfx"], "ゲームオーバーの音楽");
+    if (go.penalty && !varIds.has(go.penalty.var)) err(P, "gameOver.penalty.var", `未宣言の変数 '${go.penalty.var}'`);
+  }
+  if (project.ui?.frame && !["background", "portrait", "tileset"].includes(assetById.get(project.ui.frame)?.kind ?? "")) err(P, "ui.frame", `枠の画像 '${project.ui.frame}' がありません`);
   // 一時的に無効化中のもの（disabled: true）を知らせる（消し忘れ防止）。
   for (const r of content.rules) if (r.disabled) warn(content.project.rulesPath ?? "rules.json", `rules[${r.id}]`, "無効化中（disabled: true）。使うときは外してください");
   for (const e of Object.values(content.events)) if (e.disabled) warn(content.project.eventsPath, `events[${e.id}]`, "無効化中（disabled: true）。呼んでも何も起きません");

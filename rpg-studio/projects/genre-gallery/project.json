@@ -234,5 +234,23 @@
   "minimap": {
     "enabled": true,
     "size": 120
+  },
+  "gameOver": {
+    "mode": "screen",
+    "message": "……気がつくと、回廊の入口に倒れていた。",
+    "title": "GAME OVER",
+    "text": "旅はここで途切れた。けれど、回廊はまだ待っている。",
+    "image": "bg-field",
+    "retry": true,
+    "penalty": {
+      "var": "gold",
+      "percent": 50
+    }
+  },
+  "ui": {
+    "window": "rgba(24,30,44,.94)",
+    "edge": "#d9c89a",
+    "radius": 10,
+    "frameSlice": 12
   }
 }

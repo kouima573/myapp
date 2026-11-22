@@ -170,6 +170,21 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   root.tabIndex = 0;
   root.setAttribute("role", "application");
   root.setAttribute("aria-label", `${content.project.title}（ゲーム）`);
+  // ウィンドウのデザイン (project.ui): colours, corners, font and an optional picture frame.
+  const ui = content.project.ui;
+  if (ui) {
+    const set = (name: string, value: string | undefined) => { if (value) root.style.setProperty(name, value); };
+    set("--rpg-win", ui.window); set("--rpg-edge", ui.edge); set("--rpg-ink", ui.text); set("--rpg-accent", ui.accent);
+    if (ui.radius !== undefined) root.style.setProperty("--rpg-radius", `${ui.radius}px`);
+    const fonts = { dot: `"DotGothic16","Hiragino Kaku Gothic ProN","Meiryo",sans-serif`, gothic: `"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif`, mincho: `"Hiragino Mincho ProN","Yu Mincho","MS PMincho",serif`, rounded: `"Hiragino Maru Gothic ProN","M PLUS Rounded 1c","Arial Rounded MT Bold",sans-serif` };
+    if (ui.font) root.style.fontFamily = fonts[ui.font];
+    const frame = ui.frame ? content.assets.assets.find(a => a.id === ui.frame) : undefined;
+    if (frame) void Promise.resolve(options.resolveAsset(frame)).then(url => {
+      root.style.setProperty("--rpg-frame", `url("${url}")`);
+      root.style.setProperty("--rpg-frame-slice", String(ui.frameSlice));
+      root.classList.add("has-frame");
+    });
+  }
   const screen = el("div", "rpg-screen");
   const canvas = el("canvas", "rpg-canvas");
   canvas.width = VIEW_COLS * TILE; canvas.height = VIEW_ROWS * TILE;
@@ -322,7 +337,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   function confirm() {
     if (state.scene.kind === "input") { windowLayer.querySelector<HTMLInputElement>(".rpg-input-field")?.focus(); return; }
     if (state.scene.kind === "custom") { dispatch({ type: "sceneInput", input: { type: "confirm" } }); return; }
-    if (state.scene.kind === "ending") { const b = buttons()[0]; b?.click(); return; }
+    if (state.scene.kind === "ending" || (state.scene.kind === "gameover" && !menuOpen)) { const list = buttons(); list[Math.min(selection, list.length - 1)]?.click(); return; }
     if (menuOpen || state.scene.kind === "choice" || state.scene.kind === "prompt" || state.scene.kind === "battle") {
       if (!typing.done) { finishTyping(); return; }
       const list = buttons();
@@ -613,7 +628,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const mini = minimapCanvas();
     if (mini) { const right = el("div", "rpg-hud-right"); right.append(hp, mini); hud.append(left, right); }
     else hud.append(left, hp);
-    hud.hidden = state.scene.kind === "battle" || state.scene.kind === "ending" || state.scene.kind === "custom";
+    hud.hidden = state.scene.kind === "battle" || state.scene.kind === "ending" || state.scene.kind === "custom" || state.scene.kind === "gameover";
     root.dataset.scene = menuOpen ? "menu" : state.scene.kind;
 
     const scene = state.scene;
@@ -653,6 +668,21 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       window.setTimeout(() => { field.focus({ preventScroll: true }); field.select(); }, 0);
     } else if (scene.kind === "battle") renderBattle(scene.battle);
     else if (scene.kind === "custom") renderCustomScene(scene);
+    else if (scene.kind === "gameover" && !menuOpen) {
+      // GAME OVER screen (project.gameOver.mode "screen"): load a save, back to the title, or wake up again.
+      const go = content.project.gameOver!;
+      const box = el("div", "rpg-window rpg-ending rpg-gameover");
+      box.dataset.src = "packages/runtime/src/player.ts#gameover";
+      const bg = go.image ? content.assets.assets.find(a => a.id === go.image) : undefined;
+      if (bg) void Promise.resolve(options.resolveAsset(bg)).then(url => { box.style.backgroundImage = `linear-gradient(rgba(10,6,6,.45), rgba(10,6,6,.8)), url("${url}")`; });
+      box.append(el("div", "rpg-ending-title rpg-gameover-title", go.title));
+      if (go.text) box.appendChild(el("div", "rpg-ending-text", engine.text(state, go.text)));
+      const hasSave = SLOTS.some(slot => readSlot(slot));
+      if (hasSave) box.appendChild(navButton("ロードする", () => { menuOpen = true; slotReturn = "main"; menuView = "load"; selection = 0; renderUI(); }));
+      if (go.retry) box.appendChild(navButton("もう一度立ち上がる", () => dispatch({ type: "advance" })));
+      box.appendChild(navButton("タイトルへ", () => { setState(engine.newGame(options.seed)); if (content.project.titleScreen.enabled) { menuOpen = true; menuView = "title"; atTitle = true; } renderUI(); }));
+      windowLayer.appendChild(box);
+    }
     else if (scene.kind === "ending") {
       const ending = content.project.endings[scene.ending];
       const box = el("div", "rpg-window rpg-ending");
@@ -843,6 +873,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       if (battleMusic) { audio.setMusic(battleMusic); return; }
     }
     if (scene.kind === "battle" && scene.battle.outcome === "victory" && content.project.audio.victory) { audio.setMusic(null); return; }
+    if (scene.kind === "gameover" || (scene.kind === "battle" && scene.battle.outcome === "defeat")) { audio.setMusic(content.project.gameOver?.music ?? null); return; }
     audio.setMusic(state.music !== undefined ? state.music : content.maps[state.mapId]?.bgm ?? null);
   }
 

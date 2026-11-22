@@ -38,7 +38,7 @@ export const RUNTIME_CSS = String.raw`
 .rpg-bar-fill { height:100%; background:var(--rpg-hp); transition:width .25s ease; }
 .rpg-bar.is-low .rpg-bar-fill { background:var(--rpg-low); }
 .rpg-bar.is-enemy .rpg-bar-fill { background:var(--rpg-enemy); }
-.rpg-window { background:var(--rpg-win); border:2px solid var(--rpg-edge); border-radius:8px; box-shadow:inset 0 0 0 2px rgba(0,0,0,.45), 0 3px 0 rgba(0,0,0,.35); }
+.rpg-window { background:var(--rpg-win); border:2px solid var(--rpg-edge); border-radius:var(--rpg-radius,8px); box-shadow:inset 0 0 0 2px rgba(0,0,0,.45), 0 3px 0 rgba(0,0,0,.35); }
 .rpg-message { position:absolute; left:2.5%; right:2.5%; bottom:3%; min-height:26%; padding:.7em 1em 1em; cursor:pointer; line-height:1.65; }
 .rpg-speaker { display:inline-block; margin-bottom:.25em; color:var(--rpg-accent); font-size:.85em; letter-spacing:.08em; }
 .rpg-text { white-space:pre-wrap; min-height:3.3em; }
@@ -91,6 +91,9 @@ export const RUNTIME_CSS = String.raw`
 .rpg-realtime { position:absolute; inset:0; width:100%; height:100%; image-rendering:pixelated; }
 .rpg-root[data-scene="ending"] .rpg-layer { background:rgba(4,6,5,.72); }
 .rpg-ending { position:absolute; left:10%; right:10%; top:14%; bottom:14%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.6em; padding:1.2em; text-align:center; animation:rpg-in .6s ease-out; }
+.rpg-root.has-frame .rpg-window { border-style:solid; border-width:calc(var(--rpg-frame-slice) * 1px); border-image:var(--rpg-frame) var(--rpg-frame-slice) fill / calc(var(--rpg-frame-slice) * 1px) stretch; background:transparent; box-shadow:none; image-rendering:pixelated; }
+.rpg-gameover { background-size:cover; background-position:center; }
+.rpg-gameover-title { color:#e0604a; font-size:2em; letter-spacing:.2em; text-shadow:0 2px 0 #000; }
 .rpg-ending-label { letter-spacing:.4em; color:var(--rpg-accent); font-size:.8em; }
 .rpg-ending-title { font-size:1.5em; letter-spacing:.1em; }
 .rpg-message.has-face { padding-left:calc(1em + 6.2em); min-height:6.6em; }

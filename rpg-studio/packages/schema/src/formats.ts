@@ -623,6 +623,32 @@ export const ProjectManifestSchema = z.object({
   }).strict().default({ enabled: true }),
   /** Save automatically to the "オート" slot when entering a map (field, nothing pending). */
   autosave: z.boolean().default(true),
+  /**
+   * When the hero falls in a battle that does not continue (ゲームオーバー). "respawn": wake up at `respawn` (default the start)
+   * with `message`; "screen": a GAME OVER screen (title / text / picture) with ロード・タイトルへ・`retry` (wake up as with respawn).
+   * `penalty`: lose this percent of a variable (e.g. half the gold).
+   */
+  gameOver: z.object({
+    mode: z.enum(["respawn", "screen"]).default("respawn"),
+    message: z.string().default("目の前が暗くなった……。気がつくと、見慣れた場所に戻っていた。"),
+    respawn: z.object({ mapId: IdSchema, x: z.number().int().min(0), y: z.number().int().min(0) }).strict().optional(),
+    title: z.string().default("GAME OVER"),
+    text: z.string().default(""),
+    image: IdSchema.optional(),
+    music: IdSchema.optional(),
+    retry: z.boolean().default(true),
+    penalty: z.object({ var: IdSchema, percent: z.number().int().min(0).max(100) }).strict().optional(),
+  }).strict().optional(),
+  /**
+   * Look of the windows (ウィンドウのデザイン): colours (#hex / rgba), corner radius, font, and an optional frame picture
+   * (a portrait/background asset drawn as a 9-slice border, `frameSlice` pixels from each edge).
+   */
+  ui: z.object({
+    window: z.string().max(40).optional(), edge: z.string().max(40).optional(), text: z.string().max(40).optional(), accent: z.string().max(40).optional(),
+    radius: z.number().int().min(0).max(30).optional(),
+    font: z.enum(["dot", "gothic", "mincho", "rounded"]).optional(),
+    frame: IdSchema.optional(), frameSlice: z.number().int().min(1).max(64).default(12),
+  }).strict().optional(),
 }).strict();
 export type ProjectManifest = z.infer<typeof ProjectManifestSchema>;
 
@@ -1268,6 +1294,8 @@ export const SceneSchema = z.discriminatedUnion("kind", [
   /** A screen provided by a project system (puzzle, card battle, minigame…). `data` is the system's JSON state. */
   z.object({ kind: z.literal("custom"), system: IdSchema, scene: IdSchema, data: z.unknown(), battle: BattleStateSchema.optional() }).strict(),
   z.object({ kind: z.literal("ending"), ending: IdSchema }).strict(),
+  /** project.gameOver.mode "screen": waiting on the GAME OVER screen (advance = wake up again). */
+  z.object({ kind: z.literal("gameover") }).strict(),
 ]);
 export type Scene = z.infer<typeof SceneSchema>;
 

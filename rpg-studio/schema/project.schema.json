@@ -1237,6 +1237,144 @@
     "autosave": {
       "default": true,
       "type": "boolean"
+    },
+    "gameOver": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "default": "respawn",
+          "type": "string",
+          "enum": [
+            "respawn",
+            "screen"
+          ]
+        },
+        "message": {
+          "default": "目の前が暗くなった……。気がつくと、見慣れた場所に戻っていた。",
+          "type": "string"
+        },
+        "respawn": {
+          "type": "object",
+          "properties": {
+            "mapId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "x": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "y": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": [
+            "mapId",
+            "x",
+            "y"
+          ],
+          "additionalProperties": false
+        },
+        "title": {
+          "default": "GAME OVER",
+          "type": "string"
+        },
+        "text": {
+          "default": "",
+          "type": "string"
+        },
+        "image": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96,
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "music": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96,
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "retry": {
+          "default": true,
+          "type": "boolean"
+        },
+        "penalty": {
+          "type": "object",
+          "properties": {
+            "var": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 96,
+              "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "percent": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 100
+            }
+          },
+          "required": [
+            "var",
+            "percent"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "ui": {
+      "type": "object",
+      "properties": {
+        "window": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "edge": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "text": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "accent": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "radius": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30
+        },
+        "font": {
+          "type": "string",
+          "enum": [
+            "dot",
+            "gothic",
+            "mincho",
+            "rounded"
+          ]
+        },
+        "frame": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 96,
+          "pattern": "^[a-z0-9][a-z0-9._-]*$"
+        },
+        "frameSlice": {
+          "default": 12,
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 64
+        }
+      },
+      "additionalProperties": false
     }
   },
   "required": [

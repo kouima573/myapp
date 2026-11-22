@@ -511,3 +511,23 @@ describe("tile encounter rate (031)", () => {
     expect(walk(make(1, 0))).toBe("field");
   });
 });
+
+describe("game over (115)", () => {
+  it("screen mode waits on GAME OVER, takes the penalty, and advance wakes the hero at the respawn point", () => {
+    const resp = { mapId: content.project.start.mapId, x: content.project.start.x, y: content.project.start.y };
+    const eng = createEngine({ ...content, project: { ...content.project, gameOver: { mode: "screen", message: "立ち上がった。", respawn: resp, title: "GAME OVER", text: "", retry: true, penalty: { var: "gold", percent: 50 } } } }, systems);
+    let state = eng.newGame(1);
+    while (state.scene.kind === "message") state = eng.step(state, { type: "advance" }).state;
+    state = eng.step(state, { type: "choose", choiceId: "dwarf" }).state;
+    while (state.scene.kind === "message") state = eng.step(state, { type: "advance" }).state;
+    state = eng.run(state, [{ type: "setVar", var: "gold", value: 31 }, { type: "battle", enemy: content.database.enemies.find(e => !e.battle)!.id }]).state;
+    state = eng.run(state, [{ type: "damage", target: "player", amount: 999 }]).state;
+    expect(state.scene.kind === "battle" && state.scene.battle.outcome).toBe("defeat");
+    state = eng.step(state, { type: "advance" }).state;
+    expect(state.scene.kind).toBe("gameover");
+    expect(state.vars.gold).toBe(16);
+    state = eng.step(state, { type: "advance" }).state;
+    expect(state.scene.kind === "message" && state.scene.text).toBe("立ち上がった。");
+    expect(state.player.hp).toBe(eng.stats(state).maxHp);
+  });
+});

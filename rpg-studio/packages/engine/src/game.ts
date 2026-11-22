@@ -1651,14 +1651,27 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     if (battle.onDefeat === "continue") {
       return runQueue(c, { ...state, scene: { kind: "field" }, queue: battle.after, player: { ...state.player, hp: 1 } });
     }
-    const { start } = content.project;
-    if (state.mapId !== start.mapId) c.cues.push({ kind: "mapChanged", from: state.mapId });
+    const go = content.project.gameOver;
+    if (go?.penalty) {
+      const v = go.penalty.var;
+      state = { ...state, vars: { ...state.vars, [v]: (state.vars[v] ?? 0) - Math.floor((state.vars[v] ?? 0) * go.penalty.percent / 100) } };
+    }
+    if (go?.mode === "screen") return { ...state, queue: battle.after, scene: { kind: "gameover" } };
+    return respawn(c, { ...state, queue: battle.after });
+  }
+
+  /** Wake up after a game over: the respawn point (or the start) with full HP. */
+  function respawn(c: Ctx, state: GameState): GameState {
+    const go = content.project.gameOver;
+    const start = content.project.start;
+    const to = go?.respawn ?? start;
+    if (state.mapId !== to.mapId) c.cues.push({ kind: "mapChanged", from: state.mapId });
     return {
       ...state,
-      mapId: start.mapId,
-      player: { ...state.player, x: start.x, y: start.y, facing: start.facing, hp: stats(state).maxHp },
-      queue: battle.after,
-      scene: { kind: "message", text: "目の前が暗くなった……。気がつくと、見慣れた場所に戻っていた。" },
+      mapId: to.mapId,
+      player: { ...state.player, x: to.x, y: to.y, facing: start.facing, hp: stats(state).maxHp },
+      ...(state.party ? { party: state.party.map(m => ({ ...m, hp: Math.max(1, m.hp) })) } : {}),
+      scene: { kind: "message", text: go?.message ?? "目の前が暗くなった……。気がつくと、見慣れた場所に戻っていた。" },
     };
   }
 
@@ -2128,6 +2141,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
           else next = runQueue(c, enqueue({ ...state, scene: { kind: "field" } }, dialogue.effects));
         } else if (scene.kind === "battle") next = closeBattle(c, state);
         else if (scene.kind === "ending") next = runQueue(c, applyEffect(c, { ...state, scene: { kind: "field" } }, { type: "newCycle" }));
+        else if (scene.kind === "gameover") next = respawn(c, state);
         break;
       case "formation":
         if (scene.kind === "field") next = setFormation(c, state, action.who, action.row, action.reserve);
