@@ -2250,7 +2250,9 @@
               "type": "string",
               "enum": [
                 "player",
-                "enemy"
+                "enemy",
+                "enemies",
+                "randomEnemy"
               ]
             },
             "amount": {
@@ -2264,6 +2266,11 @@
               "minLength": 1,
               "maxLength": 96,
               "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "hits": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
             }
           },
           "required": [

@@ -66,6 +66,9 @@ export type Cue =
   | { kind: "item" }
   | { kind: "heal" }
   | { kind: "levelUp"; level: number }
+  /** An attack that missed / a critical hit (popup "MISS" / "会心"). */
+  | { kind: "miss"; target: "player" | "enemy" }
+  | { kind: "critical"; target: "player" | "enemy" }
   /** Speech bubble over "player", an NPC or an entity. */
   | { kind: "emote"; target: string; icon: string };
 
@@ -118,6 +121,8 @@ export interface Engine {
   usableVerbs(state: GameState): string[];
   /** A companion's stats including its equipment. */
   companionStats(state: GameState, id: string): Stats;
+  /** Who acts this battle turn, in order (project.battle.order "speed" sorts by speed). */
+  turnOrder(state: GameState): Array<{ kind: "player" | "companion" | "enemy"; id: string; name: string }>;
   step(state: GameState, action: Action): StepResult;
   /** Run arbitrary effects (tests, studio debug console, system code). */
   run(state: GameState, effects: Effect[]): StepResult;
@@ -674,6 +679,32 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       case "leaveParty":
         return { ...state, party: (state.party ?? []).filter(m => m.id !== effect.companion) };
       case "damage": {
+        const hits = effect.hits ?? 1;
+        if (effect.target === "enemies" || effect.target === "randomEnemy") {
+          if (!battleOf(state)) return state;
+          for (let h = 0; h < hits; h++) {
+            const b = battleOf(state)!;
+            const alive = Array.from({ length: enemyCount(b) }, (_, i) => i).filter(i => enemyHpAt(b, i) > 0);
+            if (!alive.length) break;
+            let targets = alive;
+            if (effect.target === "randomEnemy") { let roll: number; [roll, state] = random(state); targets = [alive[Math.floor(roll * alive.length)]!]; }
+            for (const i of targets) {
+              state = swapEnemy(state, i);
+              const name = enemyOf(battleOf(state)!.enemyId).name;
+              state = applyEffect(c, state, { ...effect, target: "enemy", hits: 1 }, ctxValues);
+              if (battleOf(state)!.enemyHp <= 0 && enemyCount(battleOf(state)!) > 1) state = battleLog(state, `${name}を倒した！`);
+              state = swapEnemy(state, i);
+            }
+          }
+          return state;
+        }
+        if (hits > 1) {
+          for (let h = 0; h < hits; h++) {
+            if (effect.target === "enemy" && (battleOf(state)?.enemyHp ?? 0) <= 0) break;
+            state = applyEffect(c, state, { ...effect, hits: 1 }, ctxValues);
+          }
+          return state;
+        }
         const rate = effect.element && (effect.target === "player" || battleOf(state)) ? elementRate(state, effect.element, effect.target) : 100;
         const amount = Math.max(0, Math.floor(ex(effect.amount, state, ctxValues) * rate / 100));
         if (rate !== 100 && inBattle) state = battleLog(state, elementNote(rate).trim() || `${content.project.elements[effect.element!]?.label ?? effect.element}（${rate}%）`);
@@ -1254,7 +1285,19 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const enemy = enemyOf(battleOf(state)!.enemyId);
     const name = state.player.name ?? content.project.player.name;
     if (command.command === "attack") {
-      const [rolled, rolledState] = rollDamage(state, stats(state).attack, 0, enemyStat(state, enemy, "defense"));
+      // Evasion and critical hits only roll when the project / enemy uses them (older games keep their exact dice).
+      if (enemy.evasion) {
+        let roll: number;
+        [roll, state] = random(state);
+        if (roll * 100 < enemy.evasion) { c.cues.push({ kind: "miss", target: "enemy" }); return battleLog(state, `${name}の攻撃！ ${enemy.name}はひらりとかわした。`); }
+      }
+      let [rolled, rolledState] = rollDamage(state, stats(state).attack, 0, enemyStat(state, enemy, "defense"));
+      const crit = content.project.battle.critical;
+      if (crit) {
+        let roll: number;
+        [roll, rolledState] = random(rolledState);
+        if (roll * 100 < ex(crit.chance, rolledState)) { rolled = Math.floor(rolled * crit.multiplier / 100); rolledState = battleLog(rolledState, "会心の一撃！"); c.cues.push({ kind: "critical", target: "enemy" }); }
+      }
       const rate = elementRate(rolledState, weaponElement(rolledState), "enemy");
       const raw = Math.floor(rolled * rate / 100);
       const next = rate !== 100 ? battleLog(rolledState, elementNote(rate).trim() || `（${rate}%）`) : rolledState;
@@ -1291,8 +1334,9 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   }
 
   /** Companions act on their own: heal someone below half HP if they can, otherwise their next attack / guard. */
-  function companionTurns(c: Ctx, state: GameState): GameState {
+  function companionTurns(c: Ctx, state: GameState, only?: string): GameState {
     for (const member of state.party ?? []) {
+      if (only !== undefined && member.id !== only) continue;
       const comp = companionOf(member.id);
       const current = state.party?.find(m => m.id === member.id);
       if (!comp || !current || current.hp <= 0 || battleOf(state)!.outcome !== "ongoing") continue;
@@ -1352,25 +1396,67 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     if (!action) return state;
     state = battleLog(state, text(action.message ?? `${enemy.name}の${action.name}！`, state));
     if (action.power > 0) {
-      const standing = (state.party ?? []).filter(m => m.hp > 0);
-      let pick = 0;
-      if (standing.length) { let roll: number; [roll, state] = random(state); pick = Math.floor(roll * (standing.length + 1)); }
-      if (pick === 0) {
-        const guarding = battleOf(state)!.guarding;
-        const [rolled, next] = rollDamage(state, enemyStat(state, enemy, "attack"), action.power, stats(state).defense, "enemy");
+      const critical = (s: GameState, rolled: number): [number, GameState] => {
+        if (!enemy.critical) return [rolled, s];
+        const [roll, next] = random(s);
+        return roll * 100 < enemy.critical ? [Math.floor(rolled * 1.5), battleLog(next, "痛恨の一撃！")] : [rolled, next];
+      };
+      const strikeHero = (s: GameState): GameState => {
+        if (s.player.hp <= 0) return s;
+        const evasion = content.project.battle.playerEvasion;
+        if (evasion !== undefined) {
+          const [roll, next] = random(s);
+          s = next;
+          if (roll * 100 < ex(evasion, s)) { c.cues.push({ kind: "miss", target: "player" }); return battleLog(s, `${s.player.name ?? content.project.player.name}はひらりとかわした。`); }
+        }
+        const guarding = battleOf(s)!.guarding;
+        let [rolled, next] = rollDamage(s, enemyStat(s, enemy, "attack"), action.power, stats(s).defense, "enemy");
+        [rolled, next] = critical(next, rolled);
         // Guarding halves the damage at step ① (before rules and systems see it).
         const [after, amount] = applyDamage(c, next, "player", guarding ? Math.max(1, Math.ceil(rolled / 2)) : rolled);
-        state = battleLog(after, `${amount}のダメージを受けた。`);
-      } else {
-        const member = standing[pick - 1]!;
-        const comp = companionOf(member.id)!;
-        const [rolled, next] = rollDamage(state, enemyStat(state, enemy, "attack"), action.power, companionStats(state, comp.id).defense, "enemy");
+        return battleLog(after, `${amount}のダメージを受けた。`);
+      };
+      const strikeMember = (s: GameState, id: string): GameState => {
+        const member = s.party?.find(m => m.id === id);
+        const comp = companionOf(id);
+        if (!member || !comp || member.hp <= 0) return s;
+        let [rolled, next] = rollDamage(s, enemyStat(s, enemy, "attack"), action.power, companionStats(s, comp.id).defense, "enemy");
+        [rolled, next] = critical(next, rolled);
         const amount = Math.max(1, rolled);
-        state = { ...next, party: next.party!.map(m => (m.id === member.id ? { ...m, hp: Math.max(0, m.hp - amount) } : m)) };
-        state = battleLog(state, `${comp.name}に${amount}のダメージ。${state.party!.find(m => m.id === member.id)!.hp <= 0 ? `${comp.name}は倒れた……` : ""}`);
+        s = { ...next, party: next.party!.map(m => (m.id === id ? { ...m, hp: Math.max(0, m.hp - amount) } : m)) };
+        return battleLog(s, `${comp.name}に${amount}のダメージ。${s.party!.find(m => m.id === id)!.hp <= 0 ? `${comp.name}は倒れた……` : ""}`);
+      };
+      for (let h = 0; h < (action.hits ?? 1); h++) {
+        if (state.player.hp <= 0) break;
+        const standing = (state.party ?? []).filter(m => m.hp > 0);
+        if (action.target === "all") {
+          state = strikeHero(state);
+          for (const m of standing) state = strikeMember(state, m.id);
+          continue;
+        }
+        let pick = 0;
+        if (standing.length) { let roll: number; [roll, state] = random(state); pick = Math.floor(roll * (standing.length + 1)); }
+        state = pick === 0 ? strikeHero(state) : strikeMember(state, standing[pick - 1]!.id);
       }
     }
     return runNow(c, state, action.effects);
+  }
+
+  type Actor = { kind: "player"; id: "player"; name: string } | { kind: "companion"; id: string; name: string } | { kind: "enemy"; id: string; name: string; index: number };
+  /** Who acts this turn, in order. "speed": fastest first (ties: hero, companions, enemies). */
+  function turnOrder(state: GameState): Actor[] {
+    const b = battleOf(state);
+    if (!b) return [];
+    const actors: Array<Actor & { speed: number }> = [
+      { kind: "player", id: "player", name: state.player.name ?? content.project.player.name, speed: content.project.battle.playerSpeed !== undefined ? ex(content.project.battle.playerSpeed, state) : 10 },
+      ...(state.party ?? []).filter(m => m.hp > 0).map(m => ({ kind: "companion" as const, id: m.id, name: companionOf(m.id)?.name ?? m.id, speed: companionOf(m.id)?.speed ?? 10 })),
+      ...Array.from({ length: enemyCount(b) }, (_, i) => i).filter(i => enemyHpAt(b, i) > 0).map(i => {
+        const e = enemyOf(i === 0 ? b.enemyId : b.foes![i - 1]!.enemyId);
+        return { kind: "enemy" as const, id: e.id, name: e.name, index: i, speed: e.speed ?? 10 };
+      }),
+    ];
+    if (content.project.battle.order === "speed") actors.sort((x, y) => y.speed - x.speed); // stable: ties keep hero → companions → enemies
+    return actors.map(({ speed: _s, ...a }) => a as Actor);
   }
 
   function battleStep(c: Ctx, state: GameState, command: BattleCommand): GameState {
@@ -1401,28 +1487,31 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     const target = requested !== undefined && requested < enemyCount(battle) && enemyHpAt(battle, requested) > 0 ? requested : firstAlive(battle);
     // Silence blocks skills without using the turn; sleep / paralysis may take the turn.
     if (!scripted && command.command === "skill" && (state.player.statuses ?? []).some(s => statusDef(s.id)?.noSkills)) return battleLog(state, "技を封じられている！");
-    let lost = false;
-    if (!scripted) [lost, state] = loseTurn(state, "player");
-    if (!scripted && !lost) {
-      state = swapEnemy(state, target);
-      const acted = playerAction(c, state, command);
-      if (acted === "done") return state;
-      state = swapEnemy(acted, target);
-      if (battleOf(state)!.outcome !== "ongoing") return state;
-      state = checkBattleEnd(c, state);
-      if (battleOf(state)!.outcome !== "ongoing") return state;
-    }
-
-    state = companionTurns(c, state);
-    if (battleOf(state)!.outcome !== "ongoing") return state;
-
-    // Enemy turns: every enemy still standing, in order. Actions whose `when` holds are used in order and cycle.
-    for (let i = 0; i < enemyCount(battleOf(state)!); i++) {
-      if (enemyHpAt(battleOf(state)!, i) <= 0) continue;
-      state = swapEnemy(state, i);
-      state = enemyTurn(c, state);
-      state = swapEnemy(state, i);
-      state = checkBattleEnd(c, state);
+    // Everyone acts once, in turn order (fixed: hero, companions, enemies; or by speed).
+    // Enemies: every one still standing; actions whose `when` holds are used in order and cycle.
+    for (const actor of turnOrder(state)) {
+      if (actor.kind === "player") {
+        if (scripted) continue;
+        let lost: boolean;
+        [lost, state] = loseTurn(state, "player");
+        if (lost) continue;
+        const b = battleOf(state)!;
+        const aim = enemyHpAt(b, target) > 0 ? target : firstAlive(b);
+        state = swapEnemy(state, aim);
+        const acted = playerAction(c, state, command);
+        if (acted === "done") return state;
+        state = swapEnemy(acted, aim);
+        if (battleOf(state)!.outcome !== "ongoing") return state;
+        state = checkBattleEnd(c, state);
+      } else if (actor.kind === "companion") {
+        state = companionTurns(c, state, actor.id);
+      } else {
+        if (enemyHpAt(battleOf(state)!, actor.index) <= 0) continue;
+        state = swapEnemy(state, actor.index);
+        state = enemyTurn(c, state);
+        state = swapEnemy(state, actor.index);
+        state = checkBattleEnd(c, state);
+      }
       if (battleOf(state)!.outcome !== "ongoing") return state;
     }
     state = tickStatuses(c, state);
@@ -1945,6 +2034,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       return { level, exp: state.player.exp ?? 0, next: level >= lv.maxLevel ? null : expToNext(level) };
     },
     commands: (state, where) => scriptCommands(state, where),
+    turnOrder: state => turnOrder(state).map(a => ({ kind: a.kind, id: a.id, name: a.name })),
     step,
     run,
     isPassable: (state, x, y) => isPassable(state, x, y),

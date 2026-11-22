@@ -96,6 +96,9 @@ export default function DatabasePanel({ store, content }: Props) {
             <Field label="絵"><select value={e.sprite ?? ""} onChange={v => set(x => { if (v.target.value) x.sprite = v.target.value; else delete x.sprite; })}><option value="">（自動の絵）</option>{enemyArt.map(id => <option key={id}>{id}</option>)}</select></Field>
             <Field label="戦闘背景"><select value={e.background ?? ""} onChange={v => set(x => { if (v.target.value) x.background = v.target.value; else delete x.background; })}><option value="">（マップの背景）</option>{backgrounds.map(id => <option key={id}>{id}</option>)}</select></Field>
             <label className="field"><span className="field-label">逃げられる</span><input type="checkbox" checked={e.canFlee} onChange={v => set(x => { x.canFlee = v.target.checked; })} /></label>
+            <Field label="素早さ（既定10）"><TextInput type="number" min={0} value={e.speed ?? ""} onCommit={v => set(x => { if (v === "") delete x.speed; else x.speed = num(v); })} /></Field>
+            <Field label="回避率%"><TextInput type="number" min={0} max={100} value={e.evasion ?? ""} onCommit={v => set(x => { if (v === "" || num(v) === 0) delete x.evasion; else x.evasion = Math.min(100, num(v)); })} /></Field>
+            <Field label="痛恨率%"><TextInput type="number" min={0} max={100} value={e.critical ?? ""} onCommit={v => set(x => { if (v === "" || num(v) === 0) delete x.critical; else x.critical = Math.min(100, num(v)); })} /></Field>
             <Field label="経験値（空欄＝自動）"><TextInput type="number" min={0} value={e.exp ?? ""} onCommit={v => set(x => { if (v === "") delete x.exp; else x.exp = num(v); })} /></Field>
             <Field label="タグ（空白区切り）"><TextInput value={e.tags.join(" ")} onCommit={v => set(x => { x.tags = v.split(/\s+/).filter(Boolean); })} /></Field>
           </div>
@@ -105,6 +108,8 @@ export default function DatabasePanel({ store, content }: Props) {
                 <Field label="名前"><TextInput value={a.name} onCommit={v => v && set(x => { x.actions[i]!.name = v; })} /></Field>
                 <Field label="威力（0 = 攻撃しない）"><TextInput type="number" min={0} value={a.power} onCommit={v => set(x => { x.actions[i]!.power = num(v); })} /></Field>
                 <Field label="セリフ"><TextInput value={a.message ?? ""} onCommit={v => set(x => { x.actions[i]!.message = v || undefined; })} /></Field>
+                <Field label="相手"><select value={a.target ?? "one"} onChange={v => set(x => { if (v.target.value === "all") x.actions[i]!.target = "all"; else delete x.actions[i]!.target; })}><option value="one">1人</option><option value="all">全員</option></select></Field>
+                <Field label="回数"><TextInput type="number" min={1} max={20} value={a.hits ?? 1} onCommit={v => set(x => { const n = Math.min(20, Math.max(1, num(v, 1))); if (n === 1) delete x.actions[i]!.hits; else x.actions[i]!.hits = n; })} /></Field>
                 <button className="button" disabled={e.actions.length <= 1} onClick={() => set(x => { x.actions.splice(i, 1); })}><Trash2 size={12} /></button>
               </div>
               <div className="field"><span className="field-label">使う条件</span><ConditionEditor value={a.when} content={content} onChange={w => set(x => { x.actions[i]!.when = w; })} /></div>

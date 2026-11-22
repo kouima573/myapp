@@ -262,6 +262,62 @@ describe("attached scripts", () => {
   });
 });
 
+describe("battle: all-target, multi-hit, critical, evasion, speed order (065-067)", () => {
+  const foeId = () => content.database.enemies.find(e => !e.battle && e.stats.maxHp >= 6)!.id;
+  const boot = (eng: Engine) => {
+    let state = eng.newGame(1);
+    while (state.scene.kind === "message") state = eng.step(state, { type: "advance" }).state;
+    state = eng.step(state, { type: "choose", choiceId: "dwarf" }).state;
+    while (state.scene.kind === "message") state = eng.step(state, { type: "advance" }).state;
+    return state;
+  };
+  const withEnemy = (patch: Record<string, unknown>, project: Record<string, unknown> = {}): GameContent => ({
+    ...content,
+    project: { ...content.project, battle: { ...content.project.battle, ...project } },
+    database: { ...content.database, enemies: content.database.enemies.map(e => (e.id === foeId() ? { ...e, ...patch } : e)) },
+  });
+  const log = (state: GameState) => (state.scene.kind === "battle" ? state.scene.battle.log.join("\n") : "");
+
+  it("an enemy with 100% evasion dodges every attack; a 100% critical chance multiplies damage", () => {
+    let eng = createEngine(withEnemy({ evasion: 100 }), systems);
+    let state = eng.run(boot(eng), [{ type: "battle", enemy: foeId() }]).state;
+    state = eng.step(state, { type: "battle", command: "attack" }).state;
+    expect(log(state)).toContain("ひらりとかわした");
+    eng = createEngine(withEnemy({ stats: { maxHp: 999, attack: 0, defense: 0 } }, { critical: { chance: 100, multiplier: 300 } }), systems);
+    state = eng.run(boot(eng), [{ type: "battle", enemy: foeId() }]).state;
+    state = eng.step(state, { type: "battle", command: "attack" }).state;
+    expect(log(state)).toContain("会心の一撃！");
+    const hp = state.scene.kind === "battle" ? state.scene.battle.enemyHp : 0;
+    expect(999 - hp).toBeGreaterThanOrEqual(3 * Math.max(1, eng.stats(state).attack - 1));
+  });
+
+  it("damage to all enemies hits each one; hits repeats", () => {
+    const eng = createEngine(withEnemy({ stats: { maxHp: 50, attack: 0, defense: 0 } }), systems);
+    let state = eng.run(boot(eng), [{ type: "battle", enemy: foeId(), with: [foeId(), foeId()] }]).state;
+    state = eng.run(state, [{ type: "damage", target: "enemies", amount: 4, hits: 2 }]).state;
+    const b = state.scene.kind === "battle" ? state.scene.battle : undefined;
+    expect([b!.enemyHp, ...b!.foes!.map(f => f.hp)]).toEqual([42, 42, 42]);
+    state = eng.run(state, [{ type: "damage", target: "enemy", amount: 5, hits: 3 }]).state;
+    expect(state.scene.kind === "battle" && state.scene.battle.enemyHp).toBe(27);
+  });
+
+  it("an enemy attack on everyone with 2 hits strikes the hero twice", () => {
+    const foe = content.database.enemies.find(e => e.id === foeId())!;
+    const eng = createEngine(withEnemy({ actions: [{ ...foe.actions.find(a => a.power > 0)!, when: undefined, target: "all", hits: 2, effects: [] }] }), systems);
+    let state = eng.run(boot(eng), [{ type: "battle", enemy: foeId() }]).state;
+    state = eng.step(state, { type: "battle", command: "guard" }).state;
+    expect(log(state).match(/のダメージを受けた/g)?.length).toBe(2);
+  });
+
+  it("with order 'speed' a faster enemy acts before the hero, and turnOrder shows it", () => {
+    const eng = createEngine(withEnemy({ speed: 50 }, { order: "speed", playerSpeed: 5 }), systems);
+    const state = eng.run(boot(eng), [{ type: "battle", enemy: foeId() }]).state;
+    expect(eng.turnOrder(state).map(a => a.kind)).toEqual(["enemy", "player"]);
+    const fixed = createEngine(withEnemy({ speed: 50 }), systems);
+    expect(fixed.turnOrder(fixed.run(boot(fixed), [{ type: "battle", enemy: foeId() }]).state).map(a => a.kind)).toEqual(["player", "enemy"]);
+  });
+});
+
 describe("map layers", () => {
   it("objects on lower layers block; upper layers (above the characters) never do", () => {
     const blocking = content.tileset.tiles.find(t => !t.passable)!.code;

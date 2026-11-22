@@ -306,6 +306,7 @@
     },
     "battle": {
       "default": {
+        "order": "fixed",
         "commands": {
           "attack": true,
           "guard": true,
@@ -323,6 +324,38 @@
           "$ref": "#/$defs/__schema0"
         },
         "fleeChance": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "order": {
+          "default": "fixed",
+          "type": "string",
+          "enum": [
+            "fixed",
+            "speed"
+          ]
+        },
+        "playerSpeed": {
+          "$ref": "#/$defs/__schema0"
+        },
+        "critical": {
+          "type": "object",
+          "properties": {
+            "chance": {
+              "$ref": "#/$defs/__schema0"
+            },
+            "multiplier": {
+              "default": 150,
+              "type": "integer",
+              "minimum": 100,
+              "maximum": 1000
+            }
+          },
+          "required": [
+            "chance"
+          ],
+          "additionalProperties": false
+        },
+        "playerEvasion": {
           "$ref": "#/$defs/__schema0"
         },
         "commands": {
@@ -2468,7 +2501,9 @@
               "type": "string",
               "enum": [
                 "player",
-                "enemy"
+                "enemy",
+                "enemies",
+                "randomEnemy"
               ]
             },
             "amount": {
@@ -2482,6 +2517,11 @@
               "minLength": 1,
               "maxLength": 96,
               "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "hits": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
             }
           },
           "required": [

@@ -226,6 +226,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       if (cue.kind === "moved") { animator.enqueue({ x: state.player.x, y: state.player.y }); }
       else if (cue.kind === "bump") audio.cue("bump");
       else if (cue.kind === "battleStart") { audio.cue("encounter"); fadeUntil = performance.now() + 260; }
+      else if (cue.kind === "miss") popups.push({ text: "MISS", target: cue.target, at: performance.now(), n: popups.length });
+      else if (cue.kind === "critical") popups.push({ text: "会心！", target: cue.target, at: performance.now(), n: popups.length });
       else if (cue.kind === "hit") { popups.push({ text: String(cue.amount), target: cue.target, at: performance.now(), n: popups.length }); audio.cue(cue.target === "enemy" ? "hit" : "hurt"); if (cue.target === "player" && uiPrefs.shake) shakeUntil = performance.now() + 220; }
       else if (cue.kind === "battleEnd") {
         if (cue.outcome === "victory") { const v = content.project.audio.victory; if (v) audio.playSound(v); else audio.cue("victory"); }
@@ -655,6 +657,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       if (comp) status.append(el("div", "rpg-battle-var", `${comp.name} HP ${member.hp}/${engine.companionStats(state, comp.id).maxHp}${member.hp <= 0 ? "（倒れている）" : battle.orders?.[comp.id] !== undefined ? `（${comp.actions[battle.orders[comp.id]!]?.name}）` : ""}`));
     }
     for (const [id, decl] of Object.entries(content.project.variables)) if (decl.hud) status.appendChild(el("div", "rpg-battle-var", `${decl.label ?? id} ${state.vars[id] ?? decl.initial}`));
+    // Turn order (project.battle.order "speed"): who acts next, fastest first.
+    if (content.project.battle.order === "speed" && battle.outcome === "ongoing") status.appendChild(el("div", "rpg-battle-var rpg-turn-order", `行動順: ${engine.turnOrder(state).map(a => a.name).join(" → ")}`));
     const log = el("div", "rpg-window rpg-battle-log");
     for (const line of battle.log.slice(-4)) log.appendChild(el("div", "rpg-log-line", line));
     live.textContent = battle.log[battle.log.length - 1] ?? "";

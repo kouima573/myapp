@@ -174,7 +174,7 @@ export type Effect =
   | { type: "removeStatus"; status?: string; target?: "player" | "enemy" | "enemies" | "party" }
   | { type: "joinParty"; companion: string }
   | { type: "leaveParty"; companion: string }
-  | { type: "damage"; target: "player" | "enemy"; amount: Expr; text?: string; element?: string }
+  | { type: "damage"; target: "player" | "enemy" | "enemies" | "randomEnemy"; amount: Expr; text?: string; element?: string; hits?: number }
   | { type: "teleport"; mapId: string; x: number; y: number; facing?: Direction }
   | { type: "setTile"; mapId?: string; x: number; y: number; code: string }
   | { type: "dialogue"; dialogue: string }
@@ -239,7 +239,15 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   /** A companion joins / leaves the party (database › companions). */
   z.object({ type: z.literal("joinParty"), companion: IdSchema }).strict(),
   z.object({ type: z.literal("leaveParty"), companion: IdSchema }).strict(),
-  z.object({ type: z.literal("damage"), target: z.enum(["player", "enemy"]), amount: ExprSchema, text: z.string().optional(), /** project.elements: multiplied by the target's resist. */ element: IdSchema.optional() }).strict(),
+  z.object({
+    type: z.literal("damage"),
+    /** "enemies" = every enemy still standing (全体攻撃), "randomEnemy" = one standing enemy at random per hit. */
+    target: z.enum(["player", "enemy", "enemies", "randomEnemy"]),
+    amount: ExprSchema, text: z.string().optional(),
+    /** project.elements: multiplied by the target's resist. */ element: IdSchema.optional(),
+    /** Repeat the hit (連続攻撃). The amount is evaluated again for each hit. */
+    hits: z.number().int().min(1).max(20).optional(),
+  }).strict(),
   z.object({ type: z.literal("teleport"), mapId: IdSchema, x: CoordSchema, y: CoordSchema, facing: DirectionSchema.optional() }).strict(),
   z.object({ type: z.literal("setTile"), mapId: IdSchema.optional(), x: CoordSchema, y: CoordSchema, code: z.string().length(1) }).strict(),
   z.object({ type: z.literal("dialogue"), dialogue: IdSchema }).strict(),
@@ -499,9 +507,17 @@ export const ProjectManifestSchema = z.object({
     enemyDamage: ExprSchema.optional(),
     /** Percent chance to flee. */
     fleeChance: ExprSchema.optional(),
+    /** "fixed" = hero, companions, then enemies. "speed" = everyone by speed, fastest first (shown as the turn order). */
+    order: z.enum(["fixed", "speed"]).default("fixed"),
+    /** The hero's speed for order "speed" (e.g. {"add":[10,{"level":true}]}). Default 10. */
+    playerSpeed: ExprSchema.optional(),
+    /** Critical hits of the hero's attack: chance in percent (Expr) and damage multiplier in percent. */
+    critical: z.object({ chance: ExprSchema, multiplier: z.number().int().min(100).max(1000).default(150) }).strict().optional(),
+    /** Percent chance that an enemy's attack misses the hero (Expr). */
+    playerEvasion: ExprSchema.optional(),
     /** Which built-in commands exist. */
     commands: z.object({ attack: z.boolean().default(true), guard: z.boolean().default(true), skills: z.boolean().default(true), items: z.boolean().default(true), flee: z.boolean().default(true) }).strict().default({ attack: true, guard: true, skills: true, items: true, flee: true }),
-  }).strict().default({ commands: { attack: true, guard: true, skills: true, items: true, flee: true } }),
+  }).strict().default({ order: "fixed", commands: { attack: true, guard: true, skills: true, items: true, flee: true } }),
   /** Self-made player actions ("listen", "rewind", "possess", "shout"…). Usable from the menu, a key, or touch. */
   verbs: z.record(IdSchema, VerbSchema).default({}),
   /** Equipment slots items can go in (item.slot). */
@@ -904,6 +920,10 @@ export const EnemyActionSchema = z.object({
   when: ConditionSchema.optional(),
   /** Applied after the move (curses, buffs, flags). */
   effects: z.array(EffectSchema).default([]),
+  /** "all" hits the hero and every companion standing (全体攻撃). */
+  target: z.enum(["one", "all"]).optional(),
+  /** Strikes this many times (連続攻撃). Default 1. */
+  hits: z.number().int().min(1).max(20).optional(),
 }).strict();
 
 export const EnemySchema = z.object({
@@ -924,6 +944,12 @@ export const EnemySchema = z.object({
   /** Rules active during battles with this enemy. */
   rules: z.array(RuleSchema).default([]),
   canFlee: z.boolean().default(true),
+  /** Turn order with project.battle.order "speed" (higher acts first). Default 10. */
+  speed: z.number().int().min(0).max(999).optional(),
+  /** Percent chance the hero's attack misses it. */
+  evasion: z.number().int().min(0).max(100).optional(),
+  /** Percent chance its attacks are critical (×1.5). */
+  critical: z.number().int().min(0).max(100).optional(),
   /** Damage taken by element in percent: { "fire": 150 } = weak, 50 = resists, 0 = immune (project.elements). */
   resist: z.record(IdSchema, z.number().int().min(0).max(1000)).default({}),
   /** Statuses it cannot get. */
@@ -941,6 +967,8 @@ export const CompanionSchema = z.object({
   description: z.string().default(""),
   sprite: IdSchema.optional(),
   stats: StatsSchema,
+  /** Turn order with project.battle.order "speed". Default 10. */
+  speed: z.number().int().min(0).max(999).optional(),
   /** What it does each turn: heal is used when someone in the party is below half HP; otherwise attacks / guards in order. */
   actions: z.array(z.object({
     name: z.string().min(1),

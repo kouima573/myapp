@@ -798,6 +798,18 @@
                   "items": {
                     "$ref": "#/$defs/__schema2"
                   }
+                },
+                "target": {
+                  "type": "string",
+                  "enum": [
+                    "one",
+                    "all"
+                  ]
+                },
+                "hits": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 20
                 }
               },
               "required": [
@@ -961,6 +973,21 @@
             "default": true,
             "type": "boolean"
           },
+          "speed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999
+          },
+          "evasion": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "critical": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100
+          },
           "resist": {
             "default": {},
             "type": "object",
@@ -1086,6 +1113,11 @@
               "defense"
             ],
             "additionalProperties": false
+          },
+          "speed": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 999
           },
           "actions": {
             "default": [
@@ -2618,7 +2650,9 @@
               "type": "string",
               "enum": [
                 "player",
-                "enemy"
+                "enemy",
+                "enemies",
+                "randomEnemy"
               ]
             },
             "amount": {
@@ -2632,6 +2666,11 @@
               "minLength": 1,
               "maxLength": 96,
               "pattern": "^[a-z0-9][a-z0-9._-]*$"
+            },
+            "hits": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
             }
           },
           "required": [

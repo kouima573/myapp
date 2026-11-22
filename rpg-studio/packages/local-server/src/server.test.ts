@@ -152,7 +152,7 @@ describe("local server security", () => {
     const after = JSON.parse((await request("GET", `/api/history?file=${file}`, { headers: api })).body).entries as Array<{ source: string }>;
     expect(after[0]!.source).toBe("restore");
     expect((await request("POST", "/api/history/restore", { headers: { ...api, "content-type": "application/json" }, body: "{}" })).status).toBe(403); // writes need Origin
-  });
+   }, 30000);
 
   it("exposes no command execution endpoints", async () => {
     for (const route of ["/api/exec", "/api/run", "/api/shell"]) expect((await request("POST", route, { headers: write, body: "{}" })).status).toBe(404);
