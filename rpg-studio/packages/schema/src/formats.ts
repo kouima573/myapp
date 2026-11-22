@@ -181,7 +181,7 @@ export type Effect =
   | { type: "dialogue"; dialogue: string }
   | { type: "choice"; prompt?: string; speaker?: string; options: ChoiceOption[] }
   | { type: "event"; event: string }
-  | { type: "battle"; enemy: string; with?: string[]; onVictory?: Effect[]; onDefeat?: "respawn" | "continue"; canFlee?: boolean; mode?: string; args?: Record<string, unknown> }
+  | { type: "battle"; enemy: string; with?: string[]; waves?: Array<{ enemy: string; with?: string[] }>; onVictory?: Effect[]; onDefeat?: "respawn" | "continue"; canFlee?: boolean; mode?: string; args?: Record<string, unknown> }
   | { type: "battleLog"; text: string }
   | { type: "endBattle"; outcome: "victory" | "fled" }
   | { type: "markDone"; id: string }
@@ -258,7 +258,9 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
   z.object({ type: z.literal("dialogue"), dialogue: IdSchema }).strict(),
   z.object({ type: z.literal("choice"), prompt: z.string().optional(), speaker: z.string().optional(), options: z.array(ChoiceOptionSchema).min(1) }).strict(),
   z.object({ type: z.literal("event"), event: IdSchema }).strict(),
-  z.object({ type: z.literal("battle"), enemy: IdSchema, /** More enemies in the same battle (built-in battles). */ with: z.array(IdSchema).max(7).optional(), onVictory: z.array(EffectSchema).optional(), onDefeat: z.enum(["respawn", "continue"]).optional(), canFlee: z.boolean().optional(), mode: BattleModeSchema.optional(), args: z.record(z.string(), z.unknown()).optional() }).strict(),
+  z.object({ type: z.literal("battle"), enemy: IdSchema, /** More enemies in the same battle (built-in battles). */ with: z.array(IdSchema).max(7).optional(),
+    /** 連戦: after the first group falls, these groups come in turn (HP and statuses carry on; victory after the last). */
+    waves: z.array(z.object({ enemy: IdSchema, with: z.array(IdSchema).max(7).optional() }).strict()).max(20).optional(), onVictory: z.array(EffectSchema).optional(), onDefeat: z.enum(["respawn", "continue"]).optional(), canFlee: z.boolean().optional(), mode: BattleModeSchema.optional(), args: z.record(z.string(), z.unknown()).optional() }).strict(),
   z.object({ type: z.literal("battleLog"), text: z.string().min(1) }).strict(),
   z.object({ type: z.literal("endBattle"), outcome: z.enum(["victory", "fled"]) }).strict(),
   z.object({ type: z.literal("markDone"), id: IdSchema }).strict(),
@@ -432,7 +434,7 @@ export const StatsSchema = z.object({
 }).strict();
 export type Stats = z.infer<typeof StatsSchema>;
 
-export const SFX_CUES = ["cursor", "confirm", "cancel", "bump", "hit", "hurt", "heal", "encounter", "victory", "defeat", "door", "item", "save", "menu"] as const;
+export const SFX_CUES = ["cursor", "confirm", "cancel", "bump", "hit", "hurt", "heal", "encounter", "victory", "defeat", "door", "item", "save", "menu", "text"] as const;
 export type SfxCue = (typeof SFX_CUES)[number];
 
 export const AudioConfigSchema = z.object({
@@ -443,6 +445,8 @@ export const AudioConfigSchema = z.object({
   /** Which sound plays for each built-in cue. Unset cues use a tiny built-in beep. */
   sfx: z.partialRecord(z.enum(SFX_CUES), IdSchema).default({}),
   volume: z.object({ bgm: z.number().min(0).max(1).default(0.6), sfx: z.number().min(0).max(1).default(0.8) }).strict().default({ bgm: 0.6, sfx: 0.8 }),
+  /** 文字送りの音: a short blip while messages type (sfx.text if set, else a built-in blip). Players can turn it off. */
+  textSound: z.boolean().default(false),
 }).strict();
 export type AudioConfig = z.infer<typeof AudioConfigSchema>;
 
@@ -594,7 +598,7 @@ export const ProjectManifestSchema = z.object({
   rulesPath: RelPathSchema.optional(),
   assetsPath: RelPathSchema,
   systems: z.array(FileRefSchema).default([]),
-  audio: AudioConfigSchema.default({ sfx: {}, volume: { bgm: 0.6, sfx: 0.8 } }),
+  audio: AudioConfigSchema.default({ sfx: {}, volume: { bgm: 0.6, sfx: 0.8 }, textSound: false }),
   assetPolicy: AssetPolicySchema.default({ shareable: false, sources: {}, customSources: [], prefer: {}, budget: { warnTotalMB: 100, maxTotalMB: 300, maxFileMB: 20 } }),
   /** Built-in genre modules enabled for this project (novel, puzzle, shooter, planner, cards…), with optional config. */
   modules: z.record(IdSchema, z.record(z.string(), z.unknown())).default({}),
@@ -1214,6 +1218,9 @@ export const BattleStateSchema = z.object({
   fired: z.array(z.string()).default([]),
   /** Effects from victory/defeat rules, run after the battle closes. */
   after: z.array(EffectSchema).default([]),
+  /** Groups still to come (連戦) and the number of the current one (1 = first). */
+  waves: z.array(z.object({ enemy: IdSchema, with: z.array(IdSchema).optional() }).strict()).optional(),
+  wave: z.number().int().min(1).optional(),
 }).strict();
 export type BattleState = z.infer<typeof BattleStateSchema>;
 

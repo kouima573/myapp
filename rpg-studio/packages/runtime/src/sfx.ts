@@ -25,7 +25,7 @@ export interface SfxParams {
   lowpass?: number;
 }
 
-export const SFX_PRESETS = ["cursor", "confirm", "cancel", "bump", "hit", "hurt", "heal", "encounter", "victory", "defeat", "door", "item", "save", "menu", "coin", "magic", "step", "explosion"] as const;
+export const SFX_PRESETS = ["cursor", "confirm", "cancel", "bump", "hit", "hurt", "heal", "encounter", "victory", "defeat", "door", "item", "save", "menu", "coin", "magic", "step", "explosion", "text"] as const;
 export type SfxPreset = (typeof SFX_PRESETS)[number];
 
 function rng(seed: number) {
@@ -38,6 +38,7 @@ export function presetParams(preset: SfxPreset, seed = 1): SfxParams {
   const r = rng(seed);
   const v = (base: number, spread: number) => base * (1 + (r() * 2 - 1) * spread);
   switch (preset) {
+    case "text": return { wave: "square", duty: 0.5, freq: v(1600, 0.15), attack: 0.001, sustain: 0.008, decay: 0.02, volume: 0.18 };
     case "cursor": return { wave: "square", duty: 0.25, freq: v(1250, 0.1), attack: 0.002, sustain: 0.02, decay: 0.03, volume: 0.35 };
     case "confirm": return { wave: "square", duty: 0.5, freq: v(880, 0.08), attack: 0.002, sustain: 0.05, decay: 0.08, volume: 0.35, arp: [{ at: 0.05, ratio: 1.5 }] };
     case "cancel": return { wave: "square", duty: 0.5, freq: v(660, 0.08), freqEnd: v(330, 0.08), attack: 0.002, sustain: 0.04, decay: 0.08, volume: 0.32 };

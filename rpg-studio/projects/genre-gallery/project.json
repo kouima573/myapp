@@ -177,7 +177,8 @@
       "item": "sfx-item",
       "save": "sfx-save",
       "menu": "sfx-menu"
-    }
+    },
+    "textSound": true
   },
   "credits": [
     "企画: RPGシステム工房 サンプル（ジャンルの回廊）",

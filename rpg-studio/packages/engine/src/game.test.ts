@@ -457,3 +457,24 @@ describe("edge walls (025)", () => {
     expect(ghost.step(place(ghost, at!.x, at!.y), { type: "move", direction: "right" }).state.player.x).toBe(at!.x + 1);
   });
 });
+
+describe("waves (079)", () => {
+  it("the next group steps in after a win; victory only after the last", () => {
+    const eng = createEngine(content, systems);
+    let state = eng.newGame(1);
+    while (state.scene.kind === "message") state = eng.step(state, { type: "advance" }).state;
+    state = eng.step(state, { type: "choose", choiceId: "dwarf" }).state;
+    while (state.scene.kind === "message") state = eng.step(state, { type: "advance" }).state;
+    const [a, b] = content.database.enemies.filter(e => !e.battle);
+    state = eng.run(state, [{ type: "battle", enemy: a!.id, waves: [{ enemy: b!.id, with: [a!.id] }] }]).state;
+    state = eng.run(state, [{ type: "damage", target: "enemy", amount: 9999 }]).state;
+    const mid = state.scene.kind === "battle" ? state.scene.battle : undefined;
+    expect(mid?.outcome).toBe("ongoing");
+    expect(mid?.wave).toBe(2);
+    expect(mid?.enemyId).toBe(b!.id);
+    expect(mid?.foes?.map(f => f.enemyId)).toEqual([a!.id]);
+    expect(mid?.log.join("\n")).toContain("第2陣！");
+    state = eng.run(state, [{ type: "damage", target: "enemies", amount: 9999 }]).state;
+    expect(state.scene.kind === "battle" && state.scene.battle.outcome).toBe("victory");
+  });
+});

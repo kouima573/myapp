@@ -334,6 +334,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         case "battle":
           if (!enemyIds.has(effect.enemy)) err(file, here, `未定義の敵 '${effect.enemy}'`);
           for (const extra of effect.with ?? []) if (!enemyIds.has(extra)) err(file, here, `with: 未定義の敵 '${extra}'`);
+          (effect.waves ?? []).forEach((w, i) => { for (const id of [w.enemy, ...(w.with ?? [])]) if (!enemyIds.has(id)) err(file, `${here}.waves[${i}]`, `未定義の敵 '${id}'`); });
+          if (effect.waves?.length && effect.mode && effect.mode !== "builtin") warn(file, here, "waves（連戦）は標準の戦闘だけで使われます");
           if (effect.with?.length && effect.mode && effect.mode !== "builtin") warn(file, here, "with（複数の敵）は標準の戦闘だけで使われます。戦闘モードでは最初の敵だけと戦います");
           if (effect.mode && effect.mode !== "builtin" && !systemIds.has(effect.mode.slice(0, effect.mode.lastIndexOf(".")))) err(file, here, `戦闘モード '${effect.mode}' のモジュール・システムがありません`);
           if (effect.onVictory) checkEffects(file, `${here}.onVictory`, effect.onVictory);

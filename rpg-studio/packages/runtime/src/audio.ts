@@ -12,7 +12,7 @@ type Loaded = { kind: "buffer"; buffer: AudioBuffer } | { kind: "song"; song: So
 
 const FALLBACK: Partial<Record<SfxCue, SfxPreset>> = {
   cursor: "cursor", confirm: "confirm", cancel: "cancel", bump: "bump", hit: "hit", hurt: "hurt", heal: "heal",
-  encounter: "encounter", victory: "victory", defeat: "defeat", door: "door", item: "item", save: "save", menu: "menu",
+  encounter: "encounter", victory: "victory", defeat: "defeat", door: "door", item: "item", save: "save", menu: "menu", text: "text",
 };
 
 class SongPlayer {

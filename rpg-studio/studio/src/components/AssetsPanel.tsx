@@ -13,7 +13,7 @@ interface Props { store: ProjectStore; content: GameContent; images: ImageMap }
 
 const MB = 1024 * 1024;
 const KIND_LABEL: Record<AssetEntry["kind"], string> = { tileset: "タイル", character: "キャラ", enemy: "敵", animation: "アニメ", portrait: "立ち絵", background: "背景", bgm: "BGM", sfx: "効果音", song: "楽譜BGM" };
-const CUE_LABEL: Record<string, string> = { cursor: "カーソル", confirm: "決定", cancel: "キャンセル", bump: "壁に当たる", hit: "攻撃が当たる", hurt: "ダメージ", heal: "回復", encounter: "戦闘開始", victory: "勝利", defeat: "敗北", door: "場所移動", item: "アイテム入手", save: "セーブ", menu: "メニュー" };
+const CUE_LABEL: Record<string, string> = { cursor: "カーソル", confirm: "決定", cancel: "キャンセル", bump: "壁に当たる", hit: "攻撃が当たる", hurt: "ダメージ", heal: "回復", encounter: "戦闘開始", victory: "勝利", defeat: "敗北", door: "場所移動", item: "アイテム入手", save: "セーブ", menu: "メニュー", text: "文字送り（audio.textSound が true のとき）" };
 const ORIGIN_LABEL: Record<AssetEntry["origin"], string> = { original: "自作", generated: "生成", site: "サイト", purchased: "購入", commission: "依頼" };
 
 const ASSET_PROMPTS = [

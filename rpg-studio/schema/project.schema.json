@@ -835,7 +835,8 @@
         "volume": {
           "bgm": 0.6,
           "sfx": 0.8
-        }
+        },
+        "textSound": false
       },
       "type": "object",
       "properties": {
@@ -870,7 +871,8 @@
               "door",
               "item",
               "save",
-              "menu"
+              "menu",
+              "text"
             ]
           },
           "additionalProperties": {
@@ -901,6 +903,10 @@
             }
           },
           "additionalProperties": false
+        },
+        "textSound": {
+          "default": false,
+          "type": "boolean"
         }
       },
       "additionalProperties": false
@@ -2797,6 +2803,35 @@
                 "minLength": 1,
                 "maxLength": 96,
                 "pattern": "^[a-z0-9][a-z0-9._-]*$"
+              }
+            },
+            "waves": {
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "enemy": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 96,
+                    "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                  },
+                  "with": {
+                    "maxItems": 7,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 96,
+                      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                    }
+                  }
+                },
+                "required": [
+                  "enemy"
+                ],
+                "additionalProperties": false
               }
             },
             "onVictory": {

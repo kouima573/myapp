@@ -972,6 +972,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       canFlee: effect.canFlee ?? (enemy.canFlee && others.every(o => o.canFlee)), onDefeat: effect.onDefeat ?? "respawn", onVictory: effect.onVictory ?? [],
       log: [others.length ? `${[enemy, ...others].map(e => e.name).join("と")}が現れた！` : `${enemy.name}が現れた！`], systemData: {}, outcome: "ongoing", fired: [], after: [],
       ...(others.length ? { foes: others.map((o, k) => ({ enemyId: o.id, hp: o.stats.maxHp, slot: k + 1 })) } : {}),
+      ...(effect.waves?.length ? { waves: effect.waves, wave: 1 } : {}),
     };
     state = setBattle(state, battle);
     for (const system of active(state)) {
@@ -1088,6 +1089,28 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       if (content.project.leveling) {
         const exp = all.reduce((sum, e) => sum + (e.exp ?? Math.max(1, Math.round((e.stats.maxHp + 2 * e.stats.attack + 2 * e.stats.defense) / 3))), 0);
         state = gainExp(c, state, exp, true);
+      }
+      // 連戦: the next group steps in; the battle goes on.
+      const waves = battleOf(state)!.waves;
+      if (waves?.length) {
+        const [nextWave, ...rest] = waves;
+        const lead = enemyOf(nextWave!.enemy), others = (nextWave!.with ?? []).map(id => enemyOf(id));
+        const b = battleOf(state)!;
+        const { foes: _f, enemyStatuses: _s, slot: _slot, waves: _w, ...keep } = b;
+        const wave = (b.wave ?? 1) + 1;
+        state = setBattle(state, {
+          ...keep, enemyId: lead.id, enemyHp: lead.stats.maxHp,
+          ...(others.length ? { foes: others.map((o, k) => ({ enemyId: o.id, hp: o.stats.maxHp, slot: k + 1 })) } : {}),
+          ...(rest.length ? { waves: rest } : {}), wave,
+        });
+        c.cues.push({ kind: "battleStart", enemyId: lead.id });
+        state = battleLog(state, `第${wave}陣！ ${[lead, ...others].map(e => e.name).join("と")}が現れた！`);
+        if (content.project.book) {
+          const book = state.book ?? { seen: [], defeated: {}, items: [] };
+          const ids = [lead, ...others].map(e => e.id).filter(id => !book.seen.includes(id));
+          if (ids.length) state = { ...state, book: { ...book, seen: [...book.seen, ...new Set(ids)] } };
+        }
+        return state;
       }
       const after: Effect[] = [];
       for (const entry of rulesFor(state, "victory")) { const next = tryRule(c, state, entry); if (next) { state = next; after.push(...entry.rule.effects); } }

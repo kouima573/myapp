@@ -101,7 +101,12 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     textSpeed: (rawSet.textSpeed === "fast" || rawSet.textSpeed === "instant" ? rawSet.textSpeed : "normal") as "normal" | "fast" | "instant",
     shake: typeof rawSet.shake === "boolean" ? rawSet.shake : true,
     minimap: typeof rawSet.minimap === "boolean" ? rawSet.minimap : true,
+    textSound: typeof rawSet.textSound === "boolean" ? rawSet.textSound : true,
+    battleSpeed: (rawSet.battleSpeed === "fast" ? "fast" : "normal") as "normal" | "fast",
   };
+  /** オート戦闘: attack again and again until the battle ends or a key is pressed. */
+  let autoBattle = false;
+  let autoTimer = 0;
   let creditsOpen = false;
   let backlogOpen = false;
   const backlog: Array<{ speaker?: string; text: string }> = [];
@@ -229,7 +234,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     for (const cue of result.cues) {
       if (cue.kind === "moved") { animator.enqueue({ x: state.player.x, y: state.player.y }); }
       else if (cue.kind === "bump") audio.cue("bump");
-      else if (cue.kind === "battleStart") { audio.cue("encounter"); fadeUntil = performance.now() + 260; }
+      else if (cue.kind === "battleStart") { audio.cue("encounter"); fadeUntil = performance.now() + (uiPrefs.battleSpeed === "fast" ? 60 : 260); }
       else if (cue.kind === "achievement") { showToast(`🏆 実績「${cue.title}」を達成！`); audio.cue("item"); }
       else if (cue.kind === "miss") popups.push({ text: "MISS", target: cue.target, at: performance.now(), n: popups.length });
       else if (cue.kind === "critical") popups.push({ text: "会心！", target: cue.target, at: performance.now(), n: popups.length });
@@ -414,6 +419,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const finished = typed.count >= total && typed.sounds.length === typingTokens.filter(t => t.kind === "se").length;
     if (finished && !typing.done) { typing = { ...typing, done: true }; renderCaret(); }
     if (lastRenderedCount !== count) {
+      // 文字送りの音: one blip every other letter while typing.
+      if (content.project.audio.textSound && uiPrefs.textSound && !typing.done && Math.floor(count / 2) !== Math.floor(Math.max(0, lastRenderedCount) / 2)) audio.cue("text");
       lastRenderedCount = count;
       renderMarkup(target, typingTokens, count);
     }
@@ -721,6 +728,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       if (comp) status.append(el("div", "rpg-battle-var", `${comp.name} HP ${member.hp}/${engine.companionStats(state, comp.id).maxHp}${member.hp <= 0 ? "（倒れている）" : battle.orders?.[comp.id] !== undefined ? `（${comp.actions[battle.orders[comp.id]!]?.name}）` : ""}`));
     }
     for (const [id, decl] of Object.entries(content.project.variables)) if (decl.hud) status.appendChild(el("div", "rpg-battle-var", `${decl.label ?? id} ${state.vars[id] ?? decl.initial}`));
+    if (battle.wave) status.appendChild(el("div", "rpg-battle-var", `連戦 第${battle.wave}陣 / 全${battle.wave + (battle.waves?.length ?? 0)}陣`));
     // Turn order (project.battle.order "speed"): who acts next, fastest first.
     if (content.project.battle.order === "speed" && battle.outcome === "ongoing") status.appendChild(el("div", "rpg-battle-var rpg-turn-order", `行動順: ${engine.turnOrder(state).map(a => a.name).join(" → ")}`));
     const log = el("div", "rpg-window rpg-battle-log");
@@ -769,8 +777,14 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         ...((state.party ?? []).some(m => m.hp > 0) ? [navButton("なかま", () => { battlePicker = "orders"; orderCompanion = null; selection = 0; renderUI(); }, { hint: "指示" })] : []),
         ...engine.commands(state, "battle").map(cmd => navButton(cmd.label, () => { if (cmd.blocked) showToast(cmd.blocked); else dispatch({ type: "battle", command: "script", source: cmd.source, id: cmd.id }); }, { hint: cmd.blocked ?? "", disabled: Boolean(cmd.blocked) })),
         navButton("にげる", () => dispatch({ type: "battle", command: "flee" }), { hint: "4", disabled: !battle.canFlee }),
+        navButton(autoBattle ? "オート中（止める）" : "オート", () => { autoBattle = !autoBattle; renderUI(); }, { hint: "自動で攻撃" }),
       );
     }
+    // オート戦闘: keep attacking (the first enemy standing) until the battle ends.
+    window.clearTimeout(autoTimer);
+    if (autoBattle && battle.outcome === "ongoing" && battlePicker === null) {
+      autoTimer = window.setTimeout(() => { if (!destroyed && autoBattle && state.scene.kind === "battle" && state.scene.battle.outcome === "ongoing") dispatch({ type: "battle", command: "attack" }); }, uiPrefs.battleSpeed === "fast" ? 160 : 520);
+    } else if (battle.outcome !== "ongoing") autoBattle = false;
     const bottom = el("div", "rpg-battle-bottom");
     bottom.append(status, log, commands);
     panel.append(stage, bottom);
@@ -1035,6 +1049,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         savePrefs(audio.settings);
       }),
       navButton(`画面揺れ: ${uiPrefs.shake ? "あり" : "なし"}`, () => { uiPrefs.shake = !uiPrefs.shake; savePrefs(audio.settings); }),
+      navButton(`戦闘: ${uiPrefs.battleSpeed === "fast" ? "はやい" : "ふつう"}`, () => { uiPrefs.battleSpeed = uiPrefs.battleSpeed === "fast" ? "normal" : "fast"; savePrefs(audio.settings); }),
+      ...(content.project.audio.textSound ? [navButton(`文字の音: ${uiPrefs.textSound ? "あり" : "なし"}`, () => { uiPrefs.textSound = !uiPrefs.textSound; savePrefs(audio.settings); })] : []),
       ...(content.project.minimap?.enabled ? [navButton(`ミニマップ: ${uiPrefs.minimap ? "表示" : "隠す"}［N］`, () => { uiPrefs.minimap = !uiPrefs.minimap; savePrefs(audio.settings); })] : []),
       navButton("会話履歴", () => { backlogOpen = true; selection = 0; renderUI(); }),
       navButton("クレジット", () => { creditsOpen = true; selection = 0; renderUI(); }),

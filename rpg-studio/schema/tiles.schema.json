@@ -1784,6 +1784,35 @@
                 "pattern": "^[a-z0-9][a-z0-9._-]*$"
               }
             },
+            "waves": {
+              "maxItems": 20,
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "enemy": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 96,
+                    "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                  },
+                  "with": {
+                    "maxItems": 7,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 96,
+                      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                    }
+                  }
+                },
+                "required": [
+                  "enemy"
+                ],
+                "additionalProperties": false
+              }
+            },
             "onVictory": {
               "type": "array",
               "items": {
