@@ -348,6 +348,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
         case "system": if (!systemIds.has(effect.system)) err(file, here, `project.jsonのsystemsにないシステム '${effect.system}'`); break;
         case "script": if (!scriptIds.has(effect.script)) err(file, here, `スクリプト '${effect.script}' がありません（scripts/${effect.script}.ts）`); break;
         case "playSfx": checkAudio(file, here, effect.sound, SOUND, "効果音"); break;
+        case "setFormation": if (effect.who !== "hero" && !content.database.companions.some(x => x.id === effect.who)) err(file, here, `'${effect.who}' は "hero" でも仲間（companions）でもありません`); break;
         case "unlockAchievement": if (!content.project.achievements[effect.achievement]) err(file, here, `未定義の実績 '${effect.achievement}'（project.json の achievements）`); break;
         case "showPicture": if (!["background", "portrait", "enemy", "character"].includes(assetById.get(effect.image)?.kind ?? "")) err(file, here, `一枚絵の素材 '${effect.image}' がありません（background・portrait・enemy・character）`); break;
         case "addToSet": case "removeFromSet": case "clearSet": if (!setIds.has(effect.set)) err(file, here, `未宣言の集合 '${effect.set}'`); break;

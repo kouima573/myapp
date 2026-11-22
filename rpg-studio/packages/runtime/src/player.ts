@@ -91,7 +91,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   const readSlot = (slot: Slot) => { try { return storage.read(slotKey(slot)) ?? (slot === "1" ? storage.read(saveKey) : null); } catch { return null; } };
   const slotLabel = (slot: Slot) => (slot === "auto" ? "オート" : `スロット${slot}`);
   /** "main" menu, the title screen, or the save / load slot lists. */
-  let menuView: "main" | "title" | "save" | "load" | "book" | "achievements" = "main";
+  let menuView: "main" | "title" | "save" | "load" | "book" | "achievements" | "formation" = "main";
   let slotReturn: "main" | "title" = "main";
   const settingsKey = `rpg-settings:${content.project.id}`;
   const readRawSettings = () => { try { return JSON.parse(storage.read(settingsKey) ?? "{}") as Record<string, unknown>; } catch { return {}; } };
@@ -340,7 +340,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   function cancel() {
     if (menuOpen && menuView === "title") return;
     if (menuOpen && (menuView === "save" || menuView === "load")) { menuView = slotReturn; selection = 0; renderUI(); return; }
-    if (menuOpen && (menuView === "book" || menuView === "achievements")) { menuView = "main"; selection = 0; renderUI(); return; }
+    if (menuOpen && (menuView === "book" || menuView === "achievements" || menuView === "formation")) { menuView = "main"; selection = 0; renderUI(); return; }
     if (state.scene.kind === "custom") { audio.cue("cancel"); dispatch({ type: "sceneInput", input: { type: "cancel" } }); return; }
     if (creditsOpen) { creditsOpen = false; selection = 0; renderUI(); return; }
     if (backlogOpen) { backlogOpen = false; selection = 0; renderUI(); return; }
@@ -736,7 +736,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     stage.append(enemyInfo, portraits);
     const status = el("div", "rpg-window rpg-battle-status");
     status.append(el("div", "rpg-speaker", `${heroName()}${engine.levelInfo(state) ? `  Lv${engine.levelInfo(state)!.level}` : ""}${statusTags(state.player.statuses)}`), el("div", "rpg-battle-hp", `HP ${state.player.hp} / ${eff.maxHp}`), hpBar(state.player.hp, eff.maxHp, state.player.hp <= eff.maxHp / 4 ? "is-low" : ""));
-    for (const member of state.party ?? []) {
+    for (const member of (state.party ?? []).filter(m => !m.reserve)) {
       const comp = content.database.companions.find(x => x.id === member.id);
       if (comp) status.append(el("div", "rpg-battle-var", `${comp.name} HP ${member.hp}/${engine.companionStats(state, comp.id).maxHp}${member.hp <= 0 ? "（倒れている）" : battle.orders?.[comp.id] !== undefined ? `（${comp.actions[battle.orders[comp.id]!]?.name}）` : ""}`));
     }
@@ -756,7 +756,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       const label = battle.outcome === "victory" ? "勝利！ 次へ" : battle.outcome === "fled" ? "フィールドへ戻る" : "次へ";
       commands.appendChild(navButton(label, () => dispatch({ type: "advance" })));
     } else if (battlePicker === "orders") {
-      const standing = (state.party ?? []).filter(m => m.hp > 0);
+      const standing = (state.party ?? []).filter(m => m.hp > 0 && !m.reserve);
       const comp = orderCompanion ? content.database.companions.find(x => x.id === orderCompanion) : undefined;
       if (!comp) {
         for (const m of standing) { const c = content.database.companions.find(x => x.id === m.id); if (c) commands.appendChild(navButton(c.name, () => { orderCompanion = c.id; selection = 0; renderUI(); }, { hint: `HP ${m.hp}` })); }
@@ -787,7 +787,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         navButton("ぼうぎょ", () => dispatch({ type: "battle", command: "guard" }), { hint: "2" }),
         ...(skills.length ? [navButton("わざ", () => { battlePicker = "skills"; selection = 0; renderUI(); })] : []),
         navButton("どうぐ", () => { battlePicker = "items"; selection = 0; renderUI(); }, { hint: "3", disabled: !items.length }),
-        ...((state.party ?? []).some(m => m.hp > 0) ? [navButton("なかま", () => { battlePicker = "orders"; orderCompanion = null; selection = 0; renderUI(); }, { hint: "指示" })] : []),
+        ...((state.party ?? []).some(m => m.hp > 0 && !m.reserve) ? [navButton("なかま", () => { battlePicker = "orders"; orderCompanion = null; selection = 0; renderUI(); }, { hint: "指示" })] : []),
         ...engine.commands(state, "battle").map(cmd => navButton(cmd.label, () => { if (cmd.blocked) showToast(cmd.blocked); else dispatch({ type: "battle", command: "script", source: cmd.source, id: cmd.id }); }, { hint: cmd.blocked ?? "", disabled: Boolean(cmd.blocked) })),
         navButton("にげる", () => dispatch({ type: "battle", command: "flee" }), { hint: "4", disabled: !battle.canFlee }),
         navButton(autoBattle ? "オート中（止める）" : "オート", () => { autoBattle = !autoBattle; renderUI(); }, { hint: "自動で攻撃" }),
@@ -921,6 +921,29 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     panel.appendChild(navButton("もどる", () => { menuView = "main"; selection = 0; renderUI(); }));
     windowLayer.appendChild(panel);
   }
+  /** 隊列: front / back row for everyone, and who fights or waits in the reserve (project.party.size). */
+  function renderFormation() {
+    const panel = el("div", "rpg-window rpg-menu rpg-book");
+    panel.dataset.src = "packages/runtime/src/player.ts#renderFormation";
+    const size = content.project.party?.size;
+    const fighting = (state.party ?? []).filter(m => !m.reserve).length;
+    panel.appendChild(el("div", "rpg-menu-title", `隊列${size !== undefined ? `（戦う仲間 ${fighting} / ${size}人）` : ""}`));
+    const p = content.project.party;
+    panel.appendChild(el("div", "rpg-menu-empty", `後列は通常攻撃で受けるダメージ ${p?.backRowTaken ?? 50}%・与えるダメージ ${p?.backRowDealt ?? 50}%（技はそのまま）`));
+    const hero = state.player.row === "back";
+    panel.appendChild(navButton(`${heroName()}　${hero ? "後列" : "前列"}`, () => dispatch({ type: "formation", who: "hero", row: hero ? "front" : "back" }), { hint: "決定で前列／後列" }));
+    for (const m of state.party ?? []) {
+      const comp = content.database.companions.find(x => x.id === m.id);
+      const line = el("div", "rpg-menu-row");
+      line.append(
+        navButton(`${comp?.name ?? m.id}　${m.row === "back" ? "後列" : "前列"}`, () => dispatch({ type: "formation", who: m.id, row: m.row === "back" ? "front" : "back" }), { hint: m.reserve ? "控え" : "" }),
+        navButton(m.reserve ? "戦いに出す" : "控えにする", () => dispatch({ type: "formation", who: m.id, reserve: !m.reserve }), { disabled: Boolean(m.reserve && size !== undefined && fighting >= size) }),
+      );
+      panel.appendChild(line);
+    }
+    panel.appendChild(navButton("もどる", () => { menuView = "main"; selection = 0; renderUI(); }));
+    windowLayer.appendChild(panel);
+  }
   function renderAchievements() {
     const panel = el("div", "rpg-window rpg-menu rpg-book");
     panel.dataset.src = "packages/runtime/src/player.ts#renderAchievements";
@@ -941,6 +964,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (menuView === "save" || menuView === "load") { renderSlots(menuView); return; }
     if (menuView === "book") { renderBook(); return; }
     if (menuView === "achievements") { renderAchievements(); return; }
+    if (menuView === "formation") { renderFormation(); return; }
     if (backlogOpen) { renderBacklog(); return; }
     const menu = el("div", "rpg-window rpg-menu");
     menu.appendChild(el("div", "rpg-menu-title", "メニュー"));
@@ -970,9 +994,10 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
         const row = el("div", "rpg-menu-ability");
         const cs = engine.companionStats(state, member.id);
         const gear = Object.values(member.equipment ?? {}).map(i => content.database.items.find(x => x.id === i)?.name ?? i).join("・");
-        row.append(el("strong", undefined, comp?.name ?? member.id), el("span", undefined, `HP ${member.hp}/${cs.maxHp}　攻 ${cs.attack}　防 ${cs.defense}${gear ? `　装備: ${gear}` : ""}${member.hp <= 0 ? "　倒れている" : ""}`));
+        row.append(el("strong", undefined, comp?.name ?? member.id), el("span", undefined, `HP ${member.hp}/${cs.maxHp}　攻 ${cs.attack}　防 ${cs.defense}${gear ? `　装備: ${gear}` : ""}${member.hp <= 0 ? "　倒れている" : ""}${member.row === "back" ? "　後列" : ""}${member.reserve ? "　控え" : ""}`));
         menu.appendChild(row);
       }
+      menu.appendChild(navButton("隊列・入れ替え", () => { menuView = "formation"; selection = 0; renderUI(); }, { hint: "前列・後列、控え" }));
     }
     if ((state.cycle ?? 1) > 1 || (state.sets.endings?.length ?? 0) > 0) stats.textContent += `　${state.cycle}周目`;
     if (state.traits.length) {

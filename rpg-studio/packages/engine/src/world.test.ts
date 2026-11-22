@@ -302,3 +302,36 @@ describe("companion orders and equipment", () => {
     expect(s.party![0]!.equipment).toEqual({});
   });
 });
+
+describe("formation and reserve (085/087)", () => {
+  const mk = (id: string, name: string) => ({ id, name, description: "", stats: { maxHp: 12, attack: 4, defense: 1 }, actions: [{ name: "斬る", kind: "attack" as const, power: 0 }] });
+  const make = () => createEngine({ ...content, project: { ...content.project, party: { size: 1, backRowTaken: 0, backRowDealt: 50 } }, database: { ...content.database, companions: [mk("rio", "リオ"), mk("ema", "エマ")] } }, systems);
+
+  it("over party.size the newcomer waits in reserve and does not fight; swapping respects the size", () => {
+    const engine = make();
+    let s = begin(engine, { mapId: "village", x: 3, y: 9 });
+    s = engine.run(s, [{ type: "joinParty", companion: "rio" }, { type: "joinParty", companion: "ema" }]).state;
+    expect(s.party).toEqual([{ id: "rio", hp: 12 }, { id: "ema", hp: 12, reserve: true }]);
+    expect(engine.step(s, { type: "formation", who: "ema", reserve: false }).state.party![1]!.reserve).toBe(true); // full
+    s = engine.step(s, { type: "formation", who: "rio", reserve: true }).state;
+    s = engine.step(s, { type: "formation", who: "ema", reserve: false }).state;
+    expect(s.party!.map(m => Boolean(m.reserve))).toEqual([true, false]);
+    s = engine.run(s, [{ type: "battle", enemy: "moss-slime" }]).state;
+    expect(engine.turnOrder(s).map(a => a.id)).toEqual(["player", "ema", "moss-slime"]);
+    s = engine.step(s, { type: "battle", command: "guard" }).state;
+    const log = (s.scene as { battle: { log: string[] } }).battle.log.join("\n");
+    expect(log).toContain("エマの斬る");
+    expect(log).not.toContain("リオの斬る");
+  });
+
+  it("the back row takes the set share of damage (0% here) from enemy attacks", () => {
+    const engine = make();
+    let s = begin(engine, { mapId: "village", x: 3, y: 9 });
+    s = engine.step(s, { type: "formation", who: "hero", row: "back" }).state;
+    expect(s.player.row).toBe("back");
+    const hp = s.player.hp;
+    s = engine.run(s, [{ type: "battle", enemy: "moss-slime" }]).state;
+    s = engine.step(s, { type: "battle", command: "guard" }).state;
+    expect(s.player.hp).toBe(hp);
+  });
+});

@@ -200,6 +200,7 @@ export type Effect =
   | { type: "showPicture"; slot?: string; image: string; at?: "center" | "left" | "right" | "full"; x?: number; y?: number; width?: number; opacity?: number; fadeMs?: number }
   | { type: "hidePicture"; slot?: string; fadeMs?: number }
   | { type: "unlockAchievement"; achievement: string }
+  | { type: "setFormation"; who: string; row?: "front" | "back"; reserve?: boolean }
   | { type: "input"; prompt?: string; speaker?: string; maxLength?: number; initial?: string; saveAs?: string; answers?: InputAnswer[]; otherwise?: Effect[] }
   | { type: "signal"; signal: string }
   | { type: "learnVerb"; verb: string }
@@ -299,6 +300,8 @@ export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion
     answers: z.array(z.lazy(() => z.object({ match: z.array(z.string().min(1)).min(1), effects: z.array(EffectSchema) }).strict())).optional(),
     otherwise: z.array(EffectSchema).optional(),
   }).strict(),
+  /** 隊列: put the hero ("hero") or a companion in the front / back row, or into / out of the reserve. */
+  z.object({ type: z.literal("setFormation"), who: z.string().min(1), row: z.enum(["front", "back"]).optional(), reserve: z.boolean().optional() }).strict(),
   /** Unlock an achievement now (project.achievements), even without its `when`. */
   z.object({ type: z.literal("unlockAchievement"), achievement: IdSchema }).strict(),
   /** Hide one picture slot, or every picture without `slot`. */
@@ -536,6 +539,11 @@ export const ProjectManifestSchema = z.object({
   sets: z.record(IdSchema, SetDeclSchema).default({}),
   /** Endings the game can reach (recorded across cycles in the built-in meta set "endings"). */
   endings: z.record(IdSchema, z.object({ title: z.string().min(1), text: z.string().default("") }).strict()).default({}),
+  /**
+   * Party rules: `size` = companions fighting at once (the rest wait in reserve, swapped in the menu's 隊列),
+   * back row: damage taken / dealt by normal attacks in percent.
+   */
+  party: z.object({ size: z.number().int().min(0).max(7).optional(), backRowTaken: z.number().int().min(0).max(100).default(50), backRowDealt: z.number().int().min(0).max(100).default(50) }).strict().optional(),
   /** Minimap in the corner of the field (N key / menu toggles it). Tile colours (tiles.json › color) are used. */
   minimap: z.object({ enabled: z.boolean().default(true), size: z.number().int().min(60).max(240).default(120) }).strict().optional(),
   /**
@@ -1273,6 +1281,8 @@ export const GameStateSchema = z.object({
     stats: StatsSchema,
     /** Set by setPlayer (transformation). Missing = project.player. */
     name: z.string().optional(),
+    /** 隊列: "back" takes and deals less damage with normal attacks (project.party). Missing = front. */
+    row: z.enum(["front", "back"]).optional(),
     /** project.leveling: current level (missing = 1) and experience gathered toward the next level. */
     level: z.number().int().positive().optional(),
     /** Status effects on the hero (database.statuses) with the turns left. */
@@ -1294,7 +1304,11 @@ export const GameStateSchema = z.object({
   /** Moved entities: mapId → entityId → position. */
   entities: z.record(z.string(), z.record(z.string(), z.object({ x: CoordSchema, y: CoordSchema, facing: DirectionSchema, step: z.number().int().nonnegative().optional(), map: z.string().optional() }).strict())).default({}),
   /** Companions with the hero and their HP. */
-  party: z.array(z.object({ id: z.string(), hp: z.number().int().nonnegative(), /** slot → item id */ equipment: z.record(z.string(), z.string()).optional() }).strict()).optional(),
+  party: z.array(z.object({
+    id: z.string(), hp: z.number().int().nonnegative(), /** slot → item id */ equipment: z.record(z.string(), z.string()).optional(),
+    /** 隊列 (front / back) and 控え (reserve: travels along but does not fight). */
+    row: z.enum(["front", "back"]).optional(), reserve: z.boolean().optional(),
+  }).strict()).optional(),
   /** Equipped items: slot → item id. */
   equipment: z.record(z.string(), z.string()).optional(),
   /** Entity being carried (carryable): its id and the map it was defined on. */

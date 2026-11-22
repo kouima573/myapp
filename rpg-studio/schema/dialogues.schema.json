@@ -2256,6 +2256,34 @@
           "properties": {
             "type": {
               "type": "string",
+              "const": "setFormation"
+            },
+            "who": {
+              "type": "string",
+              "minLength": 1
+            },
+            "row": {
+              "type": "string",
+              "enum": [
+                "front",
+                "back"
+              ]
+            },
+            "reserve": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "type",
+            "who"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
               "const": "unlockAchievement"
             },
             "achievement": {

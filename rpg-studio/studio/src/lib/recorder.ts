@@ -24,6 +24,7 @@ export function actionsToSteps(actions: Action[]): { steps: Step[]; skipped: num
       case "advance": steps.push({ advance: "once" }); break;
       case "choose": steps.push({ choose: a.choiceId }); break;
       case "submitText": steps.push({ input: a.text }); break;
+      case "formation": steps.push({ effects: [{ type: "setFormation", who: a.who, ...(a.row ? { row: a.row } : {}), ...(a.reserve !== undefined ? { reserve: a.reserve } : {}) }] }); break;
       case "useItem": steps.push({ useItem: a.item }); break;
       case "useAbility": steps.push({ useAbility: a.ability }); break;
       case "verb": steps.push({ verb: a.verb }); break;
