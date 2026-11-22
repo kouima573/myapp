@@ -91,6 +91,7 @@ export default function StoryPanel({ store, content }: Props) {
         <div className="field-row">
           <Field label="名前"><TextInput value={e.label} onCommit={v => editE(e.id, x => { x.label = v || x.label; })} /></Field>
           <label className="field"><span className="field-label">一度だけ</span><input type="checkbox" checked={e.once} onChange={ev => editE(e.id, x => { x.once = ev.target.checked; })} /></label>
+          <label className="field" title="消さずに一時的に止める（呼んでも何も起きない。検証で警告が出ます）"><span className="field-label">一時的に無効</span><input type="checkbox" checked={Boolean(e.disabled)} onChange={ev => editE(e.id, x => { if (ev.target.checked) x.disabled = true; else delete x.disabled; })} /></label>
         </div>
         <Field label="起きる条件（空なら常に）"><ConditionEditor value={e.when} content={content} onChange={w => editE(e.id, x => { if (w) x.when = w; else delete x.when; })} /></Field>
         <Field label="効果" hint="message・giveItem・setFlag・battle・startScene など（docs/project-format.md）"><EffectListEditor value={e.effects} content={content} onChange={v => editE(e.id, x => { x.effects = v; })} /></Field>

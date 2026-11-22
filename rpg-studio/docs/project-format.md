@@ -198,6 +198,16 @@
 - 属性: `project.json › elements: { "fire": { "label": "炎" } }`。敵の `resist: { "fire": 150 }`（150 = 弱点、50 = 半減、0 = 無効）、武器の `element`（通常攻撃の属性）、防具・装飾品の `resist`（受けるダメージ）、効果 `damage` の `element`。弱点・半減は戦闘ログに「弱点！」などと出る。
 - 自動テスト: `expect.statuses` / `expect.lacksStatuses`。見本: `projects/genre-gallery/tests/status.scenario.json`。
 
+## v1.9 の追加
+
+- タイルの `walls: ["down"]` など: その辺に壁がある。そちらへ出られず、反対側からも入れない（崖の縁・柵・カウンター）
+- `project.json › minimap: { "enabled": true, "size": 120 }`（N キー・設定で切り替え）。マップの `minimap: false` で隠す
+- 効果 `battle` の `waves: [{ "enemy": "...", "with": ["..."] }]`: 連戦。HPと状態はそのまま次の群れへ、最後の群れで勝利
+- `project.json › audio.textSound: true`: 文字送りの音（`audio.sfx.text` で差し替え）
+- `shop` モジュール: `craft`（`recipes: [{ item, count, needs: [{ item, count }], cost }]`）、`storage`（`box`・`capacity`）
+- ルール・イベント・NPC・仕掛けの `disabled: true`: 消さずに一時的に止める（検証で警告）
+- `pnpm rpg proofread --project <dir>`: 台詞がウィンドウ（全角約40字×3行）に収まるか、記号の重なり、同じ助詞の連続、かっこ・装飾の閉じ忘れ
+
 ## 戦闘の細かい設定（v1.8）
 
 - `project.json › battle`: `order`（`"fixed"` 主人公→仲間→敵／`"speed"` 素早さ順。画面に行動順）、`playerSpeed`（式。既定10）、`critical: { chance（式・%）, multiplier（%・既定150） }`、`playerEvasion`（式・%）

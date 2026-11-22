@@ -62,6 +62,9 @@
                   "maxLength": 96,
                   "pattern": "^[a-z0-9][a-z0-9._-]*$"
                 },
+                "disabled": {
+                  "type": "boolean"
+                },
                 "on": {
                   "type": "string",
                   "enum": [
@@ -315,6 +318,9 @@
                   "minLength": 1,
                   "maxLength": 96,
                   "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "disabled": {
+                  "type": "boolean"
                 },
                 "on": {
                   "type": "string",
@@ -587,6 +593,9 @@
                   "minLength": 1,
                   "maxLength": 96,
                   "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "disabled": {
+                  "type": "boolean"
                 },
                 "on": {
                   "type": "string",
@@ -888,6 +897,9 @@
                   "minLength": 1,
                   "maxLength": 96,
                   "pattern": "^[a-z0-9][a-z0-9._-]*$"
+                },
+                "disabled": {
+                  "type": "boolean"
                 },
                 "on": {
                   "type": "string",

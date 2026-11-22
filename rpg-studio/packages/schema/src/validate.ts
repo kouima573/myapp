@@ -430,6 +430,13 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     if (flagIds.has(id)) warn(P, `variables.${id}`, "同じ名前のフラグがあります。紛らわしいので別名にしてください");
   }
   checkEffects(P, "intro", project.intro);
+  // 一時的に無効化中のもの（disabled: true）を知らせる（消し忘れ防止）。
+  for (const r of content.rules) if (r.disabled) warn(content.project.rulesPath ?? "rules.json", `rules[${r.id}]`, "無効化中（disabled: true）。使うときは外してください");
+  for (const e of Object.values(content.events)) if (e.disabled) warn(content.project.eventsPath, `events[${e.id}]`, "無効化中（disabled: true）。呼んでも何も起きません");
+  for (const m of Object.values(content.maps)) {
+    for (const n of m.npcs) if (n.disabled) warn(mapFile(m.id), `npcs[${n.id}]`, "無効化中（disabled: true）。表示されません");
+    for (const i of m.interactables) if (i.disabled) warn(mapFile(m.id), `interactables[${i.id}]`, "無効化中（disabled: true）。調べても反応しません");
+  }
   for (const [id, a] of Object.entries(project.achievements)) if (a.when) checkCondition(P, `achievements.${id}.when`, a.when);
   const verbKeys = new Map<string, string>();
   for (const [id, verb] of Object.entries(project.verbs)) {

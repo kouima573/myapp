@@ -221,8 +221,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     return grid.map(row => row.join(""));
   }
 
-  const visibleNpcs = (state: GameState, map = content.maps[state.mapId]) => (map?.npcs ?? []).filter(npc => ev(npc.visibleWhen, state));
-  const visibleInteractables = (state: GameState, map = content.maps[state.mapId]) => (map?.interactables ?? []).filter(item => ev(item.visibleWhen, state));
+  const visibleNpcs = (state: GameState, map = content.maps[state.mapId]) => (map?.npcs ?? []).filter(npc => !npc.disabled && ev(npc.visibleWhen, state));
+  const visibleInteractables = (state: GameState, map = content.maps[state.mapId]) => (map?.interactables ?? []).filter(item => !item.disabled && ev(item.visibleWhen, state));
 
   /** Which map each entity is defined on (entities can later move to other maps). */
   const entityHome = new Map<string, string>();
@@ -468,7 +468,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
 
   function rulesFor(state: GameState, trigger: RuleTrigger): ActiveRule[] {
     const out: ActiveRule[] = [];
-    const add = (prefix: string, source: string, list: Rule[]) => { for (const rule of list) if (rule.on === trigger) out.push({ key: `${prefix}:${rule.id}`, rule, source }); };
+    const add = (prefix: string, source: string, list: Rule[]) => { for (const rule of list) if (rule.on === trigger && !rule.disabled) out.push({ key: `${prefix}:${rule.id}`, rule, source }); };
     add("g", "全体", content.rules);
     for (const id of abilitiesOf(state, content)) { const a = db.abilities.find(x => x.id === id); if (a) add(`a:${id}`, a.name, a.rules); }
     for (const id of state.traits ?? []) { const t = db.traits.find(x => x.id === id); if (t) add(`t:${id}`, t.name, t.rules); }
@@ -956,6 +956,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   }
 
   function eventEffects(c: Ctx, state: GameState, event: GameEvent): Effect[] {
+    if (event.disabled) { c.log.push(`イベント「${event.label}」は無効化中（disabled）`); return []; }
     if (event.once && state.done.includes(event.id)) return event.afterDone;
     if (!ev(event.when, state)) return event.otherwise;
     c.log.push(`イベント「${event.label}」`);

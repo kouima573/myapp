@@ -10,7 +10,7 @@
 
 - 公開中: **https://rpg-studio-2k3.pages.dev**（トップ・見本ゲーム `/play/`・ジャンルの回廊 `/gallery/`・工房のPreview版 `/studio/`）
 - リポジトリ: `kouima573/myapp` の **`rpg-studio/` フォルダだけ**が対象
-- 作業ブランチ: `claude/eloquent-knuth-u58z8y`（v1.8 のコミット時点で全チェックOK）
+- 作業ブランチ: `claude/eloquent-knuth-u58z8y`（v1.9 のコミット時点で全チェックOK）
 
 ## 2. 必ず守ること（ユーザーとの約束）
 
@@ -43,7 +43,8 @@
 cd rpg-studio
 pnpm install
 pnpm check                      # 型チェック
-pnpm test                       # vitest（現在155件）
+pnpm test                       # vitest（現在160件）
+pnpm rpg proofread --project <dir>   # 台詞の長さ・誤字らしき所（v1.9）
 pnpm rpg validate --project projects/sample-rpg     # ← フォルダは --project で指定（位置引数は無視される）
 pnpm rpg test     --project projects/sample-rpg
 pnpm rpg build    --project projects/sample-rpg
@@ -100,6 +101,10 @@ BGMのループ位置・環境音、配布版の先読みとホーム画面追�
 ## 6.9 v1.8（第4弾）
 
 戦闘の全体攻撃・連続攻撃・会心・回避・素早さ順（`turnOrder()`。乱数は使う設定のときだけ振るので、既存のゲームの結果は変わらない）、文字装飾（`packages/runtime/src/textmarkup.ts`）、一枚絵（`state.pictures`）、名前入力（シーン `input`・アクション `submitText`・シナリオの `{ "input": "..." }`）、図鑑と実績（`state.book`・`state.achievements`、メタ情報で新しいゲームへ引き継ぎ）、工房のワールド全体図（`studio/src/lib/world.ts`）と試遊のデバッグ切り替え（`canPass`・`canEncounter` の口を使う工房専用のシステム）。
+
+## 6.10 v1.9（第5弾）
+
+タイルの `walls`（`edgeBlocked`）、ミニマップ（`minimapCanvas`）、連戦（`BattleState.waves/wave`）、オート戦闘・戦闘の速さ・文字送りの音（遊ぶ人の設定）、合成と倉庫（`packages/modules/src/shop.ts` の `craft`・`storage`。倉庫の中身は `state.systemData.shop.storage`）、`rpg proofread`（`packages/cli/src/proofread.ts`）、`disabled: true`。
 
 ## 7. 残っている仕事
 

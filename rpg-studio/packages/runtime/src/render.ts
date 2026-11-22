@@ -262,7 +262,7 @@ function drawEditorOverlay(ctx: CanvasRenderingContext2D, map: GameMap, editor: 
     }
     for (const entity of map.entities) badge(ctx, entity.x, entity.y, "#85ad7b", entity.states.length > 1 ? String(entity.states.length) : "E");
     for (const portal of map.portals) badge(ctx, portal.x, portal.y, "#6fa8dc", "⇄");
-    for (const item of map.interactables) badge(ctx, item.x, item.y, item.trigger === "touch" ? "#ae9bd2" : "#edc477", item.trigger === "touch" ? "▣" : "!");
+    for (const item of map.interactables) badge(ctx, item.x, item.y, item.disabled ? "#777" : item.trigger === "touch" ? "#ae9bd2" : "#edc477", item.disabled ? "×" : item.trigger === "touch" ? "▣" : "!");
     if (map.encounters) {
       ctx.font = "10px system-ui"; ctx.fillStyle = "rgba(216,127,106,.95)"; ctx.textAlign = "left"; ctx.textBaseline = "top";
       ctx.fillText(`エンカウント ${Math.round(map.encounters.rate * 100)}%`, 4, 4);

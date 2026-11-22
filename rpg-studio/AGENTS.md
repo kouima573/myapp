@@ -49,6 +49,7 @@
 pnpm rpg validate --project projects/<id>
 pnpm rpg test     --project projects/<id>
 pnpm rpg build    --project projects/<id>
+pnpm rpg proofread --project projects/<id>   # 台詞を書いた・変えた場合（ウィンドウに収まるか・誤字らしき所）
 pnpm test && pnpm check        # packages/ を変えた場合
 pnpm rpg schema                # packages/schema の形式を変えた場合（schema/*.schema.json を再生成）
 git diff --check && git diff   # 差分を確認

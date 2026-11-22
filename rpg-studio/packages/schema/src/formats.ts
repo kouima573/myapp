@@ -331,6 +331,8 @@ export const BATTLE_TRIGGERS: readonly RuleTrigger[] = ["battleStart", "turnEnd"
 
 export const RuleSchema = z.object({
   id: IdSchema,
+  /** 一時的に無効にする（コメントアウト）: true の間は無いものとして動く。検証で「無効化中」と知らせる。 */
+  disabled: z.boolean().optional(),
   /** When this rule is checked. See docs/rules.md. */
   on: z.enum(RULE_TRIGGERS),
   /** on "verb": the verb id. on "signal": the signal id (required). */
@@ -683,6 +685,8 @@ export type Tileset = z.infer<typeof TilesetSchema>;
 
 export const NpcSchema = z.object({
   id: IdSchema,
+  /** 一時的に無効にする（コメントアウト）: true の間は無いものとして動く。検証で「無効化中」と知らせる。 */
+  disabled: z.boolean().optional(),
   name: z.string().min(1),
   x: CoordSchema,
   y: CoordSchema,
@@ -711,6 +715,8 @@ export type Portal = z.infer<typeof PortalSchema>;
 
 export const InteractableSchema = z.object({
   id: IdSchema,
+  /** 一時的に無効にする（コメントアウト）: true の間は無いものとして動く。検証で「無効化中」と知らせる。 */
+  disabled: z.boolean().optional(),
   x: CoordSchema,
   y: CoordSchema,
   label: z.string().min(1),
@@ -886,6 +892,8 @@ export type DialogueBundle = z.infer<typeof DialogueBundleSchema>;
 
 export const GameEventSchema = z.object({
   id: IdSchema,
+  /** 一時的に無効にする（コメントアウト）: true の間は無いものとして動く。検証で「無効化中」と知らせる。 */
+  disabled: z.boolean().optional(),
   label: z.string().min(1),
   when: ConditionSchema.optional(),
   effects: z.array(EffectSchema).default([]),

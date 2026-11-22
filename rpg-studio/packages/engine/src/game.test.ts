@@ -478,3 +478,17 @@ describe("waves (079)", () => {
     expect(state.scene.kind === "battle" && state.scene.battle.outcome).toBe("victory");
   });
 });
+
+describe("disabled (178)", () => {
+  it("a disabled rule never fires and a disabled event does nothing", () => {
+    const gold = "gold";
+    const r = rule({ id: "off", on: "auto", disabled: true, effects: [{ type: "setVar", var: gold, value: 99 }] });
+    const e = withRules([r]);
+    let state = e.run(start("dwarf"), []).state;
+    expect(state.vars[gold]).not.toBe(99);
+    const ev = Object.values(content.events)[0]!;
+    const off = createEngine({ ...content, events: { ...content.events, [ev.id]: { ...ev, disabled: true, effects: [{ type: "setVar", var: gold, value: 77 }], once: false, when: undefined } } }, systems);
+    state = off.run(start("dwarf"), [{ type: "event", event: ev.id }]).state;
+    expect(state.vars[gold]).not.toBe(77);
+  });
+});

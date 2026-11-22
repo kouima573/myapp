@@ -17,6 +17,9 @@
             "maxLength": 96,
             "pattern": "^[a-z0-9][a-z0-9._-]*$"
           },
+          "disabled": {
+            "type": "boolean"
+          },
           "label": {
             "type": "string",
             "minLength": 1
