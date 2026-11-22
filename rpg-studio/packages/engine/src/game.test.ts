@@ -658,3 +658,16 @@ describe("party chat (094)", () => {
     expect(r.scene.kind === "message" && r.scene.text).toBe("やったね！");
   });
 });
+
+describe("count-time battle (068)", () => {
+  it("a twice-as-fast enemy acts twice between the hero's commands", () => {
+    const foe = content.database.enemies.find(e => !e.battle && e.stats.maxHp >= 6 && e.actions.some(a => a.power > 0))!;
+    const eng = createEngine({ ...content, project: { ...content.project, battle: { ...content.project.battle, order: "ctb", playerSpeed: 10 } }, database: { ...content.database, enemies: content.database.enemies.map(e => (e.id === foe.id ? { ...e, speed: 20, stats: { ...e.stats, maxHp: 999 } } : e)) } }, systems);
+    let s = eng.run(start("dwarf"), [{ type: "battle", enemy: foe.id }]).state;
+    expect(eng.turnOrder(s).map(a => a.kind)).toEqual(["player", "enemy", "enemy"]);
+    s = eng.step(s, { type: "battle", command: "guard" }).state;
+    const log = s.scene.kind === "battle" ? s.scene.battle.log : [];
+    const acts = log.filter(l => l.startsWith(`${foe.name}の`)).length;
+    expect(acts).toBe(2);
+  });
+});

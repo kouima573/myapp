@@ -161,6 +161,13 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   let toast: { text: string; until: number } | null = null;
   let typing = { text: "", startedAt: 0, done: true };
   let fadeUntil = 0;
+  /** セリフ音声: play a line's voice once when the line appears (re-renders of the same line do not repeat it). */
+  let lastVoiceKey = "";
+  function speak(voice: string | undefined, key: string) {
+    if (!voice || key === lastVoiceKey) return;
+    lastVoiceKey = key;
+    audio.playSound(voice);
+  }
   /** 確認ダイアログ: a yes / no question over everything; "いいえ" is selected first. */
   let asking: { text: string; yes: () => void } | null = null;
   function askConfirm(text: string, yes: () => void) { asking = { text, yes }; selection = 1; renderUI(); }
@@ -192,6 +199,16 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     if (ui.radius !== undefined) root.style.setProperty("--rpg-radius", `${ui.radius}px`);
     const fonts = { dot: `"DotGothic16","Hiragino Kaku Gothic ProN","Meiryo",sans-serif`, gothic: `"Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",system-ui,sans-serif`, mincho: `"Hiragino Mincho ProN","Yu Mincho","MS PMincho",serif`, rounded: `"Hiragino Maru Gothic ProN","M PLUS Rounded 1c","Arial Rounded MT Bold",sans-serif` };
     if (ui.font) root.style.fontFamily = fonts[ui.font];
+    // カスタムフォント (ui.fontAsset): loaded with FontFace and used for all text of the game.
+    const fontAsset = ui.fontAsset ? content.assets.assets.find(a => a.id === ui.fontAsset) : undefined;
+    if (fontAsset && typeof FontFace !== "undefined") void Promise.resolve(options.resolveAsset(fontAsset)).then(async url => {
+      try {
+        const face = new FontFace(`rpg-custom-${fontAsset.id}`, `url("${url}")`);
+        await face.load();
+        (document.fonts as unknown as { add(f: FontFace): void }).add(face);
+        root.style.fontFamily = `"rpg-custom-${fontAsset.id}", ${root.style.fontFamily || "system-ui, sans-serif"}`;
+      } catch { /* keep the default font */ }
+    });
     const frame = ui.frame ? content.assets.assets.find(a => a.id === ui.frame) : undefined;
     if (frame) void Promise.resolve(options.resolveAsset(frame)).then(url => {
       root.style.setProperty("--rpg-frame", `url("${url}")`);
@@ -674,10 +691,11 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
 
     const scene = state.scene;
     if (menuOpen && atTitle) { hud.hidden = true; typing = { ...typing, done: true }; renderMenu(); }
-    else if (scene.kind === "message") messageWindow(scene.speaker, scene.text, undefined, scene.portrait ? { id: scene.portrait, face: scene.face ?? 0 } : undefined);
+    else if (scene.kind === "message") { messageWindow(scene.speaker, scene.text, undefined, scene.portrait ? { id: scene.portrait, face: scene.face ?? 0 } : undefined); speak(scene.voice, `msg#${scene.text}`); }
     else if (scene.kind === "dialogue") {
       const dialogue = content.dialogues[scene.dialogueId]!;
       messageWindow(dialogue.speaker, engine.dialogueLines(state, dialogue.id)[scene.line] ?? "", undefined, dialogue.portrait ? { id: dialogue.portrait, face: engine.dialogueFaces(state, dialogue.id)[scene.line] ?? 0 } : undefined);
+      speak(engine.dialogueVoices(state, dialogue.id)[scene.line], `${dialogue.id}#${scene.line}`);
     } else if (scene.kind === "choice") {
       const dialogue = content.dialogues[scene.dialogueId]!;
       const list = el("div", "rpg-window rpg-choices");
@@ -839,7 +857,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     for (const [id, decl] of Object.entries(content.project.variables)) if (decl.hud) status.appendChild(el("div", "rpg-battle-var", `${decl.label ?? id} ${state.vars[id] ?? decl.initial}`));
     if (battle.wave) status.appendChild(el("div", "rpg-battle-var", `連戦 第${battle.wave}陣 / 全${battle.wave + (battle.waves?.length ?? 0)}陣`));
     // Turn order (project.battle.order "speed"): who acts next, fastest first.
-    if (content.project.battle.order === "speed" && battle.outcome === "ongoing") status.appendChild(el("div", "rpg-battle-var rpg-turn-order", `行動順: ${engine.turnOrder(state).map(a => a.name).join(" → ")}`));
+    if (content.project.battle.order !== "fixed" && battle.outcome === "ongoing") status.appendChild(el("div", "rpg-battle-var rpg-turn-order", `行動順: ${engine.turnOrder(state).map(a => a.name).join(" → ")}`));
     const log = el("div", "rpg-window rpg-battle-log");
     for (const line of battle.log.slice(-4)) log.appendChild(el("div", "rpg-log-line", stripMarkup(line)));
     live.textContent = stripMarkup(battle.log[battle.log.length - 1] ?? "");

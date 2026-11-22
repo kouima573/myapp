@@ -133,6 +133,8 @@ export interface Engine {
   hudLines(state: GameState): string[];
   /** Portrait frame (expression) of each visible line of a dialogue, aligned with dialogueLines. */
   dialogueFaces(state: GameState, dialogueId: string): Array<number | undefined>;
+  /** Voice (sfx asset) of each visible line of a dialogue, aligned with dialogueLines. */
+  dialogueVoices(state: GameState, dialogueId: string): Array<string | undefined>;
   /** Level, experience and what the next level needs (undefined without project.leveling). */
   levelInfo(state: GameState): { level: number; exp: number; next: number | null } | undefined;
   /** Project systems plus the scripts attached to whatever is active right now (abilities, items, enemies, map…). */
@@ -708,7 +710,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         const line = text(effect.text, state, ctxValues);
         if (inBattle) return battleLog(state, line);
         if (inScene) return { ...state, queue: [...state.queue, { ...effect, type: "message", text: line } as Effect] };
-        return { ...state, scene: { kind: "message", text: line, ...(effect.type === "message" && effect.speaker ? { speaker: effect.speaker } : {}), ...(effect.type === "message" && effect.portrait ? { portrait: effect.portrait, ...(effect.face !== undefined ? { face: effect.face } : {}) } : {}) } };
+        return { ...state, scene: { kind: "message", text: line, ...(effect.type === "message" && effect.speaker ? { speaker: effect.speaker } : {}), ...(effect.type === "message" && effect.portrait ? { portrait: effect.portrait, ...(effect.face !== undefined ? { face: effect.face } : {}) } : {}), ...(effect.type === "message" && effect.voice ? { voice: effect.voice } : {}) } };
       }
       case "setFlag":
         c.log.push(`フラグ ${effect.flag} = ${effect.value ?? true}`);
@@ -1709,6 +1711,29 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     return actors.map(({ speed: _s, ...a }) => a as Actor);
   }
 
+  /**
+   * order "ctb": who acts between two commands of the hero. Everyone's gauge fills by speed; whoever reaches 100
+   * acts (and pays 100). The hero acts now; the others act as many times as their gauges allow until the hero's
+   * gauge is full again. Returns the actors in order and the gauges to keep.
+   */
+  function ctbSequence(state: GameState): { actors: Actor[]; gauges: Record<string, number> } {
+    const b = battleOf(state)!;
+    const all = turnOrder(state);
+    const keyOf = (a: Actor) => (a.kind === "enemy" ? `enemy:${slotAt(b, a.index)}` : a.id);
+    const speedOf = (a: Actor) => Math.max(1, a.kind === "player" ? (content.project.battle.playerSpeed !== undefined ? ex(content.project.battle.playerSpeed, state) : 10) : a.kind === "companion" ? companionOf(a.id)?.speed ?? 10 : enemyOf(a.id).speed ?? 10);
+    const gauges: Record<string, number> = { ...b.gauges };
+    for (const a of all) gauges[keyOf(a)] ??= 0;
+    const out: Actor[] = all.filter(a => a.kind === "player");
+    const others = all.filter(a => a.kind !== "player");
+    for (let guard = 0; guard < 400 && (gauges.player ?? 0) < 100; guard++) {
+      for (const a of all) gauges[keyOf(a)] = (gauges[keyOf(a)] ?? 0) + speedOf(a);
+      const ready = others.filter(a => (gauges[keyOf(a)] ?? 0) >= 100).sort((x, y) => (gauges[keyOf(y)] ?? 0) - (gauges[keyOf(x)] ?? 0));
+      for (const a of ready) { out.push(a); gauges[keyOf(a)] = (gauges[keyOf(a)] ?? 0) - 100; }
+    }
+    gauges.player = Math.max(0, (gauges.player ?? 0) - 100);
+    return { actors: out, gauges };
+  }
+
   function battleStep(c: Ctx, state: GameState, command: BattleCommand): GameState {
     let battle = battleOf(state);
     if (!battle || battle.outcome !== "ongoing") return state;
@@ -1739,7 +1764,13 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     if (!scripted && command.command === "skill" && (state.player.statuses ?? []).some(s => statusDef(s.id)?.noSkills)) return battleLog(state, "技を封じられている！");
     // Everyone acts once, in turn order (fixed: hero, companions, enemies; or by speed).
     // Enemies: every one still standing; actions whose `when` holds are used in order and cycle.
-    for (const actor of turnOrder(state)) {
+    let sequence = turnOrder(state);
+    if (content.project.battle.order === "ctb") {
+      const ctb = ctbSequence(state);
+      sequence = ctb.actors;
+      state = setBattle(state, { ...battleOf(state)!, gauges: ctb.gauges });
+    }
+    for (const actor of sequence) {
       if (actor.kind === "player") {
         if (scripted) continue;
         let lost: boolean;
@@ -2453,6 +2484,11 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     regions: state => regionsAt(state, content, env),
     hudLines: state => active(state).flatMap(sys => sys.hud?.({ content, state }) ?? []),
     activeSystems: state => active(state),
+    dialogueVoices: (state, id) => {
+      const dialogue = content.dialogues[id];
+      if (!dialogue) return [];
+      return dialogue.lines.filter(line => typeof line === "string" || ev(line.when, state)).map(line => (typeof line === "string" ? undefined : line.voice));
+    },
     dialogueFaces: (state, id) => {
       const dialogue = content.dialogues[id];
       if (!dialogue) return [];
@@ -2465,7 +2501,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       return { level, exp: state.player.exp ?? 0, next: level >= lv.maxLevel ? null : expToNext(level) };
     },
     commands: (state, where) => scriptCommands(state, where),
-    turnOrder: state => turnOrder(state).map(a => ({ kind: a.kind, id: a.id, name: a.name })),
+    turnOrder: state => (content.project.battle.order === "ctb" && battleOf(state) ? ctbSequence(state).actors : turnOrder(state)).map(a => ({ kind: a.kind, id: a.id, name: a.name })),
     skillStatus,
     step,
     run,

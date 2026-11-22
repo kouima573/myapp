@@ -31,6 +31,12 @@ export function sniff(bytes: Buffer): { mime: string; ext: string } | null {
   if (bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WAVE") return { mime: "audio/wav", ext: ".wav" };
   if (bytes.subarray(0, 4).toString("ascii") === "OggS") return { mime: "audio/ogg", ext: ".ogg" };
   if (bytes.subarray(0, 3).toString("ascii") === "ID3" || (bytes[0] === 0xff && (bytes[1]! & 0xe0) === 0xe0)) return { mime: "audio/mpeg", ext: ".mp3" };
+  // Fonts (ui.fontAsset).
+  const sig = bytes.subarray(0, 4).toString("ascii");
+  if (sig === "wOF2") return { mime: "font/woff2", ext: ".woff2" };
+  if (sig === "wOFF") return { mime: "font/woff", ext: ".woff" };
+  if (sig === "OTTO") return { mime: "font/otf", ext: ".otf" };
+  if (bytes.subarray(0, 4).toString("hex") === "00010000" || sig === "true") return { mime: "font/ttf", ext: ".ttf" };
   return null;
 }
 
@@ -43,7 +49,7 @@ export function pngInfo(bytes: Buffer): { width: number; height: number; alpha: 
 
 const FOLDERS: Record<AssetEntry["kind"], string> = {
   tileset: "assets/tilesets", character: "assets/characters", enemy: "assets/enemies", animation: "assets/animations",
-  portrait: "assets/portraits", background: "assets/backgrounds", bgm: "assets/audio/bgm", sfx: "assets/audio/sfx", song: "assets/audio/songs",
+  portrait: "assets/portraits", background: "assets/backgrounds", bgm: "assets/audio/bgm", sfx: "assets/audio/sfx", song: "assets/audio/songs", font: "assets/fonts",
 };
 
 async function addEntry(root: string, entry: AssetEntry, replace: boolean): Promise<void> {
@@ -120,9 +126,9 @@ export async function addAsset(root: string, flags: Flags, extra: Partial<AssetE
   const { parsed } = await manifest(root);
   const bytes = await fs.readFile(path.resolve(file));
   const kindOfFile = kind === "song" ? { mime: "application/json", ext: ".song.json" } : sniff(bytes);
-  if (!kindOfFile) { console.log("ERROR 対応していないファイル形式です（PNG / OGG / MP3 / WAV / .song.json）"); return 1; }
-  const isImage = kindOfFile.mime === "image/png";
-  if (isImage !== !["bgm", "sfx", "song"].includes(kind)) { console.log(`ERROR --kind ${kind} に ${kindOfFile.mime} は使えません`); return 1; }
+  if (!kindOfFile) { console.log("ERROR 対応していないファイル形式です（PNG / OGG / MP3 / WAV / .song.json / WOFF2 / WOFF / TTF / OTF）"); return 1; }
+  const isImage = kindOfFile.mime === "image/png", isFont = kindOfFile.mime.startsWith("font/");
+  if (isFont !== (kind === "font") || (!isFont && isImage !== !["bgm", "sfx", "song", "font"].includes(kind))) { console.log(`ERROR --kind ${kind} に ${kindOfFile.mime} は使えません`); return 1; }
   const limit = parsed.assetPolicy.budget.maxFileMB * MB;
   if (bytes.length > limit) { console.log(`ERROR ファイルが ${parsed.assetPolicy.budget.maxFileMB}MB を超えています（${(bytes.length / MB).toFixed(1)}MB）。音声はOGG 96〜128kbps、画像は減色・分割を検討してください`); return 1; }
 

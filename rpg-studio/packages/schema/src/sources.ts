@@ -14,6 +14,6 @@ export function isSourceEnabled(project: Pick<ProjectManifest, "assetPolicy">, s
   return project.assetPolicy.sources[source.id] ?? source.defaultEnabled;
 }
 
-export function assetCategory(kind: AssetEntry["kind"]): "image" | "bgm" | "sfx" | "song" {
-  return kind === "bgm" || kind === "sfx" || kind === "song" ? kind : "image";
+export function assetCategory(kind: AssetEntry["kind"]): "image" | "bgm" | "sfx" | "song" | "font" {
+  return kind === "bgm" || kind === "sfx" || kind === "song" || kind === "font" ? kind : "image";
 }

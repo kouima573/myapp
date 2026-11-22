@@ -293,6 +293,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       switch (effect.type) {
         case "message": case "battleLog":
           checkText(file, here, effect.text);
+          if (effect.type === "message" && effect.voice) checkAudio(file, here, effect.voice, ["sfx"], "セリフ音声");
           if (effect.type === "message" && effect.portrait && !["portrait", "character"].includes(assetById.get(effect.portrait)?.kind ?? "")) err(file, here, `顔グラフィックの素材 '${effect.portrait}' がありません（portrait か character）`);
           break;
         case "setFlag": if (!flagIds.has(effect.flag)) err(file, here, `未宣言のフラグ '${effect.flag}' を設定しています`); break;
@@ -457,6 +458,8 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
     checkAudio(P, "gameOver.music", go.music, ["bgm", "song", "sfx"], "ゲームオーバーの音楽");
     if (go.penalty && !varIds.has(go.penalty.var)) err(P, "gameOver.penalty.var", `未宣言の変数 '${go.penalty.var}'`);
   }
+  if (project.ui?.fontAsset && assetById.get(project.ui.fontAsset)?.kind !== "font") err(P, "ui.fontAsset", `フォントの素材 '${project.ui.fontAsset}' がありません（kind: font）`);
+  for (const d of Object.values(content.dialogues)) d.lines.forEach((l, i) => { if (typeof l !== "string" && l.voice) checkAudio("dialogues", `dialogues[${d.id}].lines[${i}].voice`, l.voice, ["sfx"], "セリフ音声"); });
   if (project.ui?.frame && !["background", "portrait", "tileset"].includes(assetById.get(project.ui.frame)?.kind ?? "")) err(P, "ui.frame", `枠の画像 '${project.ui.frame}' がありません`);
   // 一時的に無効化中のもの（disabled: true）を知らせる（消し忘れ防止）。
   for (const r of content.rules) if (r.disabled) warn(content.project.rulesPath ?? "rules.json", `rules[${r.id}]`, "無効化中（disabled: true）。使うときは外してください");

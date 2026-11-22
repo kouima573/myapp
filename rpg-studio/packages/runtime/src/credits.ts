@@ -1,7 +1,7 @@
 import type { AssetEntry, GameContent } from "../../schema/src/formats";
 
 const KIND_LABEL: Record<AssetEntry["kind"], string> = {
-  tileset: "タイル", character: "キャラクター", enemy: "敵", animation: "アニメーション", portrait: "立ち絵", background: "背景", bgm: "BGM", sfx: "効果音", song: "BGM",
+  tileset: "タイル", character: "キャラクター", enemy: "敵", animation: "アニメーション", portrait: "立ち絵", background: "背景", bgm: "BGM", sfx: "効果音", song: "BGM", font: "フォント",
 };
 
 /** Credits shown in the game menu and written to CREDITS.md by the build. */

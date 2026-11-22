@@ -33,7 +33,8 @@
               "background",
               "bgm",
               "sfx",
-              "song"
+              "song",
+              "font"
             ]
           },
           "mimeType": {

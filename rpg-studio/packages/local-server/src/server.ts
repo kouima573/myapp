@@ -23,7 +23,7 @@ import {
 } from "./protocol";
 
 const TEXT_EXT = new Set([".json", ".ts", ".md"]);
-const BINARY_EXT: Record<string, string> = { ".png": "image/png", ".ogg": "audio/ogg", ".mp3": "audio/mpeg", ".wav": "audio/wav" };
+const BINARY_EXT: Record<string, string> = { ".png": "image/png", ".ogg": "audio/ogg", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".woff2": "font/woff2", ".woff": "font/woff", ".ttf": "font/ttf", ".otf": "font/otf" };
 const MAX_TEXT = 4 * 1024 * 1024;
 const MAX_BINARY = 20 * 1024 * 1024;
 const MAX_IMAGE = 3 * 1024 * 1024;

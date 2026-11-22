@@ -153,7 +153,7 @@ export interface ChoiceOption { id?: string; label: string; when?: Condition; ef
 export interface InputAnswer { match: string[]; effects: Effect[] }
 
 export type Effect =
-  | { type: "message"; text: string; speaker?: string; portrait?: string; face?: number }
+  | { type: "message"; text: string; speaker?: string; portrait?: string; face?: number; voice?: string }
   | { type: "emote"; target: string; icon: string }
   | { type: "moveRoute"; target: string; steps: string[]; wait?: boolean; through?: boolean }
   | { type: "setFlag"; flag: string; value?: boolean }
@@ -223,7 +223,7 @@ const ChoiceOptionSchema: z.ZodType<ChoiceOption> = z.lazy(() => z.object({
 }).strict());
 
 export const EffectSchema: z.ZodType<Effect> = z.lazy(() => z.discriminatedUnion("type", [
-  z.object({ type: z.literal("message"), text: z.string().min(1), speaker: z.string().min(1).optional(), /** Face picture (portrait asset) and its frame (expression). */ portrait: IdSchema.optional(), face: z.number().int().min(0).optional() }).strict(),
+  z.object({ type: z.literal("message"), text: z.string().min(1), speaker: z.string().min(1).optional(), /** Face picture (portrait asset) and its frame (expression). */ portrait: IdSchema.optional(), face: z.number().int().min(0).optional(), /** Voice (sfx asset) played with it. */ voice: IdSchema.optional() }).strict(),
   /** Speech-bubble icon over the hero ("player"), an NPC or an entity: "！" "？" "♪" "…" "♥" or any short text. */
   z.object({ type: z.literal("emote"), target: z.string().min(1), icon: z.string().min(1).max(4) }).strict(),
   /**
@@ -630,7 +630,8 @@ export const ProjectManifestSchema = z.object({
     /** Percent chance to flee. */
     fleeChance: ExprSchema.optional(),
     /** "fixed" = hero, companions, then enemies. "speed" = everyone by speed, fastest first (shown as the turn order). */
-    order: z.enum(["fixed", "speed"]).default("fixed"),
+    /** "ctb": count-time battle — everyone fills a gauge by speed; the fast act more often (shown as the order of the next moves). */
+    order: z.enum(["fixed", "speed", "ctb"]).default("fixed"),
     /** The hero's speed for order "speed" (e.g. {"add":[10,{"level":true}]}). Default 10. */
     playerSpeed: ExprSchema.optional(),
     /** Critical hits of the hero's attack: chance in percent (Expr) and damage multiplier in percent. */
@@ -717,6 +718,8 @@ export const ProjectManifestSchema = z.object({
     window: z.string().max(40).optional(), edge: z.string().max(40).optional(), text: z.string().max(40).optional(), accent: z.string().max(40).optional(),
     radius: z.number().int().min(0).max(30).optional(),
     font: z.enum(["dot", "gothic", "mincho", "rounded"]).optional(),
+    /** カスタムフォント: a font file in assets (kind "font": .woff2 / .woff / .ttf / .otf) used for all text. Overrides font. */
+    fontAsset: IdSchema.optional(),
     frame: IdSchema.optional(), frameSlice: z.number().int().min(1).max(64).default(12),
   }).strict().optional(),
 }).strict();
@@ -1001,7 +1004,7 @@ export const DialogueSchema = z.object({
   id: IdSchema,
   speaker: z.string().min(1),
   /** Strings, or {"text","when"?,"face"?} for lines shown only when a condition holds / with an expression. Supports {{var.x}} etc. */
-  lines: z.array(z.union([z.string().min(1), z.object({ text: z.string().min(1), when: ConditionSchema.optional(), /** Frame of the portrait (expression). */ face: z.number().int().min(0).optional() }).strict()])).min(1),
+  lines: z.array(z.union([z.string().min(1), z.object({ text: z.string().min(1), when: ConditionSchema.optional(), /** Frame of the portrait (expression). */ face: z.number().int().min(0).optional(), /** Voice (sfx asset) played with the line (セリフ音声). */ voice: IdSchema.optional() }).strict()])).min(1),
   /** Face picture shown next to the text (portrait asset; frames = expressions). */
   portrait: IdSchema.optional(),
   /** Effects after the last line when there are no choices (or before choices are shown). */
@@ -1276,7 +1279,7 @@ export type Database = z.infer<typeof DatabaseSchema>;
 /* ------------------------------------------------------------------ Assets (format 1, unchanged) */
 
 export const ASSET_MANIFEST_FORMAT_VERSION = 1;
-export const ASSET_KINDS = ["tileset", "character", "enemy", "animation", "portrait", "background", "bgm", "sfx", "song"] as const;
+export const ASSET_KINDS = ["tileset", "character", "enemy", "animation", "portrait", "background", "bgm", "sfx", "song", "font"] as const;
 export type AssetKind = (typeof ASSET_KINDS)[number];
 export const IMAGE_KINDS: readonly AssetKind[] = ["tileset", "character", "enemy", "animation", "portrait", "background"];
 export const ASSET_ORIGINS = ["original", "generated", "site", "purchased", "commission"] as const;
@@ -1345,6 +1348,12 @@ export const AssetManifestSchema = z.object({
     }
     if (asset.origin === "generated" && !asset.generator) ctx.addIssue({ code: "custom", path: at("generator"), message: "生成素材には生成方法(generator: ツール・プロンプト・シード等)を記録してください" });
     if (asset.creditRequired && !asset.credit) ctx.addIssue({ code: "custom", path: at("credit"), message: "クレジット表記が必要な素材には表示する文言(credit)を書いてください" });
+    if (asset.kind === "font") {
+      const fontTypes: Record<string, string> = { ".woff2": "font/woff2", ".woff": "font/woff", ".ttf": "font/ttf", ".otf": "font/otf" };
+      const extension = asset.path.slice(asset.path.lastIndexOf(".")).toLowerCase();
+      if (fontTypes[extension] !== asset.mimeType) ctx.addIssue({ code: "custom", path: at("mimeType"), message: "フォントは .woff2 / .woff / .ttf / .otf と、それに合う MIME（font/woff2 など）で指定してください" });
+      return;
+    }
     if (asset.kind === "song") {
       if (asset.mimeType !== "application/json" || !asset.path.toLowerCase().endsWith(".song.json")) ctx.addIssue({ code: "custom", path: at("mimeType"), message: "楽譜BGM(song)は .song.json と application/json で指定してください" });
       return;
@@ -1421,6 +1430,8 @@ export const BattleStateSchema = z.object({
   /** Groups still to come (連戦) and the number of the current one (1 = first). */
   waves: z.array(z.object({ enemy: IdSchema, with: z.array(IdSchema).optional() }).strict()).optional(),
   wave: z.number().int().min(1).optional(),
+  /** order "ctb": gauges (0..100) per actor ("player", companion id, "enemy:<slot>"). */
+  gauges: z.record(z.string(), z.number()).optional(),
   /** Practice fight: HP of the hero and companions before it (restored afterwards). */
   practice: z.object({ hp: z.number().int(), party: z.record(z.string(), z.number().int()) }).strict().optional(),
 }).strict();
@@ -1428,7 +1439,7 @@ export type BattleState = z.infer<typeof BattleStateSchema>;
 
 export const SceneSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("field") }).strict(),
-  z.object({ kind: z.literal("message"), text: z.string(), speaker: z.string().optional(), portrait: z.string().optional(), face: z.number().int().optional() }).strict(),
+  z.object({ kind: z.literal("message"), text: z.string(), speaker: z.string().optional(), portrait: z.string().optional(), face: z.number().int().optional(), voice: z.string().optional() }).strict(),
   z.object({ kind: z.literal("dialogue"), dialogueId: IdSchema, line: z.number().int().nonnegative() }).strict(),
   z.object({ kind: z.literal("choice"), dialogueId: IdSchema }).strict(),
   z.object({ kind: z.literal("prompt"), prompt: z.string().optional(), speaker: z.string().optional(), options: z.array(z.object({ id: z.string(), label: z.string(), effects: z.array(EffectSchema) }).strict()) }).strict(),
