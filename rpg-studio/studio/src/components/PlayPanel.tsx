@@ -62,7 +62,11 @@ export default function PlayPanel({ store, content, stale, systems, systemsVersi
         storage: studioStorage,
         keyboard: "focus",
         onLog: lines => lines.forEach(line => store.log("info", `試遊: ${line}`)),
-        onStateChange: setState,
+        onStateChange: st => {
+          setState(st);
+          // はじめての5分: "talked to someone in the play-test".
+          if (st.scene.kind === "dialogue") { try { localStorage.setItem(`rpg-studio:played:${content.project.id}`, String(Date.now())); } catch { /* optional */ } }
+        },
         onAction: action => { recording.current?.push(action); },
         onError: err => { setError(err.message); store.log("error", `試遊中のエラー: ${err.message}`); },
       });

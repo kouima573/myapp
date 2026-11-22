@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon, Globe2, Search } from "lucide-react";
+import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon, Globe2, Search, GraduationCap } from "lucide-react";
 import { GameMapSchema, TilesetSchema, type GameContent, type GameMap, type GameState } from "@rpg/schema";
 import { loadImages, type ImageMap } from "../../packages/runtime/src/render";
 import MapEditor, { type Selection } from "./components/MapEditor";
@@ -18,13 +18,15 @@ import LibraryPanel from "./components/LibraryPanel";
 import HistoryPanel from "./components/HistoryPanel";
 import WorldPanel from "./components/WorldPanel";
 import SearchPanel from "./components/SearchPanel";
+import TutorialPanel from "./components/TutorialPanel";
 import CodeFinder from "./components/CodeFinder";
 import ConflictDialog from "./components/ConflictDialog";
 import { useProject } from "./lib/useProject";
 import type { ProjectSource } from "./lib/source";
 
-type Section = "idea" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history" | "world" | "search";
+type Section = "idea" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history" | "world" | "search" | "tutorial";
 const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
+  { id: "tutorial", label: "はじめての5分", icon: GraduationCap },
   { id: "idea", label: "発想", icon: Lightbulb },
   { id: "map", label: "マップ", icon: MapIcon },
   { id: "world", label: "ワールド全体図", icon: Globe2 },
@@ -163,6 +165,7 @@ export default function App({ source }: { source: ProjectSource }) {
       {section === "data" && <DataPanel store={store} diagnostics={store.diagnostics} file={dataFile} onFile={setDataFile} />}
       {section === "assets" && playContent && <AssetsPanel store={store} content={playContent} images={images} />}
       {section === "world" && playContent && <WorldPanel content={playContent} onOpenMap={id => { setMapId(id); setSelection(null); setSection("map"); }} />}
+      {section === "tutorial" && playContent && <TutorialPanel store={store} content={playContent} onGo={s => setSection(s as Section)} />}
       {section === "search" && <SearchPanel store={store} onOpenFile={openFile} />}
       {section === "history" && <HistoryPanel store={store} source={source} />}
       {section === "checks" && <ChecksPanel store={store} diagnostics={store.diagnostics} onOpenFile={openFile} onPlayState={st => { setPlayState({ state: st, nonce: Date.now() }); setSection("play"); }} />}

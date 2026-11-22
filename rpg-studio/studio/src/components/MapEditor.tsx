@@ -87,6 +87,10 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
   const [zoom, setZoom] = useState(1.5);
   const drag = useRef<{ mode: "paint" | "move" | "range"; id?: string; kind?: string } | null>(null);
   const [range, setRange] = useState<Range | null>(null);
+  /** スタンプ: named copies kept for this project in the browser. */
+  const stampKey = `rpg-studio:stamps:${content.project.id}`;
+  const [stamps, setStamps] = useState<Array<{ name: string; cells: string[][] }>>(() => { try { return JSON.parse(localStorage.getItem(stampKey) ?? "[]"); } catch { return []; } });
+  const saveStamps = (list: typeof stamps) => { try { localStorage.setItem(stampKey, JSON.stringify(list)); } catch { /* optional */ } };
   const [clipSize, setClipSize] = useState<{ w: number; h: number } | null>(mapClipboard ? { w: mapClipboard[0]?.length ?? 0, h: mapClipboard.length } : null);
   const map = content.maps[mapId]!;
   const mapPath = content.project.maps.find(m => m.id === mapId)!.path;
@@ -339,6 +343,30 @@ export default function MapEditor({ store, content, mapId, images, imageRevision
         <button className="tool" onClick={() => setZoom(z => Math.max(0.75, z - 0.25))} title="縮小"><ZoomOut size={15} /></button>
         <span className="zoom-label">{Math.round(zoom * 100)}%</span>
         <button className="tool" onClick={() => setZoom(z => Math.min(3, z + 0.25))} title="拡大"><ZoomIn size={15} /></button>
+      </div>
+      <div className="tool-group">
+        <select className="layer-select" value="" title="スタンプ: よく使うタイルの組み合わせ（家・木立・畑…）を名前を付けて残し、いつでも貼り付ける" onChange={e => {
+          const v = e.target.value;
+          if (v === "+save") {
+            if (!mapClipboard) { store.log("warn", "先に範囲選択（M）→ Ctrl+C でコピーしてから登録してください"); return; }
+            const name = window.prompt("スタンプの名前", `スタンプ${stamps.length + 1}`);
+            if (!name) return;
+            const next = [...stamps.filter(st => st.name !== name), { name, cells: mapClipboard }];
+            setStamps(next); saveStamps(next);
+            store.log("ok", `スタンプ「${name}」を登録しました`);
+          } else if (v.startsWith("del:")) {
+            const next = stamps.filter(st => st.name !== v.slice(4));
+            setStamps(next); saveStamps(next);
+          } else {
+            const st = stamps.find(x => x.name === v);
+            if (st) { mapClipboard = st.cells; setClipSize({ w: st.cells[0]?.length ?? 0, h: st.cells.length }); setTool("stamp"); setRange(null); }
+          }
+        }}>
+          <option value="">スタンプ…</option>
+          {stamps.map(st => <option key={st.name} value={st.name}>{st.name}（{st.cells[0]?.length ?? 0}×{st.cells.length}）</option>)}
+          <option value="+save">＋ コピー中の範囲を登録</option>
+          {stamps.length > 0 && <optgroup label="消す">{stamps.map(st => <option key={`d${st.name}`} value={`del:${st.name}`}>{st.name} を消す</option>)}</optgroup>}
+        </select>
       </div>
       <div className="toolbar-status">{hoveredInfo || `${map.title} · ${map.width}×${map.height}`}</div>
     </div>

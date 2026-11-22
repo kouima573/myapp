@@ -409,3 +409,10 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 
 :root[data-theme="light"] .button.primary { background: #f3dfb4; border-color: #a1803f; color: #4a3510; }
 :root[data-theme="contrast"] .button.primary { background: #000; border: 2px solid #ffd23f; color: #ffd23f; }
+.tutorial-progress { height: 8px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.tutorial-progress > div { height: 100%; background: var(--green); transition: width .3s; }
+.tutorial-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tutorial-steps li { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; }
+.tutorial-steps li > div { flex: 1; }
+.tutorial-steps li.is-done { opacity: .65; }
+.tutorial-steps li.is-done svg { color: var(--green); }

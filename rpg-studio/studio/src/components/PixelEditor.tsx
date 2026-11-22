@@ -78,6 +78,7 @@ export default function PixelEditor({ store, content, images }: Props) {
   /** Shape being dragged (line / rect / ellipse) or a selection being moved: where it started and the picture before. */
   const shape = useRef<{ start: Point; base: ImageData; moving?: boolean } | null>(null);
   const [filled, setFilled] = useState(false);
+  const [onion, setOnion] = useState(true);
   const [sel, setSel] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [palettes, setPalettes] = useState<Array<{ name: string; colors: string[] }>>(() => { try { return JSON.parse(localStorage.getItem("rpg-studio:palettes") ?? "[]"); } catch { return []; } });
   const [replaceFrom, setReplaceFrom] = useState<string | null>(null);
@@ -144,6 +145,15 @@ export default function PixelEditor({ store, content, images }: Props) {
     for (let y = 0; y < frame.h; y += 4) for (let x = 0; x < frame.w; x += 4) { g.fillStyle = ((x + y) / 4) % 2 ? "#2a2f2a" : "#222622"; g.fillRect(x * zoom, y * zoom, 4 * zoom, 4 * zoom); }
     const tmp = document.createElement("canvas");
     tmp.width = frame.w; tmp.height = frame.h;
+    // オニオンスキン: the previous frame shows through faintly under the one being drawn.
+    if (onion && current > 0) {
+      const px = ((current - 1) % cols) * frame.w, py = Math.floor((current - 1) / cols) * frame.h;
+      tmp.getContext("2d")!.putImageData(data, -px, -py);
+      g.globalAlpha = 0.3;
+      g.drawImage(tmp, 0, 0, frame.w * zoom, frame.h * zoom);
+      g.globalAlpha = 1;
+      tmp.getContext("2d")!.clearRect(0, 0, frame.w, frame.h);
+    }
     tmp.getContext("2d")!.putImageData(data, -frameX, -frameY);
     g.drawImage(tmp, 0, 0, frame.w * zoom, frame.h * zoom);
     g.strokeStyle = "rgba(255,255,255,.08)";
@@ -165,7 +175,7 @@ export default function PixelEditor({ store, content, images }: Props) {
       og.strokeStyle = "#f0b450"; og.lineWidth = 2;
       og.strokeRect(frameX * scale + 1, frameY * scale + 1, frame.w * scale - 2, frame.h * scale - 2);
     }
-  }, [data, frame, zoom, pixel, mirror, current, frameX, frameY]);
+  }, [data, frame, zoom, pixel, mirror, current, frameX, frameY, onion, cols]);
 
   useEffect(() => {
     const anim = animRef.current;
@@ -505,7 +515,7 @@ export default function PixelEditor({ store, content, images }: Props) {
           {sel && tool === "select" && <div className="pixel-selection" style={{ left: `${sel.x / gridW * 100}%`, top: `${sel.y / gridH * 100}%`, width: `${sel.w / gridW * 100}%`, height: `${sel.h / gridH * 100}%` }} />}</div>
         </div>
         {cols * rows > 1 && <div className="pixel-frames">
-          <div className="form-row"><span className="field-label">コマ（全体図をクリックで選ぶ）: {frameLabel(current)}</span><span className="spacer" /><canvas ref={animRef} title="アニメーションプレビュー" style={{ width: 48, height: 48, imageRendering: "pixelated", border: "1px solid rgba(255,255,255,.15)", borderRadius: 4 }} /></div>
+          <div className="form-row"><span className="field-label">コマ（全体図をクリックで選ぶ）: {frameLabel(current)}</span><label className="small"><input type="checkbox" checked={onion} onChange={e => setOnion(e.target.checked)} /> 前のコマを透かす</label><span className="spacer" /><canvas ref={animRef} title="アニメーションプレビュー" style={{ width: 48, height: 48, imageRendering: "pixelated", border: "1px solid rgba(255,255,255,.15)", borderRadius: 4 }} /></div>
           <canvas ref={overviewRef} className="pixel-overview" onClick={e => {
             const r = e.currentTarget.getBoundingClientRect();
             const fx = Math.floor((e.clientX - r.left) / r.width * cols), fy = Math.floor((e.clientY - r.top) / r.height * rows);
