@@ -18,6 +18,8 @@ interface Props {
   systemsVersion: string | null;
   source: ProjectSource;
   startAt: { mapId: string; x: number; y: number; nonce: number } | null;
+  /** Start from this exact state (a failed scenario's step). Newer than startAt wins. */
+  startState?: { state: GameState; nonce: number } | null;
 }
 
 const studioStorage = {
@@ -25,7 +27,7 @@ const studioStorage = {
   write: (key: string, value: string) => { localStorage.setItem(`studio:${key}`, value); },
 };
 
-export default function PlayPanel({ store, content, stale, systems, systemsVersion, source, startAt }: Props) {
+export default function PlayPanel({ store, content, stale, systems, systemsVersion, source, startAt, startState }: Props) {
   const hostRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<GameHandle | null>(null);
   const [state, setState] = useState<GameState | null>(null);
@@ -64,7 +66,9 @@ export default function PlayPanel({ store, content, stale, systems, systemsVersi
         onAction: action => { recording.current?.push(action); },
         onError: err => { setError(err.message); store.log("error", `試遊中のエラー: ${err.message}`); },
       });
-      if (startAt && content.maps[startAt.mapId]) {
+      if (startState && (!startAt || startState.nonce > startAt.nonce)) {
+        initial = startState.state;
+      } else if (startAt && content.maps[startAt.mapId]) {
         const fresh = handle.engine.newGame();
         initial = { ...fresh, mapId: startAt.mapId, player: { ...fresh.player, x: startAt.x, y: startAt.y } };
       } else if (previous && content.maps[previous.mapId] && previous.scene.kind === "field") {
@@ -80,7 +84,7 @@ export default function PlayPanel({ store, content, stale, systems, systemsVersi
       setError(err instanceof Error ? err.message : String(err));
     }
     return () => { handleRef.current?.destroy(); handleRef.current = null; };
-  }, [content, systems, startAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [content, systems, startAt, startState]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleFlag = (flag: string) => {
     const handle = handleRef.current;

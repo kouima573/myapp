@@ -119,6 +119,8 @@ export interface ScenarioResult {
   failedStep?: number;
   message?: string;
   steps: number;
+  /** The game state where it stopped (the failing step, or the end): the studio can open it in the play-test. */
+  state?: GameState;
 }
 
 class ScenarioError extends Error {}
@@ -339,8 +341,8 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
         state = JSON.parse(JSON.stringify(state)) as GameState;
       } else if ("expect" in s) check(s.expect);
     } catch (error) {
-      return { name: scenario.name, ok: false, failedStep: index, steps: scenario.steps.length, message: error instanceof Error ? error.message : String(error) };
+      return { name: scenario.name, ok: false, failedStep: index, steps: scenario.steps.length, message: error instanceof Error ? error.message : String(error), state };
     }
   }
-  return { name: scenario.name, ok: true, steps: scenario.steps.length };
+  return { name: scenario.name, ok: true, steps: scenario.steps.length, state };
 }

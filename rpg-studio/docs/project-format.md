@@ -198,6 +198,15 @@
 - 属性: `project.json › elements: { "fire": { "label": "炎" } }`。敵の `resist: { "fire": 150 }`（150 = 弱点、50 = 半減、0 = 無効）、武器の `element`（通常攻撃の属性）、防具・装飾品の `resist`（受けるダメージ）、効果 `damage` の `element`。弱点・半減は戦闘ログに「弱点！」などと出る。
 - 自動テスト: `expect.statuses` / `expect.lacksStatuses`。見本: `projects/genre-gallery/tests/status.scenario.json`。
 
+## v2.1 の追加
+
+- 効果 `{ "type": "camera", "focus": { "x": 5, "y": 3 } | "player", "zoom": 2, "ms": 600, "shake": { "power": 6, "ms": 400 } }`
+- `animation`（`slash`・`pierce`・`hit`・`magic`・`fire`・`ice`・`thunder`・`heal`・`explosion`・`poison`）: 武器（アイテム）・技やアイテムの `use`・敵の行動
+- 素材の `duck: true`: 鳴っている間BGMを下げる（ME）。`audio.victory` は自動
+- 特性の `group`（同じ組は1つだけ。職業なら `"job"`）・`selectable`・`selectableWhen`: メニューの「しょくぎょう」で転職
+- `project.json › menu: { "order": ["items", "jobs", ...], "hidden": [], "when": { "jobs": 条件 }, "labels": { "items": "持ち物" } }`（キー: party・traits・jobs・items・abilities・commands・verbs・records・set:<ID>）
+- シナリオテスト: `{ "optimize": "hero" }`（さいきょう装備）、`{ "chooseTrait": "<ID>" }`（転職）
+
 ## v2.0 の追加
 
 - マップの `parallax: { "image": "<背景>", "speed": 0.3 }`: 遠景。下の層を `" "`（空白）にしたマスから見える（歩けない）。`fog: { "image", "opacity", "speedX", "speedY" }`: 霧・雲が流れる

@@ -311,7 +311,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     try {
       const systems = await loadSystems(root, loaded.content);
       const refs = systemRefDiagnostics(loaded.texts, systems).map(formatDiagnostic);
-      const results = await runProjectScenarios(root, loaded.content, systems);
+      const results = (await runProjectScenarios(root, loaded.content, systems)).map(({ state: _state, ...report }) => report);
       return { ok: results.every(r => r.ok) && !refs.length, results, diagnostics: [...diagnostics, ...refs] };
     } catch (error) {
       return { ok: false, results: [], diagnostics: [...diagnostics, `ERROR ${error instanceof Error ? error.message : String(error)}`] };

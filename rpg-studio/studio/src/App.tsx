@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon, Globe2, Search } from "lucide-react";
-import { GameMapSchema, TilesetSchema, type GameContent, type GameMap } from "@rpg/schema";
+import { GameMapSchema, TilesetSchema, type GameContent, type GameMap, type GameState } from "@rpg/schema";
 import { loadImages, type ImageMap } from "../../packages/runtime/src/render";
 import MapEditor, { type Selection } from "./components/MapEditor";
 import Inspector from "./components/Inspector";
@@ -62,8 +62,15 @@ export default function App({ source }: { source: ProjectSource }) {
   const [selection, setSelection] = useState<Selection>(null);
   const [dataFile, setDataFile] = useState<string | null>(null);
   const [startAt, setStartAt] = useState<{ mapId: string; x: number; y: number; nonce: number } | null>(null);
+  /** A whole game state to open in the play-test (e.g. where a scenario test failed). */
+  const [playState, setPlayState] = useState<{ state: GameState; nonce: number } | null>(null);
   const [images, setImages] = useState<ImageMap>({});
   const [imageRevision, setImageRevision] = useState(0);
+  const [theme, setTheme] = useState<"dark" | "light" | "contrast">(() => { try { const t = localStorage.getItem("rpg-studio:theme"); return t === "light" || t === "contrast" ? t : "dark"; } catch { return "dark"; } });
+  useEffect(() => {
+    if (theme === "dark") document.documentElement.removeAttribute("data-theme"); else document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem("rpg-studio:theme", theme); } catch { /* optional */ }
+  }, [theme]);
   const [consoleOpen, setConsoleOpen] = useState(() => !window.matchMedia?.("(max-width: 900px)").matches);
 
   const playContent = store.content ?? store.lastGoodContent;
@@ -108,6 +115,7 @@ export default function App({ source }: { source: ProjectSource }) {
           ビルド {store.build?.state === "ready" ? "OK" : store.build?.state === "error" ? "失敗" : store.build?.state === "building" ? "中" : "待機"}
         </span>}
         <button className={`pill ${findingCode ? "warn" : ""}`} title="画面の部品をクリックすると、その部分を作っているコードの場所を表示（Alt+クリックでもいつでも）" onClick={() => setFindingCode(v => !v)}><Code2 size={12} />{findingCode ? "コードを探す（Escで終了）" : "コードを探す"}</button>
+        <button className="pill" title="工房の配色（暗い・明るい・高コントラスト）" onClick={() => setTheme(t => (t === "dark" ? "light" : t === "light" ? "contrast" : "dark"))}>{theme === "dark" ? "配色: 暗い" : theme === "light" ? "配色: 明るい" : "配色: 高コントラスト"}</button>
         <span className={`pill ${store.dirty.size ? "warn" : ""}`} title={[...store.dirty].join("\n")}><Save size={12} />{store.dirty.size ? `保存待ち ${store.dirty.size}` : "保存済み"}</span>
       </div>
     </header>
@@ -151,13 +159,13 @@ export default function App({ source }: { source: ProjectSource }) {
         <MapEditor store={store} content={editContent} mapId={activeMapId} images={images} imageRevision={imageRevision} selection={selection} onSelect={setSelection} onPlayFrom={playFrom} />
         <aside className="inspector-pane"><Inspector store={store} content={editContent} mapId={activeMapId} selection={selection} onSelect={setSelection} onPlayFrom={playFrom} /></aside>
       </div>}
-      {section === "play" && playContent && <PlayPanel store={store} content={playContent} stale={!store.content} systems={store.systems} systemsVersion={store.systemsVersion} source={source} startAt={startAt} />}
+      {section === "play" && playContent && <PlayPanel store={store} content={playContent} stale={!store.content} systems={store.systems} systemsVersion={store.systemsVersion} source={source} startAt={startAt} startState={playState} />}
       {section === "data" && <DataPanel store={store} diagnostics={store.diagnostics} file={dataFile} onFile={setDataFile} />}
       {section === "assets" && playContent && <AssetsPanel store={store} content={playContent} images={images} />}
       {section === "world" && playContent && <WorldPanel content={playContent} onOpenMap={id => { setMapId(id); setSelection(null); setSection("map"); }} />}
       {section === "search" && <SearchPanel store={store} onOpenFile={openFile} />}
       {section === "history" && <HistoryPanel store={store} source={source} />}
-      {section === "checks" && <ChecksPanel store={store} diagnostics={store.diagnostics} onOpenFile={openFile} />}
+      {section === "checks" && <ChecksPanel store={store} diagnostics={store.diagnostics} onOpenFile={openFile} onPlayState={st => { setPlayState({ state: st, nonce: Date.now() }); setSection("play"); }} />}
       {!editContent && section !== "data" && section !== "checks" && <div className="empty">プロジェクトが一度も検証を通っていません。「検証」と「データ」で問題を直してください。</div>}
     </section>
 

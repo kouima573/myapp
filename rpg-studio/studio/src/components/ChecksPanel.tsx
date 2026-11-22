@@ -3,11 +3,16 @@ import { CheckCircle2, ClipboardCopy, FlaskConical, Hammer, XCircle, AlertTriang
 import { formatDiagnostic, type Diagnostic } from "@rpg/schema";
 import type { TestResponse } from "../../../packages/local-server/src/protocol";
 import type { ProjectStore } from "../lib/useProject";
+import type { GameState } from "@rpg/schema";
+import { runScenario, ScenarioSchema } from "../../../packages/engine/src/scenario";
+import { withModules } from "../../../packages/modules/src/index";
 
 interface Props {
   store: ProjectStore;
   diagnostics: Diagnostic[];
   onOpenFile: (file: string) => void;
+  /** Open the play-test at this game state (the step where a scenario test failed). */
+  onPlayState?: (state: GameState) => void;
 }
 
 const PRESETS: Array<{ label: string; task: string }> = [
@@ -38,7 +43,7 @@ function agentPrompt(task: string, projectDir: string) {
   git diff --check`;
 }
 
-export default function ChecksPanel({ store, diagnostics, onOpenFile }: Props) {
+export default function ChecksPanel({ store, diagnostics, onOpenFile, onPlayState }: Props) {
   const [tests, setTests] = useState<TestResponse | null>(null);
   const [running, setRunning] = useState(false);
   const [task, setTask] = useState(PRESETS[0]!.task);
@@ -48,6 +53,21 @@ export default function ChecksPanel({ store, diagnostics, onOpenFile }: Props) {
   const build = store.build;
   const projectDir = store.source.kind === "local" ? "<このプロジェクトのフォルダ>" : "projects/sample-rpg";
 
+  /** Re-run a failed scenario here in the browser and open the play-test where it stopped (168). */
+  const replay = (file: string) => {
+    const content = store.content ?? store.lastGoodContent;
+    const text = store.texts[file];
+    if (!content || !text || !onPlayState) return;
+    try {
+      const scenario = ScenarioSchema.parse(JSON.parse(text));
+      const result = runScenario(content, withModules(content, store.systems), scenario);
+      if (!result.state) { store.log("warn", "再現できませんでした"); return; }
+      store.log("info", `${file} を steps[${result.failedStep ?? scenario.steps.length}] の手前まで再生し、試遊で開きました${result.message ? `（${result.message}）` : ""}`);
+      onPlayState(result.state);
+    } catch (error) {
+      store.log("error", `再現できません: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
   const runTests = async () => {
     if (!store.source.runTests) return;
     setRunning(true);
@@ -102,7 +122,8 @@ export default function ChecksPanel({ store, diagnostics, onOpenFile }: Props) {
         {tests.diagnostics.filter(d => d.startsWith("ERROR")).map((d, i) => <li key={`d${i}`} className="error"><XCircle size={13} /> {d}</li>)}
         {tests.results.map(r => <li key={r.file} className={r.ok ? "ok" : "error"}>
           {r.ok ? <CheckCircle2 size={13} /> : <XCircle size={13} />}
-          <div><b>{r.name}</b> <span className="muted small">{r.file} · {r.steps} steps</span>{!r.ok && <div className="small">steps[{r.failedStep}]: {r.message}</div>}</div>
+          <div><b>{r.name}</b> <span className="muted small">{r.file} · {r.steps} steps</span>{!r.ok && <div className="small">steps[{r.failedStep}]: {r.message}</div>}
+            {!r.ok && onPlayState && <div className="form-row"><button className="button" onClick={() => replay(r.file)}>失敗した場面を試遊で見る</button><button className="button" onClick={() => onOpenFile(r.file)}>テストを開く</button></div>}</div>
         </li>)}
       </ul>}
     </section>
