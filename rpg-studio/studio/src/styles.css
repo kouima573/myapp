@@ -345,3 +345,21 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 .history-summary { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.6; }
 .history-preview { max-height: 320px; overflow: auto; font-size: 12px; background: rgba(0,0,0,.25); padding: 8px; border-radius: 6px; white-space: pre-wrap; }
 .panel-page select { max-width: 420px; }
+
+/* Branch diagram of dialogues / events */
+.flow-view { margin-top: 12px; }
+.flow-sources { font-size: 12px; margin-bottom: 8px; line-height: 1.6; }
+.flow-tree, .flow-tree ul { list-style: none; margin: 0; padding: 0; }
+.flow-tree ul { margin-left: 14px; padding-left: 12px; border-left: 1px dashed #4d5a47; }
+.flow-node { position: relative; padding: 3px 0; }
+.flow-tree ul > .flow-node::before { content: ""; position: absolute; left: -12px; top: 13px; width: 10px; border-top: 1px dashed #4d5a47; }
+.flow-label { display: inline-flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 2px 8px; border-radius: 6px; font-size: 13px; background: rgba(255,255,255,.04); }
+.flow-dialogue > .flow-label { background: rgba(111,168,220,.16); }
+.flow-event > .flow-label { background: rgba(240,195,106,.16); }
+.flow-branch > .flow-label { background: rgba(190,140,220,.16); }
+.flow-choice > .flow-label { background: transparent; border: 1px solid #4d5a47; }
+.flow-battle > .flow-label { background: rgba(220,110,90,.18); }
+.flow-lines > .flow-label, .flow-loop > .flow-label { color: #a9b09d; background: transparent; }
+.flow-missing > .flow-label { color: #ffb4a2; }
+.flow-when { font-size: 11px; color: #c7b98a; }
+.flow-link { background: none; border: none; color: inherit; padding: 0; cursor: pointer; text-decoration: underline dotted; font: inherit; }

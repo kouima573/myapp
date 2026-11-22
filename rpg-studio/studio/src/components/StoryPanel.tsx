@@ -3,6 +3,7 @@ import { MessageSquare, Plus, Trash2, Zap } from "lucide-react";
 import { type Dialogue, type GameContent, type GameEvent } from "@rpg/schema";
 import { Field, TextInput } from "./Inspector";
 import { ConditionEditor, EffectListEditor } from "./forms";
+import FlowView from "./FlowView";
 import type { ProjectStore } from "../lib/useProject";
 
 interface Props { store: ProjectStore; content: GameContent }
@@ -96,6 +97,7 @@ export default function StoryPanel({ store, content }: Props) {
         <Field label="条件を満たさないとき"><EffectListEditor value={e.otherwise} content={content} onChange={v => editE(e.id, x => { x.otherwise = v; })} /></Field>
         {e.once && <Field label="2回目以降"><EffectListEditor value={e.afterDone} content={content} onChange={v => editE(e.id, x => { x.afterDone = v; })} /></Field>}
       </div>}
+      {(d || e) && <FlowView content={content} root={d ? { kind: "dialogue", id: d.id } : { kind: "event", id: e!.id }} onOpen={ref => { setKind(ref.kind); setSelected(ref.id); }} />}
     </section>
   </div>;
 }
