@@ -81,7 +81,7 @@ export async function readProjectTexts(root: string): Promise<{ texts: ProjectFi
     }
   } catch { /* no scripts folder */ }
   // Art requirements (not game data, but shown in the studio and validated by the CLI).
-  for (const relative of ["art/requests.json", "art/style-guide.md", "IDEA.md", "README.md", "mods.json"]) {
+  for (const relative of ["art/requests.json", "art/style-guide.md", "IDEA.md", "SCRIPT.md", "SPEC.md", "todo.json", "README.md", "mods.json"]) {
     const text = await readTextIfExists(root, relative);
     if (text !== undefined) texts[relative] = text;
   }

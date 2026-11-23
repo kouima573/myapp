@@ -44,7 +44,7 @@
 cd rpg-studio
 pnpm install
 pnpm check                      # 型チェック
-pnpm test                       # vitest（現在189件）
+pnpm test                       # vitest（現在190件）
 pnpm rpg proofread --project <dir>   # 台詞の長さ・誤字らしき所（v1.9）
 pnpm rpg validate --project projects/sample-rpg     # ← フォルダは --project で指定（位置引数は無視される）
 pnpm rpg test     --project projects/sample-rpg
@@ -194,6 +194,16 @@ Codex向け `.agents/skills/rpg-studio/SKILL.md` とClaude Code向け `.claude/s
 - 公開サイト: オフライン用の Service Worker が「保存分を先に出す」方式で、公開し直しても古い版が見え続けることがあった → ネット優先・オフライン時だけ保存分に変更。トップページに「版とビルド日時」を表示
 
 確認したこと: check・test（189件）・両見本の validate/test/build/proofread・build:studio・build:site、ブラウザでの見本の起動とメニュー・設定・クリック移動・IndexedDB へのセーブとロード（エラーなし）。新しい工房画面（ドラッグ＆ドロップ取り込み・座標ピッカー・使用箇所表示）は起動エラーがないことだけを確認し、操作の受け入れ確認はまだ。
+
+## 6.21 チャットで作る（ChatGPT などファイルを触れないAI向け）
+
+ユーザーの理想は「ChatGPT のチャットでも作れること」。チャットのAIはファイルを開けず・書けず・チェックを走らせられないので、工房が肩代わりする:
+
+- `packages/schema/src/chat.ts`（工房とCLIで共用の純粋関数）: 作業カード `todo.json`（`TodoBundleSchema`）、`lookup`（"種類:ID" でデータの今の内容を探す）、`cardPack`（依頼文: 目的・ひも付いたデータ・台本の関係場面・ID一覧・効果と条件の一覧（スキーマから自動）・返事の形式）、`planPack`（発想・台本・仕様からカードを作ってもらう）、`parseChangeSet`／`applyChangeSet`（返事の ```rpg-change を当てはめる）、`proposalChecks`（テスト付きカードはテストなしで「できた」にできない）、`fixPack`（直してほしい点）、台本・仕様書のひな形
+- CLI `packages/cli/src/chat.ts`（`rpg chat`）: 保存前にメモリ上で検証と自動テスト（`tryProposal`）
+- 工房 `studio/src/components/ChatPanel.tsx`（「チャットで作る」）。取り込みは undo のひとまとまり
+- 案内: 短編はチャット可、長編は Codex（おすすめ）／Claude Code。台本（SCRIPT.md）推奨、長編は仕様書（SPEC.md）も（`docs/chat-workflow.md`）
+- 次の段階の候補: 公開サイトの工房（Preview）でブラウザ内に保存・書き出しできるようにすれば、PCに何も入れずにチャットだけで作れる
 
 ## 7. 残っている仕事
 

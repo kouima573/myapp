@@ -55,6 +55,7 @@ h2{font-size:20px;margin:36px 0 4px}.steps{color:var(--muted);padding-left:1.3em
 
 発想：（例）眠ると夢の中の町に行ける。夢で見つけた物は、起きると少しだけ形を変えて手元に残る。</pre>
 <button type="button" id="copy">依頼文をコピー</button></div>
+<p><small><b>ChatGPT などのチャットで作る場合</b>（短編向け）: 手元の工房（<code>pnpm studio</code>）の「チャットで作る」画面で、作業カードごとに依頼文をコピーしてチャットに貼り、返事を工房に貼り戻します。工房が検証と自動テストをしてから取り込みます。長編は Codex（おすすめ）や Claude Code で。どちらも台本（SCRIPT.md）があると話がぶれず、長編は仕様書（SPEC.md）もおすすめです。</small></p>
 <p><small>工房（Preview）の「発想」画面でも、発想シートからAI向けの依頼文を作れます。段階別の見本は <code>pnpm rpg new &lt;名前&gt; --stage 1</code>（会話）・<code>2</code>（+戦闘と宝箱）・<code>3</code>（+鍵と門・エンディング）。</small></p>
 <script>document.getElementById("copy").addEventListener("click",function(){navigator.clipboard&&navigator.clipboard.writeText(document.getElementById("ask").textContent);this.textContent="コピーしました";});</script>
 <p><small>自分のゲームを作るには、手元で <code>pnpm studio</code> を起動してください（ファイルの保存・ビルド・自動テストはローカル版の機能です）。<br>

@@ -48,6 +48,7 @@ const USAGE = `RPG Studio CLI
   rpg schema   [--check]                schema/*.schema.json（エディター・AI向けJSON Schema）を生成／最新か確認
   rpg asset    <sources|enable|disable|add|gen-sfx|report|credits> --project <dir>   素材の取得元・追加・生成・容量・クレジット
   rpg art      <list|prompt|check> --project <dir>                                   画像の要件定義（art/requests.json）から生成用プロンプト・納品チェック
+  rpg chat     <cards|card|plan|pack|apply> --project <dir>                        チャットのAI（ChatGPTなど）と作る: 作業カード・依頼文・返事の取り込み
   rpg asset    catalog <check|verify> --project <dir>                              取得元カタログの見直し（サイトには接続しない・確認日は人が読んだときだけ）
   rpg art      generate [--out library] [--style standard|retro|pastel|dusk|mono] [--only tiles,characters,monsters,backgrounds] [--no-previews]   内蔵ジェネレーターで共有素材ライブラリを（再）生成
   rpg library  <list|add|preview> [<id...>] [--kind …] [--query …] --project <dir>  共有素材ライブラリを探す・番号つき見本画像・取り込む（タイル定義も追加）
@@ -55,7 +56,7 @@ const USAGE = `RPG Studio CLI
   rpg asset find --kind <bgm|sfx|image…> --words "<言葉>"                        AIが会話で候補を出す用（内蔵素材・取得元の検索URL・条件）
 `;
 
-const SUBCOMMANDS = new Set(["new", "genres", "mod", "asset", "art", "library", "packs", "refs", "rename", "find", "sample", "map", "help", "--help"]);
+const SUBCOMMANDS = new Set(["chat", "new", "genres", "mod", "asset", "art", "library", "packs", "refs", "rename", "find", "sample", "map", "help", "--help"]);
 
 function parseArgs(argv: string[]) {
   const [command, ...afterCommand] = argv;
@@ -390,6 +391,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       return 0;
     }
     case "library": return cmdLibrary(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
+    case "chat": { const { cmdChat } = await import("./chat"); return cmdChat(parsed.sub, parsed.args, parsed.flags, projectDir(parsed.flags)); }
     case "map": return cmdMap(parsed.sub, parsed.args, parsed.flags, projectDir(parsed.flags));
     case "devlog": return cmdDevlog(parsed.flags, projectDir(parsed.flags));
     case "sample": return cmdSample(parsed.sub, parsed.flags, projectDir(parsed.flags));
@@ -400,7 +402,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "packs": return cmdPacks(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
     default: {
       if (parsed.command && parsed.command !== "help" && parsed.command !== "--help") {
-        const cmds = ["new", "genres", "mod", "validate", "test", "build", "dev", "migrate", "catalog", "audit", "refs", "rename", "proofread", "find", "sample", "devlog", "map", "schema", "asset", "art", "library", "packs"];
+        const cmds = ["chat", "new", "genres", "mod", "validate", "test", "build", "dev", "migrate", "catalog", "audit", "refs", "rename", "proofread", "find", "sample", "devlog", "map", "schema", "asset", "art", "library", "packs"];
         const dist = (a: string, b: string) => {
           const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
           for (let j = 0; j <= b.length; j++) dp[0]![j] = j;

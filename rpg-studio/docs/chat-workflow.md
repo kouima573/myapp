@@ -1,0 +1,75 @@
+# チャットで作る（ChatGPT・Claude などのチャット）
+
+ファイルを開いたり、コマンドを実行したりできない「チャットのAI」と一緒にRPGを作る方法です。
+工房が、チャットのAIにできないこと（必要なデータを集める・ファイルに反映する・検証と自動テストをする）を肩代わりします。
+
+## どのAIで作るか（目安）
+
+| 作るもの | おすすめ | 理由 |
+| --- | --- | --- |
+| **短編**（〜30分・マップ数枚・会話とイベント中心） | チャット（ChatGPT・Claude のチャット）でもOK | 1枚ずつの小さな作業に分ければ、コピーと貼り付けで回せる |
+| **長編**（マップ10枚以上・仲間・成長・独自の仕組み） | **Codex（おすすめ）**、Claude Code | ファイルを直接読んで書き換え、検証とテストを自分で回せる。量が多い作業はこちらが確実 |
+| 独自の仕組みのコード（`scripts/*.ts`・`systems/*.ts`）が要る | Codex／Claude Code | チャットではコードの動作確認ができない |
+
+どちらで作る場合も、次の2つを用意しておくと話がぶれません。
+
+- **台本（`SCRIPT.md`）** — 場面ごとに「どこで・だれが・何を言う・何が起きる」。見出し（`#`）1つにつき1場面。**短編でも長編でもおすすめ**
+- **仕様書（`SPEC.md`）** — 遊ぶ時間、戦闘や成長の決まり、大事なアイテムなどの箇条書き。**長編では必須、短編でもあると迷わない**
+- 発想（`IDEA.md`）— 作りたいものの核。工房の「発想」画面で書けます
+
+台本と仕様書のひな形は、工房の「チャットで作る」画面のボタンで作れます。中身は「データ」画面で書けます。
+
+## 流れ
+
+1. **作業カードを作る** — 「チャットで作る」画面で「カードを作ってもらう依頼文をコピー」を押し、チャットに貼ります。AIが発想・台本・仕様書を小さな作業カードに分けて返すので、その返事を画面の「3. AIの返事を貼る」に貼って取り込みます。カードは自分で足すこともできます
+2. **1枚ずつ依頼する** — カードの「依頼文をコピー」を押して、チャットに貼ります。依頼文には、カードの目的・ひも付いたデータの今の内容・台本の関係する場面・使えるID・書き方の要点・返事の形式が入っています
+3. **返事を貼って確かめる** — AIの返事をまるごと貼り、「確かめる」を押します。工房が変更案（```rpg-change のブロック）を読み取り、検証と自動テストを走らせ、何が変わるかを言葉で見せます
+4. **取り込む／直してもらう** — 問題がなければ「取り込む」を押します。元に戻すときは Ctrl+Z か「保存履歴」画面を使います。問題があれば「直してほしい点をコピー」を押してチャットに貼り戻し、3 に戻ります
+
+コツ:
+- **カードは小さく**（会話1つ、イベント1つ、敵1体くらい）。チャットのAIは、一度に大きく書き換えると間違えやすいです
+- カードに **自動テスト名** を付けると、AIがテストも作ります。工房がそのテストで遊んで確かめ、テストがないカードは「できた」にできません
+- AIが質問してきたら、決めたことを台本・仕様書に書き足すと、次のカードにも伝わります
+- 同じチャットで続けるより、カードごとに新しいチャットを始める方が、古い内容と混ざらず確実です
+
+## 作業カード（`todo.json`）
+
+```json
+{ "formatVersion": 1, "cards": [
+  { "id": "talk-cat", "title": "村の猫と話す", "goal": "村の広場に猫がいて、話すとニャーと鳴き、フラグ cat-met が立つ",
+    "status": "todo", "links": ["npc:village/cat", "dialogue:cat-talk", "flag:cat-met"],
+    "doneWhen": { "test": "tests/cat.scenario.json", "check": "猫に話しかけられる" }, "notes": "" }
+] }
+```
+
+- `status`: `todo`（これから）・`doing`（作業中）・`done`（できた）
+- `links`: そのカードで作る・変えるデータ。`種類:ID`。マップの上の物は `npc:マップID/ID`。種類は `map` `npc` `interactable` `portal` `entity` `dialogue` `event` `item` `enemy` `ability` `trait` `companion` `status` `flag` `variable` `rule` `test`
+- Codex／Claude Code で作るときも、このカードを作業の単位として使えます（終わったら `status` を `done` に）
+
+## 返事の形式（`rpg-change`）
+
+```rpg-change
+{ "card": "talk-cat", "changes": [
+  { "op": "put", "target": "flag:cat-met", "value": { "initial": false } },
+  { "op": "put", "target": "npc:village/cat", "value": { "name": "ねこ", "x": 4, "y": 10, "dialogues": [{ "dialogue": "cat-talk" }] } },
+  { "op": "put", "target": "dialogue:cat-talk", "value": { "speaker": "ねこ", "lines": ["ニャー"], "effects": [{ "type": "setFlag", "flag": "cat-met", "value": true }] } },
+  { "op": "put", "target": "test:cat", "value": { "name": "猫と話す", "steps": [ … ] } },
+  { "op": "card", "status": "done" }
+] }
+```
+
+- `put`: 丸ごと置き換え（なければ追加）。`remove`: 削除。`card`: カードの状態・メモ。`addCard`: カードを足す
+- マップの削除と、スクリプト（コード）の変更はチャットからはできません
+
+## コマンドで使う（工房を開かない場合）
+
+```bash
+pnpm rpg chat cards --project projects/<id>             # カードの一覧
+pnpm rpg chat card add --project … --id talk-cat --title "村の猫と話す" --links npc:village/cat,dialogue:cat-talk --test cat
+pnpm rpg chat plan --project …                          # カードを作ってもらう依頼文
+pnpm rpg chat pack talk-cat --project …                 # カードの依頼文
+pnpm rpg chat apply answer.md --project …               # 返事を確かめる（保存しない）
+pnpm rpg chat apply answer.md --project … --write       # 確かめて保存
+```
+
+問題があったときは、AIに貼り戻す文章が `.rpg-studio/chat-fix.md` に書き出されます。

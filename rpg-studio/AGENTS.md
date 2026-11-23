@@ -18,6 +18,10 @@
 6. ほかのプロジェクトや作り手が作った仕組みを使うときは `pnpm rpg mod list` / `pnpm rpg mod add <id> --project …`（出どころは mods.json に残る）。自分の仕組みを共有するときは `pnpm rpg mod export <systemId> --project … --author … --license …`
 7. 素材（画像・BGM・効果音）を扱うときは `docs/asset-guide.md` と `pnpm rpg asset sources --project projects/<id>`。タイル・キャラ・敵・戦闘背景は、まず共有素材ライブラリ（`pnpm rpg library list`、見本は `library/previews/`）から `pnpm rpg library add` で取り込めないか探す
 
+## 作業カード（todo.json）がある場合
+
+プロジェクトに `todo.json`（作業カード。`docs/chat-workflow.md`）があれば、作り手が決めた作業の順番と範囲です。カードの `links`（関係するデータ）と `doneWhen`（確かめ方）に沿って1枚ずつ進め、終わったら `status` を `"done"` にしてください。`SCRIPT.md`（台本）・`SPEC.md`（仕様書）があれば、IDEA.md と同じく正本として読みます。
+
 ## 作り方の原則
 
 - **作り手の発想が最優先。** 作りやすさのために発想の核を「よくある形」に置き換えない。データで書けなければ拡張、拡張でも足りなければエンジンを広げる（形式・検証・テストを一緒に）。好みの問題だけを作り手に聞き、決めたことは `IDEA.md` に記録する。

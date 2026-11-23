@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon, Globe2, Search, GraduationCap, Music, Hexagon, LifeBuoy, Undo2, Redo2 } from "lucide-react";
+import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon, Globe2, Search, GraduationCap, Music, Hexagon, LifeBuoy, Undo2, Redo2, MessagesSquare } from "lucide-react";
 import { GameMapSchema, TilesetSchema, type GameContent, type GameMap, type GameState } from "@rpg/schema";
 import { loadImages, type ImageMap } from "../../packages/runtime/src/render";
 import MapEditor, { type Selection } from "./components/MapEditor";
@@ -22,6 +22,7 @@ import TutorialPanel from "./components/TutorialPanel";
 import SongPanel from "./components/SongPanel";
 import SkillBoardPanel from "./components/SkillBoardPanel";
 import HelpPanel from "./components/HelpPanel";
+import ChatPanel from "./components/ChatPanel";
 import { glossaryLookup } from "./lib/glossary";
 import { generateDungeon } from "../../packages/engine/src/dungeon";
 import CodeFinder from "./components/CodeFinder";
@@ -29,10 +30,11 @@ import ConflictDialog from "./components/ConflictDialog";
 import { useProject } from "./lib/useProject";
 import type { ProjectSource } from "./lib/source";
 
-type Section = "idea" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history" | "world" | "search" | "tutorial" | "song" | "skills" | "help";
+type Section = "idea" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history" | "world" | "search" | "tutorial" | "song" | "skills" | "help" | "chat";
 const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
   { id: "tutorial", label: "はじめての5分", icon: GraduationCap },
   { id: "idea", label: "発想", icon: Lightbulb },
+  { id: "chat", label: "チャットで作る", icon: MessagesSquare },
   { id: "map", label: "マップ", icon: MapIcon },
   { id: "world", label: "ワールド全体図", icon: Globe2 },
   { id: "story", label: "会話・イベント", icon: MessageSquare },
@@ -210,6 +212,7 @@ export default function App({ source }: { source: ProjectSource }) {
       {section === "data" && <DataPanel store={store} diagnostics={store.diagnostics} file={dataFile} onFile={setDataFile} />}
       {section === "assets" && playContent && <AssetsPanel store={store} content={playContent} images={images} />}
       {section === "world" && playContent && <WorldPanel content={playContent} onOpenMap={id => { setMapId(id); setSelection(null); setSection("map"); }} />}
+      {section === "chat" && <ChatPanel store={store} />}
       {section === "help" && playContent && <HelpPanel store={store} content={playContent} />}
       {section === "skills" && playContent && <SkillBoardPanel store={store} content={playContent} />}
       {section === "song" && playContent && <SongPanel store={store} content={playContent} />}
@@ -217,7 +220,7 @@ export default function App({ source }: { source: ProjectSource }) {
       {section === "search" && <SearchPanel store={store} onOpenFile={openFile} />}
       {section === "history" && <HistoryPanel store={store} source={source} />}
       {section === "checks" && <ChecksPanel store={store} diagnostics={store.diagnostics} onOpenFile={openFile} onPlayState={st => { setPlayState({ state: st, nonce: Date.now() }); setSection("play"); }} />}
-      {!editContent && section !== "data" && section !== "checks" && <div className="empty">プロジェクトが一度も検証を通っていません。「検証」と「データ」で問題を直してください。</div>}
+      {!editContent && section !== "data" && section !== "checks" && section !== "chat" && <div className="empty">プロジェクトが一度も検証を通っていません。「検証」と「データ」で問題を直してください。</div>}
     </section>
 
     <footer className={`console ${consoleOpen ? "is-open" : ""}`}>

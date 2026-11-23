@@ -22,6 +22,12 @@ pnpm rpg dev                     # 完成版ゲームだけを試遊: http://127
 
 `pnpm dev` は Vite の Preview モードで工房UIを起動します（サンプルを画面上で試すだけ。ファイルには保存されません）。
 
+## どのAIで作るか
+
+- **短編（〜30分）**: ChatGPT や Claude の**チャット**でも作れます。工房の「チャットで作る」画面で、作業カードごとに依頼文をコピー → AIの返事を貼る → 工房が検証・自動テストして取り込みます（[docs/chat-workflow.md](docs/chat-workflow.md)、CLI は `pnpm rpg chat`）
+- **長編**: **Codex（おすすめ）** や Claude Code のように、ファイルを直接扱えるAIで作ってください
+- どちらでも **台本（`SCRIPT.md`）** があると話がぶれません。長編は **仕様書（`SPEC.md`）** もおすすめです（ひな形は「チャットで作る」画面のボタンで作れます）
+
 ## Codex / Claude Codeでローカル制作
 
 ZIPをPC上に展開してそのフォルダーをCodexまたはClaude Codeで開くと、同梱の `rpg-studio` スキルから既存のゲームデータや制作規約を参照できます。Codexでは `$rpg-studio`、Claude Codeでは `/rpg-studio` と依頼文を入力してください。導入手順と利用例は [docs/ai-local-workflow.md](docs/ai-local-workflow.md) にあります。工房にAI APIは不要です。

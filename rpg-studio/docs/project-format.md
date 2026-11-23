@@ -217,6 +217,12 @@
 - 属性: `project.json › elements: { "fire": { "label": "炎" } }`。敵の `resist: { "fire": 150 }`（150 = 弱点、50 = 半減、0 = 無効）、武器の `element`（通常攻撃の属性）、防具・装飾品の `resist`（受けるダメージ）、効果 `damage` の `element`。弱点・半減は戦闘ログに「弱点！」などと出る。
 - 自動テスト: `expect.statuses` / `expect.lacksStatuses`。見本: `projects/genre-gallery/tests/status.scenario.json`。
 
+## 作業カード・台本・仕様書（チャットで作る）
+
+- `todo.json`: `{ "formatVersion": 1, "cards": [{ "id", "title", "goal", "status": "todo"|"doing"|"done", "links": ["npc:village/cat", "dialogue:cat-talk"], "doneWhen": { "test": "tests/cat.scenario.json", "check": "…" }, "notes" }] }`。壊れていてもゲームは動く（検証は警告）
+- `SCRIPT.md`（台本）・`SPEC.md`（仕様書）: 見出しごとの場面・決まりごと。依頼文に関係する所が入る
+- AIの返事の形式（`rpg-change`）と流れは `docs/chat-workflow.md`。`pnpm rpg chat cards|card|plan|pack|apply`
+
 ## v2.4 の追加
 
 - `project.json › party.follow`（既定 true: 仲間が後ろをついて歩く）、仲間の `chat: [{ "when"?: 条件, "text": "…" }]`（メニューの「はなす」で条件に合う最後の一言）

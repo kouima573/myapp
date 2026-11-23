@@ -1,5 +1,6 @@
 import type { z } from "zod";
 import { assetCategory, isSourceEnabled, sourcesFor } from "./sources";
+import { readTodo, TODO_FILE } from "./chat";
 import {
   scriptIdsOf, type ScriptRef,
   AssetManifestSchema, BATTLE_TRIGGERS, DatabaseSchema, IMAGE_KINDS, parseNotes, RuleBundleSchema, SongSchema, DialogueBundleSchema, EventBundleSchema, GameMapSchema, PROJECT_FORMAT_VERSION,
@@ -155,6 +156,9 @@ export function loadProjectContent(texts: ProjectFileTexts): LoadResult {
   duplicateIds(project.databasePath, "traits", database.traits, diagnostics);
   if (project.rulesPath) duplicateIds(project.rulesPath, "rules", ruleBundle.rules, diagnostics);
   diagnostics.push(...checkReferences(content, mapFiles));
+  // 作業カード（チャットで作る）: 壊れていてもゲームは動くので警告だけ。
+  const todo = readTodo(texts);
+  if (todo.error) diagnostics.push({ severity: "warning", file: TODO_FILE, message: todo.error });
   return { content: diagnostics.some(d => d.severity === "error") ? null : content, diagnostics };
 }
 
