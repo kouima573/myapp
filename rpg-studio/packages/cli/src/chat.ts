@@ -122,6 +122,13 @@ export async function cmdChat(sub: string | undefined, args: string[], flags: Fl
     if (!from) { console.log("ERROR AIの返事を保存したファイルを指定してください（- で標準入力）"); return 2; }
     const answer = from === "-" ? await new Promise<string>(resolve => { let s = ""; process.stdin.setEncoding("utf8"); process.stdin.on("data", d => { s += d; }); process.stdin.on("end", () => resolve(s)); }) : await fs.readFile(path.resolve(from), "utf8");
     const result = await tryProposal(root, texts, answer);
+    const assumptions = result.set?.assumptions, unresolved = result.set?.unresolved;
+    if (!result.set || assumptions === undefined || unresolved === undefined) console.log("WARN 前提・未決事項の申告がない変更案です。変更内容を確認してください");
+    else {
+      for (const item of assumptions) console.log(`ASSUMPTION ${item}`);
+      for (const item of unresolved) console.log(`UNRESOLVED ${item}`);
+      if (!assumptions.length && !unresolved.length) console.log("INFO AIの申告: 追加前提・未決事項なし");
+    }
     for (const n of result.notes) console.log(`- ${n}`);
     for (const line of result.summary) console.log(`  ${line}`);
     if (result.problems.length) {

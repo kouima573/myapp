@@ -220,6 +220,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     largeText: rawSet.largeText === true,
     colorAssist: rawSet.colorAssist === true,
     showControls: typeof rawSet.showControls === "boolean" ? rawSet.showControls : true,
+    showObjective: rawSet.showObjective === true,
     clickMove: rawSet.clickMove !== false,
     reducedMotion: typeof rawSet.reducedMotion === "boolean" ? rawSet.reducedMotion : Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches),
     shake: typeof rawSet.shake === "boolean" ? rawSet.shake : true,
@@ -275,7 +276,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
   let lastRouteStep = 0;
   /** Damage numbers shown over the battle (070). */
   const POPUP_MS = 900;
-  let popups: Array<{ text: string; target: "enemy" | "player"; at: number; n: number }> = [];
+  let popups: Array<{ text: string; target: "enemy" | "player"; at: number; n: number; tone?: "weak" | "resist" | "immune" | "guard" }> = [];
   /** True while the title screen (and its load / credits views) is shown: they stay on top of the opening scene. */
   let atTitle = false;
   if (options.titleScreen && content.project.titleScreen.enabled && !options.initialState) { menuOpen = true; menuView = "title"; atTitle = true; }
@@ -439,7 +440,13 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       else if (cue.kind === "quest") { showToast(`${cue.action === "start" ? "依頼を受けた" : cue.action === "complete" ? "依頼を達成した" : cue.action === "fail" ? "依頼に失敗した" : "目標を達成した"}：「${cue.title}」`); if (cue.action === "complete") audio.cue("item"); }
       else if (cue.kind === "miss") popups.push({ text: "MISS", target: cue.target, at: performance.now(), n: popups.length });
       else if (cue.kind === "critical") popups.push({ text: "会心！", target: cue.target, at: performance.now(), n: popups.length });
-      else if (cue.kind === "hit") { popups.push({ text: String(cue.amount), target: cue.target, at: performance.now(), n: popups.length }); audio.cue(cue.target === "enemy" ? "hit" : "hurt"); if (cue.target === "player" && uiPrefs.shake) shakeUntil = performance.now() + 220; }
+      else if (cue.kind === "hit") {
+        const tone = cue.guarded ? "guard" : cue.effectiveness;
+        const text = tone === "weak" ? `WEAK! ${cue.amount}` : tone === "resist" ? `RESIST ${cue.amount}` : tone === "immune" ? "無効！" : tone === "guard" ? `GUARD ${cue.amount}` : String(cue.amount);
+        popups.push({ text, target: cue.target, ...(tone ? { tone } : {}), at: performance.now(), n: popups.length });
+        audio.cue(cue.target === "enemy" ? "hit" : "hurt");
+        if (cue.target === "player" && uiPrefs.shake) shakeUntil = performance.now() + 220;
+      }
       else if (cue.kind === "battleEnd") {
         if (cue.outcome === "victory") { const v = content.project.audio.victory; if (v) audio.playSound(v); else audio.cue("victory"); }
         else if (cue.outcome === "defeat") audio.cue("defeat");
@@ -899,6 +906,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       const carried = content.maps[state.carrying.home]?.entities.find(e => e.id === state.carrying!.id);
       left.append(el("div", "rpg-hud-vars", `運んでいる: ${carried?.states.find(st => st.name)?.name ?? carried?.name ?? state.carrying.id}（向いた先の空きマスで決定すると置く）`));
     }
+    const objective = uiPrefs.showObjective && state.scene.kind === "field" ? currentObjectiveText() : "";
+    if (objective) left.append(el("div", "rpg-hud-objective", `目標: ${objective}`));
     if (uiPrefs.showControls && state.scene.kind === "field") left.append(el("div", "rpg-hud-vars", "操作: 矢印 / WASDで移動 · Enter / Zで決定 · Esc / Xでメニュー"));
     const verbs = state.scene.kind === "field" ? availableVerbs() : [];
     if (verbs.length) {
@@ -967,7 +976,12 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       if (go.text) box.appendChild(el("div", "rpg-ending-text", engine.text(state, go.text)));
       const hasSave = SLOTS.some(slot => readSlot(slot));
       if (hasSave) box.appendChild(navButton("ロードする", () => { menuOpen = true; slotReturn = "main"; menuView = "load"; selection = 0; renderUI(); }));
-      if (go.retry) box.appendChild(navButton("もう一度立ち上がる", () => dispatch({ type: "advance" })));
+      if (go.retry && engine.canRetryBattle(state)) {
+        box.appendChild(navButton("この戦闘をやり直す（全回復）", () => dispatch({ type: "retryBattle" }), { hint: "戦闘直前の状態から再戦します" }));
+        box.appendChild(navButton("難易度を下げて再戦（全回復）", () => dispatch({ type: "retryBattle", difficulty: "easy" }), { hint: "敵の攻撃力・防御力を25%下げます" }));
+      }
+      if (go.retry) box.appendChild(navButton("拠点から再開する", () => dispatch({ type: "advance" })));
+      box.appendChild(navButton("不具合報告用の状態をコピー", copyDiagnosticState));
       box.appendChild(navButton("タイトルへ", () => askConfirm("タイトルに戻りますか？", () => { setState(engine.newGame(options.seed)); if (content.project.titleScreen.enabled) { menuOpen = true; menuView = "title"; atTitle = true; } renderUI(); })));
       windowLayer.appendChild(box);
     }
@@ -1161,7 +1175,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     const now = performance.now();
     popups = popups.filter(p => now - p.at < POPUP_MS);
     popups.forEach((p, i) => {
-      const pop = el("div", `rpg-pop is-${p.target}`, p.text);
+      const pop = el("div", `rpg-pop is-${p.target}${p.tone ? ` is-${p.tone}` : ""}`, p.text);
       pop.style.animationDelay = `${-(now - p.at)}ms`;
       pop.style.setProperty("--dx", `${((p.n * 37) % 5 - 2) * 1.2}em`);
       if (i > 6) return;
@@ -1219,6 +1233,41 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     catch { showToast("フィードバックURLを開けません"); return; }
     if (url.protocol !== "https:") { showToast("フィードバックURLはHTTPSのみ開けます"); return; }
     window.open(url.href, "_blank", "noopener,noreferrer");
+  }
+
+  function currentObjectiveText(): string {
+    for (const [id, quest] of Object.entries(content.project.quests)) {
+      if (quest.hidden) continue;
+      const progress = state.quests?.[id];
+      if (progress?.status !== "active") continue;
+      const next = quest.objectives.find(objective => !progress.objectivesDone.includes(objective.id));
+      const text = next?.text || quest.description || quest.title;
+      if (text) return stripMarkup(engine.text(state, text));
+    }
+    return "";
+  }
+
+  function copyDiagnosticState() {
+    const battle = state.scene.kind === "battle" ? state.scene.battle : undefined;
+    const report = {
+      format: "rpg-studio-state-v1",
+      projectId: content.project.id,
+      location: { mapId: state.mapId, map: content.maps[state.mapId]?.title ?? state.mapId, x: state.player.x, y: state.player.y },
+      scene: state.scene.kind,
+      steps: state.steps,
+      cycle: state.cycle,
+      player: { hp: state.player.hp, maxHp: engine.stats(state).maxHp, level: engine.levelInfo(state)?.level ?? 1, statuses: state.player.statuses?.map(status => status.id) ?? [] },
+      flags: state.flags,
+      variables: state.vars,
+      quests: Object.fromEntries(Object.entries(state.quests ?? {}).map(([id, progress]) => [id, { status: progress.status, objectivesDone: progress.objectivesDone }])),
+      ...(battle ? { battle: { enemyId: battle.enemyId, enemyHp: battle.enemyHp, foes: battle.foes?.map(foe => ({ enemyId: foe.enemyId, hp: foe.hp })), turn: battle.turn, outcome: battle.outcome } } : {}),
+    };
+    const clipboard = navigator.clipboard;
+    if (!clipboard?.writeText) { showToast("この環境ではクリップボードを使えません"); return; }
+    void clipboard.writeText(JSON.stringify(report, null, 2)).then(
+      () => showToast("診断用の状態をコピーしました（セリフとセーブ本体は含みません）"),
+      () => showToast("コピーできません。ブラウザのクリップボード許可を確認してください"),
+    );
   }
 
   function slotSummary(slot: Slot): string | null {
@@ -1610,12 +1659,14 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
       navButton(`動きの軽減: ${uiPrefs.reducedMotion ? "あり" : "なし"}`, () => { uiPrefs.reducedMotion = !uiPrefs.reducedMotion; savePrefs(audio.settings); }),
       navButton(`色覚補助: ${uiPrefs.colorAssist ? "あり" : "なし"}`, () => { uiPrefs.colorAssist = !uiPrefs.colorAssist; savePrefs(audio.settings); }, { hint: "HPゲージに模様を追加" }),
       navButton(`操作説明: ${uiPrefs.showControls ? "表示" : "非表示"}`, () => { uiPrefs.showControls = !uiPrefs.showControls; savePrefs(audio.settings); }),
+      ...(Object.keys(content.project.quests).length ? [navButton(`現在の目標: ${uiPrefs.showObjective ? "表示" : "非表示"}`, () => { uiPrefs.showObjective = !uiPrefs.showObjective; savePrefs(audio.settings); }, { hint: "進行中の依頼の次の目標を画面に表示" })] : []),
       navButton(`クリック移動: ${uiPrefs.clickMove ? "あり" : "なし"}`, () => { uiPrefs.clickMove = !uiPrefs.clickMove; savePrefs(audio.settings); }, { hint: "マップをクリックして歩く" }),
       navButton(`画面揺れ: ${uiPrefs.shake ? "あり" : "なし"}`, () => { uiPrefs.shake = !uiPrefs.shake; savePrefs(audio.settings); }),
       navButton(`戦闘: ${uiPrefs.battleSpeed === "fast" ? "はやい" : "ふつう"}`, () => { uiPrefs.battleSpeed = uiPrefs.battleSpeed === "fast" ? "normal" : "fast"; savePrefs(audio.settings); }),
       ...(content.project.audio.textSound ? [navButton(`文字の音: ${uiPrefs.textSound ? "あり" : "なし"}`, () => { uiPrefs.textSound = !uiPrefs.textSound; savePrefs(audio.settings); })] : []),
       ...(content.project.minimap?.enabled ? [navButton(`ミニマップ: ${uiPrefs.minimap ? "表示" : "隠す"}［N］`, () => { uiPrefs.minimap = !uiPrefs.minimap; savePrefs(audio.settings); })] : []),
       navButton("会話履歴", () => { backlogOpen = true; selection = 0; renderUI(); }),
+      navButton("不具合報告用の状態をコピー", copyDiagnosticState, { hint: "現在地・HP・進行状態。セリフとセーブ本体は含みません" }),
       ...(content.project.feedback ? [navButton(content.project.feedback.label, openFeedbackPage, { hint: "フィードバックページを新しいタブで開く" })] : []),
       navButton("クレジット", () => { creditsOpen = true; selection = 0; renderUI(); }),
       navButton("とじる", () => { menuOpen = false; renderUI(); }),
@@ -1700,6 +1751,7 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     try { parsed = JSON.parse(raw); } catch { showToast("セーブデータが壊れています。新しく始めることができます。"); return; }
     const result = readSave(parsed, content);
     if (!result.ok) { showToast(`${result.reason}。新しく始めることができます。`, 4000); return; }
+    engine.clearBattleRetrySnapshot();
     menuOpen = false; menuView = "main"; atTitle = false;
     setState(result.save.state);
     showToast(result.migrated ? "旧形式のセーブを変換して読み込みました。" : `${from}からロードしました。`);

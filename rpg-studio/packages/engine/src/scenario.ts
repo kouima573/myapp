@@ -80,6 +80,8 @@ const StepSchema = z.union([
   z.object({ input: z.string() }).strict(),
   /** target: which enemy to attack (0 = the first, 1 = the next of `with`…). */
   z.object({ battle: z.enum(["attack", "guard", "flee"]), target: z.number().int().min(0).max(7).optional() }).strict(),
+  /** Retry after a game-over screen; "easy" lowers enemy attack and defense. */
+  z.object({ retryBattle: z.enum(["normal", "easy"]).default("normal") }).strict(),
   z.object({ battleItem: IdSchema }).strict(),
   z.object({ skill: IdSchema }).strict(),
   z.object({ tick: z.number().int().positive() }).strict(),
@@ -126,6 +128,119 @@ export interface ScenarioResult {
   steps: number;
   /** The game state where it stopped (the failing step, or the end): the studio can open it in the play-test. */
   state?: GameState;
+}
+
+export interface BattleBalanceResult {
+  enemyId: string;
+  level: number;
+  requested: number;
+  completed: number;
+  wins: number;
+  defeats: number;
+  timeouts: number;
+  unsupported: number;
+  winRate: number | null;
+  averageTurnsOnWin: number | null;
+  averageHpPercentOnWin: number | null;
+  averageHealingItemsUsed: number | null;
+}
+
+/** Repeat a built-in battle with deterministic seeds and the same simple AI used by `fight: auto`. */
+export function simulateBattleBalance(content: GameContent, systems: GameSystem[], enemyId: string, level = 1, runs = 20): BattleBalanceResult {
+  const enemyDef = content.database.enemies.find(enemy => enemy.id === enemyId);
+  if (!enemyDef) throw new ScenarioError(`敵 '${enemyId}' がありません`);
+  const requested = Math.max(1, Math.min(100, Math.floor(runs)));
+  const requestedLevel = Math.max(1, Math.floor(level));
+  const leveling = content.project.leveling;
+  const effectiveLevel = leveling ? Math.min(leveling.maxLevel, requestedLevel) : 1;
+  let wins = 0, defeats = 0, timeouts = 0, unsupported = 0;
+  let turnsOnWin = 0, hpPercentOnWin = 0, healingItemsUsed = 0, completed = 0;
+  for (let sample = 0; sample < requested; sample++) {
+    const engine = createEngine(content, systems);
+    let state = engine.newGame(sample + 1);
+    let ready = false;
+    for (let guard = 0; guard < 200; guard++) {
+      if (state.scene.kind === "field" && state.queue.length === 0) { ready = true; break; }
+      const scene = state.scene;
+      if (scene.kind === "message" || scene.kind === "dialogue" || scene.kind === "ending") state = engine.step(state, { type: "advance" }).state;
+      else if (scene.kind === "choice") {
+        const dialogue = content.dialogues[scene.dialogueId];
+        const choice = dialogue?.choices.find(item => engine.evaluate(item.when, state));
+        if (!choice) break;
+        state = engine.step(state, { type: "choose", choiceId: choice.id }).state;
+      } else if (scene.kind === "prompt") {
+        const option = scene.options[0];
+        if (!option) break;
+        state = engine.step(state, { type: "choose", choiceId: option.id }).state;
+      } else if (scene.kind === "input") {
+        const text = scene.saveAs === "name" ? (state.player.name ?? content.project.player.name) : (scene.initial || scene.answers[0]?.match[0] || "");
+        state = engine.step(state, { type: "submitText", text }).state;
+      } else break;
+    }
+    if (!ready) { unsupported++; continue; }
+
+    if (leveling && effectiveLevel > 1) {
+      const gains = leveling.gains;
+      const increments = effectiveLevel - 1;
+      const playerStats = {
+        ...state.player.stats,
+        maxHp: state.player.stats.maxHp + gains.maxHp * increments,
+        ...(state.player.stats.maxMp !== undefined || gains.maxMp !== undefined ? { maxMp: (state.player.stats.maxMp ?? 0) + (gains.maxMp ?? 0) * increments } : {}),
+        ...(state.player.stats.maxSp !== undefined || gains.maxSp !== undefined ? { maxSp: (state.player.stats.maxSp ?? 0) + (gains.maxSp ?? 0) * increments } : {}),
+        attack: state.player.stats.attack + gains.attack * increments,
+        defense: state.player.stats.defense + gains.defense * increments,
+      };
+      state = {
+        ...state,
+        player: { ...state.player, stats: playerStats, level: effectiveLevel, exp: 0 },
+        abilities: [...new Set([...state.abilities, ...leveling.learn.filter(entry => entry.level <= effectiveLevel).map(entry => entry.ability)])],
+      };
+      const cap = engine.stats(state);
+      state = { ...state, player: { ...state.player, hp: cap.maxHp, ...(cap.maxMp !== undefined ? { mp: cap.maxMp } : {}), ...(cap.maxSp !== undefined ? { sp: cap.maxSp } : {}) } };
+    }
+    state = engine.run(state, [{ type: "battle", enemy: enemyId }]).state;
+    let outcome: "victory" | "defeat" | "timeout" | "unsupported" = "timeout";
+    let turns = 0, healingUsed = 0;
+    for (let turn = 0; turn < 200; turn++) {
+      if (state.scene.kind === "custom" && state.scene.battle) { outcome = "unsupported"; break; }
+      if (state.scene.kind !== "battle") { outcome = "unsupported"; break; }
+      const battle = state.scene.battle;
+      if (battle.outcome !== "ongoing") { outcome = battle.outcome === "victory" ? "victory" : battle.outcome === "defeat" ? "defeat" : "unsupported"; turns = battle.turn; break; }
+      const enemy = content.database.enemies.find(entry => entry.id === battle.enemyId);
+      if (!enemy?.actions.length) { outcome = "unsupported"; break; }
+      const available = enemy.actions.filter(action => engine.evaluate(action.when, state));
+      if (!available.length) { state = engine.step(state, { type: "battle", command: "attack" }).state; continue; }
+      const action = available[battle.turn % available.length]!;
+      const previous = available[(battle.turn + available.length - 1) % available.length]!;
+      const herb = content.database.items.find(item => item.heal && (state.items[item.id] ?? 0) > 0);
+      const command = battle.turn > 0 && previous.power === 0 && action.power > 0
+        ? { type: "battle" as const, command: "guard" as const }
+        : herb && state.player.hp * 2 < engine.stats(state).maxHp
+          ? { type: "battle" as const, command: "item" as const, item: herb.id }
+          : { type: "battle" as const, command: "attack" as const };
+      const itemId = command.command === "item" ? command.item : null;
+      const itemCountBefore = itemId ? state.items[itemId] ?? 0 : 0;
+      state = engine.step(state, command).state;
+      if (itemId && (state.items[itemId] ?? 0) < itemCountBefore) healingUsed++;
+    }
+    if (outcome === "victory" || outcome === "defeat") {
+      completed++;
+      healingItemsUsed += healingUsed;
+      if (outcome === "victory") {
+        wins++;
+        turnsOnWin += turns;
+        hpPercentOnWin += Math.round(state.player.hp / Math.max(1, engine.stats(state).maxHp) * 100);
+      } else defeats++;
+    } else if (outcome === "timeout") timeouts++;
+    else unsupported++;
+  }
+  return {
+    enemyId, level: effectiveLevel, requested, completed, wins, defeats, timeouts, unsupported,
+    winRate: completed ? wins / completed : null,
+    averageTurnsOnWin: wins ? turnsOnWin / wins : null,
+    averageHpPercentOnWin: wins ? hpPercentOnWin / wins : null,
+    averageHealingItemsUsed: completed ? healingItemsUsed / completed : null,
+  };
 }
 
 class ScenarioError extends Error {}
@@ -290,6 +405,12 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
         step({ type: "choose", choiceId: s.choose });
         if (state === before) throw new ScenarioError(`choose: 選択肢 '${s.choose}' は選べません`);
       } else if ("battle" in s) step(s.battle === "attack" ? { type: "battle", command: "attack", ...(s.target !== undefined ? { target: s.target } : {}) } : { type: "battle", command: s.battle });
+      else if ("retryBattle" in s) {
+        if (state.scene.kind !== "gameover") throw new ScenarioError(`retryBattle: ゲームオーバー画面ではありません (scene=${state.scene.kind})`);
+        step({ type: "retryBattle", difficulty: s.retryBattle });
+        // step() replaced state; TypeScript still narrows to "gameover" here
+        if ((state.scene as { kind: string }).kind !== "battle") throw new ScenarioError("retryBattle: 戦闘を再開できません（project.gameOver.retry または直前の戦闘を確認してください）");
+      }
       else if ("battleItem" in s) step({ type: "battle", command: "item", item: s.battleItem });
       else if ("skill" in s) step({ type: "battle", command: "skill", ability: s.skill });
       else if ("sceneInputs" in s) {

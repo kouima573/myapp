@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { FileJson2, FileCode2, Wand2, Undo2, Redo2 } from "lucide-react";
+import { FileJson2, FileCode2, FileText, Wand2, Undo2, Redo2, Search } from "lucide-react";
 import { formatDiagnostic, type Diagnostic } from "@rpg/schema";
 import type { ProjectStore } from "../lib/useProject";
 
@@ -10,24 +10,59 @@ interface Props {
   onFile: (file: string) => void;
 }
 
-const ORDER = ["project.json", "tiles.json", "database.json", "dialogues/", "events/", "maps/", "assets.json", "tests/", "systems/"];
-const rank = (path: string) => { const i = ORDER.findIndex(prefix => path === prefix || path.startsWith(prefix)); return i < 0 ? 99 : i; };
-const LABELS: Record<string, string> = {
-  "project.json": "開始位置・主人公・フラグ宣言・ファイル参照",
-  "tiles.json": "タイルの種類と通行ルール",
-  "database.json": "能力・アイテム・敵",
-  "assets.json": "素材の出典・寸法",
-};
+type DataCategory = "project" | "world" | "story" | "database" | "assets" | "tests" | "code" | "other";
+const CATEGORIES: Array<{ id: DataCategory; title: string; help: string }> = [
+  { id: "project", title: "プロジェクト", help: "作品の基本情報・説明書" },
+  { id: "world", title: "マップ・世界", help: "マップ・タイル・美術資料" },
+  { id: "story", title: "物語・ルール", help: "会話・イベント・ゲームルール" },
+  { id: "database", title: "人物・敵・道具", help: "仲間・敵・能力・アイテム" },
+  { id: "assets", title: "素材", help: "素材の出典情報・制作資料。画像や音声は「素材」画面で管理します" },
+  { id: "tests", title: "テスト", help: "自動プレイのシナリオ" },
+  { id: "code", title: "拡張コード", help: "独自の仕組み・スクリプト" },
+  { id: "other", title: "その他", help: "上記に分類されないファイル" },
+];
+function categoryFor(path: string): DataCategory {
+  if (["project.json", "README.md", "README.txt", "IDEA.md", "SPEC.md"].includes(path) || /^docs\//.test(path)) return "project";
+  if (path.startsWith("maps/") || path === "tiles.json" || path.startsWith("art/") && /tile|map|world/i.test(path)) return "world";
+  if (["rules.json"].includes(path) || path.startsWith("dialogues/") || path.startsWith("events/")) return "story";
+  if (path === "database.json") return "database";
+  if (path === "assets.json" || path.startsWith("assets/") || path.startsWith("art/")) return "assets";
+  if (path.startsWith("tests/")) return "tests";
+  if (path.startsWith("systems/") || path.startsWith("scripts/")) return "code";
+  return "other";
+}
+function fileHelp(path: string): string {
+  const fixed: Record<string, string> = {
+    "project.json": "開始位置・主人公・フラグ・各データファイルの参照先",
+    "tiles.json": "マップのタイルと通行ルール",
+    "database.json": "人物・仲間・敵・能力・装備・アイテム",
+    "assets.json": "素材ファイルの種類・出典・ライセンス・表示設定",
+    "rules.json": "条件を満たしたときに起きる効果やゲーム進行のルール",
+  };
+  if (fixed[path]) return fixed[path]!;
+  if (path.startsWith("maps/")) return "マップの地形・出入口・配置物";
+  if (path.startsWith("dialogues/")) return "会話・選択肢・会話中の演出";
+  if (path.startsWith("events/")) return "調べる場所・宝箱・イベントの処理";
+  if (path.startsWith("tests/")) return "プレイヤー操作を再現する自動プレイシナリオ";
+  if (path.startsWith("systems/")) return "戦闘や進行に独自の仕組みを追加するTypeScript";
+  if (path.startsWith("scripts/")) return "会話やイベントから呼び出すTypeScript";
+  if (path.startsWith("assets/")) return "ゲーム内で使う画像・音声などの実ファイル";
+  if (path.startsWith("art/")) return "美術資料・生成依頼などの制作ファイル";
+  return "プロジェクトに含まれるファイル";
+}
 
 export default function DataPanel({ store, diagnostics, file, onFile }: Props) {
-  const files = useMemo(() => Object.keys(store.texts).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)), [store.texts]);
+  const files = useMemo(() => Object.keys(store.texts).sort((a, b) => a.localeCompare(b)), [store.texts]);
   const current = file && store.texts[file] !== undefined ? file : files[0] ?? null;
   const text = current ? store.texts[current] ?? "" : "";
+  const [category, setCategory] = useState<DataCategory | "all">(() => current ? categoryFor(current) : "all");
+  const [filter, setFilter] = useState("");
   const [draft, setDraft] = useState(text);
   const [parseError, setParseError] = useState<string | null>(null);
   const editing = useRef(false);
   /** File text when the user started typing; if the store text moves away from it, the file changed externally. */
   const base = useRef(text);
+  useEffect(() => { if (file && store.texts[file] !== undefined) setCategory(categoryFor(file)); }, [file, store.texts]);
   useEffect(() => { if (!editing.current) { setDraft(text); base.current = text; } }, [text, current]);
   useEffect(() => { editing.current = false; setParseError(null); }, [current]);
   // After a conflict on this file is resolved, show whatever the store now holds.
@@ -43,6 +78,19 @@ export default function DataPanel({ store, diagnostics, file, onFile }: Props) {
     for (const d of diagnostics) if (d.file && d.severity === "error") map[d.file] = (map[d.file] ?? 0) + 1;
     return map;
   }, [diagnostics]);
+  const categoryCounts = useMemo(() => {
+    const result = new Map<DataCategory, number>();
+    for (const path of files) result.set(categoryFor(path), (result.get(categoryFor(path)) ?? 0) + 1);
+    return result;
+  }, [files]);
+  const visibleFiles = files.filter(path => (category === "all" || categoryFor(path) === category) && path.toLocaleLowerCase().includes(filter.trim().toLocaleLowerCase()));
+  const activeCategory = category === "all" ? null : CATEGORIES.find(item => item.id === category);
+  const selectCategory = (next: DataCategory | "all") => {
+    setCategory(next);
+    const nextFiles = files.filter(path => (next === "all" || categoryFor(path) === next) && path.toLocaleLowerCase().includes(filter.trim().toLocaleLowerCase()));
+    if (current && nextFiles.includes(current)) return;
+    if (nextFiles[0]) onFile(nextFiles[0]);
+  };
 
   const commit = (value: string) => {
     if (!current) return;
@@ -62,19 +110,28 @@ export default function DataPanel({ store, diagnostics, file, onFile }: Props) {
 
   return <div className="data-panel">
     <nav className="file-list" aria-label="プロジェクトファイル">
-      {files.map(path => <button key={path} className={`file-item ${path === current ? "is-active" : ""}`} onClick={() => onFile(path)}>
-        {path.endsWith(".ts") ? <FileCode2 size={13} /> : <FileJson2 size={13} />}
+      <label className="data-search"><Search size={13} /><input value={filter} onChange={e => setFilter(e.target.value)} placeholder="テキストファイルを検索" aria-label="テキストファイルを検索" /></label>
+      <div className="data-categories" aria-label="データの分類">
+        <button className={`data-category ${category === "all" ? "is-active" : ""}`} onClick={() => selectCategory("all")}><span>すべてのデータ</span><span className="count">{files.length}</span></button>
+        {CATEGORIES.filter(item => categoryCounts.has(item.id)).map(item => <button key={item.id} className={`data-category ${category === item.id ? "is-active" : ""}`} title={item.help} onClick={() => selectCategory(item.id)}>
+          <span>{item.title}</span><span className="count">{categoryCounts.get(item.id)}</span>
+        </button>)}
+      </div>
+      <div className="data-file-heading">{activeCategory?.title ?? "ファイル一覧"}<span>{visibleFiles.length}件</span></div>
+      {visibleFiles.map(path => <button key={path} className={`file-item ${path === current ? "is-active" : ""}`} onClick={() => onFile(path)} title={fileHelp(path)}>
+        {path.endsWith(".ts") ? <FileCode2 size={13} /> : path.endsWith(".json") ? <FileJson2 size={13} /> : <FileText size={13} />}
         <span className="file-name">{path}</span>
         {store.dirty.has(path) && <span className="dot amber" title="未保存" />}
         {counts[path] ? <span className="count error">{counts[path]}</span> : null}
       </button>)}
+      {!visibleFiles.length && <p className="muted small data-empty">該当するファイルはありません。</p>}
     </nav>
     <div className="file-editor">
       {current && <>
         <div className="file-head">
           <div>
             <div className="mono">{current}</div>
-            <div className="muted small">{LABELS[current] ?? (current.startsWith("systems/") ? "信頼されたTypeScriptの独自ルール（保存すると型検査・再ビルド）" : current.startsWith("tests/") ? "自動プレイテスト（pnpm rpg test / 検証画面で実行）" : "")}</div>
+            <div className="muted small">{fileHelp(current)}{current.startsWith("systems/") ? "（保存すると型検査・再ビルド）" : current.startsWith("tests/") ? "（検証画面から実行）" : ""}</div>
           </div>
           <span className="spacer" />
           <button className="button" title="元に戻す（Ctrl/⌘+Z）" aria-label="元に戻す" onClick={() => current && store.undo(current)} disabled={!history.canUndo}><Undo2 size={14} /></button>

@@ -33,7 +33,7 @@ import type { PreviewSource, ProjectSource } from "./lib/source";
 
 type Section = "idea" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history" | "world" | "search" | "tutorial" | "song" | "skills" | "help" | "chat" | "projects";
 const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
-  { id: "projects", label: "プロジェクト（保存・書き出し）", icon: HardDrive },
+  { id: "projects", label: "プロジェクト・公開準備", icon: HardDrive },
   { id: "tutorial", label: "はじめての5分", icon: GraduationCap },
   { id: "idea", label: "発想", icon: Lightbulb },
   { id: "chat", label: "チャットで作る", icon: MessagesSquare },
@@ -74,7 +74,7 @@ export default function App({ source }: { source: ProjectSource }) {
     if (source.kind !== "preview") return;
     (source as PreviewSource).onSaved = (state, message) => { if (state === "error") store.log("error", `このブラウザに保存できません: ${message ?? ""}（「プロジェクト」画面からZIPで書き出して残してください）`); };
   }, [source, store]);
-  const [section, setSection] = useState<Section>("map");
+  const [section, setSection] = useState<Section>("idea");
   const [findingCode, setFindingCode] = useState(false);
   const [mapId, setMapId] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>(null);

@@ -42,6 +42,7 @@ export function actionsToSteps(actions: Action[]): { steps: Step[]; skipped: num
         else if (a.command === "order") steps.push({ battleOrder: { companion: a.companion, action: a.action } });
         else if (a.command === "script") steps.push({ command: a.id, source: a.source.split("@")[0] });
         break;
+      case "retryBattle": steps.push({ retryBattle: a.difficulty ?? "normal" }); break;
       case "command": steps.push({ command: a.id, source: a.source.split("@")[0] }); break;
       case "sceneInput":
         // Realtime frames are too many to replay faithfully: they are left out (use "frames" by hand for those).

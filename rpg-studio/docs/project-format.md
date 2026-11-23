@@ -279,7 +279,7 @@
 - タイルの `stepEffect`（`dust`・`splash`・`footprints`・`leaves`）、`footstep`（効果音）、`encounterRate`（そのマスのエンカウント率。マップの `encounters` が必要）
 - `project.json › party: { "size": 3, "backRowTaken": 50, "backRowDealt": 50 }`: 戦う仲間の人数（超えたら控え）と後列の割合。効果 `{ "type": "setFormation", "who": "hero|<仲間>", "row": "front|back", "reserve": true }`
 - `project.json › ui: { "window", "edge", "text", "accent", "radius", "font": "dot|gothic|mincho|rounded", "frame": "<画像>", "frameSlice": 12 }`
-- `project.json › gameOver: { "mode": "respawn|screen", "message", "respawn": { mapId, x, y }, "title", "text", "image", "music", "retry", "penalty": { "var": "gold", "percent": 50 } }`
+- `project.json › gameOver: { "mode": "respawn|screen", "message", "respawn": { mapId, x, y }, "title", "text", "image", "music", "retry", "penalty": { "var": "gold", "percent": 50 } }`。`mode: "screen"` で `retry: true` の場合、ゲームオーバー画面から戦闘直前の状態（HP/MP/SP全回復）で再戦でき、敵の攻撃・防御を25%下げる再戦も選べます。戦闘前の状態は現在のゲームエンジン内だけに保持され、ページ再読み込みやセーブ読込後は戦闘再挑戦は出ません。「拠点から再開」は従来どおり使えます。
 - `pnpm rpg find <文字> --project <dir> [--regex] [--case] [--replace <新しい文字> --write]`: データの文章を横断検索・置換
 
 ## v1.9 の追加

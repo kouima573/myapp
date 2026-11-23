@@ -212,6 +212,20 @@
           {
             "type": "object",
             "properties": {
+              "retryBattle": {
+                "default": "normal",
+                "type": "string",
+                "enum": [
+                  "normal",
+                  "easy"
+                ]
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
               "battleItem": {
                 "type": "string",
                 "minLength": 1,

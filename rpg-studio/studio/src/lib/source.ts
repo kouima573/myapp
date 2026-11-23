@@ -281,6 +281,13 @@ export class PreviewSource implements ProjectSource {
     return [...systems, ...scripts];
   }
 
+  /** True when the game ZIP can be made in the browser: no own code, or exactly the sample's code. */
+  canExportInBrowser(): boolean {
+    const texts = this.project?.texts ?? sampleProjectTexts();
+    const hasCode = Object.keys(texts).some(f => /^(systems|scripts)\/.*\.ts$/.test(f));
+    return !hasCode || this.codeIsSample();
+  }
+
   /** True when the project's systems / scripts are exactly the sample's (so the sample's built game code can run it). */
   codeIsSample(): boolean {
     const texts = this.project?.texts ?? sampleProjectTexts();

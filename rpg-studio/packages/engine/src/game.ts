@@ -60,6 +60,8 @@ export type Action =
   /** Advance the world clock: entities move, tick rules and systems run. */
   | { type: "tick" }
   | { type: "sceneInput"; input: SceneInput }
+  /** Retry the battle that most recently ended in game over; "easy" lowers enemy attack and defense. */
+  | { type: "retryBattle"; difficulty?: "normal" | "easy" }
   /** A self-made verb from project.json › verbs. */
   | { type: "verb"; verb: string }
   /** Equip an item (or take it off if it is already equipped). Field only. */
@@ -77,7 +79,7 @@ export type Cue =
   | { kind: "bump" }
   | { kind: "mapChanged"; from: string }
   | { kind: "battleStart"; enemyId: string }
-  | { kind: "hit"; target: "player" | "enemy"; amount: number }
+  | { kind: "hit"; target: "player" | "enemy"; amount: number; effectiveness?: "weak" | "resist" | "immune"; guarded?: boolean }
   | { kind: "battleEnd"; outcome: BattleState["outcome"] }
   | { kind: "sfx"; sound: string }
   | { kind: "item" }
@@ -129,6 +131,10 @@ export interface Engine {
   readonly content: GameContent;
   readonly systems: readonly GameSystem[];
   newGame(seed?: number, meta?: MetaState): GameState;
+  /** Whether the current game-over screen can retry the last battle in this engine instance. */
+  canRetryBattle(state: GameState): boolean;
+  /** Forget the in-memory retry snapshot, such as when replacing state with a loaded save. */
+  clearBattleRetrySnapshot(): void;
   /** Values to keep across cycles / store as the "memory" of the game. */
   metaOf(state: GameState): MetaState;
   visibleEntities(state: GameState, map?: GameMap): EntityView[];
@@ -183,6 +189,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   const tiles = new Map(content.tileset.tiles.map(tile => [tile.code, tile]));
   const env: EvalEnv = { content, systems: sorted, front: state => frontInfo(state) };
   const db = content.database;
+  let retrySnapshot: { state: GameState; effect: Extract<Effect, { type: "battle" }> } | null = null;
   const ev = (cond: Parameters<typeof evaluate>[0], state: GameState, extra?: EvalEnv["ctx"]) => evaluate(cond, state, extra ? { ...env, ctx: extra } : env);
   const ex = (expr: Parameters<typeof evalExpr>[0], state: GameState, extra?: EvalEnv["ctx"]) => evalExpr(expr, state, extra ? { ...env, ctx: extra } : env);
   const text = (template: string, state: GameState, extra?: EvalEnv["ctx"]) => interpolate(template, state, extra ? { ...env, ctx: extra } : env);
@@ -919,14 +926,14 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
           const battle = battleOf(state);
           if (!battle) return state;
           if (amount > 0) state = dropWakers(state, curSlot(state));
-          c.cues.push({ kind: "hit", target: "enemy", amount });
+          c.cues.push({ kind: "hit", target: "enemy", amount, ...(inBattle && elementFeedback(rate) ? { effectiveness: elementFeedback(rate) } : {}) });
           const now = battleOf(state)!;
           state = setBattle(state, { ...now, enemyHp: Math.max(0, now.enemyHp - amount) });
           return effect.text ? battleLog(state, text(effect.text, state, { ...ctxValues, damage: amount })) : state;
         }
         // Outside battle, damage never knocks the player out.
         const floor = inBattle ? 0 : 1;
-        c.cues.push({ kind: "hit", target: "player", amount });
+        c.cues.push({ kind: "hit", target: "player", amount, ...(inBattle && elementFeedback(rate) ? { effectiveness: elementFeedback(rate) } : {}) });
         state = { ...state, player: { ...state.player, hp: Math.max(Math.min(floor, state.player.hp), state.player.hp - amount) } };
         if (!effect.text) return state;
         const line = text(effect.text, state, { ...ctxValues, damage: amount });
@@ -1241,7 +1248,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   }
 
   /* ---------------------------------------------------------------- battle */
-  function startBattle(c: Ctx, state: GameState, effect: Extract<Effect, { type: "battle" }>): GameState {
+  function startBattle(c: Ctx, state: GameState, effect: Extract<Effect, { type: "battle" }>, difficulty: "normal" | "easy" = "normal"): GameState {
+    if (state.scene.kind === "field") retrySnapshot = { state, effect };
     const enemy = enemyOf(effect.enemy);
     const others = (effect.with ?? []).map(id => enemyOf(id));
     const battle: BattleState = {
@@ -1250,6 +1258,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       log: [others.length ? `${[enemy, ...others].map(e => e.name).join("と")}が現れた！` : `${enemy.name}が現れた！`], systemData: {}, outcome: "ongoing", fired: [], after: [],
       ...(others.length ? { foes: others.map((o, k) => ({ enemyId: o.id, hp: o.stats.maxHp, slot: k + 1 })) } : {}),
       ...(effect.waves?.length ? { waves: effect.waves, wave: 1 } : {}),
+      ...(difficulty === "easy" ? { difficulty } : {}),
       ...(effect.practice ? { practice: {
         hp: state.player.hp,
         ...(state.player.mp !== undefined ? { mp: state.player.mp } : {}),
@@ -1305,7 +1314,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
    * Damage pipeline, in this fixed order:
    * ① formula → ② rules (dealDamage/takeDamage) then systems.modifyDamage → ③ lethal: rules (lethalDamage) then systems.onLethalDamage, first wins → ④ commit HP.
    */
-  function applyDamage(c: Ctx, state: GameState, target: "player" | "enemy", raw: number): [GameState, number] {
+  type DamageFeedback = { effectiveness?: "weak" | "resist" | "immune"; guarded?: boolean };
+  function applyDamage(c: Ctx, state: GameState, target: "player" | "enemy", raw: number, feedback: DamageFeedback = {}): [GameState, number] {
     if (raw > 0) state = dropWakers(state, target === "player" ? "player" : curSlot(state));
     const enemy = enemyOf(battleOf(state)!.enemyId);
     let amount = raw;
@@ -1323,7 +1333,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     }
     if (target === "enemy") {
       const battle = battleOf(state)!;
-      c.cues.push({ kind: "hit", target: "enemy", amount });
+      c.cues.push({ kind: "hit", target: "enemy", amount, ...(feedback.effectiveness ? { effectiveness: feedback.effectiveness } : {}), ...(feedback.guarded ? { guarded: true } : {}) });
       return [setBattle(state, { ...battle, enemyHp: Math.max(0, battle.enemyHp - amount) }), amount];
     }
     const hpBefore = state.player.hp;
@@ -1348,7 +1358,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         }
       }
     }
-    c.cues.push({ kind: "hit", target: "player", amount });
+    c.cues.push({ kind: "hit", target: "player", amount, ...(feedback.effectiveness ? { effectiveness: feedback.effectiveness } : {}), ...(feedback.guarded ? { guarded: true } : {}) });
     return [{ ...state, player: { ...state.player, hp } }, amount];
   }
 
@@ -1446,7 +1456,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   };
   /** Enemy attack / defense with the status mods of the enemy acting or being hit now. */
   function enemyStat(state: GameState, enemy: Enemy, stat: "attack" | "defense"): number {
-    return Math.max(0, enemy.stats[stat] + enemyStatusList(state).reduce((sum, s) => sum + (statusDef(s.id)?.statMods?.[stat] ?? 0), 0));
+    const adjusted = enemy.stats[stat] + enemyStatusList(state).reduce((sum, s) => sum + (statusDef(s.id)?.statMods?.[stat] ?? 0), 0);
+    return Math.max(0, Math.floor(adjusted * (battleOf(state)?.difficulty === "easy" ? 0.75 : 1)));
   }
   const holderName = (state: GameState, who: "player" | number) => (who === "player" ? state.player.name ?? content.project.player.name : enemyOf(enemyIdAtSlot(state, who) ?? battleOf(state)!.enemyId).name);
   function enemyIdAtSlot(state: GameState, slot: number): string | undefined {
@@ -1539,6 +1550,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     return state;
   }
   const elementNote = (rate: number) => (rate >= 150 ? "弱点！ " : rate === 0 ? "効かない！ " : rate <= 50 ? "効きが悪い…… " : "");
+  const elementFeedback = (rate: number): DamageFeedback["effectiveness"] => rate >= 150 ? "weak" : rate === 0 ? "immune" : rate <= 50 ? "resist" : undefined;
   const weaponElement = (state: GameState) => Object.values(state.equipment ?? {}).map(id => db.items.find(i => i.id === id)?.element).find(Boolean);
 
   /** Experience needed to go from `level` to level + 1. */
@@ -1691,7 +1703,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
       const next = rate !== 100 ? battleLog(rolledState, elementNote(rate).trim() || `（${rate}%）`) : rolledState;
       const weapon = Object.values(state.equipment ?? {}).map(i => db.items.find(x => x.id === i)).find(i => i?.animation);
       c.cues.push({ kind: "anim", name: weapon?.animation ?? "slash", target: "enemy", slot: curSlot(state) });
-      const [after, amount] = applyDamage(c, next, "enemy", raw);
+      const [after, amount] = applyDamage(c, next, "enemy", raw, { effectiveness: elementFeedback(rate) });
       state = battleLog(after, `${name}の攻撃！ ${enemy.name}に${amount}のダメージ。`);
       if (battleOf(state)!.enemyHp <= 0 && enemyCount(battleOf(state)!) > 1) state = battleLog(state, `${enemy.name}を倒した！`);
     } else if (command.command === "guard") {
@@ -1824,7 +1836,7 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         [rolled, next] = critical(next, rolled);
         rolled = Math.floor(rolled * rowRate(next, "player", "taken") / 100);
         // Guarding halves the damage at step ① (before rules and systems see it).
-        const [after, amount] = applyDamage(c, next, "player", guarding && rolled > 0 ? Math.max(1, Math.ceil(rolled / 2)) : rolled);
+        const [after, amount] = applyDamage(c, next, "player", guarding && rolled > 0 ? Math.max(1, Math.ceil(rolled / 2)) : rolled, { guarded: guarding && rolled > 0 });
         return battleLog(after, `${amount}のダメージを受けた。`);
       };
       const strikeMember = (s: GameState, id: string): GameState => {
@@ -2503,11 +2515,41 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
   };
 
   function newGame(seed = DEFAULT_SEED, meta?: MetaState): GameState {
+    retrySnapshot = null;
     const c: Ctx = { log: [], cues: [] };
     let state = runQueue(c, enqueue(freshState(seed, meta), introEffects()));
     state = updateRegions(c, state, false);
     state = runQueue(c, state);
     return runAuto(c, runEntityAutos(c, state));
+  }
+
+  function canRetryBattle(state: GameState): boolean {
+    return state.scene.kind === "gameover" && content.project.gameOver?.retry !== false && retrySnapshot !== null;
+  }
+
+  function clearBattleRetrySnapshot(): void {
+    retrySnapshot = null;
+  }
+
+  function retryBattle(c: Ctx, state: GameState, difficulty: "normal" | "easy"): GameState {
+    if (!canRetryBattle(state) || !retrySnapshot) return state;
+    const snapshot = retrySnapshot;
+    const before = snapshot.state;
+    const cap = stats(before);
+    const rested: GameState = {
+      ...before,
+      player: {
+        ...before.player,
+        hp: cap.maxHp,
+        ...(cap.maxMp !== undefined ? { mp: cap.maxMp } : {}),
+        ...(cap.maxSp !== undefined ? { sp: cap.maxSp } : {}),
+      },
+      ...(before.party ? { party: before.party.map(member => {
+        const memberCap = companionStats(before, member.id);
+        return { ...member, hp: memberCap.maxHp, ...(memberCap.maxMp !== undefined ? { mp: memberCap.maxMp } : {}), ...(memberCap.maxSp !== undefined ? { sp: memberCap.maxSp } : {}) };
+      }) } : {}),
+    };
+    return startBattle(c, rested, snapshot.effect, difficulty);
   }
 
   function step(state: GameState, action: Action): StepResult {
@@ -2583,6 +2625,9 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
         } else if (scene.kind === "battle") next = closeBattle(c, state);
         else if (scene.kind === "ending") next = runQueue(c, applyEffect(c, { ...state, scene: { kind: "field" } }, { type: "newCycle" }));
         else if (scene.kind === "gameover") next = respawn(c, state);
+        break;
+      case "retryBattle":
+        next = retryBattle(c, state, action.difficulty ?? "normal");
         break;
       case "partyChat": {
         if (scene.kind !== "field") break;
@@ -2677,6 +2722,8 @@ export function createEngine(content: GameContent, systems: readonly GameSystem[
     content,
     systems: sorted,
     newGame,
+    canRetryBattle,
+    clearBattleRetrySnapshot,
     metaOf,
     usableVerbs,
     companionStats,

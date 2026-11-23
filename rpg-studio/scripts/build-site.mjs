@@ -48,15 +48,15 @@ h2{font-size:20px;margin:36px 0 4px}.steps{color:var(--muted);padding-left:1.3em
 <ol class="steps">
 <li>工房一式を手元に用意し、フォルダで <code>pnpm install</code>（Node.js 22 以上・pnpm）。</li>
 <li>そのフォルダを Claude Code や Codex で開く（AGENTS.md に作業ルールが書いてあり、AIが自動で読みます）。</li>
-<li>下の依頼文をコピーして、<b>発想</b>の欄を自分の言葉に書き換えて送る。</li>
+<li>下の依頼文をコピーし、末尾に発想・今回の依頼・作り方の希望を必要な分だけ書いて送る。</li>
 </ol>
-<div class="prompt"><pre id="ask">新しいゲームを作って。まず pnpm rpg new my-game --stage 1 で土台を作り、次の発想を docs/idea-to-game.md のとおりに形にして。
-発想の核を削らず、10分で遊べる最小の形から。素材は内蔵ライブラリから選び、候補は番号つきの見本画像で見せて。
-最後に pnpm rpg validate / test / proofread / build がすべて OK になるまで直して、遊び方を3行で教えて。
+<div class="prompt"><pre id="ask">docs/idea-to-game.md と、今回の依頼に関係する既存資料を必要な範囲で確認して。作り手が指定した制作段階・ゲーム内の開始地点・作り方・今回の到達点に合わせて進めて。依頼されていない資料の要約や準備工程は挟まず、方法を一つに決めつけないで。
+既存プロジェクトがあれば、頼まれた範囲で続きを作る。新規プロジェクトが必要な場合だけ pnpm rpg new my-game で技術的な土台を作る。IDEA.md は現在の意図を記録した資料なので、今回の明示的な依頼が古い記述と違う場合は今回の依頼を優先する。頼まれていない作業カード・仕様書・試作品・プロローグ・チュートリアル・最小の遊べる形を追加しない。作り方は、組み合わせる・途中で変える・例にない方法を使うことも含めて私の希望に従う。
+素材が必要なら、私が用意した素材や指定した制作方法を優先して。候補探しを頼んだ場合は、候補を番号つきで見せて。依頼された段階に合う方法で確かめ、実施内容は希望した形式で報告して。ゲームを作った場合だけ、遊び方を3行で教えて。
 
-発想：（例）眠ると夢の中の町に行ける。夢で見つけた物は、起きると少しだけ形を変えて手元に残る。</pre>
+発想・今回の依頼・作り方の希望：（例）眠ると夢の中の町に行ける。夢で見つけた物は、起きると少しだけ形を変えて手元に残る。まず会話しながら世界の仕組みを探りたい。</pre>
 <button type="button" id="copy">依頼文をコピー</button></div>
-<p><small><b>ChatGPT などのチャットで作る場合</b>（短編向け・インストール不要）: <a href="./studio/">ブラウザ版の工房</a>の「プロジェクト」で新しいゲームを作り、「チャットで作る」画面で作業カードごとに依頼文をコピーしてチャットに貼り、返事を工房に貼り戻します。工房が検証と自動テストをしてから取り込み、できたら「遊べる形で書き出す」でZIPにして公開できます（itch.io なら HTML のゲームとしてそのままアップロード）。長編は Codex（おすすめ）や Claude Code で。どちらも台本（SCRIPT.md）があると話がぶれず、長編は仕様書（SPEC.md）もおすすめです。</small></p>
+<p><small><b>ChatGPT などのチャットで作る場合</b>（インストール不要）: <a href="./studio/">ブラウザ版の工房</a>で、作り方に応じて作業カードを使う方法と、カードなしで直接依頼する方法を選べます。返事は貼り戻して検証し、できたら「遊べる形で書き出す」でZIPにできます（itch.io なら HTML のゲームとしてそのままアップロード）。独自コードやエンジンの変更は Codex（おすすめ）や Claude Code で。台本・仕様書などの資料は、必要なものだけ使ってください。</small></p>
 <p><small>工房（Preview）の「発想」画面でも、発想シートからAI向けの依頼文を作れます。段階別の見本は <code>pnpm rpg new &lt;名前&gt; --stage 1</code>（会話）・<code>2</code>（+戦闘と宝箱）・<code>3</code>（+鍵と門・エンディング）。</small></p>
 <script>document.getElementById("copy").addEventListener("click",function(){navigator.clipboard&&navigator.clipboard.writeText(document.getElementById("ask").textContent);this.textContent="コピーしました";});</script>
 <p><small>ブラウザ版の作品は、そのブラウザの中だけに保存されます。ときどき「プロジェクトをZIPで書き出す」で手元に残してください。独自のコード（TypeScript）を書く・大きなゲームを作るときは、手元で <code>pnpm studio</code> を起動します。<br>

@@ -735,7 +735,7 @@ export const ProjectManifestSchema = z.object({
   autosave: z.boolean().default(true),
   /**
    * When the hero falls in a battle that does not continue (ゲームオーバー). "respawn": wake up at `respawn` (default the start)
-   * with `message`; "screen": a GAME OVER screen (title / text / picture) with ロード・タイトルへ・`retry` (wake up as with respawn).
+   * with `message`; "screen": a GAME OVER screen (title / text / picture) with ロード・タイトルへ・`retry` (wake up as with respawn, or retry the battle that ended in this engine session).
    * `penalty`: lose this percent of a variable (e.g. half the gold).
    */
   gameOver: z.object({
@@ -1466,6 +1466,8 @@ export const scriptIdsOf = (paths: Iterable<string>): string[] => [...paths].map
 export const BattleStateSchema = z.object({
   enemyId: IdSchema,
   enemyHp: z.number().int().nonnegative(),
+  /** Temporary difficulty adjustment offered after defeat. Enemy damage and defense are reduced. */
+  difficulty: z.enum(["normal", "easy"]).optional(),
   /** Conditional enemy action music override; null means use the enemy/project battle track. */
   music: IdSchema.nullable().optional(),
   /** Orders for this turn: companion id → index in its actions. */

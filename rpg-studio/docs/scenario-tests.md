@@ -23,6 +23,7 @@
 | `{ "advance": "once" \| "all" }` | メッセージ・会話を進める（`all` は決着した戦闘も閉じ、選択肢・戦闘中・フィールドになるまで進める） |
 | `{ "choose": "選択肢ID" }` | 会話の選択肢・`choice`効果の選択肢を選ぶ（IDか表示名。表示されていない場合は失敗） |
 | `{ "battle": "attack" \| "guard" \| "flee" }` / `{ "battleItem": "herb" }` / `{ "skill": "bite" }` | 戦闘コマンド |
+| `{ "retryBattle": "normal" }` / `{ "retryBattle": "easy" }` | ゲームオーバー時、エンジン内に保持された直前の戦闘をやり直す（easy は敵の攻撃・防御を25%下げる） |
 | `{ "useItem": "herb" }` / `{ "useAbility": "first-aid" }` | フィールドでアイテム・技を使う |
 | `{ "tick": 10 }` | 世界の時間を進める（エンティティの移動・tickルール）。フィールド以外になったら止まる |
 | `{ "sceneInput": "up" }` / `{ "sceneInput": { "custom": 値 } }` | 独自画面に入力を送る |

@@ -352,7 +352,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
         const stage = Number(parsed.flags.stage ?? 0);
         if (stage) { if (![1, 2, 3].includes(stage)) { console.error("ERROR --stage は 1・2・3"); return 2; } await applyStage(dir, stage); }
         const rel = path.relative(process.cwd(), dir);
-        console.log(`OK new: ${rel}\n次に ${rel}/IDEA.md に発想を書き、AIに「IDEA.md の発想を形にして」と頼んでください。\n  pnpm rpg test --project ${rel}`);
+        console.log(`OK new: ${rel}\nこれはRPG用の技術的な土台です。IDEA.md は任意です。発想・既存資料・試作品・作り方の希望など、今あるものと今回したいことをAIに伝えてください。\n  pnpm rpg test --project ${rel}`);
         return 0;
       } catch (error) { console.error(`ERROR ${error instanceof Error ? error.message : String(error)}`); return 1; }
     }

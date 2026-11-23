@@ -74,10 +74,10 @@ export async function projectFromZip(file: Blob): Promise<BrowserProject> {
 const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 
 /**
- * A playable game as a ZIP: index.html + game.js (the site's generic runtime, or the sample's own build when the
- * project still uses the sample's code unchanged) + data/ (validated content with defaults) + assets + CREDITS.md.
+ * A playable game as a ZIP: index.html at the archive root + game.js + data/ (validated content with defaults) + assets + CREDITS.md.
+ * Root-relative paths make the ZIP directly uploadable to HTML5 hosts such as itch.io.
  */
-export async function playableZip(texts: Record<string, string>, project: { files: Record<string, Blob> } | null, codeIsSample: boolean): Promise<{ bytes: Uint8Array; name: string }> {
+export async function playableZip(texts: Record<string, string>, project: { files: Record<string, Blob> } | null, codeIsSample: boolean): Promise<{ bytes: Uint8Array; name: string; files: number; totalBytes: number }> {
   const loaded = loadProjectContent(texts);
   const errors = loaded.diagnostics.filter(d => d.severity === "error");
   if (!loaded.content || errors.length) throw new Error(`検証のエラーを先に直してください（${errors.length}件。「検証」画面）`);
@@ -102,19 +102,30 @@ export async function playableZip(texts: Record<string, string>, project: { file
   // No service worker / install files in the export: drop the links so nothing 404s.
   html = html.replace(/<link rel="manifest"[^>]*>\n?/, "").replace(/<link rel="icon"[^>]*>\n?/, "");
   const entries: ZipEntry[] = [
-    { name: `${id}/index.html`, data: enc.encode(html) },
-    { name: `${id}/game.js`, data: new Uint8Array(await (await get("game.js")).arrayBuffer()) },
-    { name: `${id}/sw.js`, data: enc.encode("// オフライン用の仕組みは、このZIPには含めていません\n") },
-    { name: `${id}/CREDITS.md`, data: enc.encode(creditsMarkdown(content)) },
-    { name: `${id}/README.txt`, data: enc.encode(`${content.project.title}\n\nRPGシステム工房で作ったブラウザRPGです。\n\n遊び方: このフォルダをWebサーバーに置いて index.html を開きます（ファイルをダブルクリックしただけでは動きません）。\n- itch.io: 「HTML」のゲームとして、このZIPをそのままアップロード\n- Cloudflare Pages など: フォルダをアップロード\n- 手元で試す: このフォルダで npx serve を実行して、表示されたURLを開く\n\n素材のクレジットは CREDITS.md にあります。\n`) },
+    { name: "index.html", data: enc.encode(html) },
+    { name: "game.js", data: new Uint8Array(await (await get("game.js")).arrayBuffer()) },
+    { name: "sw.js", data: enc.encode("// オフライン用の仕組みは、このZIPには含めていません\n") },
+    { name: "CREDITS.md", data: enc.encode(creditsMarkdown(content)) },
+    { name: "README.txt", data: enc.encode(`${content.project.title}\n\nRPGシステム工房で作ったブラウザRPGです。\n\nこのZIPをアップロードする場合は、index.html がZIPの直下にあることを確認してください。\n\n遊び方: Webサーバーに置いて index.html を開きます（ファイルをダブルクリックしただけでは動きません）。\n- itch.io: 「HTML」のゲームとして、このZIPをアップロード\n- 静的サイト: ZIPを展開し、index.html・game.js・data/ を同じ公開フォルダーに置く\n- 手元で試す: 展開したフォルダーで npx serve を実行して、表示されたURLを開く\n\n素材のクレジットは CREDITS.md にあります。\n`) },
   ];
-  for (const [path, value] of Object.entries(normalizedDataFiles(content))) entries.push({ name: `${id}/data/${path}`, data: enc.encode(JSON.stringify(value)) });
+  for (const [path, value] of Object.entries(normalizedDataFiles(content))) entries.push({ name: `data/${path}`, data: enc.encode(JSON.stringify(value)) });
   const missing: string[] = [];
   for (const asset of content.assets.assets) {
     if (asset.kind === "song") continue;
     const data = await assetBytes(project, asset.path);
-    if (data) entries.push({ name: `${id}/data/${asset.path}`, data }); else missing.push(asset.path);
+    if (data) entries.push({ name: `data/${asset.path}`, data }); else missing.push(asset.path);
   }
   if (missing.length) throw new Error(`素材のファイルが見つかりません: ${missing.slice(0, 5).join(", ")}${missing.length > 5 ? " ほか" : ""}`);
-  return { bytes: writeZip(entries), name: `${id}-game.zip` };
+  const names = entries.map(entry => entry.name);
+  const required = ["index.html", "game.js", "CREDITS.md", "README.txt", ...Object.keys(normalizedDataFiles(content)).map(path => `data/${path}`)];
+  const absent = required.filter(name => !names.includes(name));
+  const duplicates = names.filter((name, index) => names.indexOf(name) !== index);
+  if (absent.length) throw new Error(`公開ZIPに必要なファイルがありません: ${absent.join(", ")}`);
+  if (duplicates.length) throw new Error(`公開ZIP内でファイル名が重複しています: ${[...new Set(duplicates)].join(", ")}`);
+  const bytes = writeZip(entries);
+  const packed = await readZip(bytes);
+  const packedNames = new Set(packed.map(entry => entry.name));
+  const unreadable = required.filter(name => !packedNames.has(name));
+  if (unreadable.length) throw new Error(`ZIPの展開確認に失敗しました: ${unreadable.join(", ")}`);
+  return { bytes, name: `${id}-game.zip`, files: entries.length, totalBytes: entries.reduce((sum, entry) => sum + entry.data.byteLength, 0) };
 }
