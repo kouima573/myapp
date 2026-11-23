@@ -1,4 +1,4 @@
-// Builds the public website (Cloudflare Pages etc.): the studio in Preview mode (edits stay in the browser)
+// Builds the public website (Cloudflare Pages etc.): the studio in browser mode (projects saved in the browser)
 // and the two sample games. Output: dist/site/. Run with `pnpm build:site`; deploy with `pnpm deploy:site`.
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -16,6 +16,7 @@ const copy = async (from, to) => fs.cp(path.join(root, from), path.join(out, to)
 await copy("dist/studio", "studio");
 await copy("dist/game/sample-rpg", "play");
 await copy("dist/game/genre-gallery", "gallery");
+await copy("dist/runtime", "runtime");
 await fs.copyFile(path.join(root, "studio", "public", "favicon.svg"), path.join(out, "favicon.svg")).catch(() => {});
 
 await fs.writeFile(path.join(out, "index.html"), `<!doctype html>
@@ -40,7 +41,7 @@ h2{font-size:20px;margin:36px 0 4px}.steps{color:var(--muted);padding-left:1.3em
 <div class="grid">
 <a class="card" href="./play/"><b>見本ゲームを遊ぶ</b>森境の小さな冒険（種族・動詞・ジャンルモジュール・スクリプトの見本）</a>
 <a class="card" href="./gallery/"><b>ジャンルの回廊</b>26種のジャンルモジュールと内蔵素材ライブラリの見本</a>
-<a class="card" href="./studio/"><b>工房を試す（Preview）</b>見本プロジェクトで工房を操作できます。変更はブラウザの中だけで、保存されません</a>
+<a class="card" href="./studio/"><b>工房を開く（ブラウザ版）</b>インストール不要。作ったゲームはこのブラウザに保存され、遊べる形のZIPで書き出せます</a>
 </div>
 <h2>AIと作ってみる</h2>
 <p>このツールは、Codex や Claude Code などのAIに「こんなゲームにして」と話しかけて作るのがいちばん楽です。工房の画面はほとんど開かなくても大丈夫。</p>
@@ -55,10 +56,10 @@ h2{font-size:20px;margin:36px 0 4px}.steps{color:var(--muted);padding-left:1.3em
 
 発想：（例）眠ると夢の中の町に行ける。夢で見つけた物は、起きると少しだけ形を変えて手元に残る。</pre>
 <button type="button" id="copy">依頼文をコピー</button></div>
-<p><small><b>ChatGPT などのチャットで作る場合</b>（短編向け）: 手元の工房（<code>pnpm studio</code>）の「チャットで作る」画面で、作業カードごとに依頼文をコピーしてチャットに貼り、返事を工房に貼り戻します。工房が検証と自動テストをしてから取り込みます。長編は Codex（おすすめ）や Claude Code で。どちらも台本（SCRIPT.md）があると話がぶれず、長編は仕様書（SPEC.md）もおすすめです。</small></p>
+<p><small><b>ChatGPT などのチャットで作る場合</b>（短編向け・インストール不要）: <a href="./studio/">ブラウザ版の工房</a>の「プロジェクト」で新しいゲームを作り、「チャットで作る」画面で作業カードごとに依頼文をコピーしてチャットに貼り、返事を工房に貼り戻します。工房が検証と自動テストをしてから取り込み、できたら「遊べる形で書き出す」でZIPにして公開できます（itch.io なら HTML のゲームとしてそのままアップロード）。長編は Codex（おすすめ）や Claude Code で。どちらも台本（SCRIPT.md）があると話がぶれず、長編は仕様書（SPEC.md）もおすすめです。</small></p>
 <p><small>工房（Preview）の「発想」画面でも、発想シートからAI向けの依頼文を作れます。段階別の見本は <code>pnpm rpg new &lt;名前&gt; --stage 1</code>（会話）・<code>2</code>（+戦闘と宝箱）・<code>3</code>（+鍵と門・エンディング）。</small></p>
 <script>document.getElementById("copy").addEventListener("click",function(){navigator.clipboard&&navigator.clipboard.writeText(document.getElementById("ask").textContent);this.textContent="コピーしました";});</script>
-<p><small>自分のゲームを作るには、手元で <code>pnpm studio</code> を起動してください（ファイルの保存・ビルド・自動テストはローカル版の機能です）。<br>
+<p><small>ブラウザ版の作品は、そのブラウザの中だけに保存されます。ときどき「プロジェクトをZIPで書き出す」で手元に残してください。独自のコード（TypeScript）を書く・大きなゲームを作るときは、手元で <code>pnpm studio</code> を起動します。<br>
 見本の素材はすべて内蔵ジェネレーター・AI生成・内蔵効果音／楽譜BGMによるもので、第三者のサイト素材は含みません。</small></p>
 <p id="site-version"><small>版: ${siteVersion || "（不明）"}　ビルド: ${builtAt}（日本時間）</small></p>
 </main></body></html>

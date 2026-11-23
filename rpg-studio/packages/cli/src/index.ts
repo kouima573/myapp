@@ -391,6 +391,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
       return 0;
     }
     case "library": return cmdLibrary(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
+    case "runtime": { const { buildRuntime } = await import("./build"); const out = path.resolve(process.cwd(), typeof parsed.flags.out === "string" ? parsed.flags.out : "dist/runtime"); await buildRuntime(out); console.log(`OK runtime: ${path.relative(process.cwd(), out)}（ブラウザ版の工房の「遊べる形で書き出す」用）`); return 0; }
     case "chat": { const { cmdChat } = await import("./chat"); return cmdChat(parsed.sub, parsed.args, parsed.flags, projectDir(parsed.flags)); }
     case "map": return cmdMap(parsed.sub, parsed.args, parsed.flags, projectDir(parsed.flags));
     case "devlog": return cmdDevlog(parsed.flags, projectDir(parsed.flags));

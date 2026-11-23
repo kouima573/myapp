@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon, Globe2, Search, GraduationCap, Music, Hexagon, LifeBuoy, Undo2, Redo2, MessagesSquare } from "lucide-react";
+import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon, Globe2, Search, GraduationCap, Music, Hexagon, LifeBuoy, Undo2, Redo2, MessagesSquare, HardDrive } from "lucide-react";
 import { GameMapSchema, TilesetSchema, type GameContent, type GameMap, type GameState } from "@rpg/schema";
 import { loadImages, type ImageMap } from "../../packages/runtime/src/render";
 import MapEditor, { type Selection } from "./components/MapEditor";
@@ -23,15 +23,17 @@ import SongPanel from "./components/SongPanel";
 import SkillBoardPanel from "./components/SkillBoardPanel";
 import HelpPanel from "./components/HelpPanel";
 import ChatPanel from "./components/ChatPanel";
+import BrowserPanel from "./components/BrowserPanel";
 import { glossaryLookup } from "./lib/glossary";
 import { generateDungeon } from "../../packages/engine/src/dungeon";
 import CodeFinder from "./components/CodeFinder";
 import ConflictDialog from "./components/ConflictDialog";
 import { useProject } from "./lib/useProject";
-import type { ProjectSource } from "./lib/source";
+import type { PreviewSource, ProjectSource } from "./lib/source";
 
-type Section = "idea" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history" | "world" | "search" | "tutorial" | "song" | "skills" | "help" | "chat";
+type Section = "idea" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history" | "world" | "search" | "tutorial" | "song" | "skills" | "help" | "chat" | "projects";
 const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
+  { id: "projects", label: "プロジェクト（保存・書き出し）", icon: HardDrive },
   { id: "tutorial", label: "はじめての5分", icon: GraduationCap },
   { id: "idea", label: "発想", icon: Lightbulb },
   { id: "chat", label: "チャットで作る", icon: MessagesSquare },
@@ -68,6 +70,10 @@ function editorContent(texts: Record<string, string>, base: GameContent | null):
 
 export default function App({ source }: { source: ProjectSource }) {
   const store = useProject(source);
+  useEffect(() => {
+    if (source.kind !== "preview") return;
+    (source as PreviewSource).onSaved = (state, message) => { if (state === "error") store.log("error", `このブラウザに保存できません: ${message ?? ""}（「プロジェクト」画面からZIPで書き出して残してください）`); };
+  }, [source, store]);
   const [section, setSection] = useState<Section>("map");
   const [findingCode, setFindingCode] = useState(false);
   const [mapId, setMapId] = useState<string | null>(null);
@@ -152,7 +158,7 @@ export default function App({ source }: { source: ProjectSource }) {
         <span>{playContent?.project.title ?? "（検証エラー）"}</span><code>{playContent?.project.id}</code>
       </div>
       <div className="top-status">
-        <span className={`pill ${source.kind === "local" ? "ok" : "warn"}`}><span className="dot" />{source.kind === "local" ? "ローカルファイル接続" : "Preview（保存されません）"}</span>
+        <span className={`pill ${source.kind === "local" ? "ok" : ""}`}><span className="dot" />{source.kind === "local" ? "ローカルファイル接続" : "ブラウザ版（このブラウザに保存）"}</span>
         <button className={`pill ${errors ? "error" : warnings ? "warn" : "ok"}`} onClick={() => setSection("checks")}>
           {errors ? <XCircle size={12} /> : warnings ? <AlertTriangle size={12} /> : <CheckCircle2 size={12} />}
           {errors ? `エラー ${errors}` : warnings ? `警告 ${warnings}` : "検証OK"}
@@ -171,7 +177,7 @@ export default function App({ source }: { source: ProjectSource }) {
 
     <nav className="sidebar" aria-label="機能">
       <div className="section-tabs" role="tablist">
-        {SECTIONS.map(s => <button key={s.id} role="tab" aria-selected={section === s.id} className={`section-tab ${section === s.id ? "is-active" : ""}`} onClick={() => setSection(s.id)}>
+        {SECTIONS.filter(s => s.id !== "projects" || source.kind === "preview").map(s => <button key={s.id} role="tab" aria-selected={section === s.id} className={`section-tab ${section === s.id ? "is-active" : ""}`} onClick={() => setSection(s.id)}>
           <s.icon size={16} /><span>{s.label}</span>
           {s.id === "checks" && errors > 0 && <span className="count error">{errors}</span>}
         </button>)}
@@ -191,8 +197,8 @@ export default function App({ source }: { source: ProjectSource }) {
         }} />}
       </div>}
       {source.kind === "preview" && <div className="side-callout">
-        <b>Previewモード</b>
-        <p>サンプルを画面上で試せます。編集はこのタブの中だけに残り、ファイルには保存されません。PCで <code>pnpm studio</code> を起動すると、Codex／Claude Codeと同じファイルを編集できます。</p>
+        <b>ブラウザ版</b>
+        <p>作ったものは<b>このブラウザ</b>に自動で保存されます。<button className="link-button" onClick={() => setSection("projects")}>プロジェクト（新しく作る・書き出す）</button>。PCで <code>pnpm studio</code> を起動すると、Codex／Claude Codeと同じファイルを編集できます。</p>
       </div>}
     </nav>
 
@@ -213,6 +219,7 @@ export default function App({ source }: { source: ProjectSource }) {
       {section === "assets" && playContent && <AssetsPanel store={store} content={playContent} images={images} />}
       {section === "world" && playContent && <WorldPanel content={playContent} onOpenMap={id => { setMapId(id); setSelection(null); setSection("map"); }} />}
       {section === "chat" && <ChatPanel store={store} />}
+      {section === "projects" && source.kind === "preview" && <BrowserPanel store={store} source={source as PreviewSource} />}
       {section === "help" && playContent && <HelpPanel store={store} content={playContent} />}
       {section === "skills" && playContent && <SkillBoardPanel store={store} content={playContent} />}
       {section === "song" && playContent && <SongPanel store={store} content={playContent} />}
@@ -220,7 +227,7 @@ export default function App({ source }: { source: ProjectSource }) {
       {section === "search" && <SearchPanel store={store} onOpenFile={openFile} />}
       {section === "history" && <HistoryPanel store={store} source={source} />}
       {section === "checks" && <ChecksPanel store={store} diagnostics={store.diagnostics} onOpenFile={openFile} onPlayState={st => { setPlayState({ state: st, nonce: Date.now() }); setSection("play"); }} />}
-      {!editContent && section !== "data" && section !== "checks" && section !== "chat" && <div className="empty">プロジェクトが一度も検証を通っていません。「検証」と「データ」で問題を直してください。</div>}
+      {!editContent && section !== "data" && section !== "checks" && section !== "chat" && section !== "projects" && <div className="empty">プロジェクトが一度も検証を通っていません。「検証」と「データ」で問題を直してください。</div>}
     </section>
 
     <footer className={`console ${consoleOpen ? "is-open" : ""}`}>

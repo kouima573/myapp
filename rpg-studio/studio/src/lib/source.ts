@@ -1,10 +1,11 @@
 /**
  * Where the studio reads and writes project files.
  *  - LocalSource: `pnpm studio` — the local server on 127.0.0.1 (real files, conflict detection, builds).
- *  - PreviewSource: `pnpm dev` / hosted preview — the bundled sample, edits stay in memory only.
+ *  - PreviewSource: `pnpm dev` / 公開サイトの工房 — ブラウザ版。見本から始め、編集はこのブラウザ（IndexedDB）に保存。
  */
 import type { AssetEntry } from "@rpg/schema";
 import type { GameSystem } from "@rpg/engine";
+import { askPersistent, currentProjectId, freeId, getProject, putProject, setCurrentProjectId, type BrowserProject } from "./browserProjects";
 import {
   LOCAL_TOKEN_HEADER, LOCAL_TOKEN_META,
   type BuildStatus, type ChangesResponse, type HistoryEntryView, type ConflictResponse, type ProjectSnapshot, type SaveResponse, type TestResponse,
@@ -183,30 +184,110 @@ const sampleAssets = import.meta.glob("../../../projects/sample-rpg/assets/**/*.
 const sampleSystems = import.meta.glob("../../../projects/sample-rpg/systems/*.ts", { eager: true }) as Record<string, { default?: GameSystem }>;
 const sampleScripts = import.meta.glob("../../../projects/sample-rpg/scripts/*.ts", { eager: true }) as Record<string, { default?: object }>;
 
+/** The bundled sample's texts (project-relative paths). */
+export function sampleProjectTexts(): Record<string, string> {
+  const texts: Record<string, string> = {};
+  for (const [key, text] of Object.entries(sampleTexts)) texts[key.slice(SAMPLE_ROOT.length)] = text;
+  return texts;
+}
+/** URL of a bundled sample asset (images and sounds the browser projects borrow). */
+export const sampleAssetUrl = (path: string): string | undefined => sampleAssets[`${SAMPLE_ROOT}${path}`];
+
+/**
+ * Preview / ブラウザ版: the bundled sample to start with; once edited, the project lives in this browser (IndexedDB)
+ * and can be switched, exported as a ZIP and imported again (see BrowserPanel).
+ */
 export class PreviewSource implements ProjectSource {
   readonly kind = "preview" as const;
+  /** The browser project being edited (null = the untouched sample). */
+  project: BrowserProject | null = null;
+  private saveTimer: number | undefined;
+  private urls = new Map<string, string>();
+  onSaved?: (state: "saving" | "saved" | "error", message?: string) => void;
+
   async load(): Promise<ProjectSnapshot> {
-    const texts: Record<string, string> = {};
+    const id = currentProjectId();
+    this.project = id ? (await getProject(id).catch(() => undefined)) ?? null : null;
+    if (id && !this.project) setCurrentProjectId(null);
+    const texts = this.project ? { ...this.project.texts } : sampleProjectTexts();
     const hashes: Record<string, string> = {};
-    for (const [key, text] of Object.entries(sampleTexts)) {
-      const relative = key.slice(SAMPLE_ROOT.length);
-      texts[relative] = text;
-      hashes[relative] = await sha256Hex(text);
-    }
-    return { projectDir: "projects/sample-rpg (Preview)", texts, hashes };
+    for (const [path, text] of Object.entries(texts)) hashes[path] = await sha256Hex(text);
+    return { projectDir: this.project ? `${this.project.title}（このブラウザに保存）` : "見本（編集するとこのブラウザに保存されます）", texts, hashes };
   }
-  async save(_path: string, content: string): Promise<SaveOutcome> {
+
+  /** Every edit goes into the browser project (the first edit of the sample makes a copy of it). */
+  async save(path: string, content: string): Promise<SaveOutcome> {
+    if (!this.project) {
+      const now = new Date().toISOString();
+      const texts = sampleProjectTexts();
+      const title = (() => { try { return String((JSON.parse(texts["project.json"]!) as { title?: string }).title ?? "見本"); } catch { return "見本"; } })();
+      this.project = { id: await freeId("sample-copy"), title: `${title}（見本のコピー）`, origin: "sample", texts, files: {}, createdAt: now, updatedAt: now };
+      setCurrentProjectId(this.project.id);
+      void askPersistent();
+    }
+    this.project.texts[path] = content;
+    if (path === "project.json") { try { this.project.title = String((JSON.parse(content) as { title?: string }).title ?? this.project.title); } catch { /* broken JSON: keep the title */ } }
+    this.schedule();
     return { ok: true, hash: await sha256Hex(content) };
   }
+
+  private schedule() {
+    window.clearTimeout(this.saveTimer);
+    this.onSaved?.("saving");
+    this.saveTimer = window.setTimeout(() => {
+      if (!this.project) return;
+      putProject(this.project).then(() => this.onSaved?.("saved"), error => this.onSaved?.("error", error instanceof Error ? error.message : String(error)));
+    }, 400);
+  }
+
   async assetUrl(asset: AssetEntry): Promise<string> {
-    const url = sampleAssets[`${SAMPLE_ROOT}${asset.path}`];
+    const blob = this.project?.files[asset.path];
+    if (blob) {
+      const cached = this.urls.get(asset.path);
+      if (cached) return cached;
+      const url = URL.createObjectURL(blob);
+      this.urls.set(asset.path, url);
+      return url;
+    }
+    const url = sampleAssetUrl(asset.path);
     if (!url) throw new Error(`素材がありません: ${asset.path}`);
     return url;
   }
+
+  async assetHash(path: string): Promise<string> {
+    const blob = this.project?.files[path];
+    if (blob) return sha256Bytes(await blob.arrayBuffer());
+    const url = sampleAssetUrl(path);
+    return url ? sha256Bytes(await (await fetch(url)).arrayBuffer()) : "";
+  }
+
+  /** Pixel editor: the PNG is kept in the browser project. */
+  async saveImage(path: string, png: Blob) {
+    if (!this.project) await this.save("project.json", sampleProjectTexts()["project.json"]!);
+    this.project!.files[path] = png;
+    const old = this.urls.get(path);
+    if (old) URL.revokeObjectURL(old);
+    this.urls.delete(path);
+    this.schedule();
+    return { ok: true as const, hash: await sha256Bytes(await png.arrayBuffer()), bytes: png.size };
+  }
+
+  /** Systems and scripts run only while their code is the sample's own (code cannot be compiled in the browser). */
   async loadSystems(): Promise<GameSystem[]> {
-    const systems = Object.values(sampleSystems).map(module => module.default).filter((s): s is GameSystem => Boolean(s));
-    const scripts = Object.entries(sampleScripts).flatMap(([file, module]) => module.default ? [{ ...module.default, id: file.split("/").pop()!.replace(/\.ts$/, ""), scope: "attached" } as GameSystem] : []);
+    const texts = this.project?.texts ?? sampleProjectTexts();
+    const same = (key: string) => texts[key.slice(SAMPLE_ROOT.length)] === sampleTexts[key];
+    const systems = Object.entries(sampleSystems).filter(([file]) => same(file)).map(([, module]) => module.default).filter((s): s is GameSystem => Boolean(s));
+    const scripts = Object.entries(sampleScripts).filter(([file]) => same(file)).flatMap(([file, module]) => module.default ? [{ ...module.default, id: file.split("/").pop()!.replace(/\.ts$/, ""), scope: "attached" } as GameSystem] : []);
     return [...systems, ...scripts];
+  }
+
+  /** True when the project's systems / scripts are exactly the sample's (so the sample's built game code can run it). */
+  codeIsSample(): boolean {
+    const texts = this.project?.texts ?? sampleProjectTexts();
+    const code = (t: Record<string, string>) => Object.keys(t).filter(f => /^(systems|scripts)\/.*\.ts$/.test(f)).sort();
+    const sample = sampleProjectTexts();
+    const mine = code(texts), theirs = code(sample);
+    return mine.length === theirs.length && mine.every((f, i) => f === theirs[i] && texts[f] === sample[f]);
   }
 }
 

@@ -479,3 +479,10 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 @media (max-width: 700px) { .chat-panel .form-grid { grid-template-columns: 1fr; } }
 .ok-text { color: var(--ok-text); }
 .chat-card select { width: auto; }
+
+/* ブラウザ版のプロジェクト */
+.browser-panel section { display: flex; flex-direction: column; gap: 6px; }
+.browser-panel h3 { margin: 6px 0 0; font-size: 14px; }
+.browser-projects { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.browser-projects li { border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.browser-projects li.is-current { border-color: var(--amber); }

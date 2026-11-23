@@ -118,7 +118,11 @@ export async function preloadAssets(content: GameContent, url: (path: string) =>
   await Promise.all(Array.from({ length: Math.min(6, queue.length) }, async () => { while (queue.length) await one(queue.shift()!); }));
 }
 
-export async function bootStandalone(options: { systems: GameSystem[]; host?: HTMLElement; dataBase?: string }): Promise<void> {
+/**
+ * `systemsFor`: pick the systems after the data is known (the generic runtime of the browser studio's export bundles
+ * every genre module and turns on only the ones the project enables).
+ */
+export async function bootStandalone(options: { systems: GameSystem[]; host?: HTMLElement; dataBase?: string; systemsFor?: (content: GameContent) => GameSystem[] }): Promise<void> {
   const host = options.host ?? document.getElementById("game")!;
   const base = options.dataBase ?? "./data/";
   const status = document.getElementById("boot-status");
@@ -130,6 +134,7 @@ export async function bootStandalone(options: { systems: GameSystem[]; host?: HT
     };
     if (status) status.textContent = "読み込み中… データ";
     const content = await loadBuiltContent(fetchJson, options.systems);
+    const systems = options.systemsFor ? options.systemsFor(content) : options.systems;
     await preloadAssets(content, path => new URL(path, new URL(base, location.href)).href, (done, total) => {
       if (status) status.textContent = `読み込み中… ${Math.round((done / Math.max(1, total)) * 100)}%（${done}/${total}）`;
     });
@@ -138,7 +143,7 @@ export async function bootStandalone(options: { systems: GameSystem[]; host?: HT
     status?.remove();
     const handle = mountGame(host, {
       content,
-      systems: options.systems,
+      systems,
       resolveAsset: asset => new URL(asset.path, new URL(base, location.href)).href,
       keyboard: "window",
       titleScreen: true,

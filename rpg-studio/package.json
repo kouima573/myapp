@@ -20,7 +20,7 @@
     "rpg:test": "vitest run packages projects",
     "build:game": "tsx packages/cli/src/index.ts build",
     "dev:game": "tsx packages/cli/src/index.ts dev",
-    "build:site": "vite build && tsx packages/cli/src/index.ts build --project projects/sample-rpg && tsx packages/cli/src/index.ts build --project projects/genre-gallery && node scripts/build-site.mjs",
+    "build:site": "vite build && tsx packages/cli/src/index.ts runtime --out dist/runtime && tsx packages/cli/src/index.ts build --project projects/sample-rpg && tsx packages/cli/src/index.ts build --project projects/genre-gallery && node scripts/build-site.mjs",
     "deploy:site": "pnpm build:site && npx --yes wrangler@4 pages deploy dist/site --project-name rpg-studio --branch main"
   },
   "dependencies": {

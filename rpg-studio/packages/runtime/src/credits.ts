@@ -24,3 +24,9 @@ export function creditLines(content: GameContent): string[] {
   lines.push("Made with RPGシステム工房");
   return lines;
 }
+
+/** Credits plus the provenance of every bundled asset, shipped next to the game. */
+export function creditsMarkdown(content: GameContent): string {
+  const rows = content.assets.assets.map(a => `| ${a.id} | ${a.kind} | ${a.origin} | ${a.author ?? ""} | ${a.license} | ${a.url ?? a.sourceId ?? a.source} | ${a.termsCheckedAt ?? ""} |`);
+  return `# ${content.project.title} — クレジット\n\n${creditLines(content).map(l => `- ${l}`).join("\n")}\n\n## 素材一覧\n\n| ID | 種類 | 出どころ | 作者 | 規約・ライセンス | 入手元 | 規約確認日 |\n| --- | --- | --- | --- | --- | --- | --- |\n${rows.join("\n")}\n`;
+}

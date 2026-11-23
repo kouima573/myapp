@@ -44,7 +44,7 @@
 cd rpg-studio
 pnpm install
 pnpm check                      # 型チェック
-pnpm test                       # vitest（現在190件）
+pnpm test                       # vitest（現在192件）
 pnpm rpg proofread --project <dir>   # 台詞の長さ・誤字らしき所（v1.9）
 pnpm rpg validate --project projects/sample-rpg     # ← フォルダは --project で指定（位置引数は無視される）
 pnpm rpg test     --project projects/sample-rpg
@@ -204,6 +204,12 @@ Codex向け `.agents/skills/rpg-studio/SKILL.md` とClaude Code向け `.claude/s
 - 工房 `studio/src/components/ChatPanel.tsx`（「チャットで作る」）。取り込みは undo のひとまとまり
 - 案内: 短編はチャット可、長編は Codex（おすすめ）／Claude Code。台本（SCRIPT.md）推奨、長編は仕様書（SPEC.md）も（`docs/chat-workflow.md`）
 - 次の段階の候補: 公開サイトの工房（Preview）でブラウザ内に保存・書き出しできるようにすれば、PCに何も入れずにチャットだけで作れる
+
+## 6.22 ブラウザ版の工房（インストール不要）
+
+公開サイトの工房（`PreviewSource`）を「ブラウザ版」にした: 見本から始め、編集すると IndexedDB（`studio/src/lib/browserProjects.ts`）に自動保存。「プロジェクト」画面（`BrowserPanel`）で新しいゲーム（`studio/src/lib/blank.ts`。見本の絵・音・タイルを借りた最小構成、コードなし）・切り替え・削除・ZIPで書き出し／読み込み（`browserExport.ts`・`zip.ts`）・遊べる形で書き出し。
+
+遊べる形の書き出しは、公開サイトに置いた共通のゲームエンジン `runtime/`（`rpg runtime`＝`buildRuntime`。全ジャンルモジュール入り・独自コードなし、`bootStandalone` の `systemsFor` で有効なモジュールだけ動かす）と、`normalizedDataFiles`（`rpg build` と共用）で作る。見本のコードをそのまま使うプロジェクトは `play/game.js` を使う。コードを書き換えたものは書き出せない（手元で `rpg build`）。確認済み: 新規作成→チャットで変更→再読み込みで残る→遊べる形で書き出し→別サーバーで起動して変更が反映、プロジェクトZIP→ `rpg validate`/`build` OK、見本の書き出しも起動。
 
 ## 7. 残っている仕事
 

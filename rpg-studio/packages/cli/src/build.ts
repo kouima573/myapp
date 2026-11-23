@@ -6,15 +6,10 @@ import * as esbuild from "esbuild";
 import ts from "typescript";
 import type { Diagnostic } from "../../schema/src/index";
 import { loadProjectFromDisk, resolveInside } from "./load";
-import { creditLines } from "../../runtime/src/credits";
-import type { GameContent } from "../../schema/src/index";
+import { creditsMarkdown } from "../../runtime/src/credits";
+import { normalizedDataFiles, type GameContent } from "../../schema/src/index";
 import { MODULES } from "../../modules/src/index";
 
-/** Credits plus the provenance of every bundled asset, shipped next to the game. */
-function creditsMarkdown(content: GameContent): string {
-  const rows = content.assets.assets.map(a => `| ${a.id} | ${a.kind} | ${a.origin} | ${a.author ?? ""} | ${a.license} | ${a.url ?? a.sourceId ?? a.source} | ${a.termsCheckedAt ?? ""} |`);
-  return `# ${content.project.title} — クレジット\n\n${creditLines(content).map(l => `- ${l}`).join("\n")}\n\n## 素材一覧\n\n| ID | 種類 | 出どころ | 作者 | 規約・ライセンス | 入手元 | 規約確認日 |\n| --- | --- | --- | --- | --- | --- | --- |\n${rows.join("\n")}\n`;
-}
 
 export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const RUNTIME_ENTRY = path.join(REPO_ROOT, "packages/runtime/src/standalone.ts");
@@ -224,22 +219,28 @@ async function writeStoreZip(dir: string, outFile: string) {
   await fs.writeFile(outFile, Buffer.concat([...parts, ...central, eocd]));
 }
 
+/**
+ * Generic game runtime for the browser studio's "遊べる形で書き出す": every genre module bundled, no project systems.
+ * index.html has the title placeholder __RPG_TITLE__ (the studio fills it in).
+ */
+export async function buildRuntime(outDir: string): Promise<void> {
+  const work = path.join(REPO_ROOT, ".rpg-studio", `runtime-${crypto.randomBytes(6).toString("hex")}`);
+  await fs.mkdir(work, { recursive: true });
+  try {
+    const entry = path.join(work, "runtime-entry.ts");
+    await fs.writeFile(entry, `import { bootStandalone } from ${JSON.stringify(posix(RUNTIME_ENTRY))};\nimport { modulesFor } from ${JSON.stringify(posix(path.join(REPO_ROOT, "packages/modules/src/index.ts")))};\nvoid bootStandalone({ systems: [], systemsFor: content => modulesFor(content) });\n`);
+    await fs.mkdir(outDir, { recursive: true });
+    await esbuild.build({ alias: PACKAGE_ALIASES, bundle: true, format: "esm", target: "es2020", platform: "browser", logLevel: "silent", legalComments: "none", minify: true, entryPoints: [entry], outfile: path.join(outDir, "game.js") });
+    await fs.writeFile(path.join(outDir, "index.html"), gameHtml("__RPG_TITLE__"));
+    await fs.writeFile(path.join(outDir, "systems.js"), "export const systems = [];\n");
+  } finally {
+    await fs.rm(work, { recursive: true, force: true });
+  }
+}
+
 /** Writes the runtime JSON files from the parsed content (schema defaults applied), at the paths project.json names. */
 async function writeNormalizedData(content: GameContent, outData: string) {
-  const { project } = content;
-  const v = project.formatVersion;
-  const files: Record<string, unknown> = {
-    "project.json": project,
-    [project.tilesetPath]: content.tileset,
-    [project.dialoguesPath]: { formatVersion: v, dialogues: Object.values(content.dialogues) },
-    [project.eventsPath]: { formatVersion: v, events: Object.values(content.events) },
-    [project.databasePath]: content.database,
-    [project.assetsPath]: content.assets,
-    ...(project.rulesPath ? { [project.rulesPath]: { formatVersion: v, rules: content.rules } } : {}),
-  };
-  for (const ref of project.maps) files[ref.path] = content.maps[ref.id];
-  for (const asset of content.assets.assets) if (asset.kind === "song" && content.songs[asset.id]) files[asset.path] = content.songs[asset.id];
-  for (const [relative, value] of Object.entries(files)) {
+  for (const [relative, value] of Object.entries(normalizedDataFiles(content))) {
     const target = path.join(outData, ...relative.split("/"));
     await fs.mkdir(path.dirname(target), { recursive: true });
     await fs.writeFile(target, JSON.stringify(value));
