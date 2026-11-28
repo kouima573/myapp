@@ -1,6 +1,6 @@
 import { z } from "zod";
 import {
-  ArtRequestBundleSchema, AssetManifestSchema, DatabaseSchema, SongSchema, DialogueBundleSchema, EventBundleSchema, GameMapSchema, ProjectManifestSchema, RuleBundleSchema, TilesetSchema,
+  ArtRequestBundleSchema, AssetManifestSchema, DatabaseSchema, ExperienceProjectSchema, SongSchema, DialogueBundleSchema, EventBundleSchema, GameMapSchema, ProjectManifestSchema, RuleBundleSchema, TilesetSchema,
   type GameContent, type Rule,
 } from "../../schema/src/index";
 import { ScenarioSchema } from "../../engine/src/scenario";
@@ -10,6 +10,7 @@ export function jsonSchemas(): Record<string, unknown> {
   const opts = { io: "input", unrepresentable: "any" } as const;
   return {
     "project.schema.json": z.toJSONSchema(ProjectManifestSchema, opts),
+    "experience.schema.json": z.toJSONSchema(ExperienceProjectSchema, opts),
     "tiles.schema.json": z.toJSONSchema(TilesetSchema, opts),
     "map.schema.json": z.toJSONSchema(GameMapSchema, opts),
     "dialogues.schema.json": z.toJSONSchema(DialogueBundleSchema, opts),

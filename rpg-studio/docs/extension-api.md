@@ -2,6 +2,8 @@
 
 > 特定の技・アイテム・特性・敵・仲間・マップ・エンティティにだけ効く処理は、**スクリプト**（`scripts/*.ts`、登録不要）で書くのが簡単です → [scripting.md](scripting.md)。ここで説明するシステム（`systems/*.ts`）は、プロジェクト全体に常に効く仕組み用です。フックは共通です。
 
+ここで扱うのはRPGの `project.json` に追加する拡張です。RPGのゲーム状態や実行画面を土台として使わない作品は、[独立作品形式](experience-projects.md) の `defineExperience` から始めてください。
+
 **まずデータのルール（[customization-guide.md](customization-guide.md)）で書けないか考えてください。** 食いしばり・会心・特効・再生・毒・技・コスト・好感度・地形変化などは、TypeScriptなしでJSONのルールで書けます。それでも表せない処理（文章の組み立て、複雑な計算・探索、独自のミニゲームなど）だけを `projects/<id>/systems/*.ts` に TypeScript で書きます。システムは `project.json` の `systems` に登録し、`default export` で `defineSystem({...})` を返します。
 
 ```ts

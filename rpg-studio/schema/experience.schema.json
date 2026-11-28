@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "formatVersion": {
+      "type": "number",
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96,
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "runtime": {
+      "default": "experience",
+      "type": "string",
+      "enum": [
+        "experience",
+        "static"
+      ]
+    },
+    "entry": {
+      "default": "systems/main.ts",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "build": {
+      "type": "object",
+      "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "outputDir": {
+          "default": "dist",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 240
+        }
+      },
+      "required": [
+        "command"
+      ],
+      "additionalProperties": false
+    },
+    "assetsPath": {
+      "default": "assets.json",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 240
+    },
+    "args": {
+      "default": {},
+      "type": "object",
+      "propertyNames": {
+        "type": "string"
+      },
+      "additionalProperties": {}
+    },
+    "save": {
+      "default": {
+        "enabled": true,
+        "autosave": true
+      },
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "default": true,
+          "type": "boolean"
+        },
+        "autosave": {
+          "default": true,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "formatVersion",
+    "id",
+    "title"
+  ],
+  "additionalProperties": false
+}

@@ -24,6 +24,7 @@ import SkillBoardPanel from "./components/SkillBoardPanel";
 import HelpPanel from "./components/HelpPanel";
 import ChatPanel from "./components/ChatPanel";
 import BrowserPanel from "./components/BrowserPanel";
+import ExperiencePanel from "./components/ExperiencePanel";
 import { glossaryLookup } from "./lib/glossary";
 import { generateDungeon } from "../../packages/engine/src/dungeon";
 import CodeFinder from "./components/CodeFinder";
@@ -31,9 +32,10 @@ import ConflictDialog from "./components/ConflictDialog";
 import { useProject } from "./lib/useProject";
 import type { PreviewSource, ProjectSource } from "./lib/source";
 
-type Section = "idea" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history" | "world" | "search" | "tutorial" | "song" | "skills" | "help" | "chat" | "projects";
+type Section = "idea" | "experience" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history" | "world" | "search" | "tutorial" | "song" | "skills" | "help" | "chat" | "projects";
 const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
   { id: "projects", label: "プロジェクト・公開準備", icon: HardDrive },
+  { id: "experience", label: "独立作品", icon: Code2 },
   { id: "tutorial", label: "はじめての5分", icon: GraduationCap },
   { id: "idea", label: "発想", icon: Lightbulb },
   { id: "chat", label: "チャットで作る", icon: MessagesSquare },
@@ -75,6 +77,11 @@ export default function App({ source }: { source: ProjectSource }) {
     (source as PreviewSource).onSaved = (state, message) => { if (state === "error") store.log("error", `このブラウザに保存できません: ${message ?? ""}（「プロジェクト」画面からZIPで書き出して残してください）`); };
   }, [source, store]);
   const [section, setSection] = useState<Section>("idea");
+  const isExperience = store.texts["experience.json"] !== undefined;
+  useEffect(() => {
+    if (isExperience && !["projects", "experience", "data"].includes(section)) setSection("experience");
+    else if (!isExperience && section === "experience") setSection("idea");
+  }, [isExperience, section]);
   const [findingCode, setFindingCode] = useState(false);
   const [mapId, setMapId] = useState<string | null>(null);
   const [selection, setSelection] = useState<Selection>(null);
@@ -126,6 +133,13 @@ export default function App({ source }: { source: ProjectSource }) {
 
   const playContent = store.content ?? store.lastGoodContent;
   const editContent = useMemo(() => editorContent(store.texts, store.content ?? store.lastGoodContent), [store.texts, store.content, store.lastGoodContent]);
+  const experienceInfo = useMemo(() => {
+    try { return JSON.parse(store.texts["experience.json"] ?? "null") as { id?: string; title?: string } | null; } catch { return null; }
+  }, [store.texts]);
+  const visibleSections = useMemo(() => {
+    const sections = isExperience ? SECTIONS.filter(s => ["projects", "experience", "data"].includes(s.id)) : SECTIONS.filter(s => s.id !== "experience");
+    return sections.filter(s => s.id !== "projects" || source.kind === "preview");
+  }, [isExperience, source.kind]);
   const activeMapId = mapId && editContent?.maps[mapId] ? mapId : editContent?.project.start.mapId ?? null;
 
   const assetKey = playContent ? JSON.stringify(playContent.assets) : "";
@@ -141,8 +155,8 @@ export default function App({ source }: { source: ProjectSource }) {
     store.log("info", `${activeMapId} (${x}, ${y}) から試遊を開始します`);
   }, [activeMapId, store]);
 
-  const errors = store.diagnostics.filter(d => d.severity === "error").length;
-  const warnings = store.diagnostics.length - errors;
+  const errors = isExperience ? 0 : store.diagnostics.filter(d => d.severity === "error").length;
+  const warnings = isExperience ? 0 : store.diagnostics.length - errors;
   const historyFile = store.lastEditedFile;
   const globalHistory = historyFile ? store.historyState(historyFile) : { canUndo: false, canRedo: false };
   const openFile = (file: string) => { setDataFile(file); setSection("data"); };
@@ -154,15 +168,17 @@ export default function App({ source }: { source: ProjectSource }) {
     <CodeFinder active={findingCode} onExit={() => setFindingCode(false)} repoRoot={store.projectInfo.repoRoot} projectDir={store.projectInfo.projectDir} />
     <header className="topbar">
       <div className="brand"><img src="./favicon.svg" alt="" width={26} height={26} /><div><b>RPGシステム工房</b><span>AGENT WORKBENCH 1.0</span></div></div>
-      <div className="project-pill" title={store.texts["project.json"] ? "project.json" : ""}>
-        <span>{playContent?.project.title ?? "（検証エラー）"}</span><code>{playContent?.project.id}</code>
+      <div className="project-pill" title={isExperience ? "experience.json" : store.texts["project.json"] ? "project.json" : ""}>
+        <span>{playContent?.project.title ?? experienceInfo?.title ?? "（検証エラー）"}</span><code>{playContent?.project.id ?? experienceInfo?.id}</code>
       </div>
       <div className="top-status">
         <span className={`pill ${source.kind === "local" ? "ok" : ""}`}><span className="dot" />{source.kind === "local" ? "ローカルファイル接続" : "ブラウザ版（このブラウザに保存）"}</span>
-        <button className={`pill ${errors ? "error" : warnings ? "warn" : "ok"}`} onClick={() => setSection("checks")}>
-          {errors ? <XCircle size={12} /> : warnings ? <AlertTriangle size={12} /> : <CheckCircle2 size={12} />}
-          {errors ? `エラー ${errors}` : warnings ? `警告 ${warnings}` : "検証OK"}
-        </button>
+        {isExperience
+          ? <span className="pill ok"><Code2 size={12} />独立作品形式</span>
+          : <button className={`pill ${errors ? "error" : warnings ? "warn" : "ok"}`} onClick={() => setSection("checks")}>
+            {errors ? <XCircle size={12} /> : warnings ? <AlertTriangle size={12} /> : <CheckCircle2 size={12} />}
+            {errors ? `エラー ${errors}` : warnings ? `警告 ${warnings}` : "検証OK"}
+          </button>}
         {source.kind === "local" && <span className={`pill ${store.build?.state === "error" ? "error" : store.build?.state === "ready" ? "ok" : ""}`}>
           {store.build?.state === "building" ? <Loader2 size={12} className="spin" /> : null}
           ビルド {store.build?.state === "ready" ? "OK" : store.build?.state === "error" ? "失敗" : store.build?.state === "building" ? "中" : "待機"}
@@ -177,7 +193,7 @@ export default function App({ source }: { source: ProjectSource }) {
 
     <nav className="sidebar" aria-label="機能">
       <div className="section-tabs" role="tablist">
-        {SECTIONS.filter(s => s.id !== "projects" || source.kind === "preview").map(s => <button key={s.id} role="tab" aria-selected={section === s.id} className={`section-tab ${section === s.id ? "is-active" : ""}`} onClick={() => setSection(s.id)}>
+        {visibleSections.map(s => <button key={s.id} role="tab" aria-selected={section === s.id} className={`section-tab ${section === s.id ? "is-active" : ""}`} onClick={() => setSection(s.id)}>
           <s.icon size={16} /><span>{s.label}</span>
           {s.id === "checks" && errors > 0 && <span className="count error">{errors}</span>}
         </button>)}
@@ -204,6 +220,7 @@ export default function App({ source }: { source: ProjectSource }) {
 
     <section className="workspace">
       {section === "idea" && <IdeaPanel store={store} content={playContent} />}
+      {section === "experience" && isExperience && <ExperiencePanel store={store} source={source} />}
       {section === "story" && playContent && <StoryPanel store={store} content={playContent} onOpenFile={openFile} />}
       {section === "rules" && playContent && <RulesPanel store={store} content={playContent} />}
       {section === "database" && playContent && <DatabasePanel store={store} content={playContent} onOpenFile={openFile} />}
@@ -215,7 +232,7 @@ export default function App({ source }: { source: ProjectSource }) {
         <aside className="inspector-pane"><Inspector store={store} content={editContent} mapId={activeMapId} selection={selection} onSelect={setSelection} onPlayFrom={playFrom} onOpenFile={openFile} /></aside>
       </div>}
       {section === "play" && playContent && <PlayPanel store={store} content={playContent} stale={!store.content} systems={store.systems} systemsVersion={store.systemsVersion} source={source} startAt={startAt} startState={playState} />}
-      {section === "data" && <DataPanel store={store} diagnostics={store.diagnostics} file={dataFile} onFile={setDataFile} />}
+      {section === "data" && <DataPanel store={store} diagnostics={isExperience ? [] : store.diagnostics} file={dataFile} onFile={setDataFile} />}
       {section === "assets" && playContent && <AssetsPanel store={store} content={playContent} images={images} />}
       {section === "world" && playContent && <WorldPanel content={playContent} onOpenMap={id => { setMapId(id); setSelection(null); setSection("map"); }} />}
       {section === "chat" && <ChatPanel store={store} />}
@@ -227,7 +244,7 @@ export default function App({ source }: { source: ProjectSource }) {
       {section === "search" && <SearchPanel store={store} onOpenFile={openFile} />}
       {section === "history" && <HistoryPanel store={store} source={source} />}
       {section === "checks" && <ChecksPanel store={store} diagnostics={store.diagnostics} onOpenFile={openFile} onPlayState={st => { setPlayState({ state: st, nonce: Date.now() }); setSection("play"); }} />}
-      {!editContent && section !== "data" && section !== "checks" && section !== "chat" && section !== "projects" && <div className="empty">プロジェクトが一度も検証を通っていません。「検証」と「データ」で問題を直してください。</div>}
+      {!editContent && !isExperience && section !== "data" && section !== "checks" && section !== "chat" && section !== "projects" && <div className="empty">プロジェクトが一度も検証を通っていません。「検証」と「データ」で問題を直してください。</div>}
     </section>
 
     <footer className={`console ${consoleOpen ? "is-open" : ""}`}>

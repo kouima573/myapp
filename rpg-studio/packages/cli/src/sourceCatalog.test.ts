@@ -41,3 +41,25 @@ describe("画風（137）", () => {
     expect(styleColor("dusk", 255, 255, 255)[2]).toBeGreaterThan(styleColor("dusk", 255, 255, 255)[0]);
   });
 });
+
+describe("運営の回答の記録（OpenTracks）", () => {
+  it("公開リポジトリ不可の取得元の素材を使うと、検証が警告する", async () => {
+    const { loadProjectContent } = await import("../../schema/src/index");
+    const { readProjectTexts } = await import("./load");
+    const path = await import("node:path");
+    const opentracks = SOURCE_CATALOG.find(s => s.id === "dova-syndrome")!;
+    expect(opentracks.publicRepository).toBe("private-only");
+    expect(opentracks.inquiries[0]!.answer.join()).toMatch(/公開リポジトリ/);
+    expect(opentracks.verifiedAt).toBeNull(); // 運営の回答は inquiries。規約の原文を読んだ記録ではない
+    const { texts } = await readProjectTexts(path.resolve(__dirname, "../../../projects/sample-rpg"));
+    const project = JSON.parse(texts["project.json"]!);
+    project.assetPolicy = { ...project.assetPolicy, shareable: false, sources: { ...project.assetPolicy.sources, "dova-syndrome": true } };
+    const assets = JSON.parse(texts["assets.json"]!);
+    const bgm = assets.assets.find((a: { kind: string }) => a.kind === "sfx");
+    assets.assets.push({ ...bgm, id: "ot-song", kind: "bgm", origin: "site", sourceId: "dova-syndrome", license: "OpenTracks 音源利用ライセンス", redistributable: false, termsCheckedAt: "2026-11-28", url: "https://opentracks.com/bgm/detail/1" });
+    const loaded = loadProjectContent({ ...texts, "project.json": JSON.stringify(project), "assets.json": JSON.stringify(assets) });
+    const warning = loaded.diagnostics.find(d => /公開リポジトリ/.test(d.message));
+    expect(warning?.severity).toBe("warning");
+    expect(warning?.message).toContain("ot-song");
+  });
+});

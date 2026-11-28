@@ -7,7 +7,7 @@
 1. `rpg-studio` のZIPをPC上の作業フォルダーへ展開します。
 2. Codex Desktopで展開先フォルダーをプロジェクトとして開くか、そのフォルダーからCodex CLIを起動します。Claude Codeも同じフォルダーを作業ディレクトリにして起動します。
 3. Codexはルートの `AGENTS.md`、Claude Codeは `CLAUDE.md` から共通の `AGENTS.md` を参照します。対象プロジェクトに `IDEA.md` がある場合は、今回の依頼と関係する内容を読みます。これは任意の発想メモで、ない場合に作成する必要はありません。`README.md` があれば概要を確認します。Node.js 22以上とpnpm 10.18.0を用意して `pnpm install` を実行すると、検証・試遊・ビルド用のCLIも使えます。
-4. 新しいRPGの技術的な土台が必要な場合は `pnpm rpg new <id> --title "<作品名>"` で作れます（主人公・空マップ1枚のみ。物語・レベル成長・音楽・ジャンルモジュールは自動で決めません）。IDEA.md は任意です。すでにプロジェクトや試作品、制作資料がある場合は、作り直したり決まったファイルへ移したりせず、そのまま対象にします。
+4. 技術的な土台が必要なら、RPGには `pnpm rpg new <id> --title "<作品名>"`、独立作品には `pnpm rpg new <id> --type experience` を使えます。状態遷移型はTypeScript、独自構成は `--runtime static` を選びます。後者は `index.html` 起点のHTML/CSS/JavaScript/WASM等をそのまま使います。`IDEA.md` は任意です。すでにプロジェクトや試作品、制作資料がある場合は、作り直したり決まったファイルへ移したりせず、そのまま対象にします。
 5. スキルを直接呼び出すか、普通の言葉で作りたい内容を頼みます。
 
 ```text
@@ -46,5 +46,7 @@ pnpm rpg validate --project projects/<id>
 pnpm rpg test --project projects/<id>
 pnpm rpg build --project projects/<id>
 ```
+
+独立作品は `validate` / `build` と `pnpm rpg dev --project projects/<id>` に対応します。状態遷移型は `tests/*.experience.json` を `pnpm rpg test` で実行できます。静的サイト型は完成済みファイルをそのまま配信できます。ソースビルドは `experience.json` に手順と成果物フォルダーを指定し、内容を確認したうえで `pnpm rpg build --project projects/<id> --run-project-build` を明示して実行します。通常の `validate` / `test` / `dev` やブラウザ工房は設定コマンドを実行しません。任意のゲームロジックには作品独自のテスト方法を使います。
 
 AIには必要な作業範囲のコマンドを依頼できます。変更したファイルと実行したコマンドの結果を確認し、ユーザーの意図どおりかを見てから配布してください。AIがファイルを変更できる範囲は、CodexまたはClaude Code側でこのフォルダーに設定したアクセス権に従います。

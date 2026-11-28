@@ -1,0 +1,15 @@
+{
+  "name": "木曜日の封筒を潮の切手で月の貝へ届けると、八つ目の曜日が現れる。誤配も記録される",
+  "steps": [
+    { "input": { "type": "custom", "value": { "kind": "letter", "id": "c" } }, "expect": { "paths": { "selectedLetter": "c" } } },
+    { "input": { "type": "custom", "value": { "kind": "recipient", "id": "moon-shell" } } },
+    { "input": { "type": "custom", "value": { "kind": "stamp", "id": "tide" } } },
+    { "input": { "type": "custom", "value": { "kind": "deliver" } }, "expect": { "paths": { "eighthDay": true, "waterline": 1, "selectedLetter": null, "deliveries.c.misdelivered": false }, "contains": { "lostDays": ["木曜日"] } } },
+    { "input": { "type": "custom", "value": { "kind": "letter", "id": "c" } }, "expect": { "paths": { "selectedLetter": null } } },
+    { "input": { "type": "custom", "value": { "kind": "letter", "id": "a" } } },
+    { "input": { "type": "custom", "value": { "kind": "recipient", "id": "clockmaker" } } },
+    { "input": { "type": "custom", "value": { "kind": "stamp", "id": "gravity" } } },
+    { "input": { "type": "custom", "value": { "kind": "deliver" } }, "expect": { "paths": { "gravity": "sideways", "deliveries.a.misdelivered": true }, "contains": { "lostDays": ["木曜日", "火曜日"] } } },
+    { "input": { "type": "key", "key": "cancel" }, "expect": { "paths": { "selectedLetter": null, "recipient": null } } }
+  ]
+}

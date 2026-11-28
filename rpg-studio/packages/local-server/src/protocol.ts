@@ -4,7 +4,7 @@ export const LOCAL_TOKEN_META = "rpg-studio-token";
 
 export interface ProjectSnapshot {
   projectDir: string;
-  /** project-relative path → UTF-8 text (JSON data, system sources, scenario tests). */
+  /** project-relative path → UTF-8 text (JSON data, TS/TSX sources, docs, scenario tests). */
   texts: Record<string, string>;
   /** project-relative path → SHA-256 hex of the bytes on disk. */
   hashes: Record<string, string>;

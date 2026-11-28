@@ -16,6 +16,7 @@ import {
   type AssetEntry,
 } from "../../schema/src/index";
 import { buildProject, REPO_ROOT } from "../../cli/src/build";
+import { loadExperienceProject, readExperienceProjectTexts } from "../../cli/src/experience";
 import { loadSystems, runProjectScenarios, systemRefDiagnostics } from "../../cli/src/index";
 import { loadProjectFromDisk, readProjectTexts } from "../../cli/src/load";
 import { add as libraryAdd, DEFAULT_LIBRARY, loadLibrary } from "../../cli/src/library";
@@ -25,14 +26,14 @@ import {
   type BuildStatus, type ChangeEvent, type ProjectSnapshot, type ImageSaveRequest, type SaveRequest, type TestResponse,
 } from "./protocol";
 
-const TEXT_EXT = new Set([".json", ".ts", ".md"]);
+const TEXT_EXT = new Set([".json", ".ts", ".tsx", ".md", ".html", ".htm", ".css", ".js", ".mjs", ".cjs", ".txt", ".xml", ".svg", ".webmanifest"]);
 const BINARY_EXT: Record<string, string> = { ".png": "image/png", ".ogg": "audio/ogg", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".woff2": "font/woff2", ".woff": "font/woff", ".ttf": "font/ttf", ".otf": "font/otf" };
 const MAX_TEXT = 4 * 1024 * 1024;
 const MAX_BINARY = 20 * 1024 * 1024;
 const MAX_IMPORT_BODY = Math.ceil(MAX_BINARY * 4 / 3) + 128 * 1024;
 const MAX_IMAGE = 3 * 1024 * 1024;
 const IMAGE_PATH = /^assets\/[a-z0-9][a-z0-9_-]*\/[a-z0-9][a-z0-9_.-]*\.png$/i;
-const IGNORED = /(^|\/)(\.git|node_modules|dist|\.rpg-backup|\.rpg-studio)(\/|$)/;
+const IGNORED = /(^|\/)(\.git|node_modules|\.rpg-backup|\.rpg-studio)(\/|$)/;
 const ASSET_FOLDERS: Record<AssetEntry["kind"], string> = {
   tileset: "assets/tilesets", character: "assets/characters", enemy: "assets/enemies", animation: "assets/animations",
   portrait: "assets/portraits", background: "assets/backgrounds", bgm: "assets/audio/bgm", sfx: "assets/audio/sfx",
@@ -206,7 +207,13 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   }
 
   async function snapshot(): Promise<ProjectSnapshot> {
-    const { texts } = await readProjectTexts(root);
+    let experience = false;
+    try {
+      const manifest = await fs.lstat(path.join(root, "experience.json"));
+      if (manifest.isSymbolicLink() || !manifest.isFile()) throw new HttpError(400, "experience.json は通常のファイルにしてください");
+      experience = true;
+    } catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+    const texts = experience ? await readExperienceProjectTexts(root) : (await readProjectTexts(root)).texts;
     // Also expose scenario tests so the studio can list them.
     try {
       for (const name of await fs.readdir(path.join(root, "tests"))) {
@@ -221,7 +228,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   async function save(body: SaveRequest, source: "studio" | "restore" = "studio") {
     if (!body || typeof body.path !== "string" || typeof body.content !== "string" || typeof body.expectedHash !== "string") throw new HttpError(400, "{path, content, expectedHash} が必要です");
     const ext = path.extname(body.path).toLowerCase();
-    if (!TEXT_EXT.has(ext)) throw new HttpError(415, "工房から保存できるのはテキスト(.json/.ts/.md)のみです");
+    if (!TEXT_EXT.has(ext)) throw new HttpError(415, "工房から保存できないファイル形式です（.json/.ts/.tsx/.md/.html/.css/.js等に対応）");
     if (Buffer.byteLength(body.content, "utf8") > MAX_TEXT) throw new HttpError(413, "内容が大きすぎます");
     if (ext === ".json") { try { JSON.parse(body.content); } catch { throw new HttpError(422, "JSONとして正しくない内容は保存しません"); } }
     // expectedHash "" = create a new file (only inside an existing folder, never over an existing file).
@@ -342,6 +349,51 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
     const isAudio = kind === "bgm" || kind === "sfx";
     if ((!isImage && !isAudio && kind !== "font") || (isImage && mime !== "image/png") || (isAudio && !mime.startsWith("audio/")) || (kind === "font" && !mime.startsWith("font/"))) {
       throw new HttpError(422, `素材の種類「${String(kind)}」とファイル形式 ${mime} が合いません`);
+    }
+
+    const experience = await loadExperienceProject(root);
+    if (experience.manifest) {
+      if (!experience.assets || experience.diagnostics.some(diagnostic => diagnostic.severity === "error")) throw new HttpError(422, "独立作品にエラーがあるため、素材を登録できません");
+      const assets = experience.assets;
+      if (assets.assets.some(asset => asset.id === id)) throw new HttpError(409, `素材ID「${id}」は既に使われています`);
+      if (mime === "image/png") {
+        if (bytes.length > MAX_IMAGE) throw new HttpError(413, "画像は3MBまでです");
+        if (bytes.subarray(12, 16).toString("latin1") !== "IHDR" || bytes.length < 24) throw new HttpError(422, "PNG画像のヘッダーが正しくありません");
+        const width = bytes.readUInt32BE(16), height = bytes.readUInt32BE(20);
+        if (!width || !height || width > 4096 || height > 4096) throw new HttpError(422, "画像の大きさは4096×4096までです");
+      }
+      const origin = input.origin;
+      const entryInput: Record<string, unknown> = {
+        ...input,
+        id, kind, mimeType: mime, bytes: bytes.length,
+        path: `${ASSET_FOLDERS[kind]}/${id}${ext}`,
+        source: typeof input.source === "string" && input.source ? input.source : origin === "generated" ? "生成" : origin === "original" ? "自作" : typeof input.sourceId === "string" ? input.sourceId : "外部素材",
+        license: typeof input.license === "string" && input.license ? input.license : "プロジェクト内素材",
+        ...(isImage ? { tileWidth: input.tileWidth ?? bytes.readUInt32BE(16), tileHeight: input.tileHeight ?? bytes.readUInt32BE(20), columns: input.columns ?? 1, rows: input.rows ?? 1 } : {}),
+        ...(isAudio ? { loop: input.loop ?? kind === "bgm" } : {}),
+      };
+      const parsedEntry = AssetEntrySchema.safeParse(entryInput);
+      if (!parsedEntry.success) throw new HttpError(422, parsedEntry.error.issues.map(issue => `${issue.path.join(".")}: ${issue.message}`).join(" ／ "));
+      const nextManifest = AssetManifestSchema.safeParse({ ...assets, assets: [...assets.assets, parsedEntry.data] });
+      if (!nextManifest.success) throw new HttpError(422, nextManifest.error.issues.map(issue => issue.message).join(" ／ "));
+      const relative = parsedEntry.data.path;
+      const target = await securePath(root, relative, { allowMissing: true });
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await securePath(root, relative, { allowMissing: true });
+      let created = false;
+      try {
+        const handle = await fs.open(target, "wx", 0o644).catch((error: NodeJS.ErrnoException) => { if (error.code === "EEXIST") throw new HttpError(409, "同じ名前の素材ファイルがあります"); throw error; });
+        created = true;
+        try { await handle.writeFile(bytes); await handle.sync(); } finally { await handle.close(); }
+        const assetsPath = experience.manifest.assetsPath;
+        const oldText = (await readNoFollow(await securePath(root, assetsPath), MAX_TEXT)).toString("utf8");
+        const result = await save({ path: assetsPath, content: `${JSON.stringify(nextManifest.data, null, 2)}\n`, expectedHash: sha256(Buffer.from(oldText, "utf8")) });
+        if (result.status !== 200) throw new HttpError(result.status, "素材一覧が変更されています。読み込み直してから再度取り込んでください");
+        return { status: 200, json: { asset: parsedEntry.data } };
+      } catch (error) {
+        if (created) await fs.rm(target, { force: true }).catch(() => {});
+        throw error;
+      }
     }
 
     const loaded = await loadProjectFromDisk(root);

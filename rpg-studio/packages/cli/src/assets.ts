@@ -100,6 +100,8 @@ async function sources(root: string): Promise<number> {
     console.log(`      ${source.summary}`);
     for (const item of source.checklist) console.log(`      □ ${item}`);
     if (source.notes) console.log(`      注: ${source.notes}`);
+    if (source.publicRepository === "private-only") console.log("      ! 素材ファイルは公開リポジトリに置けません（非公開リポジトリは可）");
+    for (const q of source.inquiries) console.log(`      運営の回答（${q.answeredAt}・${q.channel}）:\n${q.answer.map(a => `        - ${a}`).join("\n")}`);
   }
   console.log(`\n優先: ${JSON.stringify(parsed.assetPolicy.prefer)}　共有用プロジェクト: ${parsed.assetPolicy.shareable}`);
   return 0;

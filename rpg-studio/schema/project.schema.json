@@ -1412,6 +1412,42 @@
               },
               "contact": {
                 "type": "string"
+              },
+              "publicRepository": {
+                "type": "string",
+                "enum": [
+                  "allowed",
+                  "private-only",
+                  "unknown"
+                ]
+              },
+              "inquiries": {
+                "default": [],
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "answeredAt": {
+                      "type": "string"
+                    },
+                    "channel": {
+                      "type": "string"
+                    },
+                    "answer": {
+                      "minItems": 1,
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "required": [
+                    "answeredAt",
+                    "channel",
+                    "answer"
+                  ],
+                  "additionalProperties": false
+                }
               }
             },
             "required": [

@@ -1,5 +1,7 @@
 # プロジェクト形式 v2（エンジン0.3で上位互換の拡張）
 
+この文書は `project.json` を使うRPG形式の説明です。主人公・マップ・HPを必要としない作品は、別形式の [experience-projects.md](experience-projects.md) を参照してください。
+
 正本は `projects/<id>/` のGit管理ファイルです。型と実行時スキーマは `packages/schema/src/formats.ts`（Zod）が唯一の定義で、`rpg validate` と工房が同じ検証（`loadProjectContent`）を使います。
 
 | ファイル | 内容 |

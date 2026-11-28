@@ -3,7 +3,7 @@
  *  - LocalSource: `pnpm studio` — the local server on 127.0.0.1 (real files, conflict detection, builds).
  *  - PreviewSource: `pnpm dev` / 公開サイトの工房 — ブラウザ版。見本から始め、編集はこのブラウザ（IndexedDB）に保存。
  */
-import type { AssetEntry } from "@rpg/schema";
+import { AssetEntrySchema, AssetManifestSchema, ExperienceProjectSchema, type AssetEntry } from "@rpg/schema";
 import type { GameSystem } from "@rpg/engine";
 import { askPersistent, currentProjectId, freeId, getProject, putProject, setCurrentProjectId, type BrowserProject } from "./browserProjects";
 import {
@@ -183,6 +183,24 @@ const sampleTexts = import.meta.glob("../../../projects/sample-rpg/**/*.{json,ts
 const sampleAssets = import.meta.glob("../../../projects/sample-rpg/assets/**/*.{png,wav,ogg,mp3,json}", { query: "?url", import: "default", eager: true }) as Record<string, string>;
 const sampleSystems = import.meta.glob("../../../projects/sample-rpg/systems/*.ts", { eager: true }) as Record<string, { default?: GameSystem }>;
 const sampleScripts = import.meta.glob("../../../projects/sample-rpg/scripts/*.ts", { eager: true }) as Record<string, { default?: object }>;
+const EXPERIENCE_ASSET_FOLDERS: Record<AssetEntry["kind"], string> = {
+  tileset: "assets/tilesets", character: "assets/characters", enemy: "assets/enemies", animation: "assets/animations",
+  portrait: "assets/portraits", background: "assets/backgrounds", bgm: "assets/audio/bgm", sfx: "assets/audio/sfx",
+  song: "assets/audio/songs", font: "assets/fonts",
+};
+
+function sniffAsset(bytes: Uint8Array): { mime: string; extension: string } | null {
+  if (bytes.subarray(0, 8).join(",") === "137,80,78,71,13,10,26,10") return { mime: "image/png", extension: ".png" };
+  if (new TextDecoder().decode(bytes.subarray(0, 4)) === "RIFF" && new TextDecoder().decode(bytes.subarray(8, 12)) === "WAVE") return { mime: "audio/wav", extension: ".wav" };
+  const head = new TextDecoder().decode(bytes.subarray(0, 4));
+  if (head === "OggS") return { mime: "audio/ogg", extension: ".ogg" };
+  if (head === "wOF2") return { mime: "font/woff2", extension: ".woff2" };
+  if (head === "wOFF") return { mime: "font/woff", extension: ".woff" };
+  if (head === "OTTO") return { mime: "font/otf", extension: ".otf" };
+  if (head === "\0\u0001\0\0" || head === "true") return { mime: "font/ttf", extension: ".ttf" };
+  if (new TextDecoder().decode(bytes.subarray(0, 3)) === "ID3" || (bytes[0] === 0xff && (bytes[1]! & 0xe0) === 0xe0)) return { mime: "audio/mpeg", extension: ".mp3" };
+  return null;
+}
 
 /** The bundled sample's texts (project-relative paths). */
 export function sampleProjectTexts(): Record<string, string> {
@@ -226,7 +244,7 @@ export class PreviewSource implements ProjectSource {
       void askPersistent();
     }
     this.project.texts[path] = content;
-    if (path === "project.json") { try { this.project.title = String((JSON.parse(content) as { title?: string }).title ?? this.project.title); } catch { /* broken JSON: keep the title */ } }
+    if (path === "project.json" || path === "experience.json") { try { this.project.title = String((JSON.parse(content) as { title?: string }).title ?? this.project.title); } catch { /* broken JSON: keep the title */ } }
     this.schedule();
     return { ok: true, hash: await sha256Hex(content) };
   }
@@ -270,6 +288,60 @@ export class PreviewSource implements ProjectSource {
     this.urls.delete(path);
     this.schedule();
     return { ok: true as const, hash: await sha256Bytes(await png.arrayBuffer()), bytes: png.size };
+  }
+
+  /** Import one local image/audio/font and persist its provenance with the browser project. */
+  async importAsset(file: Blob, input: Record<string, unknown>) {
+    if (!this.project) return { ok: false as const, error: "先にブラウザ版の作品を作成または開いてください" };
+    try {
+      const project = ExperienceProjectSchema.safeParse(JSON.parse(this.project.texts["experience.json"] ?? ""));
+      if (!project.success) throw new Error("experience.json を確認してください");
+      const parsedAssets = AssetManifestSchema.safeParse(JSON.parse(this.project.texts[project.data.assetsPath] ?? ""));
+      if (!parsedAssets.success) throw new Error(`${project.data.assetsPath} を確認してください`);
+      if (!file.size || file.size > 20 * 1024 * 1024) throw new Error("素材は20MBまでです");
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const format = sniffAsset(bytes);
+      if (!format) throw new Error("PNG・OGG・MP3・WAV・WOFF2・WOFF・TTF・OTFに対応しています");
+      if (format.mime === "image/png" && file.size > 3 * 1024 * 1024) throw new Error("画像は3MBまでです");
+      const id = typeof input.id === "string" ? input.id.trim() : "";
+      const kind = input.kind as AssetEntry["kind"];
+      if (!/^[a-z0-9][a-z0-9._-]{0,95}$/i.test(id)) throw new Error("素材IDは英数字で始め、英数字・._-で指定してください");
+      if (parsedAssets.data.assets.some(asset => asset.id === id)) throw new Error(`素材ID「${id}」は既に使われています`);
+      const imageKinds = new Set<AssetEntry["kind"]>(["tileset", "character", "enemy", "animation", "portrait", "background"]);
+      const isImage = imageKinds.has(kind);
+      const isAudio = kind === "bgm" || kind === "sfx";
+      if ((!isImage && !isAudio && kind !== "font") || (isImage && format.mime !== "image/png") || (isAudio && !format.mime.startsWith("audio/")) || (kind === "font" && !format.mime.startsWith("font/"))) {
+        throw new Error(`素材の種類「${String(kind)}」とファイル形式 ${format.mime} が合いません`);
+      }
+      if (format.mime === "image/png") {
+        if (bytes.length < 24 || new TextDecoder().decode(bytes.subarray(12, 16)) !== "IHDR") throw new Error("PNG画像のヘッダーが正しくありません");
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        const width = view.getUint32(16), height = view.getUint32(20);
+        if (!width || !height || width > 4096 || height > 4096) throw new Error("画像の大きさは4096×4096までです");
+        input = { ...input, tileWidth: input.tileWidth ?? width, tileHeight: input.tileHeight ?? height, columns: input.columns ?? 1, rows: input.rows ?? 1 };
+      }
+      const origin = input.origin;
+      const entryInput = {
+        ...input, id, kind, mimeType: format.mime, bytes: bytes.length,
+        path: `${EXPERIENCE_ASSET_FOLDERS[kind]}/${id}${format.extension}`,
+        source: typeof input.source === "string" ? input.source : origin === "generated" ? "生成" : origin === "original" ? "自作" : typeof input.sourceId === "string" ? input.sourceId : "外部素材",
+        license: typeof input.license === "string" && input.license ? input.license : "プロジェクト内素材",
+        ...(isAudio ? { loop: input.loop ?? kind === "bgm" } : {}),
+      };
+      const asset = AssetEntrySchema.safeParse(entryInput);
+      if (!asset.success) throw new Error(asset.error.issues.map(issue => `${issue.path.join(".")}: ${issue.message}`).join(" ／ "));
+      const nextManifest = AssetManifestSchema.safeParse({ ...parsedAssets.data, assets: [...parsedAssets.data.assets, asset.data] });
+      if (!nextManifest.success) throw new Error(nextManifest.error.issues.map(issue => issue.message).join(" ／ "));
+      this.project.files[asset.data.path] = new Blob([bytes as BlobPart], { type: format.mime });
+      const oldUrl = this.urls.get(asset.data.path);
+      if (oldUrl) URL.revokeObjectURL(oldUrl);
+      this.urls.delete(asset.data.path);
+      this.project.texts[project.data.assetsPath] = `${JSON.stringify(nextManifest.data, null, 2)}\n`;
+      this.schedule();
+      return { ok: true as const, asset: asset.data };
+    } catch (error) {
+      return { ok: false as const, error: error instanceof Error ? error.message : String(error) };
+    }
   }
 
   /** Systems and scripts run only while their code is the sample's own (code cannot be compiled in the browser). */

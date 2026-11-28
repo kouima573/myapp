@@ -8,13 +8,15 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { formatDiagnostic, migrateProjectV1toV2, type Diagnostic, type GameContent } from "../../schema/src/index";
-import type { GameSystem } from "../../engine/src/index";
+import type { ExperienceDefinition, GameSystem } from "../../engine/src/index";
 import { runScenario, ScenarioSchema, type ScenarioResult } from "../../engine/src/scenario";
+import { ExperienceScenarioSchema, runExperienceScenario } from "../../engine/src/experienceScenario";
 import { buildProject, importSystemModule, REPO_ROOT } from "./build";
 import { auditProject, catalog, jsonSchemas } from "./catalog";
 import { cmdArt, cmdAsset } from "./assets";
 import { loadProjectFromDisk, readProjectTexts, resolveInside } from "./load";
 import { applyStage, newProject, type ProjectTheme } from "./scaffold";
+import { loadExperienceProject, newExperienceProject } from "./experience";
 import { cmdMod } from "./mods";
 import { cmdPacks } from "./packs";
 import { cmdRefs, cmdRename } from "./refs";
@@ -28,12 +30,12 @@ import { genreAtlasMarkdown, GENRES, LEVEL_LABEL, searchGenres } from "../../mod
 
 const USAGE = `RPG Studio CLI
 
-  rpg new      <id> [--title <名前>] [--theme default|fantasy|mystery|scifi|minimal] [--stage 1|2|3] [--dir projects]  新しいプロジェクトを作る（--stage: 段階別の見本。1 会話 / 2 +戦闘・宝箱 / 3 +鍵と門・エンディング）
+  rpg new      <id> [--type rpg|experience] [--runtime experience|static] [--title <名前>] [--theme default|fantasy|mystery|scifi|minimal] [--stage 1|2|3] [--dir projects]  RPGまたは独立した作品の土台を作る
   rpg genres   [--query <言葉>] [--write]  ジャンル地図（どのジャンルをどう作るか）。--write で docs/genre-atlas.md を更新
   rpg mod      <list|add|export> [<id>] --project <dir>  作り手の仕組み（mod）を共有: 一覧・取り込み・書き出し（出どころは mods.json）
   rpg validate --project <dir>          形式・参照・素材を検証
-  rpg test     --project <dir>          検証 + システム読込 + tests/*.scenario.json の自動プレイ
-  rpg build    --project <dir> [--out <dir>] [--zip]  型検査・bundleして dist/game/<id>/ に静的ゲームを出力（--zipで公開用ZIPも作成）
+  rpg test     --project <dir>          RPG / 状態遷移型独立作品の入力シナリオを実行（staticは形式確認）
+  rpg build    --project <dir> [--out <dir>] [--zip] [--run-project-build]  形式に応じて検証・出力（設定コマンドの実行は明示許可が必要）
   rpg audit    --project <dir>          未到達マップ・未使用会話・未使用イベントを検出
   rpg map generate <ID> --project <dir> [--width 30 --height 22 --seed 1 --rooms 6 --enemies a,b --back map:x:y]   部屋と通路のダンジョンを自動生成
   rpg devlog   --project <dir> [--days 7] [--out DEVLOG.md]   制作日誌の下書き（いまの内容・コミット・保存履歴の要約）
@@ -42,7 +44,7 @@ const USAGE = `RPG Studio CLI
   rpg proofread --project <dir> [--width 40] [--lines 3]   台詞の長さ・行数・誤字らしき所・かっこの対応を確かめる
   rpg refs     <id> --project <dir>     そのID（フラグ・変数・アイテム・マップ・敵・素材…）がどこで使われているか
   rpg rename   <今のID> <新しいID> --project <dir> [--write]  IDをプロジェクト全体で書き換える（既定は変更予定の表示だけ）
-  rpg dev      --project <dir> [--port 4174]  ビルドして127.0.0.1で配信、変更で自動再ビルド
+  rpg dev      --project <dir> [--port 4174]  ビルドして127.0.0.1で配信、変更で自動再ビルド（設定コマンドは実行しない）
   rpg migrate  --project <dir> [--write]      旧形式を移行（既定は差分表示のみ。--writeでバックアップ後に保存）
   rpg catalog  --project <dir>          定義済みのID・フラグ・変数・特性・ルールの一覧（Markdown）
   rpg schema   [--check]                schema/*.schema.json（エディター・AI向けJSON Schema）を生成／最新か確認
@@ -84,6 +86,11 @@ function parseArgs(argv: string[]) {
 function projectDir(flags: Record<string, string | boolean>): string {
   const value = typeof flags.project === "string" ? flags.project : "projects/sample-rpg";
   return path.resolve(process.cwd(), value);
+}
+
+async function hasExperienceManifest(root: string): Promise<boolean> {
+  try { await fs.lstat(path.join(root, "experience.json")); return true; }
+  catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return false; throw error; }
 }
 
 function report(diagnostics: Diagnostic[]): { errors: number; warnings: number } {
@@ -166,6 +173,28 @@ export async function runProjectScenarios(root: string, content: GameContent, sy
 
 async function cmdValidate(flags: Record<string, string | boolean>): Promise<number> {
   const root = projectDir(flags);
+  if (await hasExperienceManifest(root)) {
+    const loaded = await loadExperienceProject(root);
+    const { errors, warnings } = report(loaded.diagnostics);
+    if (errors || !loaded.manifest || (loaded.manifest.runtime !== "static" && !loaded.entryFile) || (loaded.manifest.runtime === "static" && !loaded.manifest.build && !loaded.entryFile)) { console.log(`FAILED validate: ${errors} error(s), ${warnings} warning(s) — ${path.relative(process.cwd(), root) || "."}`); return 1; }
+    if (loaded.manifest.runtime === "static") {
+      if (loaded.manifest.build) console.log("WARN  validate は設定コマンドと成果物を実行・検査しません。成果物の確認は `rpg build` で行ってください");
+      console.log(`OK validate: ${loaded.manifest.id} — ${loaded.manifest.build ? "静的サイトのビルド設定" : "独自HTML作品"}、起点 ${loaded.manifest.entry}、素材 ${loaded.assets?.assets.length ?? 0}件、${warnings + (loaded.manifest.build ? 1 : 0)} warning(s)`);
+      return 0;
+    }
+    try {
+      const module = await importSystemModule(loaded.entryFile!) as { default?: { id?: string; checkArgs?: (args: Record<string, unknown>) => string[] } };
+      if (!module.default || module.default.id !== loaded.manifest.id) {
+        report([{ severity: "error", file: loaded.manifest.entry, message: `default exportのidは experience.json の '${loaded.manifest.id}' と一致させてください` }]);
+        return 1;
+      }
+      const issues = module.default.checkArgs?.(loaded.manifest.args) ?? [];
+      report(issues.map(message => ({ severity: "error" as const, file: loaded.manifest!.entry, at: "checkArgs", message })));
+      if (issues.length) return 1;
+    } catch (error) { report([{ severity: "error", file: loaded.manifest.entry, message: `エントリーポイントを読み込めません: ${String(error)}` }]); return 1; }
+    console.log(`OK validate: ${loaded.manifest.id} — 独立作品、素材 ${loaded.assets?.assets.length ?? 0}件、${warnings} warning(s)`);
+    return 0;
+  }
   const loaded = await loadProjectFromDisk(root);
   const { errors, warnings } = report(loaded.diagnostics);
   if (errors) { console.log(`FAILED validate: ${errors} error(s), ${warnings} warning(s) — ${path.relative(process.cwd(), root) || "."}`); return 1; }
@@ -176,6 +205,50 @@ async function cmdValidate(flags: Record<string, string | boolean>): Promise<num
 
 async function cmdTest(flags: Record<string, string | boolean>): Promise<number> {
   const root = projectDir(flags);
+  if (await hasExperienceManifest(root)) {
+    const loaded = await loadExperienceProject(root);
+    const { errors } = report(loaded.diagnostics);
+    if (errors || !loaded.manifest || (loaded.manifest.runtime !== "static" && !loaded.entryFile) || (loaded.manifest.runtime === "static" && !loaded.manifest.build && !loaded.entryFile)) { console.log("FAILED test: 独立作品の検証エラー"); return 1; }
+    const manifest = loaded.manifest;
+    if (manifest.runtime === "static") {
+      console.log(manifest.build
+        ? "WARN  static runtime は自動の状態シナリオがありません。成果物の確認は `pnpm rpg build --project <作品フォルダー> --run-project-build` を明示してから `pnpm rpg dev` で試遊してください"
+        : "WARN  static runtime は任意のHTML/JS/WASM等を使うため、自動の状態シナリオはありません。`pnpm rpg dev --project <作品フォルダー>` で操作を確認してください");
+      console.log(`OK test: static ${manifest.build ? "build settings" : "project files and registered assets"} passed format checks`);
+      return 0;
+    }
+    let definition: ExperienceDefinition;
+    try {
+      const module = await importSystemModule(loaded.entryFile!) as { default?: ExperienceDefinition };
+      definition = module.default!;
+      if (!definition || definition.id !== manifest.id) throw new Error(`default exportのidは '${manifest.id}' と一致させてください`);
+      if (typeof definition.start !== "function" || typeof definition.update !== "function" || typeof definition.render !== "function") throw new Error("start / update / render を持つ作品定義を default export してください");
+      const issues = definition.checkArgs?.(manifest.args) ?? [];
+      if (issues.length) { report(issues.map(message => ({ severity: "error" as const, file: manifest.entry, at: "checkArgs", message }))); return 1; }
+    } catch (error) {
+      report([{ severity: "error", file: manifest.entry, message: `作品を読み込めません: ${error instanceof Error ? error.message : String(error)}` }]);
+      return 1;
+    }
+    let files: string[] = [];
+    try { files = (await fs.readdir(path.join(root, "tests"))).filter(name => name.endsWith(".experience.json")).sort(); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+    let failed = 0;
+    for (const name of files) {
+      const file = `tests/${name}`;
+      let raw: unknown;
+      try { raw = JSON.parse(await fs.readFile(path.join(root, file), "utf8")); }
+      catch (error) { failed++; console.log(`ERROR ${file}: JSONを読めません: ${String(error)}`); continue; }
+      const parsed = ExperienceScenarioSchema.safeParse(raw);
+      if (!parsed.success) { failed++; console.log(`ERROR ${file}: ${parsed.error.issues.map(issue => `${issue.path.join(".")}: ${issue.message}`).join("; ")}`); continue; }
+      const result = runExperienceScenario(definition, parsed.data);
+      if (result.ok) console.log(`PASS  ${file} — ${result.name} (${result.steps} inputs)`);
+      else { failed++; console.log(`ERROR ${file} › steps[${result.failedStep ?? "?"}]: ${result.message} — ${result.name}`); }
+    }
+    if (!files.length) console.log("WARN  tests/*.experience.json がありません。作品固有の入力シナリオを追加できます");
+    if (failed) { console.log(`FAILED test: ${failed}/${files.length} independent scenario(s)`); return 1; }
+    console.log(`OK test: ${files.length} independent scenario(s) passed（状態遷移を実行。画面の見た目は手動で確認してください）`);
+    return 0;
+  }
   const loaded = await loadProjectFromDisk(root);
   const { errors } = report(loaded.diagnostics);
   if (errors || !loaded.content) { console.log("FAILED test: validation errors"); return 1; }
@@ -197,12 +270,12 @@ async function cmdTest(flags: Record<string, string | boolean>): Promise<number>
 
 async function cmdBuild(flags: Record<string, string | boolean>): Promise<number> {
   const root = projectDir(flags);
-  const result = await buildProject(root, { outDir: typeof flags.out === "string" ? path.resolve(flags.out) : undefined, zip: Boolean(flags.zip) });
+  const result = await buildProject(root, { outDir: typeof flags.out === "string" ? path.resolve(flags.out) : undefined, zip: Boolean(flags.zip), runProjectBuild: Boolean(flags["run-project-build"]) });
   const { errors } = report(result.diagnostics);
   if (!result.ok || errors) { console.log("FAILED build: 前回のビルド成果物はそのまま残っています"); return 1; }
   const kb = (b: number) => `${(b / 1024).toFixed(1)}KB`;
   const s = result.sizeSummary;
-  console.log(`OK build: ${path.relative(process.cwd(), result.outDir!)} (version ${result.version})${s ? ` — 合計 ${kb(s.totalBytes)}（game.js ${kb(s.jsBytes)} / JSON ${kb(s.dataBytes)} / 素材 ${kb(s.assetBytes)}）` : ""}`);
+  console.log(`OK build: ${path.relative(process.cwd(), result.outDir!)} (version ${result.version})${s ? ` — 合計 ${kb(s.totalBytes)}（game.js ${kb(s.jsBytes)} / JSON ${kb(s.dataBytes)} / 素材 ${kb(s.assetBytes)}${s.metadataBytes !== undefined ? ` / その他 ${kb(s.metadataBytes)}` : ""}）` : ""}`);
   if (result.zipPath) console.log(`OK zip: ${path.relative(process.cwd(), result.zipPath)}`);
   console.log("   静的HTTPサーバーで配信して遊べます。例: pnpm rpg dev --project <dir>  または  npx serve <outDir>");
   return 0;
@@ -283,16 +356,32 @@ async function cmdDev(flags: Record<string, string | boolean>): Promise<number> 
   };
   await rebuild();
   if (!outDir) return 1;
-  const types: Record<string, string> = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".png": "image/png", ".ogg": "audio/ogg", ".mp3": "audio/mpeg", ".wav": "audio/wav" };
+  const types: Record<string, string> = {
+    ".html": "text/html; charset=utf-8", ".htm": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".cjs": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+    ".json": "application/json; charset=utf-8", ".webmanifest": "application/manifest+json; charset=utf-8", ".svg": "image/svg+xml",
+    ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".avif": "image/avif",
+    ".ogg": "audio/ogg", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".m4a": "audio/mp4", ".flac": "audio/flac",
+    ".woff": "font/woff", ".woff2": "font/woff2", ".ttf": "font/ttf", ".otf": "font/otf", ".wasm": "application/wasm",
+  };
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
     if (url.pathname === "/__version") { res.writeHead(200, { "content-type": "text/plain", "cache-control": "no-store" }); res.end(version); return; }
-    const rel = decodeURIComponent(url.pathname === "/" ? "/index.html" : url.pathname).slice(1);
-    if (!rel || rel.includes("\\") || rel.includes("\0") || rel.split("/").some(part => !part || part === "." || part === ".." || part.startsWith("."))) { res.writeHead(404); res.end(); return; }
+    const pathname = decodeURIComponent(url.pathname);
+    const rel = pathname === "/" ? "index.html" : pathname.replace(/^\/+|\/+$/g, "");
+    if (!rel || rel.includes("\\") || rel.includes("\0") || rel.split("/").some(part => !part || part === "." || part === ".." || [".git", "node_modules", ".rpg-studio", ".rpg-backup"].includes(part) || part === ".env" || part.startsWith(".env."))) { res.writeHead(404); res.end(); return; }
     try {
-      let body: Buffer | string = await fs.readFile(path.join(outDir, ...rel.split("/")));
-      if (rel === "index.html") body = body.toString("utf8").replace("</body>", `<script type="module" src="./__reload.js"></script></body>`);
-      res.writeHead(200, { "content-type": types[path.extname(rel)] ?? "application/octet-stream", "cache-control": "no-store" });
+      let target = path.join(outDir, ...rel.split("/"));
+      let servedRel = rel;
+      let body: Buffer;
+      try {
+        if ((await fs.stat(target)).isDirectory()) { target = path.join(target, "index.html"); servedRel = `${rel}/index.html`; }
+        body = await fs.readFile(target);
+      } catch (error) {
+        if (!path.extname(rel)) { target = path.join(outDir, "index.html"); servedRel = "index.html"; body = await fs.readFile(target); }
+        else throw error;
+      }
+      if (servedRel.endsWith("index.html")) body = Buffer.from(body.toString("utf8").replace("</body>", `<script type="module" src="/__reload.js"></script></body>`));
+      res.writeHead(200, { "content-type": types[path.extname(servedRel)] ?? "application/octet-stream", "cache-control": "no-store" });
       res.end(body);
     } catch {
       if (rel === "__reload.js") {
@@ -346,6 +435,18 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "new": {
       if (!parsed.sub) { console.error("ERROR rpg new <id> の形で、プロジェクトIDを指定してください"); return 2; }
       try {
+        const kind = typeof parsed.flags.type === "string" ? parsed.flags.type : "rpg";
+        if (kind === "experience") {
+          const root = typeof parsed.flags.dir === "string" ? path.resolve(process.cwd(), parsed.flags.dir) : path.join(REPO_ROOT, "projects");
+          const runtime = typeof parsed.flags.runtime === "string" ? parsed.flags.runtime : "experience";
+          if (runtime !== "experience" && runtime !== "static") { console.error("ERROR --runtime は experience または static です"); return 2; }
+          const dir = await newExperienceProject(parsed.sub, typeof parsed.flags.title === "string" ? parsed.flags.title : parsed.sub, root, runtime);
+          const rel = path.relative(process.cwd(), dir);
+          console.log(`OK new experience: ${rel}\n${runtime === "static" ? "HTML/CSS/JavaScript/WASM等、作品独自の構成をそのまま使えます。" : "これはRPGの主人公・マップ・HPを前提にしない独立作品です。画面と遊びのルールを systems/main.ts に自由に実装できます。"}\n  pnpm rpg validate --project ${rel}\n  pnpm rpg dev --project ${rel}`);
+          return 0;
+        }
+        if (typeof parsed.flags.runtime === "string") { console.error("ERROR --runtime は --type experience と組み合わせてください"); return 2; }
+        if (kind !== "rpg") { console.error("ERROR --type は rpg または experience です"); return 2; }
         const theme = (typeof parsed.flags.theme === "string" ? parsed.flags.theme : "default") as ProjectTheme;
         if (!["default", "fantasy", "mystery", "scifi", "minimal"].includes(theme)) { console.error("ERROR --theme は default|fantasy|mystery|scifi|minimal から選んでください"); return 2; }
         const dir = await newProject(parsed.sub, typeof parsed.flags.title === "string" ? parsed.flags.title : parsed.sub, typeof parsed.flags.dir === "string" ? path.resolve(process.cwd(), parsed.flags.dir) : undefined, theme);

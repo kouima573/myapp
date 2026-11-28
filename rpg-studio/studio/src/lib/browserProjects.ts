@@ -1,6 +1,6 @@
 /**
  * ブラウザ版の工房: プロジェクトをこのブラウザ（IndexedDB）に保存する。
- * 1件 = { id, title, texts（JSON・md・ts の中身）, files（追加・取り込んだ画像や音の中身）, updatedAt }。
+ * 1件 = { id, title, texts（RPGまたは独立作品のJSON・md・ts）, files（追加・取り込んだ画像や音）, updatedAt }。
  * 絵や音のうち見本から借りているものは保存せず、公開サイトに同梱の見本の素材を使う。
  */
 export interface BrowserProject {

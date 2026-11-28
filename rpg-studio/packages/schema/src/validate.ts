@@ -528,6 +528,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
 
   // Asset provenance and the project's source policy.
   const sources = sourcesFor(project);
+  const privateOnly = new Map<string, string[]>();
   for (const asset of assets.assets) {
     const at = `assets[${asset.id}]`;
     if (asset.sourceId) {
@@ -536,10 +537,12 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       if (!isSourceEnabled(project, source)) err(A, `${at}.sourceId`, `取得元「${source.name}」はこのプロジェクトで無効です（project.json の assetPolicy.sources で有効にするか、素材を差し替えてください）`);
       if (!source.categories.includes(assetCategory(asset.kind))) warn(A, at, `取得元「${source.name}」は ${source.categories.join("/")} 用です（この素材は ${asset.kind}）`);
       if (source.creditRequired === "yes" && !asset.creditRequired) warn(A, at, `取得元「${source.name}」はクレジット表記が必要とされています。creditRequired と credit を確認してください`);
+      if (source.publicRepository === "private-only") privateOnly.set(source.name, [...(privateOnly.get(source.name) ?? []), asset.id]);
       if (project.assetPolicy.shareable && source.redistribution === "prohibited") err(A, at, `共有用プロジェクト(assetPolicy.shareable)に、再配布が禁止されている取得元「${source.name}」の素材は入れられません`);
     }
     if (project.assetPolicy.shareable && !asset.redistributable) err(A, at, "共有用プロジェクト(assetPolicy.shareable)に再配布できない素材(redistributable: false)は入れられません");
   }
+  for (const [name, ids] of privateOnly) warn(A, "assets", `取得元「${name}」の素材（${ids.join(", ")}）のファイルは、公開リポジトリ（GitHub の公開設定など）に置けません。置くなら非公開リポジトリにしてください（ゲームとしての公開は可）`);
 
   // Tileset (each tile may use its own sheet).
   const atlas = assetById.get(tileset.atlas);

@@ -4,12 +4,27 @@
 
 | # | 宛先 | 送り方 | 何がはっきりするか |
 | --- | --- | --- | --- |
-| 1 | OpenTracks（旧DOVA-SYNDROME） | https://opentracks.com/help/ の「お問い合わせ」から（フォームの場所は未確認） | HTML5で書き出すゲームに曲を入れてよいか・その条件 |
+| 1 | OpenTracks（旧DOVA-SYNDROME） | **回答済み（2026-11）** | HTML5で書き出すゲームに曲を入れてよいか・その条件 → 下の「回答の記録」 |
 | 2 | 効果音ラボ | https://soundeffect-lab.info/faq/ から問い合わせページへ（フォームの場所は未確認） | 公開GitHubで音源を管理してよいか |
-| 3 | Freesound（英語） | メール: mtg@upf.edu（API規約に記載の連絡先とされる。送る前にAPI規約ページで確認） | APIを無料で使えるか（ゲームを売る人がいても非商用扱いか） |
+| 3 | Freesound（英語） | **フォームから送り直し**: https://freesound.org/contact/ （2026-11、メールへの返信で担当者から「API・データパックの問い合わせはこのフォームが公式窓口」と案内あり） | APIを無料で使えるか（ゲームを売る人がいても非商用扱いか） |
 | 4 | itch.io（英語） | https://itch.io/support から（場所は未確認） | 購入済みパックの一覧を読む連携と、ダウンロードの扱い |
 
 返事が来たら、その文面をAI（Codex／Claude Code）に貼って「取得元カタログに反映して」と頼んでください。
+
+## 回答の記録
+
+### OpenTracks（2026-11・運営からのメール回答）
+
+取得元カタログ（`packages/schema/src/asset-sources.json` の `dova-syndrome`）の `inquiries` に同じ内容を記録し、`publicRepository: "private-only"` にしました。
+
+1. **クレジット画面・CREDITS.md の記載で足りるか** → 技術的な対策（音源の暗号化・データ形式の変換など）を推奨。難しい場合は、ツールが自動で入れている禁止事項の文言（クレジット画面と CREDITS.md）で利用者が確認できる状態にし、**遵守要請と違反時の適切な対応**を作り手が行うなら、別途の利用規約ページは不要。
+2. **公開リポジトリで管理してよいか** → **不可**（第三者が容易に音源を取得でき、再配布にも当たる）。**非公開リポジトリ**は、第三者に提供しない開発・管理目的の保存なら問題ない。
+
+ツールの対応: OpenTracks の素材を使うプロジェクトでは、`rpg validate`（工房の検証）が「公開リポジトリに置けません」と警告します。違反を知ったときの対応（作品ページに連絡先を置く等）は作り手の役目です。
+
+### Freesound（2026-11・担当者からの返信）
+
+API とデータパックの問い合わせは https://freesound.org/contact/ のフォームが公式窓口とのこと。下の「3. Freesound」の英文を、そのフォームから送り直してください（API 利用条件そのものへの回答はまだです）。
 
 ---
 
@@ -60,7 +75,7 @@
 
 ## 3. Freesound — API/OAuth2 integration in a free game-making tool (English)
 
-To: mtg@upf.edu (the contact named in the Freesound API terms of use)
+送り先: https://freesound.org/contact/ のフォーム（2026-11 に担当者から案内。最初は mtg@upf.edu に送った）
 
 > Subject: API use question: free, open-source game-making tool (OAuth2 downloads by end users)
 >

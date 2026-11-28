@@ -6,7 +6,7 @@
 
 ## 1. これは何か
 
-「ユーザーの発想がそのままゲームになる」RPG制作ツール。中身は決定的な純粋エンジン＋ブラウザ実行環境＋工房（React製エディター）＋CLI。
+「ユーザーの発想がそのままゲームになる」制作ツール。RPG形式の純粋エンジン＋ブラウザ工房（React製エディター）に加え、`experience.json` から作品全体を実装する独立作品形式をローカルCLIとブラウザ工房で扱います。
 
 - 公開中: **https://rpg-studio-2k3.pages.dev**（トップ・見本ゲーム `/play/`・ジャンルの回廊 `/gallery/`・工房のPreview版 `/studio/`）
 - リポジトリ: `kouima573/myapp` の **`rpg-studio/` フォルダだけ**が対象
@@ -18,7 +18,7 @@
 | --- | --- |
 | 言語 | ユーザーへの返事は**日本語**。専門用語は噛み砕く |
 | 多言語対応はしない | ユーザーの判断で不要（ゲーム・工房とも日本語のまま） |
-| 標準の実行形式 | 2DトップダウンRPG。発想を既存のRPG部品に押し込まず、表せる範囲と不足を説明し、必要ならローカル環境で拡張する |
+| 実行形式 | `project.json` は2DトップダウンRPG。`experience.json` は主人公・マップ・HPを要求しない独立作品。発想に合わせて選び、チャットJSON適用がRPG形式向けである制約も伝える |
 | 工房の中にLLM/AI APIを入れない | AIはユーザーが外で使う Codex／Claude Code。工房は依頼文のコピーなどで連携する |
 | 規約を偽らない | 確認していない規約を「確認済み」にしない（`verifiedAt` は人が原文を読んだときだけ） |
 | 既存ゲームの再現をしない | 特定の既存作品の名前・キャラ・絵・音・レベルの模倣は不可（オリジナルの形にする） |
@@ -44,7 +44,7 @@
 cd rpg-studio
 pnpm install
 pnpm check                      # 型チェック
-pnpm test                       # vitest（現在192件）
+pnpm test                       # vitest（現在195件）
 pnpm rpg proofread --project <dir>   # 台詞の長さ・誤字らしき所（v1.9）
 pnpm rpg validate --project projects/sample-rpg     # ← フォルダは --project で指定（位置引数は無視される）
 pnpm rpg test     --project projects/sample-rpg
@@ -225,7 +225,7 @@ Codex向け `.agents/skills/rpg-studio/SKILL.md` とClaude Code向け `.claude/s
 
 ## 7. 残っている仕事
 
-1. **素材サイトへの問い合わせ4通**（`docs/asset-source-inquiries.md`）。文面と公開URLは記入済み、**名前・連絡先だけ未記入**。送るのはユーザー（ユーザーは「任せたい」と言っていた。メールの送信機能がある環境なら、**下書きを作ってユーザーの確認を取ってから**送る。Freesound は mtg@upf.edu、他3件はフォームの場所が未確認）。返事が来たら `packages/schema/src/asset-sources.json` に反映。
+1. **素材サイトへの問い合わせ**（`docs/asset-source-inquiries.md`）。OpenTracks は回答済み（2026-11。公開リポジトリ不可・CREDITS記載で可 → `asset-sources.json` の `inquiries`・`publicRepository`）。Freesound は「https://freesound.org/contact/ のフォームから送り直して」と返信あり（送るのはユーザー）。効果音ラボ・itch.io は未送信。問い合わせ文・記録に作り手の氏名や連絡先を入れない。
 2. **取得元カタログの原文確認**（`pnpm rpg asset catalog check` で一覧、読んだら `pnpm rpg asset catalog verify <id> --read-terms`）: 外部の33件が未照合。37件すべて `research.method = "secondary"`（ネットワーク制限で、検索の抜粋と解説記事から作成）。原文を読めたものから `verifiedAt` を記入。特に要注意:
    - OpenTracks（旧DOVA-SYNDROME）: HTML5で音源を取り出せる場合の「3点の条件」が未確認
    - 公開GitHubに音源を置くと再配布にあたるおそれ（効果音ラボなど）
@@ -252,7 +252,7 @@ Codex向け `.agents/skills/rpg-studio/SKILL.md` とClaude Code向け `.claude/s
 
 `BrowserPanel.tsx` の「公開準備」では itch.io・PLiCy・Cloudflare Pages・BOOTH・ふりーむ！・unityroom の公式投稿先と手順を表示し、作品紹介・プレイ時間・タグ・操作方法・注意事項の下書きをブラウザに保存してコピー／Markdown書き出しできる。アカウント接続や投稿操作はしない。対応形式の違いは各サイトの公式案内を確認する。
 
-`browserExport.ts` の遊べるZIPは `index.html` をZIP直下に置く（HTML5ホストの要求に合わせる）。独自コードを使う作品はブラウザ版ではビルドできないため、手元の工房で `pnpm rpg build --project <プロジェクトフォルダー> --zip` を使う。この作業では依存パッケージがなく、型検査・テスト・ビルドは実行していない。公開サイトへのデプロイもしていない。
+`browserExport.ts` の遊べるZIPは `index.html` をZIP直下に置く（HTML5ホストの要求に合わせる）。RPG形式に独自コードを加えた作品はブラウザ版ではビルドできないため、手元の工房で `pnpm rpg build --project <プロジェクトフォルダー> --zip` を使う。この作業では依存パッケージがなく、型検査・テスト・ビルドは実行していない。公開サイトへのデプロイもしていない。
 
 ## 10. プレイヤーと制作者向けの追加改善
 
@@ -275,3 +275,60 @@ Codex向け `.agents/skills/rpg-studio/SKILL.md` とClaude Code向け `.claude/s
 - READMEと初心者ガイドに制約を明記。現在の標準ランナーはRPGであり、ブラウザ版とチャット版は既存のデータ形式が中心。任意の非RPG実行形式がそのまま作れるという意味での自由度ではない。
 
 変更箇所を目視確認。テスト・型検査・ビルド・ブラウザでの操作確認は実行していない。
+
+## 12. 独立作品形式の追加（v2.5作業コピー）
+
+- RPGの主人公・マップ・HPを要求しない `experience.json` 形式を追加。`defineExperience` が完全な状態遷移・入力・描画を定義し、ローカルCLIで `new --type experience` / `validate` / `dev` / `build --zip` を扱う。
+- `packages/runtime/src/experience.ts` はローカル保存、手動・自動保存、キーボード入力、固定FPS入力、素材URL解決、描画時のフォーカス復元を提供。保存ストレージが使えないブラウザでも作品を起動できる。
+- `projects/deep-sea-post-office/` に「昨日を配送する深海郵便局」の試作を追加。宛先・切手の選択で、重力・潮位・暦が変化する。
+- `docs/experience-projects.md`、発想ガイド、README、AGENTS、Codex／Claude Codeスキルに形式の選び方と制約を記載。JSON Schemaの生成対象も追加。
+- 現在の境界（この節の追加作業より前）: 公開ブラウザ工房とチャット用JSON変更はRPG形式中心。独立作品の自動シナリオテストは未対応。独立作品の試遊はローカル `rpg dev`。
+- この作業コピーではテスト・型検査・ビルド・ブラウザでの試遊は未実行。
+
+## 13. 独立作品のブラウザ制作とシナリオ
+
+- `App.tsx` は `experience.json` を検出し、RPGタブを隠して「独立作品」「データ」に切り替える。ヘッダーもRPG検証エラーの誤表示を避け、独立作品タイトルを出す。
+- `ExperiencePanel.tsx` はローカル／ブラウザ保存のファイルを編集し、TypeScriptをブラウザ内変換して隔離iframeで試遊する。ブラウザ試遊のストレージとネットワークは無効。`BrowserPanel` で新規独立作品作成、プロジェクトZIP、遊べるZIPの入出力を扱う。
+- `experienceScenario.ts` と `rpg test` は `tests/*.experience.json` の `start` / `update` 状態遷移を試験。`equals`・`contains`・`paths` で期待状態を指定する。描画と操作感は自動試験外。
+
+## 14. 独自ランタイムと素材の直接取り込み
+
+- `experience.json` に `runtime: "experience" | "static"` を追加。省略時は従来互換で `experience`。
+- `runtime: "static"` は `index.html` 起点の作者独自サイト。CLI build とブラウザ工房のゲームZIPはHTML/CSS/JS/画像/音声/WASM等を相対パスごとコピーし、RPG Studioのランタイム・画面・PWAファイルを注入しない。`.git`、`node_modules`、`.rpg-studio`、`.rpg-backup`、`.env*` は配布から除外。
+- `rpg new <id> --type experience --runtime static` とブラウザ工房の「独自HTML（静的サイト）」から開始。`index.html` を含む完成済みサイトZIPもブラウザ工房に読み込める。静的作品の完全な試遊には `pnpm rpg dev --project <dir>` を使う。ブラウザ工房のiframeは相対モジュール/WASMを直接試遊しない。任意のソースビルドは `experience.json` に設定し、ローカルCLIで `--run-project-build` を明示した場合のみ実行。
+- 独立作品画面に画像・音声・フォントの登録UIを追加。ブラウザ版はIndexedDBの作品ファイル、ローカル版は作品ディレクトリへ本体を保存し、出典・利用条件・クレジットを `assets.json` に記録する。
+- 無料の既存依存・ローカルブラウザ機能のみを利用。外部API・有料サービス・クラウドビルドは追加していない。
+- 有料サービス・有料依存は追加していない。ブラウザ変換は構文診断までで、完全な型検査とフル機能ビルドはローカルCLIを使う。チャットJSON差分はRPG向けのまま。
+- まだテスト・型検査・ビルド・ブラウザ操作での受け入れ確認は行っていない。
+
+## 15. 静的サイト読み込みと制作UIの整理（2026-11-24）
+
+- ブラウザ工房のZIP読み込みで、作品マニフェストのない完成済みサイトZIPも受け入れ、最浅階層の `index.html` と同じフォルダー以下のファイルから静的作品マニフェストを作る。複数の同階層 `index.html` は曖昧さを避けて案内を出す。
+- 静的サイト型の画面表示を明確化。ローカル工房では現在の作品フォルダーを含む `pnpm rpg dev` コマンドをコピーでき、ブラウザ版ではZIP展開と起動方法を表示する。
+- 素材の出典・ライセンス・作者・クレジット項目を折りたたみ、外部・生成素材を選んだ場合や入力不足の時に詳細を開く。
+- 表示とガイドでは、Studioが扱う静的サイトは完成済みファイルとして扱い、Vite等のソースビルドや任意シェルコマンドを通常は実行しないことを明記。
+- これらの変更はコード・説明書の目視確認のみ。テスト・型検査・ビルド・ブラウザ操作は未実施。
+
+## 16. 静的サイトの任意ソースビルド（2026-11-24）
+
+- `experience.json` に任意の `build.command` と相対 `build.outputDir` を設定できる。コマンド文字列を作り手が選べるので、Vite・Webpack・独自スクリプトなど特定の道具を固定しない。
+- `pnpm rpg build --project <dir> --run-project-build` を明示した場合だけ、コマンドを作品フォルダーでシェル実行し、成果物を静的配布する。通常の `validate`・`test`・`dev`、ローカルStudioの自動再ビルド、ブラウザ工房では実行しない。
+- すでに成果物がある場合は、ビルドコマンドを実行せず `rpg build` / `rpg dev` で成果物を配信できる。設定コマンドはブラウザで実行せず、ブラウザ版のサイトZIPは `outputDir` 内の既存成果物だけを含める。
+- `ExperiencePanel` はローカルで明示コマンドと試遊コマンドをコピーできる。ブラウザ版ではプロジェクトZIPからローカルCLIを使う手順を表示。
+- 任意コマンド実行の機能追加。インポートしたプロジェクトは設定コマンドを実行しない。作り手は設定を確認したうえで明示フラグを使う。
+- これらの変更のテスト・型検査・ビルド・実行確認は未実施。
+
+## 17. v2.5（独立作品）の取り込みと確認（2026-11-28）
+
+v2.5 の作業コピーは、6.23（2回目）の修正より前の版を元にしていたため、そのまま上書きせず「前回の版＝共通の祖先」として3方向で取り込んだ（修正済みの chat.ts・scenario.ts などはこちらの版を保持）。取り込み後に直したもの:
+
+- `BrowserPanel.tsx` の衝突を解消（v2.5 の独立作品向け表示を採用し、\`canExportInBrowser()\` の判定を戻した）
+- `blankExperience.ts` のテンプレート文字列内の未エスケープのバッククォート（構文エラー）
+- `build.ts`・`index.ts` の型エラー（直前の条件で保証されている `entryFile`）、`runtime/src/experience.ts`（iframe の window の HTMLElement）、`ExperienceAssetsPanel.tsx`、`experienceBrowser.ts`（`readZip` の await 漏れ2か所）
+- `experienceScenario.ts` の失敗手順の番号を RPG のシナリオと同じ 0 始まりに
+- `experienceBrowser.ts`: 素材が0件のとき生成コードが \`id => {}[id]\` になり構文エラー → 新しい独立作品のブラウザ試遊とゲームZIPが必ず失敗していた。括弧で囲んで修正（`studio/src/lib/experienceBrowser.test.ts`）
+- 見本 `deep-sea-post-office` に入力シナリオ `tests/deliver-thursday.experience.json`、`packages/cli/src/experience.test.ts` を追加
+
+素材の取得元: `AssetSourceSchema` に `publicRepository`（"private-only" なら検証が警告）と `inquiries`（運営の回答。`verifiedAt` とは別）を追加。OpenTracks・Freesound の回答を記録。
+
+確認: check・test（195件）・3つの見本の validate/test/build・build:site。ブラウザで、空のRPG土台→ゲームZIP、独立作品を作る→試遊→ゲームZIP、どちらのZIPも別の場所で起動してエラーなし。

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ClipboardCopy, Download, ExternalLink, FileText, FolderOpen, FolderPlus, Gamepad2, Trash2, Upload, HardDrive } from "lucide-react";
+import { ClipboardCopy, Download, ExternalLink, FileText, FolderOpen, FolderPlus, Gamepad2, Trash2, Upload, HardDrive, Code2 } from "lucide-react";
 import { deleteProject, listProjects, putProject, setCurrentProjectId, freeId, askPersistent, type BrowserProject } from "../lib/browserProjects";
 import { download, playableZip, projectFromZip, projectZip } from "../lib/browserExport";
 import { blankProject } from "../lib/blank";
+import { blankExperience } from "../lib/blankExperience";
 import { sampleProjectTexts, type PreviewSource } from "../lib/source";
 import type { ProjectStore } from "../lib/useProject";
 
@@ -28,6 +29,11 @@ const PUBLISH_CHECKS: Array<{ id: PublishCheckId; text: string; automatic?: bool
 ];
 type PublishChecks = Partial<Record<PublishCheckId, boolean>>;
 const DEFAULT_DRAFT: ListingDraft = { description: "", playTime: "", tags: "", notes: "", controls: "" };
+const projectFormat = (project: BrowserProject) => {
+  if (project.texts["experience.json"] === undefined) return "RPG";
+  try { return JSON.parse(project.texts["experience.json"]).runtime === "static" ? "独自HTML" : "独立作品"; }
+  catch { return "独立作品"; }
+};
 const makeListing = (title: string, draft: ListingDraft) => [
   draft.description.trim(),
   draft.playTime.trim() ? `プレイ時間の目安: ${draft.playTime.trim()}` : "",
@@ -47,7 +53,8 @@ export default function BrowserPanel({ store, source }: { store: ProjectStore; s
   const [platformId, setPlatformId] = useState<PlatformId>("itch");
   const [copied, setCopied] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
-  const projectInfo = useMemo(() => { try { return JSON.parse(store.texts["project.json"] ?? "{}") as { id?: string; title?: string; titleScreen?: { subtitle?: string } }; } catch { return {}; } }, [store.texts]);
+  const isExperience = store.texts["experience.json"] !== undefined;
+  const projectInfo = useMemo(() => { try { return JSON.parse(store.texts[store.texts["experience.json"] !== undefined ? "experience.json" : "project.json"] ?? "{}") as { id?: string; title?: string; runtime?: string; build?: { command?: string; outputDir?: string }; titleScreen?: { subtitle?: string } }; } catch { return {}; } }, [store.texts]);
   const draftKey = `rpg-studio:publish:${projectInfo.id ?? source.project?.id ?? "sample"}`;
   const checklistKey = `rpg-studio:publish-checklist:${projectInfo.id ?? source.project?.id ?? "sample"}:${platformId}`;
   const [draft, setDraft] = useState<ListingDraft>(() => {
@@ -70,6 +77,13 @@ export default function BrowserPanel({ store, source }: { store: ProjectStore; s
   }, [store.texts]);
   const platform = PLATFORMS.find(item => item.id === platformId)!;
   const gameTitle = projectInfo.title?.trim() || source.project?.title || "タイトル未設定";
+  const isStaticSite = isExperience && projectInfo.runtime === "static";
+  const staticOutputPath = projectInfo.build ? `${projectInfo.build.outputDir ?? "dist"}/index.html` : "";
+  const staticOutputReady = !projectInfo.build || store.texts[staticOutputPath] !== undefined || source.project?.files[staticOutputPath] !== undefined;
+  const platformSummary = isStaticSite && platform.id === "pages" ? "完成済みサイトZIPを展開し、index.htmlと相対ファイルを含むフォルダーを静的サイトとして公開します。" : platform.summary;
+  const platformSteps = isStaticSite && platform.id === "pages"
+    ? ["サイトZIPを展開する", "index.html と同じ階層にあるファイル・フォルダー構成を保つ", "Pages の Direct Upload で展開したサイトをアップロードする"]
+    : platform.steps;
 
   const refresh = () => { listProjects().then(setProjects, error => { setProjects([]); store.log("error", String(error instanceof Error ? error.message : error)); }); };
   useEffect(refresh, [store]);
@@ -89,7 +103,19 @@ export default function BrowserPanel({ store, source }: { store: ProjectStore; s
     void askPersistent();
     open(id);
   });
-  const importZip = (file: File) => run("ZIPの読み込み", async () => {
+  const createBlankExperience = () => run("独立作品を作成", async () => {
+    const project = await blankExperience(title);
+    await putProject(project);
+    void askPersistent();
+    open(project.id);
+  });
+  const createBlankStaticExperience = () => run("独自HTML（静的サイト）作品を作成", async () => {
+    const project = await blankExperience(title, "static");
+    await putProject(project);
+    void askPersistent();
+    open(project.id);
+  });
+  const importZip = (file: File) => run("プロジェクト／サイトZIPの読み込み", async () => {
     const project = await projectFromZip(file);
     await putProject(project);
     void askPersistent();
@@ -115,7 +141,9 @@ export default function BrowserPanel({ store, source }: { store: ProjectStore; s
   const exportNotes = () => run("投稿準備メモの書き出し", async () => {
     const listing = makeListing(gameTitle, draft);
     const checklist = PUBLISH_CHECKS.map(item => `- [${publishChecks[item.id] ? "x" : " "}] ${item.text}`).join("\n");
-    const notes = `# ${gameTitle} — 公開準備メモ\n\n投稿先: ${platform.name}\n公式ページ: ${platform.url}\n準備日: ${new Date().toLocaleDateString("ja-JP")}\n\n## 作品ページに使う文面\n\n### タイトル\n${gameTitle}\n\n### 紹介文・操作方法\n${listing}\n\n## この投稿先での手順\n\n${platform.steps.map((step, index) => `${index + 1}. ${step}`).join("\n")}\n\n## 公開前チェック（${PUBLISH_CHECKS.filter(item => publishChecks[item.id]).length}/${PUBLISH_CHECKS.length}）\n\n${checklist}\n\nゲームZIPは別途「ゲームZIPを作る」から作成してください。独自コードを追加したプロジェクトは、手元の工房で \`pnpm rpg build --project <プロジェクトフォルダー> --zip\` を使ってください。\n`;
+    const buildHint = isExperience ? (projectInfo.runtime === "static" ? (projectInfo.build ? "このブラウザでは設定コマンドを実行しません。既存の成果物だけをZIPに含めます。未ビルドの場合は、ローカルCLIで `pnpm rpg build --project <プロジェクトフォルダー> --run-project-build --zip` を実行してください。" : "完成済み静的サイトのZIPは、ファイルを変換せずブラウザ内でまとめられます。") : "状態遷移型の独立作品ZIPはブラウザ内で作成できます。") : "独自RPGコードを追加したプロジェクトは、手元の工房で `pnpm rpg build --project <プロジェクトフォルダー> --zip` を使ってください。";
+    const packageLabel = isStaticSite ? "配布用サイトZIP" : "ゲームZIP";
+    const notes = `# ${gameTitle} — 公開準備メモ\n\n投稿先: ${platform.name}\n公式ページ: ${platform.url}\n準備日: ${new Date().toLocaleDateString("ja-JP")}\n\n## 作品ページに使う文面\n\n### タイトル\n${gameTitle}\n\n### 紹介文・操作方法\n${listing}\n\n## この投稿先での手順\n\n${platformSteps.map((step, index) => `${index + 1}. ${step}`).join("\n")}\n\n## 公開前チェック（${PUBLISH_CHECKS.filter(item => publishChecks[item.id]).length}/${PUBLISH_CHECKS.length}）\n\n${checklist}\n\n${packageLabel}は「${packageLabel}を作る」から作成してください。${buildHint}\n`;
     const slug = projectInfo.id ?? source.project?.id ?? "game";
     download(`${slug}-publish-notes.md`, new TextEncoder().encode(notes), "text/markdown;charset=utf-8");
     store.log("ok", `${slug}-publish-notes.md を書き出しました`);
@@ -129,7 +157,7 @@ export default function BrowserPanel({ store, source }: { store: ProjectStore; s
   const current = source.project;
   return <div className="panel-page browser-panel">
     <h2><HardDrive size={18} /> プロジェクト（ブラウザ版）</h2>
-    <p className="muted">この工房の標準データ形式はRPGです。他ジャンルの遊びや独自ルールも追加できますが、主人公・マップなどのRPGの外枠が発想に合わない場合は、ローカルAIでエンジンを拡張する必要があります。ブラウザ版はPCに何も入れずに使え、作ったゲームは<b>このブラウザの中</b>に自動で保存されます（別のブラウザやPCには引き継がれません）。大事なものはときどき「ZIPで書き出す」で手元に残してください。
+    <p className="muted">RPG、状態遷移型の独立作品、完成済みの独自HTMLサイトを扱えます。独立作品では状態・入力・画面をTypeScriptで自由に定義します。ブラウザ版はPCに何も入れずに使え、作ったゲームは<b>このブラウザの中</b>に自動で保存されます（別のブラウザやPCには引き継がれません）。大事なものはときどき「ZIPで書き出す」で手元に残してください。
       ChatGPT などと作るときは「チャットで作る」画面を使います。</p>
 
     <section className="publish-assistant">
@@ -142,8 +170,8 @@ export default function BrowserPanel({ store, source }: { store: ProjectStore; s
       <div className="publish-columns">
         <div className="publish-site">
           <div className="publish-site-heading"><b>{platform.name} に投稿する</b><a href={platform.url} target="_blank" rel="noreferrer">公式ページ <ExternalLink size={12} /></a></div>
-          <p>{platform.summary}</p>
-          <ol>{platform.steps.map(step => <li key={step}>{step}</li>)}</ol>
+          <p>{platformSummary}</p>
+          <ol>{platformSteps.map(step => <li key={step}>{step}</li>)}</ol>
           <a className="publish-source" href={platform.source} target="_blank" rel="noreferrer">投稿条件・公式ヘルプを見る <ExternalLink size={11} /></a>
         </div>
         <div className="publish-form">
@@ -170,10 +198,13 @@ export default function BrowserPanel({ store, source }: { store: ProjectStore; s
         </li>)}</ul>
       </div>
       <div className="publish-export row">
-        <button className="primary" disabled={!!busy} onClick={() => void exportPlayable()}><Gamepad2 size={13} /> ゲームZIPを作る</button>
+        <button className="primary" disabled={!!busy || (isStaticSite && !staticOutputReady)} onClick={() => void exportPlayable()}><Gamepad2 size={13} /> {isStaticSite ? "配布用サイトZIPを作る" : "ゲームZIPを作る"}</button>
         {busy && <span className="muted small">{busy}中…</span>}
-        {!source.canExportInBrowser() && <span className="text-amber small">独自コードを使っているため、ゲームZIPは手元の工房でビルドしてください。</span>}
-        {source.canExportInBrowser() && <span className="muted small">ZIPには index.html・game.js・ゲームデータ・素材・CREDITS.md が入ります。</span>}
+        {isExperience && projectInfo.runtime === "static" && <span className="muted small">{projectInfo.build ? `ビルド設定 '${projectInfo.build.command}' は実行せず、${projectInfo.build.outputDir ?? "dist"}/ の既存成果物をZIPに含めます。` : "完成済みサイトのファイルを変換せず、index.html・相対ファイル・素材の台帳を含むZIPにまとめます。"}</span>}
+        {isStaticSite && projectInfo.build && !staticOutputReady && <span className="text-amber small">公開用の成果物がまだありません。手元の工房で build.command を確認してから `pnpm rpg build --project &lt;dir&gt; --run-project-build --zip` を実行してください。</span>}
+        {isExperience && projectInfo.runtime !== "static" && <span className="muted small">TypeScriptをブラウザ内で変換し、index.html・game.js・素材・CREDITS.mdを含むZIPを作ります。構文確認のみです。型検査はローカルCLIで行えます。</span>}
+        {!isExperience && !source.canExportInBrowser() && <span className="text-amber small">独自RPGコードを使っているため、ゲームZIPは手元の工房でビルドしてください。</span>}
+        {!isExperience && source.canExportInBrowser() && <span className="muted small">ZIPには index.html・game.js・ゲームデータ・素材・CREDITS.md が入ります。</span>}
       </div>
     </section>
 
@@ -190,13 +221,15 @@ export default function BrowserPanel({ store, source }: { store: ProjectStore; s
     <section>
       <h3>新しく始める・読み込む</h3>
       <div className="row">
-        <input value={title} placeholder="ゲームの名前（例: 星降る村）" onChange={e => setTitle(e.target.value)} aria-label="新しいゲームの名前" />
+        <input value={title} placeholder="作品名" onChange={e => setTitle(e.target.value)} aria-label="新しい作品の名前" />
         <button disabled={!!busy} onClick={() => void createBlank()}><FolderPlus size={13} /> 空のRPG土台を作る</button>
+        <button disabled={!!busy} onClick={() => void createBlankExperience()}><Code2 size={13} /> 独立作品を作る</button>
+        <button disabled={!!busy} onClick={() => void createBlankStaticExperience()}><Code2 size={13} /> 独自HTML（静的サイト）を作る</button>
         <button disabled={!!busy} onClick={() => open(null)}><FolderOpen size={13} /> 見本を開く</button>
-        <button disabled={!!busy} onClick={() => fileInput.current?.click()}><Upload size={13} /> ZIPから読み込む</button>
+        <button disabled={!!busy} onClick={() => fileInput.current?.click()}><Upload size={13} /> プロジェクト／サイトZIPから読み込む</button>
         <input ref={fileInput} type="file" accept=".zip,application/zip" hidden onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) void importZip(f); }} />
       </div>
-      <p className="muted small">主人公と空の舞台1枚だけのRPG土台です。案内人・会話・イベント・目的は入れません。見本の素材は使えますが、発想ガチャや見本のストーリーは任意です。</p>
+      <p className="muted small">RPG・状態遷移型・独自HTML（静的サイト）から選べます。完成済みサイトZIPを読み込めます。ソースビルドは作品ZIP内に設定できますが、ブラウザ工房は設定コマンドを実行しません。ローカルCLIでコマンド内容を確認し、明示的に実行してください。物語・遊び方・ジャンルを自動では決めません。</p>
     </section>
 
     <section>
@@ -204,7 +237,7 @@ export default function BrowserPanel({ store, source }: { store: ProjectStore; s
       {projects === null ? <p className="muted">読み込み中…</p> : !projects.length ? <p className="muted">まだありません。</p> :
         <ul className="browser-projects">
           {projects.map(p => <li key={p.id} className={current?.id === p.id ? "is-current" : ""}>
-            <div><b>{p.title}</b> <code>{p.id}</code> <span className="muted small">{new Date(p.updatedAt).toLocaleString()}</span></div>
+            <div><b>{p.title}</b> <span className="tag">{projectFormat(p)}</span> <code>{p.id}</code> <span className="muted small">{new Date(p.updatedAt).toLocaleString()}</span></div>
             <div className="row">
               {current?.id !== p.id && <button onClick={() => open(p.id)}><FolderOpen size={13} /> 開く</button>}
               {current?.id === p.id && <span className="tag">開いています</span>}

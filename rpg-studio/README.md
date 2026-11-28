@@ -1,6 +1,6 @@
-# RPGシステム工房 v2.4
+# RPGシステム工房 v2.5 — RPGと独立作品
 
-Codex／Claude Code が **Git管理のファイルを直接編集して** 2DトップダウンRPGを作り、人がブラウザの工房でマップを手直し・試遊・検証するためのローカル制作環境です。工房にLLMは内蔵せず、AI APIキーも不要です（エージェント自体の契約は別途必要な場合があります）。
+Codex／Claude Code が **Git管理のファイルを直接編集して** ゲームを作るローカル制作環境です。既存のRPG形式に加え、RPGの主人公・マップ・HPを前提にしない独立作品形式 `experience.json` を選べます。独立作品には、状態遷移型の小さなホストと、HTML/CSS/JavaScript/WASM等をそのまま使う静的サイト型があります。ブラウザ工房では独立作品の編集・素材登録・ZIP出力ができます。工房にLLMは内蔵せず、AI APIキーも不要です（エージェント自体の契約は別途必要な場合があります）。
 
 ```
 エージェント（Codex / Claude Code）──┐
@@ -31,7 +31,13 @@ pnpm rpg dev                     # 完成版ゲームだけを試遊: http://127
 
 ### 発想の自由度と、今の実行形式
 
-新規作成では、物語・ジャンル・目的・戦闘・成長を勝手に決めません。標準の実行形式はRPGなので、初期の土台には主人公と空のマップがあります。ブラウザ版と「チャットで作る」は既存のデータ形式で表せる範囲が中心です。発想に必要な仕組みがまだなければ、ローカル版のCodex／Claude Codeでエンジンやデータ形式を広げられます。つまり、作品の内容をひな形に合わせる必要はありませんが、現在のブラウザ版だけで任意の実行形式を作れるわけではありません。
+新規作成で物語・ジャンル・目的・勝敗・成長を勝手に決めません。RPGの枠が発想に合わなければ、独立作品形式で作品全体の実行方法を選べます。状態遷移型の `experience` と、HTML/CSS/JavaScript/WASM等をそのまま使う `static` があります。ブラウザ工房は完成済みサイトZIPを読み込めます。ソースビルドが必要なら `experience.json` に任意のビルド手順を設定し、ローカルCLIで `--run-project-build` を明示して実行できます。ブラウザ工房や通常の検証・試遊ではコマンドを実行しません。「チャットで作る」のJSON差分適用はRPG形式向けなので、独立作品はAIにファイルを直接編集させるか、作り手の任意の方法で進めてください。詳しくは [独立作品形式のガイド](docs/experience-projects.md) を参照してください。
+
+```sh
+pnpm rpg new my-game --type rpg --title "RPGの作品"
+pnpm rpg new my-work --type experience --title "RPGに限らない作品"
+pnpm rpg new my-site --type experience --runtime static --title "独自ランタイム作品"
+```
 
 ## Codex / Claude Codeでローカル制作
 
@@ -42,9 +48,10 @@ ZIPをPC上に展開してそのフォルダーをCodexまたはClaude Codeで�
 | コマンド | 内容 |
 | --- | --- |
 | `pnpm rpg validate --project <dir>` | 形式・ID参照・フラグ宣言・座標・タイル・素材ファイル（PNG寸法）を全ファイル横断で検証 |
-| `pnpm rpg test --project <dir>` | 検証＋独自システムの読込＋`tests/*.scenario.json` の自動プレイ |
-| `pnpm rpg build --project <dir>` | 型検査 → bundle → `dist/game/<id>/` に静的ゲームを出力（失敗時は前回の成果物を保持） |
-| `pnpm rpg dev --project <dir>` | ビルドして配信。保存で自動再ビルド・再読込 |
+| `pnpm rpg test --project <dir>` | RPG形式の自動プレイ、または状態遷移型の独立作品シナリオを実行。静的サイト型は形式を確認 |
+| `pnpm rpg build --project <dir> [--zip]` | `experience` は型検査・bundle、`static` は独自のHTML/CSS/JS/WASM等をそのまま出力 |
+| `pnpm rpg dev --project <dir>` | ビルドしてローカル配信。静的サイト型は相対ファイルやWASMを含めて試遊 |
+| `pnpm rpg new <id> --type experience [--runtime experience|static]` | RPGの前提を置かない作品ひな形を作成。`static` は独自HTML起点 |
 | `pnpm rpg migrate --project <dir> [--write]` | 旧形式(v1)の移行。既定は差分表示のみ。`--write` で `.rpg-backup/` に退避してから保存 |
 | `pnpm rpg catalog --project <dir>` | 定義済みのフラグ・変数・特性・能力・ルール・マップ等の一覧（AIへの説明用） |
 | `pnpm rpg schema [--check]` | `schema/*.schema.json`（エディター・AI向けJSON Schema）の生成／最新確認 |
@@ -70,7 +77,7 @@ ZIPをPC上に展開してそのフォルダーをCodexまたはClaude Codeで�
 | ルール（トリガー） | auto / step / mapEnter / battleStart / turnEnd / dealDamage / takeDamage / lethalDamage / victory / defeat。確率・回数制限・優先順位・ダメージ書き換え |
 | 技・アイテム使用 | 変数コスト（MP等）・HPコスト・使用条件つき |
 | 地形の変化 | フラグで切り替わるオーバーレイ、セーブに残る `setTile` |
-| TypeScript | 上で書けないものだけ（`defineSystem`）。エンジン自体の改造も可 |
+| TypeScript | RPGの拡張は `defineSystem`。RPGを土台にしない作品は `defineExperience` で状態・入力・画面全体を定義。エンジン自体の改造も可 |
 
 種族や効果の**中身**は、作り手が仕様を用意してCodex／Claude Codeに作らせる前提です。工房の「検証」画面に依頼文のひな形があり、`pnpm rpg catalog` でAIに既存の定義を伝え、`schema/*.schema.json` がエディターの補完を効かせます。サンプルでは、種族選択・技・店・ゴールド・気力・撃破ボーナス・地形変化をすべてJSONだけで作っています。
 
@@ -78,11 +85,11 @@ ZIPをPC上に展開してそのフォルダーをCodexまたはClaude Codeで�
 
 | 場所 | 役割 |
 | --- | --- |
-| `projects/<id>/` | ゲームの正本。`project.json`・`tiles.json`・`database.json`・`maps/`・`dialogues/`・`events/`・`assets.json`・`systems/*.ts`・`tests/*.scenario.json` |
-| `packages/schema/` | データ形式v2（Zod）、横断検証、v1→v2移行 |
-| `packages/engine/` | 描画に依存しない純粋なゲームエンジン（移動・条件・効果キュー・会話・戦闘・セーブ・拡張フック）とシナリオ実行 |
-| `packages/runtime/` | Canvas描画・入力・メッセージ／選択肢／戦闘／メニューUI。**工房の試遊と静的ビルドが同じコードを使う** |
-| `packages/cli/` | validate / test / build / dev / migrate |
+| `projects/<id>/` | RPGは `project.json` 等、独立作品は `experience.json` と、選んだ実行形式のファイルが正本 |
+| `packages/schema/` | RPGデータ形式v2と独立作品形式（Zod）、横断検証、v1→v2移行 |
+| `packages/engine/` | RPGの純粋エンジンと、作品全体を定義する独立 `ExperienceDefinition` |
+| `packages/runtime/` | RPGのCanvas描画・UIと、独立作品の全画面ランタイム |
+| `packages/cli/` | validate / test / build / dev / migrate。独立作品は状態シナリオの `test` にも対応 |
 | `packages/local-server/` | 127.0.0.1限定のファイルAPI・監視・ビルド・テスト |
 | `studio/` | 工房UI（React）：マップ編集・試遊・データ編集・検証 |
 | `docs/` | 形式・拡張API・シナリオテスト・安全性・素材依頼 |
@@ -94,6 +101,16 @@ pnpm deploy:site
 ```
 
 公開中: https://rpg-studio-2k3.pages.dev 。工房のPreview版（見本プロジェクトで操作できる。変更はブラウザ内だけ）と見本ゲーム2本を `dist/site/` にまとめ、Cloudflare Pages の `rpg-studio` プロジェクトへ公開します。初回はブラウザで Cloudflare へのログインを求められ、プロジェクトがなければ作成を聞かれます（本番ブランチは `main`）。中身だけ作るなら `pnpm build:site`。見本の素材はすべて内蔵生成・AI生成で、第三者サイトの素材は含みません。
+
+## v2.5の変更 — 発想がRPG形式に収まらない場合の独立作品ルート
+
+- `experience.json` と `defineExperience` による独立作品形式を追加。作品自身が状態・入力・画面を定義し、RPGのプレイヤー・マップ・HP・戦闘を読み込まない。
+- `pnpm rpg new --type experience`、`validate`、`test`、`dev`、`build --zip` に対応。状態遷移型はPWA用ファイルと素材クレジットを生成し、`static` は作者のサイトファイルを変換せずに出力する。
+- `--runtime static` を追加。独自の `index.html` を起点にHTML/CSS/JavaScript/WASM等を保持し、RPG Studioの実行ループ・画面・入力仕様を加えずに配布する。
+- 独立作品の「素材と出典」から画像・音声・フォントをローカルまたはブラウザ保存へ取り込み、出典・規約・クレジットを `assets.json` に記録できる。
+- 保存可能なJSON状態、手動・自動保存、固定FPS入力、素材URL解決を追加。
+- 試作作品「昨日を配送する深海郵便局」を追加。曜日の記憶を配達すると送り主から一日が消え、宛先と切手によって世界の法則が変わる。
+- ブラウザ工房でも独立作品を編集・素材登録・ZIP出力できる。状態遷移型のブラウザ変換は構文エラーを報告するが完全な型検査はしない。独自HTMLの試遊と状態遷移型の自動シナリオにはローカル `pnpm rpg dev` / `pnpm rpg test` を使う。
 
 ## v2.4の変更（「200の改善指針」第10弾）
 

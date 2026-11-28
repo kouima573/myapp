@@ -1,0 +1,12 @@
+{
+  "formatVersion": 1,
+  "id": "deep-sea-post-office",
+  "title": "昨日を配送する深海郵便局",
+  "entry": "systems/main.ts",
+  "assetsPath": "assets.json",
+  "args": {},
+  "save": {
+    "enabled": true,
+    "autosave": true
+  }
+}

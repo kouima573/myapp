@@ -560,6 +560,13 @@ export const AssetSourceSchema = z.object({
   research: z.object({ method: z.enum(["original", "secondary"]), checkedAt: z.string(), urls: z.array(z.string()).default([]) }).strict().optional(),
   /** Where to ask the site when the terms are unclear. */
   contact: z.string().optional(),
+  /**
+   * May the files sit in a public repository (GitHub etc.)? "private-only" = only in a private repository for
+   * development (keeping them public counts as redistribution). Validation warns when a project uses such files.
+   */
+  publicRepository: z.enum(["allowed", "private-only", "unknown"]).optional(),
+  /** Answers from the site's operators to our questions (by mail / form). Kept apart from verifiedAt (= a person read the terms page). */
+  inquiries: z.array(z.object({ answeredAt: z.string(), channel: z.string(), answer: z.array(z.string()).min(1) }).strict()).default([]),
 }).strict();
 export type AssetSource = z.infer<typeof AssetSourceSchema>;
 
