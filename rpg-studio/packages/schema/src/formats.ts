@@ -745,6 +745,8 @@ export const ProjectManifestSchema = z.object({
    * エンディングにする（完成版のデータはそのまま）。
    */
   demo: z.object({ endWhen: ConditionSchema, title: z.string().default("体験版はここまで"), text: z.string().default("遊んでくれてありがとうございます。続きは製品版でお楽しみください。") }).strict().optional(),
+  /** ゲームの版（例 "1.0.0"）。セーブに記録され、更新後に古いセーブを読むときの目安になる。 */
+  version: z.string().max(40).optional(),
   /** Save automatically to the "オート" slot when entering a map (field, nothing pending). */
   autosave: z.boolean().default(true),
   /**
@@ -1640,6 +1642,8 @@ export const GameSaveSchema = z.object({
   formatVersion: z.literal(SAVE_FORMAT_VERSION),
   projectId: IdSchema,
   savedAt: z.string().datetime(),
+  /** project.json の version（ゲームの版）at the time of saving. */
+  gameVersion: z.string().optional(),
   state: GameStateSchema,
 }).strict();
 export type GameSave = z.infer<typeof GameSaveSchema>;

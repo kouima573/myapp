@@ -1,0 +1,73 @@
+{
+  "formatVersion": 2,
+  "projectId": "sample-rpg",
+  "savedAt": "2026-11-28T04:35:31.044Z",
+  "gameVersion": "1.0.0",
+  "state": {
+    "mapId": "ruins",
+    "player": {
+      "x": 8,
+      "y": 7,
+      "facing": "up",
+      "hp": 22,
+      "stats": {
+        "maxHp": 18,
+        "attack": 5,
+        "defense": 1
+      }
+    },
+    "abilities": [],
+    "traits": [
+      "dwarf"
+    ],
+    "items": {},
+    "flags": {
+      "beastPathUnlocked": false,
+      "ruinsShortcutOpen": false,
+      "sentinelCalmed": false,
+      "questComplete": false,
+      "veteran": false,
+      "runeDoorOpen": false,
+      "wind-form": false
+    },
+    "vars": {
+      "gold": 0,
+      "spirit": 3,
+      "victories": 0,
+      "loot": 0,
+      "skill": 0
+    },
+    "sets": {
+      "clues": [
+        "ancient-script",
+        "rune-order"
+      ],
+      "memories": []
+    },
+    "tileOverrides": {},
+    "entities": {},
+    "timers": [],
+    "cycle": 1,
+    "ticks": 0,
+    "regions": [
+      "sanctum"
+    ],
+    "fired": [
+      "auto:g:learn-recall"
+    ],
+    "done": [
+      "sanctum-seen"
+    ],
+    "scene": {
+      "kind": "field"
+    },
+    "queue": [],
+    "systemData": {},
+    "rng": 11,
+    "steps": 0,
+    "verbsLearned": [
+      "recall"
+    ],
+    "verbsForgotten": []
+  }
+}

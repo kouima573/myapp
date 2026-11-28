@@ -4,7 +4,9 @@
  */
 import fs from "node:fs/promises";
 import path from "node:path";
-import { planAssetPack, writeZip, type PackLicense, type Song } from "../../schema/src/index";
+import { composePackPreview, planAssetPack, writeZip, type PackLicense, type Song } from "../../schema/src/index";
+import { Img } from "./artgen/core";
+import { decodePng, encodePng } from "./artgen/png";
 import { songToWav } from "../../runtime/src/songRender";
 import { renderMapPng } from "./mapExport";
 import { loadProjectFromDisk, resolveInside } from "./load";
@@ -37,6 +39,7 @@ export async function cmdAssetPack(root: string, flags: Flags): Promise<number> 
     const data = "text" in s ? new TextEncoder().encode(s.text)
       : "songWav" in s ? songToWav(JSON.parse(await fs.readFile(resolveInside(root, s.songWav), "utf8")) as Song)
       : "mapImage" in s ? new Uint8Array(await renderMapPng(root, loaded.content, s.mapImage))
+      : "preview" in s ? new Uint8Array(await renderPreviewPng(root, s.preview))
       : new Uint8Array(await fs.readFile(resolveInside(root, s.assetPath)));
     entries.push({ name: f.name, data });
   }
@@ -44,4 +47,18 @@ export async function cmdAssetPack(root: string, flags: Flags): Promise<number> 
   await fs.writeFile(out, writeZip(entries));
   console.log(`OK asset pack: ${path.relative(process.cwd(), out)}（素材 ${plan.included.length}点${plan.refused.length ? `、除外 ${plan.refused.length}点` : ""}・${license}）`);
   return 0;
+}
+
+/** preview.png of a pack (numbered contact sheet). Images that are not PNG are drawn as an empty cell with their number. */
+export async function renderPreviewPng(root: string, items: Array<{ assetPath: string; frame?: { w: number; h: number } }>): Promise<Buffer> {
+  const cells = [];
+  for (const item of items) {
+    let image = null;
+    try { const d = decodePng(await fs.readFile(resolveInside(root, item.assetPath))); image = { width: d.w, height: d.h, data: d.data }; } catch { /* not a PNG */ }
+    cells.push({ image, frame: item.frame });
+  }
+  const pic = composePackPreview(cells);
+  const img = new Img(pic.width, pic.height);
+  img.data.set(pic.data);
+  return encodePng(img);
 }

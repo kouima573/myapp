@@ -1,0 +1,60 @@
+{
+  "formatVersion": 2,
+  "projectId": "sample-rpg",
+  "savedAt": "2026-11-28T04:35:31.064Z",
+  "gameVersion": "1.0.0",
+  "state": {
+    "mapId": "village",
+    "player": {
+      "x": 3,
+      "y": 9,
+      "facing": "right",
+      "hp": 22,
+      "stats": {
+        "maxHp": 18,
+        "attack": 5,
+        "defense": 1
+      }
+    },
+    "abilities": [],
+    "traits": [
+      "dwarf"
+    ],
+    "items": {},
+    "flags": {
+      "beastPathUnlocked": false,
+      "ruinsShortcutOpen": false,
+      "sentinelCalmed": false,
+      "questComplete": false,
+      "veteran": false,
+      "runeDoorOpen": false,
+      "wind-form": false
+    },
+    "vars": {
+      "gold": 0,
+      "spirit": 3,
+      "victories": 0,
+      "loot": 0,
+      "skill": 0
+    },
+    "sets": {
+      "clues": [],
+      "memories": []
+    },
+    "tileOverrides": {},
+    "entities": {},
+    "timers": [],
+    "cycle": 1,
+    "ticks": 0,
+    "regions": [],
+    "fired": [],
+    "done": [],
+    "scene": {
+      "kind": "field"
+    },
+    "queue": [],
+    "systemData": {},
+    "rng": 3,
+    "steps": 0
+  }
+}

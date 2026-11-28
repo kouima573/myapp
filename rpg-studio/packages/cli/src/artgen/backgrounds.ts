@@ -289,3 +289,53 @@ export function renderBackground(spec: BackgroundSpec): Img {
   for (let i = 3; i < img.data.length; i += 4) img.data[i] = 255;
   return img.scale(2);
 }
+
+/* ------------------------------------------------------------------ 戦闘背景作り（設定から組み立てる） */
+
+/** A battle background built from settings (sky, clouds or stars, ridges, ground, trees, ruins). */
+export interface BackgroundDesign {
+  id: string;
+  name: string;
+  skyTop: string;
+  skyHorizon: string;
+  /** clouds = 雲, stars = 星, none = なし */
+  sky: "clouds" | "stars" | "none";
+  cloudColor?: string;
+  /** 遠くの山（null = なし） */
+  far?: string | null;
+  /** 近くの丘（null = なし） */
+  mid?: string | null;
+  ground: string;
+  /** 地面の中央の道（null = なし） */
+  path?: string | null;
+  trees?: { kind: "round" | "pine"; color: string; count: number } | null;
+  /** 遺跡の柱 */
+  pillars?: string | null;
+  seed?: number;
+}
+
+export const BACKGROUND_PRESETS: BackgroundDesign[] = [
+  { id: "meadow", name: "晴れた草原", skyTop: "#5a9ae8", skyHorizon: "#e8f0e0", sky: "clouds", cloudColor: "#f4f8ff", far: "#8aa8c8", mid: "#5a9a4a", ground: "#6aaa48", path: "#c8a868", trees: { kind: "round", color: "#3a7a3a", count: 4 } },
+  { id: "night-woods", name: "夜の森", skyTop: "#0e1430", skyHorizon: "#3a3a6a", sky: "stars", far: "#2a3050", mid: "#1e3a2e", ground: "#22402a", path: null, trees: { kind: "pine", color: "#0e2418", count: 7 } },
+  { id: "dusk-ruins", name: "夕暮れの遺跡", skyTop: "#5a3a7a", skyHorizon: "#f0a060", sky: "clouds", cloudColor: "#f0c0a0", far: "#7a5a7a", mid: null, ground: "#8a7a5a", path: "#b8a888", pillars: "#c8bca8" },
+  { id: "snowfield", name: "雪原", skyTop: "#8ab0d8", skyHorizon: "#f0f4fa", sky: "clouds", cloudColor: "#ffffff", far: "#b8c8e0", mid: "#e0e8f0", ground: "#eef2f8", path: "#c8d0dc", trees: { kind: "pine", color: "#3a5a5a", count: 5 } },
+  { id: "desert", name: "砂漠", skyTop: "#4a8ad8", skyHorizon: "#f0e0b8", sky: "none", far: "#d8b888", mid: "#e0c088", ground: "#e8c890", path: null },
+];
+
+export function renderBackgroundDesign(d: BackgroundDesign): Img {
+  const img = new Img(W, H);
+  const r = rng(`bg-design/${d.id}/${d.seed ?? 0}`);
+  gradient(img, [[0, d.skyTop], [1, d.skyHorizon]], 0, HORIZON + 6);
+  if (d.sky === "clouds") clouds(img, r, 20, 80, d.cloudColor ?? "#f4f8ff", 7);
+  if (d.sky === "stars") stars(img, r, HORIZON - 20, 90);
+  if (d.far) ridge(img, `${d.id}-far-${d.seed ?? 0}`, HORIZON - 12, 40, 5, d.far, { haze: d.skyHorizon, hazeAmt: 0.5 });
+  if (d.mid) ridge(img, `${d.id}-mid-${d.seed ?? 0}`, HORIZON + 2, 22, 7, d.mid, { haze: d.skyHorizon, hazeAmt: 0.25 });
+  groundPlane(img, `${d.id}-g-${d.seed ?? 0}`, d.ground, HORIZON + 6, d.path ? { center: d.path } : {});
+  if (d.pillars) for (const [x, top, broken] of [[40, 50, false], [86, 74, true], [228, 60, true], [276, 46, false]] as const) pillar(img, x, top, HORIZON + 16, 14, d.pillars, broken);
+  if (d.trees && d.trees.count > 0) {
+    const xs = [18, 292, 52, 262, 86, 230, 120, 196].slice(0, Math.min(8, d.trees.count));
+    xs.forEach((x, i) => treeSilhouette(img, x + r.int(-4, 4), HORIZON + 10, (d.trees!.kind === "pine" ? 64 : 56) + ((i * 37) % 22), d.trees!.color, d.trees!.kind));
+  }
+  for (let i = 3; i < img.data.length; i += 4) img.data[i] = 255;
+  return img.scale(2);
+}

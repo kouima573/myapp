@@ -120,3 +120,63 @@ export async function cmdArtTiles(root: string, flags: Flags): Promise<number> {
   console.log(`OK art tiles: ${assetId}（${name}・${sheet.tiles.length}枚）を登録し、tiles.json に追加しました: ${merged.added.join(" ")}`);
   return 0;
 }
+
+/* ------------------------------------------------------------------ 顔グラフィック・戦闘背景 */
+
+/**
+ * `rpg art portrait --project <dir> --id <id> [--name <名前>] [--character chr-xxx | --from <見本ID> | --spec '<JSON>']`
+ * キャラクター作りの部品から、胸から上の顔グラフィック（表情5つ: 普通・笑顔・怒り・悲しみ・驚き = face 0〜4）を作る。
+ * --character で、キャラクター作りで作った歩くキャラと同じ見た目にできる。
+ */
+export async function cmdArtPortrait(root: string, flags: Flags): Promise<number> {
+  const { renderPortraitSheet } = await import("./artgen/portraits");
+  const id = str(flags, "id");
+  if (!id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) { console.log("ERROR --id <英小文字・数字・ハイフン> が必要です"); return 2; }
+  let spec: CharacterSpec;
+  try {
+    const from = str(flags, "character");
+    if (from) {
+      const manifest = JSON.parse(await fs.readFile(path.join(root, "project.json"), "utf8")) as { assetsPath?: string };
+      const assets = JSON.parse(await fs.readFile(path.join(root, manifest.assetsPath ?? "assets.json"), "utf8")) as { assets: Array<{ id: string; generator?: { spec?: string } }> };
+      const a = assets.assets.find(x => x.id === from);
+      if (!a?.generator?.spec) throw new Error(`'${from}' はキャラクター作りで作ったキャラではありません（部品の記録がありません）`);
+      spec = JSON.parse(a.generator.spec) as CharacterSpec;
+    } else spec = characterSpec({ id, name: str(flags, "name") ?? id, from: str(flags, "from"), random: str(flags, "random"), spec: str(flags, "spec") ? JSON.parse(str(flags, "spec")!) : undefined });
+  } catch (error) { console.log(`ERROR ${error instanceof Error ? error.message : String(error)}`); return 1; }
+  const name = str(flags, "name") ?? spec.name;
+  const assetId = `face-${id}`;
+  const file = path.join(root, ".rpg-studio", `${assetId}.png`);
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, encodePng(renderPortraitSheet(spec)));
+  const code = await addAsset(root, {
+    file, id: assetId, kind: "portrait", tile: "96x96", columns: "5", rows: "1",
+    origin: "generated", source: "builtin-art", license: "MIT（RPGシステム工房の内蔵ジェネレーター。オリジナル生成物）",
+    notes: `顔グラフィック作りで作成（${name}。face 0=普通 1=笑顔 2=怒り 3=悲しみ 4=驚き）。`, ...(flags.replace ? { replace: true } : {}),
+  }, { generator: { tool: "rpg art portrait", version: ARTGEN_VERSION, spec: JSON.stringify({ ...spec, name }) } });
+  await fs.rm(file, { force: true });
+  if (code === 0) console.log(`OK art portrait: ${assetId}（${name}）を登録しました。会話の portrait に "${assetId}"、表情は face 0〜4`);
+  return code;
+}
+
+/** `rpg art background --project <dir> --id <id> --name <名前> [--preset meadow|night-woods|dusk-ruins|snowfield|desert] [--spec '<JSON>'] [--seed 3]` */
+export async function cmdArtBackground(root: string, flags: Flags): Promise<number> {
+  const { BACKGROUND_PRESETS, renderBackgroundDesign } = await import("./artgen/backgrounds");
+  const id = str(flags, "id"), name = str(flags, "name");
+  if (!id || !/^[a-z0-9][a-z0-9-]*$/.test(id) || !name) { console.log("ERROR --id と --name が必要です"); return 2; }
+  const preset = BACKGROUND_PRESETS.find(p => p.id === (str(flags, "preset") ?? "meadow"));
+  if (!preset) { console.log(`ERROR --preset は ${BACKGROUND_PRESETS.map(p => p.id).join(" / ")}`); return 2; }
+  let design;
+  try { design = { ...preset, ...(str(flags, "spec") ? JSON.parse(str(flags, "spec")!) : {}), id, name, ...(str(flags, "seed") ? { seed: Number(str(flags, "seed")) } : {}) }; }
+  catch (error) { console.log(`ERROR --spec を JSON として読めません: ${String(error)}`); return 2; }
+  const assetId = `bg-${id}`;
+  const file = path.join(root, ".rpg-studio", `${assetId}.png`);
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, encodePng(renderBackgroundDesign(design)));
+  const code = await addAsset(root, {
+    file, id: assetId, kind: "background", tile: "640x448", columns: "1", rows: "1", origin: "generated", source: "builtin-art", license: "MIT（RPGシステム工房の内蔵ジェネレーター。オリジナル生成物）",
+    notes: `戦闘背景作りで作成（${name}）。`, ...(flags.replace ? { replace: true } : {}),
+  }, { generator: { tool: "rpg art background", version: ARTGEN_VERSION, spec: JSON.stringify(design) } });
+  await fs.rm(file, { force: true });
+  if (code === 0) console.log(`OK art background: ${assetId}（${name}）を登録しました。戦闘の背景に "${assetId}" を指定して使えます`);
+  return code;
+}

@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Package } from "lucide-react";
 import { assetRights, PACK_LICENSE_LABEL, PACK_TERMS_TEMPLATE, planAssetPack, writeZip, type GameContent, type PackLicense } from "@rpg/schema";
 import { download } from "../lib/browserExport";
-import { mapPngBlob } from "../lib/renderInBrowser";
+import { mapPngBlob, previewPngBlob } from "../lib/renderInBrowser";
 import { songToWav } from "../../../packages/runtime/src/songRender";
 import type { ProjectStore } from "../lib/useProject";
 
@@ -38,6 +38,7 @@ export default function AssetPackSection({ store, content }: { store: ProjectSto
         const s = f.source;
         if ("text" in s) { entries.push({ name: f.name, data: new TextEncoder().encode(s.text) }); continue; }
         if ("songWav" in s) { entries.push({ name: f.name, data: songToWav(JSON.parse(store.texts[s.songWav] ?? "null")) }); continue; }
+        if ("preview" in s) { entries.push({ name: f.name, data: new Uint8Array(await (await previewPngBlob(content, s.preview, a => store.source.assetUrl(a))).arrayBuffer()) }); continue; }
         if ("mapImage" in s) { entries.push({ name: f.name, data: new Uint8Array(await (await mapPngBlob(content, s.mapImage, a => store.source.assetUrl(a))).arrayBuffer()) }); continue; }
         const asset = content.assets.assets.find(a => a.path === (f.source as { assetPath: string }).assetPath)!;
         const response = await fetch(await store.source.assetUrl(asset));

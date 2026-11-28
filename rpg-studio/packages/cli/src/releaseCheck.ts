@@ -19,6 +19,8 @@ export function releaseChecklist(input: {
   diagnostics: Diagnostic[];
   /** Results of tests/*.scenario.json, or undefined when they were not run. */
   tests?: Array<{ file: string; ok: boolean; message?: string }>;
+  /** Saves of earlier versions (releases/<版>/saves) read with this version (CLI only; see releaseSaves.ts). [] = none kept yet; undefined = not checked here (studio). */
+  oldSaves?: Array<{ file: string; ok: boolean; notes: string[]; message?: string }>;
 }): ReleaseReport {
   const items: ReleaseItem[] = [];
   const errors = input.diagnostics.filter(d => d.severity === "error");
@@ -58,9 +60,21 @@ export function releaseChecklist(input: {
     items.push({ id: "credits", label: "クレジット表記", status: noCredit.length ? "block" : "ok",
       details: noCredit.length ? noCredit.map(a => `${a.id}: 表記が必要ですが credit が空です`) : ["必要な表記はそろっています（ゲームのクレジット画面と CREDITS.md に自動で入ります）"] });
   }
+  const old = input.oldSaves;
+  const snapshotHint = "公開・販売する版で pnpm rpg release snapshot を実行しておくと、次に更新したとき、買った人のセーブが今の版で読めて動くかを pnpm rpg release-check で確かめられます";
+  if (!old) items.push({ id: "saves", label: "前の版のセーブで遊べるか（更新するとき）", status: "todo", details: ["この画面では確かめられません。手元で pnpm rpg release-check を実行してください（releases/ に前の版のセーブ見本がある場合）", snapshotHint] });
+  else if (!old.length) items.push({ id: "saves", label: "前の版のセーブで遊べるか（更新するとき）", status: "ok", details: ["前の版のセーブ見本はまだありません（初めての公開なら問題ありません）", snapshotHint] });
+  else {
+    const broken = old.filter(s => !s.ok), adjusted = old.filter(s => s.ok && s.notes.length);
+    items.push({ id: "saves", label: "前の版のセーブで遊べるか（更新するとき）", status: broken.length ? "block" : adjusted.length ? "warn" : "ok",
+      details: broken.length || adjusted.length
+        ? [...broken.map(s => `${s.file}: ${s.message ?? "読めません"}`), ...adjusted.slice(0, 6).map(s => `${s.file}: ${s.notes.join(" / ")}`)]
+        : [`${old.length}件すべて、今の版で読み込んで動かせました`] });
+  }
   items.push({ id: "license", label: "工房のライセンス表記", status: "ok", details: ["書き出したゲームの CREDITS.md に、エンジン（RPGシステム工房・MIT）の表記が自動で入ります"] });
 
-  const verdict = items.some(i => i.status === "block") ? "blocked" : items.some(i => i.status === "warn" || i.status === "todo") ? "warn" : "ready";
+  // "saves" not checked in the studio does not lower the verdict (it is checked by the CLI).
+  const verdict = items.some(i => i.status === "block") ? "blocked" : items.some(i => i.status === "warn" || (i.status === "todo" && i.id !== "saves")) ? "warn" : "ready";
   return { verdict, items };
 }
 

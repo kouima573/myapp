@@ -361,3 +361,12 @@ v2.5 の作業コピーは、6.23（2回目）の修正より前の版を元に�
 - 作品ページの材料 `studio/src/lib/storePage.ts`（ゲームの描画でスクリーンショット、630×500のカバー、紹介文の下書き）、「検証」画面の `StorePageSection`
 - 見本の敵の名前「メタルスライム」を「はがねスライム」に（既存作品の名前を避ける）
 - 確認: test（205件）、ブラウザで敵とタイルを作って登録→検証OK、体験版の設定→体験版ZIP、作品ページの材料ZIP（カバーの見た目も確認）
+
+## 21. 顔グラフィック・戦闘背景・素材パックの見本画像・セーブ互換（2026-11-28）
+
+- 顔グラフィック `packages/cli/src/artgen/portraits.ts`（`drawPortrait`・`renderPortraitSheet`。キャラクター作りと同じ `CharacterSpec` から 96×96 の顔を表情5つ横並び。骸骨・機械の特別な見た目にも対応）。CLI `rpg art portrait --character chr-…`（登録済みキャラの `generator.spec` から）、工房のキャラクター作りの「顔グラフィックも作る」（`face-ID` で登録）
+- 戦闘背景 `packages/cli/src/artgen/backgrounds.ts` の `BackgroundDesign`・`BACKGROUND_PRESETS`・`renderBackgroundDesign`（640×448）。CLI `rpg art background`、工房「素材作り」画面の「戦闘背景」（`BackgroundMakerSection`）
+- 素材パックの見本画像: `packages/schema/src/packPreview.ts`（`composePackPreview`。RGBA→RGBA の純粋関数、番号は3×5の数字フォント。スプライトは最初のコマの見える部分、同じコマ寸法どうしは同じ倍率、整数か0.5刻み）。`planAssetPack` が `preview` ソースを出し、CLI（`assetPackCmd.ts` の `renderPreviewPng`）と工房（`renderInBrowser.ts` の `previewPngBlob`）が描く。README・pack.json に番号
+- セーブ互換: `project.version` と `GameSave.gameVersion`。`packages/engine/src/saves.ts` の `adjustForUpdate`（`readSave` が使う。結果に `notes`）。`runScenario(..., { checkpoints: true })` がセーブできる場面を集める。`packages/cli/src/releaseSaves.ts`（`rpg release snapshot`、`readOldSaves`・`checkOldSaves`）、販売前チェックに「前の版のセーブで遊べるか」。見本RPGに `version: "1.0.0"` と `releases/1.0.0/saves/`（33件）を同梱し、テストで全件が今の版で動くことを確かめる（エンジンを変えて古いセーブが壊れたら気づける）
+- 工房の「販売前チェック」に「ゲームの版」欄
+- 確認: test（214件）。最初の1回だけ1件が失敗したが、出力を残せず、どのテストかは不明（その後5回はすべて通過。時間に左右されるテストがある可能性）。CLIで顔グラ・背景を作って素材パック→ preview.png の見た目を確認。ブラウザでキャラ＋顔グラ・戦闘背景の登録→素材パックZIP（preview.png 入り）、販売前チェックの「ゲームの版」欄

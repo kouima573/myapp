@@ -47,7 +47,7 @@ const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
   { id: "database", label: "敵・アイテム・仲間", icon: Swords },
   { id: "skills", label: "スキルボード", icon: Hexagon },
   { id: "scripts", label: "スクリプト（コード）", icon: Code2 },
-  { id: "character", label: "素材作り（キャラ・敵・タイル）", icon: UserRound },
+  { id: "character", label: "素材作り（キャラ・敵・タイル・背景）", icon: UserRound },
   { id: "pixel", label: "ドット絵", icon: Palette },
   { id: "library", label: "素材ライブラリ", icon: Library },
   { id: "song", label: "楽譜BGM", icon: Music },

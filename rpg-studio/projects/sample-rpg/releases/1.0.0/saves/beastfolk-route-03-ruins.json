@@ -1,0 +1,65 @@
+{
+  "formatVersion": 2,
+  "projectId": "sample-rpg",
+  "savedAt": "2026-11-28T04:35:30.985Z",
+  "gameVersion": "1.0.0",
+  "state": {
+    "mapId": "ruins",
+    "player": {
+      "x": 9,
+      "y": 9,
+      "facing": "up",
+      "hp": 18,
+      "stats": {
+        "maxHp": 18,
+        "attack": 5,
+        "defense": 1
+      }
+    },
+    "abilities": [],
+    "traits": [
+      "beastfolk"
+    ],
+    "items": {},
+    "flags": {
+      "beastPathUnlocked": false,
+      "ruinsShortcutOpen": true,
+      "sentinelCalmed": false,
+      "questComplete": false,
+      "veteran": false,
+      "runeDoorOpen": false,
+      "wind-form": false
+    },
+    "vars": {
+      "gold": 4,
+      "spirit": 0,
+      "victories": 1,
+      "loot": 4,
+      "skill": 0
+    },
+    "sets": {
+      "clues": [],
+      "memories": []
+    },
+    "tileOverrides": {},
+    "entities": {},
+    "timers": [],
+    "cycle": 1,
+    "ticks": 0,
+    "regions": [],
+    "fired": [],
+    "done": [
+      "open-ruins-shortcut"
+    ],
+    "scene": {
+      "kind": "field"
+    },
+    "queue": [],
+    "systemData": {},
+    "rng": 1831565815,
+    "steps": 21,
+    "seenDialogues": [
+      "rio-after"
+    ]
+  }
+}

@@ -1,0 +1,69 @@
+{
+  "formatVersion": 2,
+  "projectId": "sample-rpg",
+  "savedAt": "2026-11-28T04:35:31.079Z",
+  "gameVersion": "1.0.0",
+  "state": {
+    "mapId": "elder-house",
+    "player": {
+      "x": 8,
+      "y": 2,
+      "facing": "up",
+      "hp": 12,
+      "stats": {
+        "maxHp": 18,
+        "attack": 5,
+        "defense": 1
+      }
+    },
+    "abilities": [
+      "time-sand",
+      "gamble-card"
+    ],
+    "traits": [
+      "human"
+    ],
+    "items": {
+      "herb": 2,
+      "echo-mirror": 1
+    },
+    "flags": {
+      "beastPathUnlocked": false,
+      "ruinsShortcutOpen": false,
+      "sentinelCalmed": false,
+      "questComplete": false,
+      "veteran": false,
+      "runeDoorOpen": false,
+      "wind-form": false
+    },
+    "vars": {
+      "gold": 16,
+      "spirit": 6,
+      "victories": 1,
+      "loot": 4,
+      "skill": 0
+    },
+    "sets": {
+      "clues": [],
+      "memories": []
+    },
+    "tileOverrides": {},
+    "entities": {},
+    "timers": [],
+    "cycle": 1,
+    "ticks": 0,
+    "regions": [],
+    "fired": [],
+    "done": [],
+    "scene": {
+      "kind": "field"
+    },
+    "queue": [],
+    "systemData": {},
+    "rng": 567894480,
+    "steps": 0,
+    "equipment": {
+      "accessory": "echo-mirror"
+    }
+  }
+}

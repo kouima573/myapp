@@ -6,6 +6,8 @@ import {
   type CharacterSpec,
 } from "../../../packages/cli/src/artgen/characters";
 import { download } from "../lib/browserExport";
+import { EXPRESSIONS, EXPRESSION_LABELS, renderPortraitSheet } from "../../../packages/cli/src/artgen/portraits";
+import { drawImg, registerGenerated } from "../lib/registerGenerated";
 import { rgbaToPngBlob } from "../lib/renderInBrowser";
 import type { ProjectStore } from "../lib/useProject";
 
@@ -23,6 +25,10 @@ export default function CharacterMakerPanel({ store, content }: { store: Project
   const [busy, setBusy] = useState(false);
   const seed = useRef(1);
   const canvas = useRef<HTMLCanvasElement>(null);
+  const faceCanvas = useRef<HTMLCanvasElement>(null);
+  const [withFace, setWithFace] = useState(true);
+  const faces = useMemo(() => renderPortraitSheet(spec), [spec]);
+  useEffect(() => { const c = faceCanvas.current; if (!c) return; c.getContext("2d")!.clearRect(0, 0, c.width, c.height); drawImg(c, faces); }, [faces]);
   const made = useMemo(() => content.assets.assets.filter(a => a.kind === "character" && typeof a.generator?.spec === "string"), [content]);
 
   // Walking preview: the 4 directions side by side, 4x.
@@ -70,7 +76,11 @@ export default function CharacterMakerPanel({ store, content }: { store: Project
         tileWidth: 64, tileHeight: 64, columns: 4, rows: 4, frameDurationMs: 160, frameOrder: [0, 1, 2, 3], loop: true,
       };
       store.updateJson<{ assets: AssetEntry[] }>(content.project.assetsPath, data => { data.assets = [...data.assets.filter(a => a.id !== assetId), entry]; });
-      store.log("ok", `${assetId}（${name.trim()}）を登録しました。人物の見た目（sprite）に選べます。素材パックにも入れられます`);
+      if (withFace) {
+        await registerGenerated(store, content, { assetId: `face-${id}`, path: `assets/portraits/face-${id}.png`, kind: "portrait", img: faces, note: `顔グラフィック作りで作成（${name.trim()}。face 0=普通 1=笑顔 2=怒り 3=悲しみ 4=驚き）。`,
+          generator: { tool: "顔グラフィック作り", spec: JSON.stringify(full) }, grid: { tileWidth: 96, tileHeight: 96, columns: 5, rows: 1 } });
+      }
+      store.log("ok", `${assetId}（${name.trim()}）${withFace ? `と顔グラフィック face-${id}` : ""}を登録しました。人物の見た目（sprite）や会話の顔（portrait）に選べます。素材パックにも入れられます`);
     } catch (error) { store.log("error", `キャラクターを保存できません: ${error instanceof Error ? error.message : String(error)}`); }
     finally { setBusy(false); }
   };
@@ -90,6 +100,7 @@ export default function CharacterMakerPanel({ store, content }: { store: Project
       <button className="button" onClick={() => setSpec(randomCharacter(`${Date.now()}-${seed.current++}`))}><Dices size={13} /> おまかせ</button>
     </div>
     <canvas ref={canvas} className="character-preview" width={512} height={128} aria-label="歩くキャラクターの見本（下・左・右・上）" />
+    <div className="face-preview"><canvas ref={faceCanvas} width={480} height={96} aria-label="顔グラフィック（表情5つ）" /><div className="face-labels">{EXPRESSIONS.map((e, i) => <span key={e}>{i}: {EXPRESSION_LABELS[e]}</span>)}</div></div>
     <div className="character-parts">
       <label>体型{select(spec.body ?? "adult", BODY_TYPES, v => set(s => { s.body = v; }))}</label>
       <label>肌{color(spec.skin, v => set(s => { s.skin = v; }), "#f2d0b0")}</label>
@@ -107,6 +118,7 @@ export default function CharacterMakerPanel({ store, content }: { store: Project
     <div className="row">
       <label>名前<input value={name} onChange={e => setName(e.target.value)} placeholder="例: 狐の娘" /></label>
       <label>ID<input value={id} onChange={e => setId(e.target.value.toLowerCase())} placeholder="fox-girl" /></label>
+      <label><input type="checkbox" checked={withFace} onChange={e => setWithFace(e.target.checked)} />顔グラフィックも作る</label>
       <button className="button primary" disabled={busy} onClick={() => void addToProject()}><Plus size={13} /> {exists ? "置き換える" : "このプロジェクトに追加"}</button>
       <button className="button" onClick={() => void pngBlob().then(async b => download(`${id || "character"}.png`, new Uint8Array(await b.arrayBuffer()), "image/png"))}><Download size={13} /> PNGで保存</button>
     </div>

@@ -10,4 +10,5 @@ export * from "./rights";
 export * from "./assetPack";
 export * from "./zip";
 export * from "./mapExport";
+export * from "./packPreview";
 export * from "./demo";

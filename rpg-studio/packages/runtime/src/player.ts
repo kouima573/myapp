@@ -1754,7 +1754,8 @@ export function mountGame(host: HTMLElement, options: MountOptions): GameHandle 
     engine.clearBattleRetrySnapshot();
     menuOpen = false; menuView = "main"; atTitle = false;
     setState(result.save.state);
-    showToast(result.migrated ? "旧形式のセーブを変換して読み込みました。" : `${from}からロードしました。`);
+    if (result.notes.length) console.info("[セーブ互換]", result.notes.join(" / "));
+    showToast(result.migrated ? "旧形式のセーブを変換して読み込みました。" : result.notes.length ? `${from}からロードしました（今の版に合わせて調整しました）。` : `${from}からロードしました。`);
   }
 
   function setState(next: GameState) {

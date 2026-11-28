@@ -1,0 +1,87 @@
+{
+  "formatVersion": 2,
+  "projectId": "sample-rpg",
+  "savedAt": "2026-11-28T04:35:31.014Z",
+  "gameVersion": "1.0.0",
+  "state": {
+    "mapId": "village",
+    "player": {
+      "x": 11,
+      "y": 10,
+      "facing": "down",
+      "hp": 22,
+      "stats": {
+        "maxHp": 18,
+        "attack": 6,
+        "defense": 1
+      }
+    },
+    "abilities": [],
+    "traits": [
+      "dwarf"
+    ],
+    "items": {
+      "lucky-charm": 1,
+      "herb": 1
+    },
+    "flags": {
+      "beastPathUnlocked": false,
+      "ruinsShortcutOpen": false,
+      "sentinelCalmed": false,
+      "questComplete": false,
+      "veteran": false,
+      "runeDoorOpen": false,
+      "wind-form": false
+    },
+    "vars": {
+      "gold": 0,
+      "spirit": 3,
+      "victories": 0,
+      "loot": 0,
+      "skill": 3
+    },
+    "sets": {
+      "clues": [
+        "rune-order"
+      ],
+      "memories": []
+    },
+    "tileOverrides": {},
+    "entities": {
+      "village": {
+        "apprentice": {
+          "x": 11,
+          "y": 11,
+          "facing": "up"
+        }
+      }
+    },
+    "timers": [],
+    "cycle": 1,
+    "ticks": 0,
+    "regions": [],
+    "fired": [
+      "auto:g:learn-recall"
+    ],
+    "done": [
+      "guard-warning/training",
+      "shrine-solved"
+    ],
+    "scene": {
+      "kind": "field"
+    },
+    "queue": [],
+    "systemData": {},
+    "rng": 21,
+    "steps": 0,
+    "seenDialogues": [
+      "elder-before",
+      "guard-warning",
+      "apprentice-dialog"
+    ],
+    "verbsLearned": [
+      "recall"
+    ],
+    "verbsForgotten": []
+  }
+}

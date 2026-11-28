@@ -45,13 +45,15 @@ const FOLDER: Record<AssetEntry["kind"], string> = {
   tileset: "tilesets", character: "characters", enemy: "enemies", animation: "animations", portrait: "portraits",
   background: "backgrounds", bgm: "bgm", sfx: "sfx", song: "songs", font: "fonts",
 };
+const PICTURE_KINDS = new Set<AssetEntry["kind"]>(["tileset", "character", "enemy", "animation", "portrait", "background"]);
+const FRAMED = new Set<AssetEntry["kind"]>(["character", "enemy", "animation", "portrait"]);
 const KIND_LABEL: Record<AssetEntry["kind"], string> = {
   tileset: "タイル", character: "キャラクター（歩行）", enemy: "敵・モンスター", animation: "アニメーション", portrait: "顔グラフィック・立ち絵",
   background: "背景", bgm: "BGM", sfx: "効果音", song: "楽譜BGM（RPGシステム工房の形式）", font: "フォント",
 };
 
-/** assetPath = copy the file; text = write this text; songWav = render this .song.json to WAV; mapImage = draw this map as PNG. */
-export interface PackFile { name: string; source: { assetPath: string } | { text: string } | { songWav: string } | { mapImage: string } }
+/** assetPath = copy the file; text = write this text; songWav = render this .song.json to WAV; mapImage = draw this map as PNG; preview = the numbered contact sheet of these images (composePackPreview). */
+export interface PackFile { name: string; source: { assetPath: string } | { text: string } | { songWav: string } | { mapImage: string } | { preview: Array<{ assetPath: string; frame?: { w: number; h: number } }> } }
 export interface AssetPackPlan { files: PackFile[]; included: AssetRights[]; refused: AssetRights[]; problems: string[] }
 
 const baseName = (p: string) => p.split("/").pop()!;
@@ -128,7 +130,11 @@ export function planAssetPack(project: Pick<ProjectManifest, "assetPolicy">, ass
 
   const byKind = new Map<string, typeof entries>();
   for (const e of entries) byKind.set(KIND_LABEL[e.a.kind], [...(byKind.get(KIND_LABEL[e.a.kind]) ?? []), e]);
-  const contents = [...byKind].map(([label, list]) => `### ${label}\n${list.map(({ a, name }) => `- \`${name}\`${gridText(a) ? `（${gridText(a)}）` : ""}${a.kind === "song" ? "＋同じ名前の .wav" : ""}`).join("\n")}`).join("\n\n")
+  // preview.png: the image assets, numbered in the README's order (sprite sheets show their first frame).
+  const pictured = [...byKind.values()].flat().filter(e => PICTURE_KINDS.has(e.a.kind) && e.a.mimeType.startsWith("image/"));
+  const number = new Map(pictured.map((e, i) => [e.a.id, i + 1] as const));
+  if (pictured.length) files.push({ name: `${root}/preview.png`, source: { preview: pictured.map(({ a }) => ({ assetPath: a.path, ...(FRAMED.has(a.kind) && a.tileWidth && a.tileHeight && ((a.columns ?? 1) > 1 || (a.rows ?? 1) > 1) ? { frame: { w: a.tileWidth, h: a.tileHeight } } : {}) })) } });
+  const contents = [...byKind].map(([label, list]) => `### ${label}\n${list.map(({ a, name }) => `- ${number.has(a.id) ? `[${number.get(a.id)}] ` : ""}\`${name}\`${gridText(a) ? `（${gridText(a)}）` : ""}${a.kind === "song" ? "＋同じ名前の .wav" : ""}`).join("\n")}`).join("\n\n")
     + (mapsOut.length ? `\n\n### マップ\n${mapsOut.map(m => `- \`maps/${m.id}.tmj\`（Tiled 形式）と \`maps/${m.id}.png\` — ${m.title}（${m.width}×${m.height}マス）`).join("\n")}` : "");
   const has = (...kinds: AssetEntry["kind"][]) => entries.some(e => kinds.includes(e.a.kind));
   const usage = [
@@ -147,7 +153,7 @@ export function planAssetPack(project: Pick<ProjectManifest, "assetPolicy">, ass
 ライセンス: ${PACK_LICENSE_LABEL[options.license]} — 詳しくは LICENSE.txt
 ${options.description?.trim() ? `\n${options.description.trim()}\n` : ""}
 ## 収録内容（${entries.length}点）
-
+${pictured.length ? "\n`preview.png` に画像素材の一覧があります（[番号] は見本画像の番号。キャラクター・敵・顔グラフィックは最初の1コマ）。\n" : ""}
 ${contents}
 
 ## 使い方
@@ -159,7 +165,7 @@ ${usage.map(u => `- ${u}`).join("\n")}
 すべて作者による自作、または RPGシステム工房の内蔵ジェネレーター（MIT License）で作ったオリジナル素材です。第三者の素材は含みません。各ファイルの記録は CREDITS.md にあります。
 `;
   const credits = `# ${options.title} — 出どころの記録\n\n| ファイル | 種類 | 出どころ | 記録 |\n| --- | --- | --- | --- |\n${entries.map(({ a, name }) => `| ${name} | ${KIND_LABEL[a.kind]} | ${a.origin === "original" ? "自作" : "内蔵ジェネレーター（MIT）"} | ${a.generator ? Object.entries(a.generator).map(([k, v]) => `${k}=${String(v)}`).join(", ") : (a.notes ?? "")} |`).join("\n")}\n\nMade with RPGシステム工房（MIT License, © 2026 AI人狼ラボ）\n`;
-  const manifest = { formatVersion: 1, title: options.title, author: options.author, license: options.license, paid: Boolean(options.paid), maps: mapsOut.map(m => ({ ...m, tiled: `maps/${m.id}.tmj`, image: `maps/${m.id}.png` })), items: entries.map(({ a, name }) => ({ id: a.id, kind: a.kind, file: name, mimeType: a.mimeType, tileWidth: a.tileWidth, tileHeight: a.tileHeight, columns: a.columns, rows: a.rows, frameDurationMs: a.frameDurationMs, frameOrder: a.frameOrder, loop: a.loop })) };
+  const manifest = { formatVersion: 1, title: options.title, author: options.author, license: options.license, paid: Boolean(options.paid), ...(pictured.length ? { preview: "preview.png" } : {}), maps: mapsOut.map(m => ({ ...m, tiled: `maps/${m.id}.tmj`, image: `maps/${m.id}.png` })), items: entries.map(({ a, name }) => ({ id: a.id, kind: a.kind, file: name, ...(number.has(a.id) ? { previewNumber: number.get(a.id) } : {}), mimeType: a.mimeType, tileWidth: a.tileWidth, tileHeight: a.tileHeight, columns: a.columns, rows: a.rows, frameDurationMs: a.frameDurationMs, frameOrder: a.frameOrder, loop: a.loop })) };
   files.push(
     { name: `${root}/README.md`, source: { text: readme } },
     { name: `${root}/LICENSE.txt`, source: { text: licenseText(options) } },

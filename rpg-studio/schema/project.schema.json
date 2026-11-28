@@ -1613,6 +1613,10 @@
       ],
       "additionalProperties": false
     },
+    "version": {
+      "type": "string",
+      "maxLength": 40
+    },
     "autosave": {
       "default": true,
       "type": "boolean"

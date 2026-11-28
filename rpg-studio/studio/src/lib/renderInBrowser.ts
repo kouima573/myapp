@@ -1,5 +1,5 @@
 /** Browser-side picture helpers for exports: a whole map as PNG, and generator images (artgen Img) as PNG. */
-import { composeMapImage, mapToTiled, type AssetEntry, type GameContent, type RgbaImage } from "@rpg/schema";
+import { composeMapImage, composePackPreview, mapToTiled, type AssetEntry, type GameContent, type RgbaImage } from "@rpg/schema";
 
 async function rgbaOf(url: string): Promise<RgbaImage> {
   const bitmap = await createImageBitmap(await (await fetch(url)).blob());
@@ -22,4 +22,16 @@ export async function mapPngBlob(content: GameContent, mapId: string, assetUrl: 
   const sheets = new Map<string, RgbaImage>();
   for (const s of mapToTiled(content, mapId, a => a.path).sheets) sheets.set(s.id, await rgbaOf(await assetUrl(s)));
   return rgbaToPngBlob(composeMapImage(content, mapId, id => sheets.get(id)));
+}
+
+/** preview.png of an asset pack (numbered contact sheet), the same picture as `rpg asset pack`. */
+export async function previewPngBlob(content: GameContent, items: Array<{ assetPath: string; frame?: { w: number; h: number } }>, assetUrl: (asset: AssetEntry) => Promise<string>): Promise<Blob> {
+  const cells = [];
+  for (const item of items) {
+    const asset = content.assets.assets.find(a => a.path === item.assetPath);
+    let image: RgbaImage | null = null;
+    try { if (asset) image = await rgbaOf(await assetUrl(asset)); } catch { /* unreadable: empty numbered cell */ }
+    cells.push({ image, frame: item.frame });
+  }
+  return rgbaToPngBlob(composePackPreview(cells));
 }

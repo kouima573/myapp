@@ -44,8 +44,9 @@ pnpm rpg new my-site --type experience --runtime static --title "独自ランタ
 - 作ったゲームや素材は作者のものです。工房は「売れる状態に仕上げる」まで手伝います（[docs/selling.md](docs/selling.md)）
 - **体験版**と**作品ページの材料**（カバー画像・スクリーンショット・紹介文の下書き）も「検証」画面から（`pnpm rpg build --demo`）
 - **販売前チェック**（「検証」画面 / `pnpm rpg release-check`）: 検証・自動テスト・エンディング・書きかけの文章・文章の点検・**素材の権利（売ってよいか）**・クレジット
-- **素材だけの作品**: 「素材作り」画面（キャラクター・敵・タイルを部品や色を選んで作る）、楽譜BGMの「WAVで書き出す」、マップの Tiled 形式と1枚絵（`pnpm rpg map export`）
-- **素材パック**（「素材」画面 / `pnpm rpg asset pack`）: キャラクターだけ・音楽だけ・タイルだけ…の素材集を、ライセンス（CC0・CC BY・独自規約）・README・出どころ付きのZIPに。自作と内蔵ジェネレーター製だけが入る
+- **素材だけの作品**: 「素材作り」画面（キャラクターと顔グラフィック・敵・タイル・戦闘背景を部品や色を選んで作る）、楽譜BGMの「WAVで書き出す」、マップの Tiled 形式と1枚絵（`pnpm rpg map export`）
+- **素材パック**（「素材」画面 / `pnpm rpg asset pack`）: キャラクターだけ・音楽だけ・タイルだけ…の素材集を、ライセンス（CC0・CC BY・独自規約）・README・出どころ・番号つきの見本画像付きのZIPに。自作と内蔵ジェネレーター製だけが入る
+- **更新してもセーブが消えない**: `project.json` の `version` と `pnpm rpg release snapshot`（その版のセーブ見本を残す）。次の版の `pnpm rpg release-check` が古いセーブで動くか確かめる
 - 工房のライセンス: MIT（© 2026 AI人狼ラボ、`LICENSE`）。書き出したゲームにはその表記が自動で入ります
 
 ## Codex / Claude Codeでローカル制作

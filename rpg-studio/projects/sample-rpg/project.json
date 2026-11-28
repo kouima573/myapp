@@ -1,6 +1,7 @@
 {
   "formatVersion": 2,
   "id": "sample-rpg",
+  "version": "1.0.0",
   "title": "森境の小さな冒険",
   "engineCompatibility": {
     "min": "0.3.0"

@@ -637,3 +637,8 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 .tile-maker-rows { display: flex; flex-direction: column; gap: 4px; }
 .tile-maker-rows input[type="range"] { width: 90px; }
 .store-cover-preview { width: 315px; max-width: 100%; border: 1px solid var(--line); border-radius: 6px; }
+.maker-preview.background { width: 640px; }
+.face-preview { display: flex; flex-direction: column; gap: 2px; }
+.face-preview canvas { width: 480px; max-width: 100%; image-rendering: pixelated; background: repeating-conic-gradient(var(--well) 0 25%, var(--bar) 0 50%) 0 0 / 16px 16px; border: 1px solid var(--line); border-radius: 6px; }
+.face-labels { display: flex; width: 480px; max-width: 100%; }
+.face-labels span { flex: 1; text-align: center; font-size: 11px; color: var(--muted); }

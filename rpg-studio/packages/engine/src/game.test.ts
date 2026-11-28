@@ -218,6 +218,32 @@ describe("determinism and saves", () => {
     expect(() => makeSave(content, engine.newGame())).toThrow(); // intro prompt is open
   });
 
+  it("saves from an older version of the game still load after an update (removed items, new variables)", () => {
+    const base = start("dwarf");
+    const old = makeSave({ ...content, project: { ...content.project, version: "1.0.0" } }, {
+      ...base, items: { ...base.items, "old-relic": 2 }, abilities: [...base.abilities, "old-spell"], traits: [...(base.traits ?? []), "old-trait"],
+      party: [{ id: "gone-friend", hp: 5 }], quests: { "gone-quest": { status: "active", objectivesDone: [] } },
+    });
+    expect(old.gameVersion).toBe("1.0.0");
+    const updated: GameContent = { ...content, project: { ...content.project, version: "1.1.0", variables: { ...content.project.variables, reputation: { initial: 7, hud: false, persist: "run" } } } };
+    const result = readSave(JSON.parse(JSON.stringify(old)), updated);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.save.state.items["old-relic"]).toBeUndefined();
+    expect(result.save.state.abilities).not.toContain("old-spell");
+    expect(result.save.state.traits).not.toContain("old-trait");
+    expect(result.save.state.party).toEqual([]);
+    expect(result.save.state.quests).toEqual({});
+    expect(result.save.state.vars.reputation).toBe(7);
+    expect(result.notes.join("\n")).toMatch(/old-relic[\s\S]*old-spell/);
+    // The adjusted save keeps playing.
+    const eng = createEngine(updated, systems);
+    expect(() => eng.step(result.save.state, { type: "move", direction: "down" })).not.toThrow();
+    // A save from the same version needs no adjustments.
+    const same = readSave(JSON.parse(JSON.stringify(makeSave(content, base))), content);
+    expect(same.ok && same.notes).toEqual([]);
+  });
+
   it("older v2 saves without the new fields still load", () => {
     const save = makeSave(content, start("dwarf")) as unknown as { state: Record<string, unknown> };
     for (const key of ["traits", "vars", "tileOverrides", "fired"]) delete save.state[key];

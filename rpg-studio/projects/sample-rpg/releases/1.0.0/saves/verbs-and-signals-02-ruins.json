@@ -1,0 +1,67 @@
+{
+  "formatVersion": 2,
+  "projectId": "sample-rpg",
+  "savedAt": "2026-11-28T04:35:31.100Z",
+  "gameVersion": "1.0.0",
+  "state": {
+    "mapId": "ruins",
+    "player": {
+      "x": 5,
+      "y": 5,
+      "facing": "down",
+      "hp": 22,
+      "stats": {
+        "maxHp": 18,
+        "attack": 5,
+        "defense": 1
+      },
+      "name": "風のアオ",
+      "sprite": "village-courier"
+    },
+    "abilities": [],
+    "traits": [
+      "dwarf"
+    ],
+    "items": {},
+    "flags": {
+      "beastPathUnlocked": false,
+      "ruinsShortcutOpen": false,
+      "sentinelCalmed": false,
+      "questComplete": false,
+      "veteran": false,
+      "runeDoorOpen": false,
+      "wind-form": true
+    },
+    "vars": {
+      "gold": 0,
+      "spirit": 3,
+      "victories": 0,
+      "loot": 0,
+      "skill": 0
+    },
+    "sets": {
+      "clues": [],
+      "memories": []
+    },
+    "tileOverrides": {},
+    "entities": {},
+    "timers": [],
+    "cycle": 1,
+    "ticks": 0,
+    "regions": [
+      "sanctum"
+    ],
+    "fired": [],
+    "done": [
+      "shrine-solved",
+      "sanctum-seen"
+    ],
+    "scene": {
+      "kind": "field"
+    },
+    "queue": [],
+    "systemData": {},
+    "rng": 5,
+    "steps": 0
+  }
+}

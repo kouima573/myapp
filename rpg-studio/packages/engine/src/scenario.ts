@@ -128,6 +128,8 @@ export interface ScenarioResult {
   steps: number;
   /** The game state where it stopped (the failing step, or the end): the studio can open it in the play-test. */
   state?: GameState;
+  /** With `{ checkpoints: true }`: states where the player could save (on the field), one per map entered, plus the last one. For `rpg release snapshot`. */
+  checkpoints?: GameState[];
 }
 
 export interface BattleBalanceResult {
@@ -284,14 +286,23 @@ export function routeTo(engine: Engine, state: GameState, target: { x: number; y
   return dirs;
 }
 
-export function runScenario(content: GameContent, systems: GameSystem[], scenario: Scenario): ScenarioResult {
+export function runScenario(content: GameContent, systems: GameSystem[], scenario: Scenario, options: { checkpoints?: boolean } = {}): ScenarioResult {
   const playable: GameContent = scenario.encounters ? content : {
     ...content,
     maps: Object.fromEntries(Object.entries(content.maps).map(([id, map]) => [id, { ...map, encounters: undefined }])),
   };
   const engine = createEngine(playable, systems);
   let state = engine.newGame(scenario.seed);
-  const step = (action: Parameters<Engine["step"]>[1]) => { state = engine.step(state, action).state; };
+  const checkpoints: GameState[] = [];
+  let lastSaveable: GameState | undefined;
+  const step = (action: Parameters<Engine["step"]>[1]) => {
+    state = engine.step(state, action).state;
+    if (options.checkpoints && state.scene.kind === "field" && !state.queue.length) {
+      if (!lastSaveable || lastSaveable.mapId !== state.mapId) checkpoints.push(state);
+      lastSaveable = state;
+    }
+  };
+  const withCheckpoints = () => (options.checkpoints ? { checkpoints: lastSaveable && checkpoints.at(-1) !== lastSaveable ? [...checkpoints, lastSaveable] : checkpoints } : {});
 
   const autoFight = () => {
     for (let turn = 0; turn < 200 && state.scene.kind === "battle" && state.scene.battle.outcome === "ongoing"; turn++) {
@@ -474,8 +485,8 @@ export function runScenario(content: GameContent, systems: GameSystem[], scenari
         state = JSON.parse(JSON.stringify(state)) as GameState;
       } else if ("expect" in s) check(s.expect);
     } catch (error) {
-      return { name: scenario.name, ok: false, failedStep: index, steps: scenario.steps.length, message: error instanceof Error ? error.message : String(error), state };
+      return { name: scenario.name, ok: false, failedStep: index, steps: scenario.steps.length, message: error instanceof Error ? error.message : String(error), state, ...withCheckpoints() };
     }
   }
-  return { name: scenario.name, ok: true, steps: scenario.steps.length, state };
+  return { name: scenario.name, ok: true, steps: scenario.steps.length, state, ...withCheckpoints() };
 }

@@ -51,9 +51,12 @@ const USAGE = `RPG Studio CLI
   rpg schema   [--check]                schema/*.schema.json（エディター・AI向けJSON Schema）を生成／最新か確認
   rpg asset    <sources|enable|disable|add|gen-sfx|report|credits> --project <dir>   素材の取得元・追加・生成・容量・クレジット
   rpg art      <list|prompt|check> --project <dir>                                   画像の要件定義（art/requests.json）から生成用プロンプト・納品チェック
-  rpg release-check --project <dir>                                             販売前チェック（検証・テスト・エンディング・書きかけ・文章・素材の権利・クレジット）
+  rpg release-check --project <dir>                                             販売前チェック（検証・テスト・エンディング・書きかけ・文章・素材の権利・クレジット・前の版のセーブ）
+  rpg release snapshot --project <dir> [--version 1.0.0]                        公開する版のセーブ見本を releases/<版>/saves/ に残す（更新したとき古いセーブで動くか確かめるため）
   rpg chat     <cards|card|plan|pack|apply> --project <dir>                        チャットのAI（ChatGPTなど）と作る: 作業カード・依頼文・返事の取り込み
   rpg asset    catalog <check|verify> --project <dir>                              取得元カタログの見直し（サイトには接続しない・確認日は人が読んだときだけ）
+  rpg art      portrait --project <dir> --id <id> [--character chr-xxx | --from <見本ID>]   顔グラフィック（表情5つ）を作る
+  rpg art      background --project <dir> --id <id> --name <名前> [--preset meadow] [--spec '<JSON>']   戦闘背景を作る
   rpg art      monster --project <dir> --id <id> --name <名前> [--from <見本ID> | --family slime | --random <シード>] [--body #色 --extra crown]   敵を作る
   rpg art      tiles --project <dir> --id <id> --name <名前> --tiles "lib-tiles-field/grass,lib-tiles-field/water:hue=40" [--style retro] [--list]   タイル集を作る
   rpg art      character --project <dir> --id <id> --name <名前> [--from <見本ID> | --random <シード>] [--spec '<JSON>']   部品を選んで歩くキャラクターを作る（自作として売れる）
@@ -63,7 +66,7 @@ const USAGE = `RPG Studio CLI
   rpg asset find --kind <bgm|sfx|image…> --words "<言葉>"                        AIが会話で候補を出す用（内蔵素材・取得元の検索URL・条件）
 `;
 
-const SUBCOMMANDS = new Set(["chat", "new", "genres", "mod", "asset", "art", "library", "packs", "refs", "rename", "find", "sample", "map", "help", "--help"]);
+const SUBCOMMANDS = new Set(["release", "chat", "new", "genres", "mod", "asset", "art", "library", "packs", "refs", "rename", "find", "sample", "map", "help", "--help"]);
 
 function parseArgs(argv: string[]) {
   const [command, ...afterCommand] = argv;
@@ -482,6 +485,8 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "asset": if (parsed.sub === "catalog") { const { cmdSourceCatalog } = await import("./sourceCatalog"); return cmdSourceCatalog(parsed.args[0], parsed.args.slice(1), parsed.flags, projectDir(parsed.flags)); }
       return cmdAsset(parsed.sub, projectDir(parsed.flags), parsed.flags);
     case "art": {
+      if (parsed.sub === "portrait") { const { cmdArtPortrait } = await import("./characterCmd"); return cmdArtPortrait(projectDir(parsed.flags), parsed.flags); }
+      if (parsed.sub === "background") { const { cmdArtBackground } = await import("./characterCmd"); return cmdArtBackground(projectDir(parsed.flags), parsed.flags); }
       if (parsed.sub === "monster") { const { cmdArtMonster } = await import("./characterCmd"); return cmdArtMonster(projectDir(parsed.flags), parsed.flags); }
       if (parsed.sub === "tiles") { const { cmdArtTiles } = await import("./characterCmd"); return cmdArtTiles(projectDir(parsed.flags), parsed.flags); }
       if (parsed.sub === "character") { const { cmdArtCharacter } = await import("./characterCmd"); return cmdArtCharacter(projectDir(parsed.flags), parsed.flags); }
@@ -502,6 +507,11 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "library": return cmdLibrary(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
     case "runtime": { const { buildRuntime } = await import("./build"); const out = path.resolve(process.cwd(), typeof parsed.flags.out === "string" ? parsed.flags.out : "dist/runtime"); await buildRuntime(out); console.log(`OK runtime: ${path.relative(process.cwd(), out)}（ブラウザ版の工房の「遊べる形で書き出す」用）`); return 0; }
     case "release-check": { const { cmdReleaseCheck } = await import("./release"); return cmdReleaseCheck(projectDir(parsed.flags)); }
+    case "release": {
+      if (parsed.sub !== "snapshot") { console.error("使い方: rpg release snapshot --project <dir> [--version 1.0.0]"); return 1; }
+      const { cmdReleaseSnapshot } = await import("./releaseSaves");
+      return cmdReleaseSnapshot(projectDir(parsed.flags), parsed.flags);
+    }
     case "chat": { const { cmdChat } = await import("./chat"); return cmdChat(parsed.sub, parsed.args, parsed.flags, projectDir(parsed.flags)); }
     case "map": return cmdMap(parsed.sub, parsed.args, parsed.flags, projectDir(parsed.flags));
     case "devlog": return cmdDevlog(parsed.flags, projectDir(parsed.flags));
@@ -513,7 +523,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "packs": return cmdPacks(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
     default: {
       if (parsed.command && parsed.command !== "help" && parsed.command !== "--help") {
-        const cmds = ["release-check", "chat", "new", "genres", "mod", "validate", "test", "build", "dev", "migrate", "catalog", "audit", "refs", "rename", "proofread", "find", "sample", "devlog", "map", "schema", "asset", "art", "library", "packs"];
+        const cmds = ["release-check", "release", "chat", "new", "genres", "mod", "validate", "test", "build", "dev", "migrate", "catalog", "audit", "refs", "rename", "proofread", "find", "sample", "devlog", "map", "schema", "asset", "art", "library", "packs"];
         const dist = (a: string, b: string) => {
           const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
           for (let j = 0; j <= b.length; j++) dp[0]![j] = j;

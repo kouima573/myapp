@@ -34,7 +34,13 @@ export default function ReleaseSection({ store }: { store: ProjectStore }) {
   return <section className="card release-check">
     <header><h3><ShoppingBag size={15} /> 販売前チェック</h3></header>
     <p className="muted small">公開・販売の前に、検証・自動テスト・エンディング・書きかけの文章・文章の点検・素材の権利（このゲームを売ってよいか）・クレジットをまとめて確かめます。CLI: <code>pnpm rpg release-check</code></p>
-    <div className="row"><button className="button primary" onClick={run}>チェックする</button></div>
+    <div className="row">
+      <button className="button primary" onClick={run}>チェックする</button>
+      {store.content && <label title="セーブに記録されます。更新して出すたびに上げてください（例 1.0.0 → 1.1.0）">ゲームの版
+        <input value={store.content.project.version ?? ""} placeholder="1.0.0" style={{ width: "7em" }}
+          onChange={e => { const v = e.target.value.trim(); store.updateJson<Record<string, unknown>>("project.json", data => { if (v) data.version = v; else delete data.version; }); }} /></label>}
+    </div>
+    <p className="muted small">更新しても買った人のセーブが消えないように: 公開する版で <code>pnpm rpg release snapshot</code> を実行すると、その版のセーブ見本が <code>releases/版/saves/</code> に残ります。次に更新したとき <code>pnpm rpg release-check</code> が、それを今の版で読み込んで動かし、消したアイテム・技・仲間や、なくなったマップを知らせます（この確認は手元のCLIで行います）。</p>
     {report && <>
       <p className={report.verdict === "ready" ? "ok-text" : report.verdict === "warn" ? "text-amber" : "error-text"}><b>{VERDICT[report.verdict]}</b></p>
       <ul className="release-items">{report.items.map(item => <li key={item.id}>
