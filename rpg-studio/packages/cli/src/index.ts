@@ -52,6 +52,7 @@ const USAGE = `RPG Studio CLI
   rpg asset    <sources|enable|disable|add|gen-sfx|report|credits> --project <dir>   素材の取得元・追加・生成・容量・クレジット
   rpg art      <list|prompt|check> --project <dir>                                   画像の要件定義（art/requests.json）から生成用プロンプト・納品チェック
   rpg release-check --project <dir>                                             販売前チェック（検証・テスト・エンディング・書きかけ・文章・素材の権利・クレジット・前の版のセーブ）
+  rpg song compose --project <dir> --mood <場面> [--seed 3] [--bars 16] [--id <id>] [--map <id> | --battle | --victory]   おまかせ作曲（場面を選ぶだけで楽譜BGM。--list で場面）
   rpg release snapshot --project <dir> [--version 1.0.0]                        公開する版のセーブ見本を releases/<版>/saves/ に残す（更新したとき古いセーブで動くか確かめるため）
   rpg chat     <cards|card|plan|pack|apply> --project <dir>                        チャットのAI（ChatGPTなど）と作る: 作業カード・依頼文・返事の取り込み
   rpg asset    catalog <check|verify> --project <dir>                              取得元カタログの見直し（サイトには接続しない・確認日は人が読んだときだけ）
@@ -66,7 +67,7 @@ const USAGE = `RPG Studio CLI
   rpg asset find --kind <bgm|sfx|image…> --words "<言葉>"                        AIが会話で候補を出す用（内蔵素材・取得元の検索URL・条件）
 `;
 
-const SUBCOMMANDS = new Set(["release", "chat", "new", "genres", "mod", "asset", "art", "library", "packs", "refs", "rename", "find", "sample", "map", "help", "--help"]);
+const SUBCOMMANDS = new Set(["song", "release", "chat", "new", "genres", "mod", "asset", "art", "library", "packs", "refs", "rename", "find", "sample", "map", "help", "--help"]);
 
 function parseArgs(argv: string[]) {
   const [command, ...afterCommand] = argv;
@@ -507,6 +508,11 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "library": return cmdLibrary(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
     case "runtime": { const { buildRuntime } = await import("./build"); const out = path.resolve(process.cwd(), typeof parsed.flags.out === "string" ? parsed.flags.out : "dist/runtime"); await buildRuntime(out); console.log(`OK runtime: ${path.relative(process.cwd(), out)}（ブラウザ版の工房の「遊べる形で書き出す」用）`); return 0; }
     case "release-check": { const { cmdReleaseCheck } = await import("./release"); return cmdReleaseCheck(projectDir(parsed.flags)); }
+    case "song": {
+      if (parsed.sub !== "compose") { console.error("使い方: rpg song compose --project <dir> --mood battle [--seed 3] [--bars 16] [--id song-battle] [--map <id> | --battle | --victory]（--list で場面の一覧）"); return 1; }
+      const { cmdSongCompose } = await import("./songCmd");
+      return cmdSongCompose(projectDir(parsed.flags), parsed.flags);
+    }
     case "release": {
       if (parsed.sub !== "snapshot") { console.error("使い方: rpg release snapshot --project <dir> [--version 1.0.0]"); return 1; }
       const { cmdReleaseSnapshot } = await import("./releaseSaves");
@@ -523,7 +529,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "packs": return cmdPacks(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
     default: {
       if (parsed.command && parsed.command !== "help" && parsed.command !== "--help") {
-        const cmds = ["release-check", "release", "chat", "new", "genres", "mod", "validate", "test", "build", "dev", "migrate", "catalog", "audit", "refs", "rename", "proofread", "find", "sample", "devlog", "map", "schema", "asset", "art", "library", "packs"];
+        const cmds = ["release-check", "release", "song", "chat", "new", "genres", "mod", "validate", "test", "build", "dev", "migrate", "catalog", "audit", "refs", "rename", "proofread", "find", "sample", "devlog", "map", "schema", "asset", "art", "library", "packs"];
         const dist = (a: string, b: string) => {
           const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
           for (let j = 0; j <= b.length; j++) dp[0]![j] = j;

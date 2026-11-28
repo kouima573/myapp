@@ -76,3 +76,31 @@ export function shiftHue(data: Uint8ClampedArray, degrees: number): void {
     data[i] = Math.round((rr + m) * 255); data[i + 1] = Math.round((gg + m) * 255); data[i + 2] = Math.round((bb + m) * 255);
   }
 }
+
+/**
+ * 輪郭を付ける: inside one frame, every empty block (pixel × pixel) that touches a drawn block (up/down/left/right)
+ * gets `color`. Works on the dot grid, so 2× / 4× pixel art keeps its block size. Returns how many blocks were painted.
+ */
+export function outlineFrame(data: { width: number; height: number; data: Uint8ClampedArray }, frame: { x: number; y: number; w: number; h: number }, pixel: number, color: string): number {
+  const gw = Math.ceil(frame.w / pixel), gh = Math.ceil(frame.h / pixel);
+  const alphaAt = (gx: number, gy: number) => {
+    if (gx < 0 || gy < 0 || gx >= gw || gy >= gh) return 0;
+    const px = frame.x + gx * pixel, py = frame.y + gy * pixel;
+    return data.data[(py * data.width + px) * 4 + 3]!;
+  };
+  const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
+  const targets: Array<[number, number]> = [];
+  for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) {
+    if (alphaAt(gx, gy)) continue;
+    if (alphaAt(gx - 1, gy) || alphaAt(gx + 1, gy) || alphaAt(gx, gy - 1) || alphaAt(gx, gy + 1)) targets.push([gx, gy]);
+  }
+  for (const [gx, gy] of targets) {
+    for (let y = 0; y < pixel; y++) for (let x = 0; x < pixel; x++) {
+      const px = frame.x + gx * pixel + x, py = frame.y + gy * pixel + y;
+      if (px >= frame.x + frame.w || py >= frame.y + frame.h) continue;
+      const i = (py * data.width + px) * 4;
+      data.data[i] = r; data.data[i + 1] = g; data.data[i + 2] = b; data.data[i + 3] = 255;
+    }
+  }
+  return targets.length;
+}

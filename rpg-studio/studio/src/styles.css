@@ -45,7 +45,7 @@ code, .mono { font-family: var(--mono); font-size: .92em; }
 .splash.error { color: var(--coral); }
 
 /* ---------- shell */
-.studio { height: 100%; display: grid; grid-template-columns: 220px minmax(0, 1fr); grid-template-rows: 52px minmax(0, 1fr) auto; grid-template-areas: "top top" "side main" "console console"; }
+.studio { height: 100%; display: grid; grid-template-columns: 220px minmax(0, 1fr); grid-template-rows: 52px auto minmax(0, 1fr) auto; grid-template-areas: "top top" "notice notice" "side main" "console console"; }
 .topbar { grid-area: top; display: flex; align-items: center; gap: 18px; padding: 0 16px; border-bottom: 1px solid var(--line); background: var(--bar); min-width: 0; }
 .brand { display: flex; align-items: center; gap: 9px; min-width: 190px; }
 .brand b { display: block; font-size: 13px; letter-spacing: .02em; }
@@ -268,13 +268,15 @@ textarea { resize: vertical; }
 /* ---------- narrow screens: panels become tabs / stacks */
 @media (max-width: 900px) {
   html, body, #root { height: auto; min-height: 100%; }
-  .studio { height: auto; min-height: 100vh; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto; grid-template-areas: "top" "side" "main" "console"; }
+  .studio { height: auto; min-height: 100vh; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto auto auto; grid-template-areas: "top" "notice" "side" "main" "console"; }
   .console { position: sticky; bottom: 0; }
   .topbar { flex-wrap: wrap; height: auto; padding: 8px 12px; gap: 8px; }
   .brand { min-width: 0; }
   .top-status { margin-left: 0; justify-content: flex-start; }
   .sidebar { border-right: 0; border-bottom: 1px solid var(--line); padding: 6px 8px; gap: 6px; }
   .section-tabs { flex-direction: row; overflow-x: auto; }
+  .nav-group { display: contents; }
+  .nav-group .side-heading { display: none; }
   .section-tab { flex: 1; justify-content: center; padding: 8px 6px; }
   .map-list { flex-direction: row; overflow-x: auto; align-items: center; }
   .side-heading, .side-note { display: none; }
@@ -642,3 +644,68 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 .face-preview canvas { width: 480px; max-width: 100%; image-rendering: pixelated; background: repeating-conic-gradient(var(--well) 0 25%, var(--bar) 0 50%) 0 0 / 16px 16px; border: 1px solid var(--line); border-radius: 6px; }
 .face-labels { display: flex; width: 480px; max-width: 100%; }
 .face-labels span { flex: 1; text-align: center; font-size: 11px; color: var(--muted); }
+
+/* 音楽画面 */
+.music-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.music-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--well); }
+.music-list select { margin-left: auto; }
+.music-ways { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.way-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px 12px; text-align: left; border: 1px solid var(--line); border-radius: 8px; background: var(--well); color: inherit; cursor: pointer; }
+.way-card.is-on { border-color: var(--amber-bright); box-shadow: inset 0 0 0 1px var(--amber-bright); }
+.way-list { list-style: none; padding: 0; margin: 8px 0; display: flex; flex-direction: column; gap: 10px; }
+.way-list li { display: flex; flex-direction: column; gap: 3px; padding-left: 10px; border-left: 2px solid var(--line); }
+.prompt-box { display: flex; align-items: center; gap: 8px; margin: 6px 0; padding: 8px 10px; border-radius: 6px; background: var(--well); border: 1px solid var(--line); }
+.prompt-box code { flex: 1; white-space: normal; }
+.steps { margin: 6px 0 10px 1.2em; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.linklike { background: none; border: none; padding: 0; color: var(--amber-bright); text-decoration: underline; cursor: pointer; font: inherit; }
+
+/* 見本の帯・スタート画面 */
+.sample-banner { grid-area: notice; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 7px 16px; background: rgba(215,166,93,.16); border-bottom: 1px solid rgba(215,166,93,.45); color: var(--warn-text); font-size: 13px; }
+.sample-banner .button { margin-left: auto; }
+.start-screen { min-height: 100vh; max-width: 920px; margin: 0 auto; padding: 32px 16px 48px; display: flex; flex-direction: column; gap: 18px; overflow: auto; }
+.start-head { display: flex; align-items: center; gap: 14px; }
+.start-head h1 { margin: 0; font-size: 26px; }
+.start-head p { margin: 4px 0 0; }
+.start-card { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.start-card h2 { margin: 0; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+.start-card.primary { border-color: var(--amber-bright); }
+.start-card.sample { border-style: dashed; }
+.start-title { display: flex; flex-direction: column; gap: 4px; font-size: 13px; max-width: 360px; }
+.start-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.start-choice { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px; text-align: left; border: 1px solid var(--line); border-radius: 8px; background: var(--well); color: inherit; cursor: pointer; }
+.start-choice:hover:not(:disabled) { border-color: var(--amber-bright); }
+.start-choice b { font-size: 15px; }
+.start-choice span { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.start-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.start-list button { width: 100%; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 9px 12px; text-align: left; border: 1px solid var(--line); border-radius: 6px; background: var(--well); color: inherit; cursor: pointer; }
+.start-list button:hover { border-color: var(--amber-bright); }
+.start-foot { text-align: center; }
+
+/* 画面のまとまり・画面さがし */
+.nav-search { display: flex; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--well); color: var(--muted); }
+.nav-search input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); padding: 2px 0; font-size: 12.5px; }
+.nav-search input:focus { outline: none; }
+.nav-group { display: flex; flex-direction: column; gap: 2px; }
+.nav-group + .nav-group { margin-top: 6px; }
+.nav-group .side-heading { padding: 2px 10px; }
+.nav-hits { display: flex; flex-direction: column; gap: 2px; }
+.nav-hits .section-tab small { font-size: 11px; }
+
+/* ドット絵: はじめての人へ・タイルの並び */
+.pixel-help { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; background: var(--well); }
+.pixel-help summary { cursor: pointer; font-size: 12.5px; color: var(--amber-bright); }
+.pixel-help ul { margin: 6px 0 2px 1.1em; padding: 0; display: flex; flex-direction: column; gap: 4px; line-height: 1.55; }
+.pixel-tileview { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.pixel-tileview-canvas { image-rendering: pixelated; border: 1px solid var(--line); align-self: flex-start; max-width: 100%; }
+
+/* 画面の案内 */
+.screen-guide { flex: none; padding: 6px 18px; border-bottom: 1px solid var(--line); background: var(--surface); font-size: 12.5px; }
+.screen-guide.is-closed { display: flex; justify-content: flex-end; padding: 3px 12px; border-bottom: 0; background: transparent; }
+.screen-guide-line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--text); }
+.screen-guide-line > svg { color: var(--amber-bright); flex: none; }
+.screen-guide-line > span { flex: 1; min-width: 200px; }
+.screen-guide-line .link-button { display: inline-flex; align-items: center; gap: 3px; }
+.screen-guide-more { padding: 6px 0 2px 22px; display: flex; flex-direction: column; gap: 6px; }
+.screen-guide-more ul { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: 3px; line-height: 1.55; }
+.screen-guide-other { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.start-card a.button { color: inherit; text-decoration: none; display: inline-flex; align-items: center; }

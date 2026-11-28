@@ -183,6 +183,11 @@ const sampleTexts = import.meta.glob("../../../projects/sample-rpg/**/*.{json,ts
 const sampleAssets = import.meta.glob("../../../projects/sample-rpg/assets/**/*.{png,wav,ogg,mp3,json}", { query: "?url", import: "default", eager: true }) as Record<string, string>;
 const sampleSystems = import.meta.glob("../../../projects/sample-rpg/systems/*.ts", { eager: true }) as Record<string, { default?: GameSystem }>;
 const sampleScripts = import.meta.glob("../../../projects/sample-rpg/scripts/*.ts", { eager: true }) as Record<string, { default?: object }>;
+/** Where imported files go in a browser RPG project (same layout as the sample). */
+const RPG_ASSET_FOLDERS: Record<AssetEntry["kind"], string> = {
+  tileset: "assets/tiles", character: "assets/characters", enemy: "assets/enemies", animation: "assets/animations", portrait: "assets/portraits",
+  background: "assets/backgrounds", bgm: "assets/audio/bgm", sfx: "assets/audio/sfx", song: "assets/audio/songs", font: "assets/fonts",
+};
 const EXPERIENCE_ASSET_FOLDERS: Record<AssetEntry["kind"], string> = {
   tileset: "assets/tilesets", character: "assets/characters", enemy: "assets/enemies", animation: "assets/animations",
   portrait: "assets/portraits", background: "assets/backgrounds", bgm: "assets/audio/bgm", sfx: "assets/audio/sfx",
@@ -225,7 +230,9 @@ export class PreviewSource implements ProjectSource {
 
   async load(): Promise<ProjectSnapshot> {
     const id = currentProjectId();
-    this.project = id ? (await getProject(id).catch(() => undefined)) ?? null : null;
+    // The copy in memory is the newest (saving to IndexedDB is delayed a little): only read the stored copy when
+    // opening a different project, so a reload right after an edit (e.g. importing a file) does not lose it.
+    if (!this.project || this.project.id !== id) this.project = id ? (await getProject(id).catch(() => undefined)) ?? null : null;
     if (id && !this.project) setCurrentProjectId(null);
     const texts = this.project ? { ...this.project.texts } : sampleProjectTexts();
     const hashes: Record<string, string> = {};
@@ -272,6 +279,13 @@ export class PreviewSource implements ProjectSource {
     return url;
   }
 
+  /** True when the asset is borrowed from the bundled sample (the sample itself, or a sample file kept in a new game). */
+  isSampleAsset(asset: AssetEntry): boolean {
+    if (this.project?.files[asset.path]) return false;
+    if (asset.kind === "song" && this.project && this.project.texts[asset.path] !== sampleProjectTexts()[asset.path]) return false;
+    return Boolean(sampleAssetUrl(asset.path));
+  }
+
   async assetHash(path: string): Promise<string> {
     const blob = this.project?.files[path];
     if (blob) return sha256Bytes(await blob.arrayBuffer());
@@ -290,14 +304,24 @@ export class PreviewSource implements ProjectSource {
     return { ok: true as const, hash: await sha256Bytes(await png.arrayBuffer()), bytes: png.size };
   }
 
-  /** Import one local image/audio/font and persist its provenance with the browser project. */
+  /** Import one local image/audio/font and persist its provenance with the browser project (独立作品 and RPG). */
   async importAsset(file: Blob, input: Record<string, unknown>) {
+    if (!this.project) await this.save("project.json", sampleProjectTexts()["project.json"]!);
     if (!this.project) return { ok: false as const, error: "先にブラウザ版の作品を作成または開いてください" };
     try {
-      const project = ExperienceProjectSchema.safeParse(JSON.parse(this.project.texts["experience.json"] ?? ""));
-      if (!project.success) throw new Error("experience.json を確認してください");
-      const parsedAssets = AssetManifestSchema.safeParse(JSON.parse(this.project.texts[project.data.assetsPath] ?? ""));
-      if (!parsedAssets.success) throw new Error(`${project.data.assetsPath} を確認してください`);
+      const isExperience = this.project.texts["experience.json"] !== undefined;
+      let assetsPath: string;
+      if (isExperience) {
+        const project = ExperienceProjectSchema.safeParse(JSON.parse(this.project.texts["experience.json"] ?? ""));
+        if (!project.success) throw new Error("experience.json を確認してください");
+        assetsPath = project.data.assetsPath;
+      } else {
+        const manifest = JSON.parse(this.project.texts["project.json"] ?? "{}") as { assetsPath?: unknown };
+        assetsPath = typeof manifest.assetsPath === "string" ? manifest.assetsPath : "assets.json";
+      }
+      const folders = isExperience ? EXPERIENCE_ASSET_FOLDERS : RPG_ASSET_FOLDERS;
+      const parsedAssets = AssetManifestSchema.safeParse(JSON.parse(this.project.texts[assetsPath] ?? ""));
+      if (!parsedAssets.success) throw new Error(`${assetsPath} を確認してください`);
       if (!file.size || file.size > 20 * 1024 * 1024) throw new Error("素材は20MBまでです");
       const bytes = new Uint8Array(await file.arrayBuffer());
       const format = sniffAsset(bytes);
@@ -323,7 +347,7 @@ export class PreviewSource implements ProjectSource {
       const origin = input.origin;
       const entryInput = {
         ...input, id, kind, mimeType: format.mime, bytes: bytes.length,
-        path: `${EXPERIENCE_ASSET_FOLDERS[kind]}/${id}${format.extension}`,
+        path: `${folders[kind]}/${id}${format.extension}`,
         source: typeof input.source === "string" ? input.source : origin === "generated" ? "生成" : origin === "original" ? "自作" : typeof input.sourceId === "string" ? input.sourceId : "外部素材",
         license: typeof input.license === "string" && input.license ? input.license : "プロジェクト内素材",
         ...(isAudio ? { loop: input.loop ?? kind === "bgm" } : {}),
@@ -336,7 +360,7 @@ export class PreviewSource implements ProjectSource {
       const oldUrl = this.urls.get(asset.data.path);
       if (oldUrl) URL.revokeObjectURL(oldUrl);
       this.urls.delete(asset.data.path);
-      this.project.texts[project.data.assetsPath] = `${JSON.stringify(nextManifest.data, null, 2)}\n`;
+      this.project.texts[assetsPath] = `${JSON.stringify(nextManifest.data, null, 2)}\n`;
       this.schedule();
       return { ok: true as const, asset: asset.data };
     } catch (error) {

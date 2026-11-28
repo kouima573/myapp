@@ -57,9 +57,9 @@ export default function SongPanel({ store, content }: { store: ProjectStore; con
     setPath(p); setTrack(0);
     store.log("ok", `楽譜BGM ${id} を作りました（${p}）。マップの bgm などに ${id} を指定すると流れます`);
   };
-  return <div className="panel-page song-panel">
-    <h2><Music size={18} /> 楽譜BGM</h2>
-    <p className="muted">文字の楽譜（<code>.song.json</code>）の曲を試聴・編集します。マス目をクリックすると16分音符で打ち込めます（1列に1音）。書式は docs/asset-guide.md。</p>
+  return <section className="card wide song-panel">
+    <header><h3><Music size={15} /> 楽譜で作曲（くわしく）</h3></header>
+    <p className="muted small">文字の楽譜（<code>.song.json</code>）の曲を試聴・編集します。マス目をクリックすると音を置けます（1列に1音。横がとき、縦が音の高さ）。おまかせ作曲で入れた曲も、ここで1音ずつ直せます。書式は docs/asset-guide.md。</p>
     <div className="row">
       <select value={path ?? ""} onChange={e => { stop(); setPath(e.target.value || null); setTrack(0); }} aria-label="曲">
         {songs.map(s => <option key={s.id} value={s.path}>{s.id}</option>)}
@@ -92,5 +92,5 @@ export default function SongPanel({ store, content }: { store: ProjectStore; con
         </div> : <p className="muted small">この楽譜は和音・長い音符などを含むため、マス目では表示できません（文字で編集してください）。</p>}
       </>}
     </>}
-  </div>;
+  </section>;
 }

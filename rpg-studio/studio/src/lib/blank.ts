@@ -23,6 +23,8 @@ export function blankProject(sample: Record<string, string>, opts: { id: string;
     audio: {},
     credits: ["企画・データ: （あなたの名前）", "絵・音: RPGシステム工房の内蔵素材（オリジナル）"],
     titleScreen: { enabled: true, subtitle: "" },
+    // 自分の作品は「共有用のひな形」ではない（外部の素材・AIで作った曲も入れられるように）
+    assetPolicy: { ...((project.assetPolicy as Record<string, unknown> | undefined) ?? {}), shareable: false },
   };
   const out: Record<string, string> = {
     "project.json": fmt(next),
@@ -33,20 +35,18 @@ export function blankProject(sample: Record<string, string>, opts: { id: string;
     "IDEA.md": IDEA_TEMPLATE(opts.title),
   };
   if (project.rulesPath) out[String(project.rulesPath)] = fmt({ formatVersion: 2, rules: [] });
-  // 見本のタイル・素材の一覧はそのまま借りる（画像と音は見本のものを使う）
+  // 見本のタイル・絵・効果音の一覧は借りる（画像と音は見本のものを使う）。曲は借りない（音楽画面の「おまかせ作曲」などで自分の曲を入れる）
   const assetsPath = String(project.assetsPath ?? "assets.json"), tilesPath = String(project.tilesetPath ?? "tiles.json");
-  if (sample[assetsPath] !== undefined) out[assetsPath] = sample[assetsPath]!;
+  if (sample[assetsPath] !== undefined) {
+    const manifest = JSON.parse(sample[assetsPath]!) as { assets: Array<{ kind?: string }> };
+    manifest.assets = manifest.assets.filter(a => a.kind !== "song" && a.kind !== "bgm");
+    out[assetsPath] = fmt(manifest);
+  }
   if (sample[tilesPath] !== undefined) {
     // 見本のゲーム固有の仕掛け（条件で通れる・調べると何か起きる）は外して、ただのタイルにする
     const tileset = JSON.parse(sample[tilesPath]!) as { tiles: Array<Record<string, unknown>> };
     tileset.tiles = tileset.tiles.map(({ passableWhen: _p, inspect: _i, openIndex: _o, ...tile }) => tile);
     out[tilesPath] = fmt(tileset);
   }
-  // 楽譜BGM（assets.json が指す .song.json）
-  try {
-    for (const a of (JSON.parse(sample[String(project.assetsPath ?? "assets.json")] ?? "{}") as { assets?: Array<{ kind?: string; path?: string }> }).assets ?? []) {
-      if (a.kind === "song" && a.path && sample[a.path] !== undefined) out[a.path] = sample[a.path]!;
-    }
-  } catch { /* ignore */ }
   return out;
 }

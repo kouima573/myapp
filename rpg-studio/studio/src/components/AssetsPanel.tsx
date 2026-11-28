@@ -267,7 +267,7 @@ export default function AssetsPanel({ store, content, images }: Props) {
                 : <Music2 size={14} />}
             </div>
             <div className="asset-main">
-              <div><b className="mono">{a.id}</b> <span className="tag">{KIND_LABEL[a.kind]}</span> <span className="tag">{ORIGIN_LABEL[a.origin]}</span> <span className="muted small">{(a.bytes / 1024).toFixed(1)}KB</span></div>
+              <div><b className="mono">{a.id}</b> <span className="tag">{KIND_LABEL[a.kind]}</span> <span className="tag">{ORIGIN_LABEL[a.origin]}</span>{(store.source as { isSampleAsset?: (x: AssetEntry) => boolean }).isSampleAsset?.(a) && <span className="badge warn" title="見本のゲームから借りている素材です。自分の作品では、自分で作った・選んだ素材に入れ替えるのがおすすめです">見本</span>} <span className="muted small">{(a.bytes / 1024).toFixed(1)}KB</span></div>
               <div className="muted small">{src?.name ?? a.source}・{a.license}{a.author ? `・作者 ${a.author}` : ""}{a.termsCheckedAt ? `・規約確認 ${a.termsCheckedAt}` : ""}{a.credit ? `・表記「${a.credit}」` : ""}</div>
               {a.notes && <div className="muted small">注: {a.notes}</div>}
             </div>

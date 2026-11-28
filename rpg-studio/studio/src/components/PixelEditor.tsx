@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Brush, Circle, Copy, Eraser, FlipHorizontal2, PaintBucket, Pipette, Redo2, Save, Slash, Square, SquareDashedMousePointer, Undo2 } from "lucide-react";
-import { ellipsePoints, linePoints, rectPoints, replaceColor, shiftHue, usedColors, type Point } from "../lib/pixelshapes";
+import { ellipsePoints, linePoints, outlineFrame, rectPoints, replaceColor, shiftHue, usedColors, type Point } from "../lib/pixelshapes";
+import { CHARACTERS, renderCharacterSheet } from "../../../packages/cli/src/artgen/characters";
+import { MONSTERS, renderMonsterSheet } from "../../../packages/cli/src/artgen/monsters";
+import { drawPortrait } from "../../../packages/cli/src/artgen/portraits";
+import { BACKGROUND_PRESETS, renderBackgroundDesign } from "../../../packages/cli/src/artgen/backgrounds";
 import type { AssetEntry, GameContent, TileDef } from "@rpg/schema";
 import type { ImageMap } from "../../../packages/runtime/src/render";
 import type { ProjectStore } from "../lib/useProject";
@@ -30,6 +34,25 @@ const NEW_SIZES: Record<"character" | "enemy" | "background" | "portrait", { w: 
 };
 const ROW_NAMES = ["下向き", "左向き", "右向き", "上向き"];
 const TILE_CODES = Array.from("0123456789!#$%&()+,-;<=>?@[]^_`{|}abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZあいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん");
+
+/** 下絵: built-in pictures to start a new sheet from (same size as the new sheet). */
+type Sketch = { id: string; label: string; make: () => ImageData };
+const imgToData = (img: { w: number; h: number; data: Uint8ClampedArray }) => new ImageData(new Uint8ClampedArray(img.data), img.w, img.h);
+function fitInto(src: { w: number; h: number; data: Uint8ClampedArray }, w: number, h: number): ImageData {
+  // Nearest-neighbour: scale down by a whole factor if needed, then centre.
+  const factor = Math.max(1, Math.ceil(Math.max(src.w / w, src.h / h)));
+  const sw = Math.floor(src.w / factor), sh = Math.floor(src.h / factor);
+  const out = new ImageData(w, h);
+  const ox = Math.floor((w - sw) / 2), oy = Math.floor((h - sh) / 2);
+  for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) for (let k = 0; k < 4; k++) out.data[((oy + y) * w + ox + x) * 4 + k] = src.data[((y * factor) * src.w + x * factor) * 4 + k]!;
+  return out;
+}
+function sketchesFor(kind: "character" | "enemy" | "background" | "portrait"): Sketch[] {
+  if (kind === "character") return CHARACTERS.map(c => ({ id: c.id, label: c.name, make: () => imgToData(renderCharacterSheet(c)) }));
+  if (kind === "enemy") return MONSTERS.map(m => ({ id: m.id, label: m.name, make: () => imgToData(renderMonsterSheet(m)) }));
+  if (kind === "portrait") return CHARACTERS.map(c => ({ id: c.id, label: c.name, make: () => fitInto(drawPortrait(c, "normal"), 128, 128) }));
+  return BACKGROUND_PRESETS.map(b => ({ id: b.id, label: b.name, make: () => fitInto(renderBackgroundDesign(b), 320, 224) }));
+}
 
 const hex = (r: number, g: number, b: number) => `#${[r, g, b].map(v => v.toString(16).padStart(2, "0")).join("")}`;
 const rgb = (color: string) => [parseInt(color.slice(1, 3), 16), parseInt(color.slice(3, 5), 16), parseInt(color.slice(5, 7), 16)] as const;
@@ -86,7 +109,10 @@ export default function PixelEditor({ store, content, images }: Props) {
   // Pointer events can arrive faster than React re-renders: always paint on the newest pixels.
   const dataRef = useRef<ImageData | null>(null);
   dataRef.current = data;
-  const local = store.source.kind === "local";
+  /** Saving works in the local studio and in the browser version (kept in this browser). */
+  const local = Boolean(store.source.saveImage);
+  const [sketch, setSketch] = useState("");
+  const tileViewRef = useRef<HTMLCanvasElement>(null);
 
   const cols = data ? Math.max(1, Math.floor(data.width / frame.w)) : 1;
   const rows = data ? Math.max(1, Math.floor(data.height / frame.h)) : 1;
@@ -98,7 +124,7 @@ export default function PixelEditor({ store, content, images }: Props) {
   /* ------------------------------------------------ (re)start */
   useEffect(() => {
     let blank: ImageData | null = null;
-    setUndo([]); setRedo([]); setCurrent(0); setBaseHash("");
+    setUndo([]); setRedo([]); setCurrent(0); setBaseHash(""); setSketch("");
     if (target.mode === "tile") {
       const tw = atlas?.tileWidth ?? 64, th = atlas?.tileHeight ?? 64;
       blank = new ImageData(tw, th);
@@ -133,6 +159,25 @@ export default function PixelEditor({ store, content, images }: Props) {
     }
     setData(blank);
   }, [target]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* ------------------------------------------------ an image that was still loading (e.g. just saved) */
+  const [imgTick, setImgTick] = useState(0);
+  useEffect(() => {
+    if (target.mode !== "edit" || data) return;
+    const asset = content.assets.assets.find(a => a.id === target.assetId);
+    const img = asset ? images[asset.id] : undefined;
+    if (!asset || !img) return;
+    if (!img.complete || !img.naturalWidth) {
+      const again = () => setImgTick(t => t + 1);
+      img.addEventListener("load", again, { once: true });
+      return () => img.removeEventListener("load", again);
+    }
+    if (img.naturalWidth > 1024 || img.naturalHeight > 1024) return;
+    setData(imageToData(img));
+    setFrame({ w: asset.tileWidth ?? img.naturalWidth, h: asset.tileHeight ?? img.naturalHeight });
+    setPixel(1);
+    void store.source.assetHash?.(asset.path).then(setBaseHash).catch(() => setBaseHash(""));
+  }, [target, data, images, imgTick, content.assets.assets]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ------------------------------------------------ drawing on screen */
   useEffect(() => {
@@ -176,6 +221,36 @@ export default function PixelEditor({ store, content, images }: Props) {
       og.strokeRect(frameX * scale + 1, frameY * scale + 1, frame.w * scale - 2, frame.h * scale - 2);
     }
   }, [data, frame, zoom, pixel, mirror, current, frameX, frameY, onion, cols]);
+
+  /* ------------------------------------------------ tiles: how it looks when repeated (3×3) */
+  useEffect(() => {
+    const view = tileViewRef.current;
+    if (!view || !data || target.mode !== "tile") return;
+    const scale = Math.max(1, Math.floor(96 / Math.max(frame.w, frame.h)));
+    view.width = frame.w * 3 * scale; view.height = frame.h * 3 * scale;
+    const g = view.getContext("2d")!;
+    g.imageSmoothingEnabled = false;
+    const one = document.createElement("canvas");
+    one.width = frame.w; one.height = frame.h;
+    one.getContext("2d")!.putImageData(data, 0, 0);
+    for (let y = 0; y < 3; y++) for (let x = 0; x < 3; x++) g.drawImage(one, x * frame.w * scale, y * frame.h * scale, frame.w * scale, frame.h * scale);
+  }, [data, frame, target]);
+
+  /* ------------------------------------------------ keyboard: B ペン E 消す G 塗る I スポイト L 直線 R 四角 O 円 S 範囲 M 左右対称 Ctrl+Z / Ctrl+Y */
+  const keyActions = useRef<Record<string, () => void>>({});
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const el = event.target as HTMLElement | null;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable)) return;
+      const key = `${event.ctrlKey || event.metaKey ? "ctrl+" : ""}${event.key.toLowerCase()}`;
+      const action = keyActions.current[key];
+      if (!action) return;
+      event.preventDefault(); event.stopPropagation();
+      action();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, []);
 
   useEffect(() => {
     const anim = animRef.current;
@@ -295,6 +370,31 @@ export default function PixelEditor({ store, content, images }: Props) {
   };
   const doUndo = () => { const prev = undo.at(-1); if (!prev || !data) return; setRedo(r => [...r, cloneData(data)]); setUndo(u => u.slice(0, -1)); setData(prev); };
   const doRedo = () => { const next = redo.at(-1); if (!next || !data) return; setUndo(u => [...u, cloneData(data)]); setRedo(r => r.slice(0, -1)); setData(next); };
+  /** 輪郭を付ける around what is drawn in this frame, with the darkest colour already in the picture. */
+  const addOutline = () => {
+    if (!data) return;
+    snapshot();
+    const next = cloneData(data);
+    const lum = (c: string) => { const [r, g, b] = rgb(c); return 0.299 * r + 0.587 * g + 0.114 * b; };
+    const darkest = usedColors(data.data).reduce<string | null>((best, c) => (best === null || lum(c) < lum(best) ? c : best), null);
+    const ink = darkest && lum(darkest) < 90 ? darkest : "#1b1b25";
+    const n = outlineFrame(next, { x: frameX, y: frameY, w: frame.w, h: frame.h }, pixel, ink);
+    setData(next);
+    store.log("info", n ? `輪郭を付けました（${n}マス）。戻すときは「戻す」` : "輪郭を付ける所がありません（何も描かれていないか、すでに囲まれています）");
+  };
+  const applySketch = (id: string) => {
+    if (target.mode !== "new") return;
+    const found = sketchesFor(target.kind).find(s => s.id === id);
+    setSketch(found ? id : "");
+    if (!found) return;
+    snapshot();
+    setData(found.make());
+  };
+  keyActions.current = {
+    b: () => setTool("pen"), e: () => setTool("eraser"), g: () => setTool("fill"), i: () => setTool("picker"), l: () => setTool("line"),
+    r: () => setTool("rect"), o: () => setTool("ellipse"), s: () => setTool("select"), m: () => setMirror(v => !v),
+    "ctrl+z": doUndo, "ctrl+y": doRedo, "ctrl+shift+z": doRedo,
+  };
   const copyFrame = (to: number, flip: boolean) => {
     if (!data || to === current) return;
     snapshot();
@@ -356,8 +456,12 @@ export default function PixelEditor({ store, content, images }: Props) {
     const path = `assets/${s.folder}/${id}.png`;
     const result = await store.source.saveImage!(path, await toBlob(data!), "");
     if (!result.ok) { store.log("error", result.error); return; }
+    const base = sketch ? sketchesFor(kind).find(x => x.id === sketch) : undefined;
     const entry: AssetEntry = {
-      id, path, kind, mimeType: "image/png", bytes: result.bytes, source: "工房のドット絵エディターで作成", license: "プロジェクト内素材", origin: "original",
+      id, path, kind, mimeType: "image/png", bytes: result.bytes,
+      ...(base
+        ? { source: "工房のドット絵エディターで作成（内蔵ジェネレーターの下絵から）", license: "MIT（RPGシステム工房の内蔵ジェネレーターの下絵を描き直し）", origin: "generated", sourceId: "builtin-art", generator: { tool: "ドット絵エディター", sketch: base.id }, notes: `下絵: ${base.label}` }
+        : { source: "工房のドット絵エディターで作成", license: "プロジェクト内素材", origin: "original" }),
       creditRequired: false, redistributable: true, tileWidth: s.fw, tileHeight: s.fh, columns: s.w / s.fw, rows: s.h / s.fh,
       ...(kind === "character" || kind === "enemy" ? { frameOrder: [0, 1, 2, 3], frameDurationMs: 160, loop: true } : {}),
     };
@@ -434,7 +538,17 @@ export default function PixelEditor({ store, content, images }: Props) {
   return <div className="pixel-editor">
     <aside className="card pixel-side">
       <header><h3>ドット絵</h3></header>
-      {!local && <p className="muted small">Preview では保存できません（pnpm studio で開くと保存できます）。</p>}
+      {!local && <p className="muted small">この環境では保存できません。</p>}
+      <details className="pixel-help">
+        <summary>はじめての人へ（コツと近道）</summary>
+        <ul className="small">
+          <li>白紙から描くより、<b>下絵（見本の絵）から描き直す</b>ほうがずっと楽です。新しいキャラ・敵・顔・背景では「下絵」を選べます。部品を選ぶだけなら「素材作り」画面がいちばん早いです。</li>
+          <li>ドットの大きさは <b>4px</b> にすると、工房の見本と同じ粗さで、1マスずつ置きやすくなります。</li>
+          <li>色は少なめ（4〜8色）にすると、ドット絵らしくまとまります。最後に「輪郭を付ける」で濃い色のふちを付けると、背景から浮き上がって見えます。</li>
+          <li>人や顔は「左右対称に描く」で半分だけ描けば、反対側にも同じ形が入ります。</li>
+          <li>近道: B ペン・E 消す・G 塗る・I スポイト・L 直線・R 四角・O 円・S 範囲・M 左右対称・Ctrl+Z 戻す・Ctrl+Y やり直す。</li>
+        </ul>
+      </details>
       <div className="field"><span className="field-label">何を描く？</span>
         <select value={target.mode === "tile" ? "tile" : target.mode === "new" ? `new:${target.kind}` : `edit:${target.assetId}`} onChange={e => {
           const v = e.target.value;
@@ -457,6 +571,10 @@ export default function PixelEditor({ store, content, images }: Props) {
         <p className="muted small">保存するとタイルセット画像の空き番号に追加され、記号「{freeCode ?? "なし"}」で tiles.json に登録されます。</p>
       </>}
       {target.mode === "new" && <div className="field"><span className="field-label">素材ID</span><input placeholder="例: my-knight" value={newId} onChange={e => setNewId(e.target.value)} /></div>}
+      {target.mode === "new" && <div className="field"><span className="field-label">下絵（見本の絵から描き始める）</span>
+        <select value={sketch} onChange={e => applySketch(e.target.value)}>
+          <option value="">白紙から</option>{sketchesFor(target.kind).map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+        </select></div>}
       <div className="field"><span className="field-label">道具</span>
         <div className="chips">
           {([["pen", Brush, "ペン"], ["eraser", Eraser, "消す"], ["fill", PaintBucket, "塗りつぶし"], ["picker", Pipette, "スポイト"], ["line", Slash, "直線"], ["rect", Square, "四角"], ["ellipse", Circle, "円"], ["select", SquareDashedMousePointer, "範囲を動かす"]] as const).map(([id, Icon, label]) =>
@@ -469,6 +587,7 @@ export default function PixelEditor({ store, content, images }: Props) {
         <div className="chips">{[1, 2, 4, 8].map(n => <button key={n} className={`chip ${pixel === n ? "is-on" : ""}`} onClick={() => setPixel(n)}>{n}px</button>)}</div>
       </div>
       <label className="small"><input type="checkbox" checked={mirror} onChange={e => setMirror(e.target.checked)} /> 左右対称に描く</label>
+      <button className="button" disabled={!data} title="描いた形のまわりに、絵の中でいちばん濃い色（なければ黒に近い色）で1マス分のふちを付けます（このコマだけ）" onClick={addOutline}>輪郭を付ける</button>
       <div className="field"><span className="field-label">色</span>
         <div className="palette">{PALETTE.map(c => <button key={c} className={`swatch ${color === c ? "is-on" : ""}`} style={{ background: c }} onClick={() => { setColor(c); if (tool === "eraser" || tool === "picker") setTool("pen"); }} title={c} />)}</div>
         <div className="form-row"><input type="color" value={color} onChange={e => setColor(e.target.value)} style={{ width: 48, padding: 0 }} /><code className="small">{color}</code></div>
@@ -514,6 +633,7 @@ export default function PixelEditor({ store, content, images }: Props) {
             }} onPointerCancel={() => { drawing.current = false; last.current = null; shape.current = null; }} />
           {sel && tool === "select" && <div className="pixel-selection" style={{ left: `${sel.x / gridW * 100}%`, top: `${sel.y / gridH * 100}%`, width: `${sel.w / gridW * 100}%`, height: `${sel.h / gridH * 100}%` }} />}</div>
         </div>
+        {target.mode === "tile" && <div className="pixel-tileview"><span className="field-label">並べたときの見え方（3×3。つなぎ目が目立たないか確かめます）</span><canvas ref={tileViewRef} className="pixel-tileview-canvas" /></div>}
         {cols * rows > 1 && <div className="pixel-frames">
           <div className="form-row"><span className="field-label">コマ（全体図をクリックで選ぶ）: {frameLabel(current)}</span><label className="small"><input type="checkbox" checked={onion} onChange={e => setOnion(e.target.checked)} /> 前のコマを透かす</label><span className="spacer" /><canvas ref={animRef} title="アニメーションプレビュー" style={{ width: 48, height: 48, imageRendering: "pixelated", border: "1px solid rgba(255,255,255,.15)", borderRadius: 4 }} /></div>
           <canvas ref={overviewRef} className="pixel-overview" onClick={e => {

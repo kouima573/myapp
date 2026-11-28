@@ -370,3 +370,15 @@ v2.5 の作業コピーは、6.23（2回目）の修正より前の版を元に�
 - セーブ互換: `project.version` と `GameSave.gameVersion`。`packages/engine/src/saves.ts` の `adjustForUpdate`（`readSave` が使う。結果に `notes`）。`runScenario(..., { checkpoints: true })` がセーブできる場面を集める。`packages/cli/src/releaseSaves.ts`（`rpg release snapshot`、`readOldSaves`・`checkOldSaves`）、販売前チェックに「前の版のセーブで遊べるか」。見本RPGに `version: "1.0.0"` と `releases/1.0.0/saves/`（33件）を同梱し、テストで全件が今の版で動くことを確かめる（エンジンを変えて古いセーブが壊れたら気づける）
 - 工房の「販売前チェック」に「ゲームの版」欄
 - 確認: test（214件）。最初の1回だけ1件が失敗したが、出力を残せず、どのテストかは不明（その後5回はすべて通過。時間に左右されるテストがある可能性）。CLIで顔グラ・背景を作って素材パック→ preview.png の見た目を確認。ブラウザでキャラ＋顔グラ・戦闘背景の登録→素材パックZIP（preview.png 入り）、販売前チェックの「ゲームの版」欄
+
+## 22. はじめての人へのフォロー: 見本の分離・画面の整理・音楽の入口・ドット絵（2026-11-28）
+
+ユーザーの方針: 見本（マップ・曲）はテスト用に残すが、自分の作品と混ざらないように分かりやすく。楽譜BGMは初心者に難しいので、音楽AIへのリンクなど色々な作り方へのフォロー。ドット絵の拡張・効率化。全体に案内を。作業中の状況説明は日本語で。
+
+- 見本と自分の作品: ブラウザ版のスタート画面 `studio/src/components/StartScreen.tsx`（新しく作る＝RPG・チャットのAIと・独立作品／続きから／見本で試す／ZIPから）。見本や見本のコピーを開いているときは帯（`.sample-banner`）。`PreviewSource.isSampleAsset` で素材一覧・音楽一覧に「見本」の印。新しいゲーム（`blank.ts`）は見本の曲を入れず、`assetPolicy.shareable: false`（共有用ひな形ではない）
+- 画面の整理: `studio/src/lib/navigation.ts`（まとまり `SECTION_GROUPS`、言葉 `SECTION_WORDS`、画面の中の機能 `FEATURES`、`searchNav`）。左の一覧の「画面さがし」。各画面の案内 `studio/src/lib/guides.ts` と `ScreenGuide.tsx`（閉じた画面は localStorage で覚える）
+- 音楽: 「音楽（BGM・効果音）」画面 `MusicPanel.tsx`（このゲームの曲＝試聴・流れる所・流す場所、5つのやり方）。おまかせ作曲 `packages/schema/src/songCompose.ts`（場面12種・番号・8/16小節。全パート同じ長さ、旋律はC4〜B5、同じ音3連続なし。7200曲で確認）と CLI `rpg song compose`（`songCmd.ts`）。音楽AIは取得元カタログに `ai-music` `soundraw` `suno` `aiva` `stable-audio`（二次情報・verifiedAt null）。流す場所 `studio/src/lib/musicPlaces.ts`。楽譜エディター（SongPanel）は「楽譜で作曲（くわしく）」として中に入る
+- ブラウザ版の取り込み: `PreviewSource.importAsset` が RPG にも対応（以前は独立作品だけで、RPG ではエラー）
+- 直した不具合: (1) ブラウザ版で読み込み直すと、まだ保存していない最新の内容を捨てて古い保存を読んでいた（`PreviewSource.load` はメモリの内容を優先） (2) 読み込み直しの直後の編集が、読み込み直した内容を上書きしていた（`useProject.reload` が `textsRef` もすぐ更新）。手元の工房でも起こりえた
+- ドット絵: ブラウザ版でも保存できる（以前は手元の工房だけ）。下絵（内蔵ジェネレーターのキャラ・敵・顔・背景。使ったら出どころは builtin-art）、輪郭を付ける（`pixelshapes.ts` の `outlineFrame`、絵の中でいちばん濃い色）、タイルの3×3表示、キー操作（B/E/G/I/L/R/O/S/M、Ctrl+Z/Y）、はじめての人へ。保存直後の画像が読み込み中で空になる問題を直した
+- 確認: test（218件）、ブラウザでスタート画面→見本→画面さがし→新しいRPG→おまかせ作曲→音楽AIの曲を取り込み（検証OK）→ドット絵を下絵から描いて保存→タイルの3×3→販売前チェック

@@ -73,6 +73,168 @@
       "defaultEnabled": true
     },
     {
+      "id": "ai-music",
+      "name": "AI作曲（音楽生成サービス全般）",
+      "categories": [
+        "bgm",
+        "sfx"
+      ],
+      "origin": "generated",
+      "summary": "使った生成サービスの利用規約に従う（商用利用の可否・権利の帰属はサービスとプランごとに違う。無料プランは商用不可のことが多い）。既存の曲・歌手・作曲家に似せる指示をしない。",
+      "checklist": [
+        "生成したときに入っていたプラン（無料・有料）と日付を素材の notes に記録した",
+        "そのプランで、作った曲をゲームに入れて販売できると規約の原文で確かめた",
+        "曲だけを素材として配ったり売ったりしない",
+        "既存の曲・歌手・作曲家の名前を指示に入れていない"
+      ],
+      "creditRequired": "unknown",
+      "redistribution": "varies",
+      "commercial": "varies",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": true,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-28",
+        "urls": []
+      }
+    },
+    {
+      "id": "soundraw",
+      "name": "SOUNDRAW（AI作曲。日本語で使える・雰囲気とジャンルを選ぶだけ）",
+      "url": "https://soundraw.io/",
+      "categories": [
+        "bgm"
+      ],
+      "origin": "generated",
+      "summary": "有料プラン（Creator など）で作った曲はゲームのBGMに使える、とヘルプセンターにある（音楽ゲーム・リズムゲームは要問い合わせ）。曲そのものを第三者に販売・譲渡するのは不可。どのプランでも Content ID への登録は不可。料金・条件はプランごとに違い、変わることがある（ヘルプセンターの検索抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "生成したときに入っていたプラン（無料・有料）と日付を素材の notes に記録した",
+        "そのプランで、作った曲をゲームに入れて販売できると規約の原文で確かめた",
+        "曲だけを素材として配ったり売ったりしない",
+        "既存の曲・歌手・作曲家の名前を指示に入れていない"
+      ],
+      "creditRequired": "unknown",
+      "redistribution": "prohibited",
+      "commercial": "varies",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-28",
+        "urls": [
+          "https://docs.channel.io/soundraw-faq/en/articles/Licensing-criteria-for-the-Creator-Plan-eafb81c7",
+          "https://docs.channel.io/soundraw-faq/en/articles/Overview-of-Artist-Plan-cfa48e70",
+          "https://soundraw.io/business"
+        ]
+      },
+      "cautions": [
+        "音楽ゲーム・リズムゲームに使うときは、先にサポートに問い合わせる"
+      ]
+    },
+    {
+      "id": "suno",
+      "name": "Suno（AI作曲。歌入りの曲も作れる）",
+      "url": "https://suno.com/",
+      "categories": [
+        "bgm"
+      ],
+      "origin": "generated",
+      "summary": "無料プランで作った曲は商用不可。有料プラン（Pro・Premier）に入っている間に作った曲は商用利用可（条件は利用規約）。あとから有料にしても、無料のときに作った曲は商用にならない。2026年に条件の変更（ダウンロード数の上限・権利の扱い）が報じられている（報道・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "生成したときに入っていたプラン（無料・有料）と日付を素材の notes に記録した",
+        "そのプランで、作った曲をゲームに入れて販売できると規約の原文で確かめた",
+        "曲だけを素材として配ったり売ったりしない",
+        "既存の曲・歌手・作曲家の名前を指示に入れていない"
+      ],
+      "creditRequired": "unknown",
+      "redistribution": "prohibited",
+      "commercial": "varies",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-28",
+        "urls": [
+          "https://dynamoi.com/learn/ai-music-distribution/suno-commercial-rights-explained",
+          "https://www.musicinafrica.net/magazine/suno-adjusts-ai-music-ownership-terms-after-warner-music-partnership",
+          "https://help.suno.com/en/categories/550145"
+        ]
+      },
+      "cautions": [
+        "無料プランで作った曲は、あとから有料にしても商用にできない"
+      ]
+    },
+    {
+      "id": "aiva",
+      "name": "AIVA（AI作曲。オーケストラ・ゲーム音楽向き）",
+      "url": "https://www.aiva.ai/",
+      "termsUrl": "https://aiva.ai/legal/1",
+      "categories": [
+        "bgm"
+      ],
+      "origin": "generated",
+      "summary": "無料プランは商用不可・クレジット必須（評価用）。Standard は動画配信サイトなどの収益化に限り可・クレジット必須。Pro は著作権が利用者に移り、ゲームを含む商用利用可・クレジット不要（レビュー記事・公式の規約ページの検索抜粋からの要約。規約の原文は未確認）",
+      "checklist": [
+        "生成したときに入っていたプラン（無料・有料）と日付を素材の notes に記録した",
+        "そのプランで、作った曲をゲームに入れて販売できると規約の原文で確かめた",
+        "曲だけを素材として配ったり売ったりしない",
+        "既存の曲・歌手・作曲家の名前を指示に入れていない"
+      ],
+      "creditRequired": "varies",
+      "redistribution": "varies",
+      "commercial": "varies",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-28",
+        "urls": [
+          "https://aiva.ai/legal/1",
+          "https://www.positioniseverything.net/aiva-ai-music-generator-review-features-plans-and-limits/"
+        ]
+      }
+    },
+    {
+      "id": "stable-audio",
+      "name": "Stable Audio（AIで曲・効果音）",
+      "url": "https://stableaudio.com/",
+      "categories": [
+        "bgm",
+        "sfx"
+      ],
+      "origin": "generated",
+      "summary": "無料プランは商用不可。有料プランで作った曲・音は商用利用可（公式FAQの検索抜粋・解説記事からの要約。規約の原文は未確認）",
+      "checklist": [
+        "生成したときに入っていたプラン（無料・有料）と日付を素材の notes に記録した",
+        "そのプランで、作った曲をゲームに入れて販売できると規約の原文で確かめた",
+        "曲だけを素材として配ったり売ったりしない",
+        "既存の曲・歌手・作曲家の名前を指示に入れていない"
+      ],
+      "creditRequired": "unknown",
+      "redistribution": "prohibited",
+      "commercial": "varies",
+      "automatedDownload": "manual",
+      "verifiedAt": null,
+      "defaultEnabled": false,
+      "integration": "link",
+      "research": {
+        "method": "secondary",
+        "checkedAt": "2026-11-28",
+        "urls": [
+          "https://stableaudio.com/faqs",
+          "https://dynamoi.com/learn/ai-music-distribution/can-i-distribute-stable-audio-commercially"
+        ]
+      }
+    },
+    {
       "id": "kenney",
       "name": "Kenney",
       "url": "https://kenney.nl/assets",

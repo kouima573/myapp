@@ -21,6 +21,10 @@ describe("ブラウザ版の工房", () => {
     expect(loaded.content!.project.systems).toEqual([]);
     expect(Object.keys(loaded.content!.project.modules)).toEqual([]);
     expect(Object.keys(texts).some(f => f.startsWith("systems/") || f.startsWith("scripts/"))).toBe(false);
+    expect(loaded.content!.project.assetPolicy.shareable).toBe(false); // 自分の作品は共有用ひな形ではない
+    // 見本の曲は入れない（自分の曲を音楽画面で入れる）
+    expect(loaded.content!.assets.assets.filter(a => a.kind === "song" || a.kind === "bgm")).toEqual([]);
+    expect(Object.keys(texts).some(f => f.endsWith(".song.json"))).toBe(false);
   });
   it("ZIPを書いて読み戻せる（日本語のファイル名・空のファイル）", async () => {
     const enc = new TextEncoder();

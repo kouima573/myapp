@@ -50,17 +50,21 @@ export function useProject(source: ProjectSource) {
     try {
       const snapshot = await source.load();
       setProjectInfo({ projectDir: snapshot.projectDir, repoRoot: snapshot.repoRoot });
-      setTexts(current => {
-        if (!paths) return snapshot.texts;
-        const next = { ...current };
+      // Update the ref right away too, so an edit made just after a reload (e.g. import → register) builds on the reloaded text.
+      const current = textsRef.current;
+      let next: Record<string, string>;
+      if (!paths) next = snapshot.texts;
+      else {
+        next = { ...current };
         for (const path of paths) {
           if (snapshot.texts[path] === undefined) delete next[path];
           else next[path] = snapshot.texts[path]!;
         }
         // New files (e.g. a map an agent just added and referenced).
         for (const [path, text] of Object.entries(snapshot.texts)) if (!(path in current)) next[path] = text;
-        return next;
-      });
+      }
+      textsRef.current = next;
+      setTexts(next);
       if (paths) for (const path of paths) { if (snapshot.hashes[path]) hashes.current[path] = snapshot.hashes[path]!; }
       else hashes.current = { ...snapshot.hashes };
       for (const path of Object.keys(snapshot.hashes)) if (!(path in hashes.current)) hashes.current[path] = snapshot.hashes[path]!;

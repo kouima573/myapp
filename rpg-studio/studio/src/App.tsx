@@ -19,7 +19,10 @@ import HistoryPanel from "./components/HistoryPanel";
 import WorldPanel from "./components/WorldPanel";
 import SearchPanel from "./components/SearchPanel";
 import TutorialPanel from "./components/TutorialPanel";
-import SongPanel from "./components/SongPanel";
+import MusicPanel from "./components/MusicPanel";
+import StartScreen, { backToStart, sampleChosen, takeOpenSection } from "./components/StartScreen";
+import { SECTION_GROUPS, searchNav } from "./lib/navigation";
+import ScreenGuide from "./components/ScreenGuide";
 import SkillBoardPanel from "./components/SkillBoardPanel";
 import HelpPanel from "./components/HelpPanel";
 import ChatPanel from "./components/ChatPanel";
@@ -50,7 +53,7 @@ const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
   { id: "character", label: "素材作り（キャラ・敵・タイル・背景）", icon: UserRound },
   { id: "pixel", label: "ドット絵", icon: Palette },
   { id: "library", label: "素材ライブラリ", icon: Library },
-  { id: "song", label: "楽譜BGM", icon: Music },
+  { id: "song", label: "音楽（BGM・効果音）", icon: Music },
   { id: "play", label: "試遊", icon: Gamepad2 },
   { id: "data", label: "データ", icon: Database },
   { id: "search", label: "検索・置換", icon: Search },
@@ -78,7 +81,15 @@ export default function App({ source }: { source: ProjectSource }) {
     if (source.kind !== "preview") return;
     (source as PreviewSource).onSaved = (state, message) => { if (state === "error") store.log("error", `このブラウザに保存できません: ${message ?? ""}（「プロジェクト」画面からZIPで書き出して残してください）`); };
   }, [source, store]);
-  const [section, setSection] = useState<Section>("idea");
+  const [section, setSection] = useState<Section>(() => {
+    const wanted = source.kind === "preview" ? takeOpenSection() : null;
+    return SECTIONS.some(s => s.id === wanted) ? wanted as Section : "idea";
+  });
+  /** ブラウザ版: the start screen until a project is opened or the person chooses to look at the sample. */
+  const [sampleOk, setSampleOk] = useState(() => sampleChosen());
+  const preview = source.kind === "preview" ? source as PreviewSource : null;
+  const showStart = Boolean(preview && !preview.project && !sampleOk);
+  const sampleMode: "sample" | "copy" | null = preview ? (!preview.project ? "sample" : preview.project.origin === "sample" ? "copy" : null) : null;
   const isExperience = store.texts["experience.json"] !== undefined;
   useEffect(() => {
     if (isExperience && !["projects", "experience", "data"].includes(section)) setSection("experience");
@@ -142,6 +153,13 @@ export default function App({ source }: { source: ProjectSource }) {
     const sections = isExperience ? SECTIONS.filter(s => ["projects", "experience", "data"].includes(s.id)) : SECTIONS.filter(s => s.id !== "experience");
     return sections.filter(s => s.id !== "projects" || source.kind === "preview");
   }, [isExperience, source.kind]);
+  const [navQuery, setNavQuery] = useState("");
+  const navHits = useMemo(() => searchNav(navQuery, visibleSections), [navQuery, visibleSections]);
+  const navGroups = useMemo(() => {
+    const groups = SECTION_GROUPS.map(g => ({ label: g.label, items: g.ids.map(id => visibleSections.find(s => s.id === id)).filter((s): s is (typeof visibleSections)[number] => Boolean(s)) }));
+    const rest = visibleSections.filter(s => !SECTION_GROUPS.some(g => g.ids.includes(s.id)));
+    return [...groups, { label: "その他", items: rest }].filter(g => g.items.length);
+  }, [visibleSections]);
   const activeMapId = mapId && editContent?.maps[mapId] ? mapId : editContent?.project.start.mapId ?? null;
 
   const assetKey = playContent ? JSON.stringify(playContent.assets) : "";
@@ -165,6 +183,7 @@ export default function App({ source }: { source: ProjectSource }) {
 
   if (store.status === "loading") return <div className="splash"><Loader2 className="spin" /> プロジェクトを読み込んでいます…</div>;
   if (store.status === "error") return <div className="splash error"><XCircle /> 読み込めません: {store.loadError}</div>;
+  if (showStart) return <StartScreen onSample={() => setSampleOk(true)} />;
 
   return <main className={`studio section-${section} ${findingCode ? "is-finding-code" : ""}`}>
     <CodeFinder active={findingCode} onExit={() => setFindingCode(false)} repoRoot={store.projectInfo.repoRoot} projectDir={store.projectInfo.projectDir} />
@@ -192,14 +211,27 @@ export default function App({ source }: { source: ProjectSource }) {
         <span className={`pill ${store.dirty.size ? "warn" : ""}`} title={[...store.dirty].join("\n")}><Save size={12} />{store.dirty.size ? `保存待ち ${store.dirty.size}` : "保存済み"}</span>
       </div>
     </header>
+    {sampleMode && <div className="sample-banner" role="status">
+      <b>{sampleMode === "sample" ? "見本（お手本・テスト用）を開いています" : "見本のコピーを編集しています（テスト用）"}</b>
+      <span>{sampleMode === "sample" ? "あなたの作品ではありません。書き換えると「見本のコピー」として別に保存されます。" : "見本から作ったコピーです。自分の作品は、空の状態から作るのがおすすめです。"}</span>
+      <button className="button" onClick={backToStart}>スタート画面へ（自分の作品を作る）</button>
+    </div>}
 
     <nav className="sidebar" aria-label="機能">
-      <div className="section-tabs" role="tablist">
-        {visibleSections.map(s => <button key={s.id} role="tab" aria-selected={section === s.id} className={`section-tab ${section === s.id ? "is-active" : ""}`} onClick={() => setSection(s.id)}>
-          <s.icon size={16} /><span>{s.label}</span>
-          {s.id === "checks" && errors > 0 && <span className="count error">{errors}</span>}
-        </button>)}
-      </div>
+      <label className="nav-search"><Search size={13} /><input value={navQuery} onChange={e => setNavQuery(e.target.value)} placeholder="画面さがし（例: BGM・体験版）" aria-label="画面さがし" /></label>
+      {navQuery.trim() ? <div className="nav-hits">
+        {navHits.length ? navHits.map((h, i) => <button key={`${h.section}-${i}`} className="section-tab" onClick={() => { setSection(h.section as Section); setNavQuery(""); }}>
+          <span>{h.label}{h.detail && <small className="muted"> — {h.detail}</small>}</span>
+        </button>) : <p className="muted small">見つかりません。ほかの言葉（例: 曲・絵・会話・売る）でも探せます。</p>}
+      </div> : <div className="section-tabs" role="tablist">
+        {navGroups.map(g => <div key={g.label} className="nav-group">
+          <div className="side-heading">{g.label}</div>
+          {g.items.map(s => <button key={s.id} role="tab" aria-selected={section === s.id} className={`section-tab ${section === s.id ? "is-active" : ""}`} onClick={() => setSection(s.id)}>
+            <s.icon size={16} /><span>{s.label}</span>
+            {s.id === "checks" && errors > 0 && <span className="count error">{errors}</span>}
+          </button>)}
+        </div>)}
+      </div>}
       {editContent && (section === "map" || section === "play") && <div className="map-list">
         <div className="side-heading">マップ</div>
         {editContent.project.maps.map(ref => <button key={ref.id} className={`map-item ${activeMapId === ref.id ? "is-active" : ""}`} onClick={() => { setMapId(ref.id); setSelection(null); if (section === "play") { const m = editContent.maps[ref.id]; if (m) setStartAt({ mapId: ref.id, x: editContent.project.start.mapId === ref.id ? editContent.project.start.x : Math.floor(m.width / 2), y: editContent.project.start.mapId === ref.id ? editContent.project.start.y : Math.floor(m.height / 2), nonce: Date.now() }); } }}>
@@ -221,6 +253,7 @@ export default function App({ source }: { source: ProjectSource }) {
     </nav>
 
     <section className="workspace">
+      <ScreenGuide key={section} section={section} onGo={s => setSection(s as Section)} />
       {section === "idea" && <IdeaPanel store={store} content={playContent} />}
       {section === "experience" && isExperience && <ExperiencePanel store={store} source={source} />}
       {section === "story" && playContent && <StoryPanel store={store} content={playContent} onOpenFile={openFile} />}
@@ -242,7 +275,7 @@ export default function App({ source }: { source: ProjectSource }) {
       {section === "projects" && source.kind === "preview" && <BrowserPanel store={store} source={source as PreviewSource} />}
       {section === "help" && playContent && <HelpPanel store={store} content={playContent} />}
       {section === "skills" && playContent && <SkillBoardPanel store={store} content={playContent} />}
-      {section === "song" && playContent && <SongPanel store={store} content={playContent} />}
+      {section === "song" && playContent && <MusicPanel store={store} content={playContent} />}
       {section === "tutorial" && playContent && <TutorialPanel store={store} content={playContent} onGo={s => setSection(s as Section)} />}
       {section === "search" && <SearchPanel store={store} onOpenFile={openFile} />}
       {section === "history" && <HistoryPanel store={store} source={source} />}
