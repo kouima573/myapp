@@ -44,7 +44,7 @@
 cd rpg-studio
 pnpm install
 pnpm check                      # 型チェック
-pnpm test                       # vitest（現在198件）
+pnpm test                       # vitest（現在202件）
 pnpm rpg proofread --project <dir>   # 台詞の長さ・誤字らしき所（v1.9）
 pnpm rpg validate --project projects/sample-rpg     # ← フォルダは --project で指定（位置引数は無視される）
 pnpm rpg test     --project projects/sample-rpg
@@ -344,3 +344,11 @@ v2.5 の作業コピーは、6.23（2回目）の修正より前の版を元に�
 - 確認: test（198件）、ブラウザで販売前チェック（見本の11テストを画面内で実行）と素材パックの書き出し
 
 次の候補（ユーザーの「幅と深さを広げる」）: ストアページの材料の自動生成（スクリーンショット・紹介文）、体験版の書き出し、更新とセーブの互換、楽譜BGMを WAV/OGG に書き出し、マップを画像や Tiled 形式で書き出し、キャラクター・タイルの作成（内蔵ジェネレーターの部品選び・画風）を「素材だけの作品」として作りやすく
+
+## 19. 素材だけの作品を工房の中で作る（2026-11-28）
+
+- キャラクター作り: `packages/cli/src/artgen/characters.ts` に部品の一覧（`BODY_TYPES` など）と `randomCharacter`、工房 `CharacterMakerPanel`（4方向の歩くプレビュー、見本から・おまかせ・作ったものを開き直す）、CLI `rpg art character`（`characterCmd.ts`）。登録時に `generator.spec` に部品の JSON を残すので、あとで同じ絵を作り直せる
+- 楽譜BGM → WAV: `packages/runtime/src/songRender.ts`（ゲーム内の再生と同じ音色・包絡。ループ曲は余韻を先頭に重ねる）。工房の楽譜BGM画面の「WAVで書き出す」、素材パックで .song.json に WAV が付く
+- マップ → Tiled（.tmj）と1枚絵: `packages/schema/src/mapExport.ts`（`resolveMapLayers` はゲームの描画と同じ規則：オートタイル9分割・動くタイルは最初のコマ）。CLI `rpg map export`（`mapExport.ts`。PNG は artgen の png でデコード）、工房は `studio/src/lib/renderInBrowser.ts`。工房とCLIのマップ画像は画素まで一致することを確認
+- 素材パックに `mapIds`（使うタイル画像も自動で入れる。配れないタイルを使うマップは除外）
+- 確認: test（202件）、ブラウザでキャラ作成→素材パック、WAV書き出し、マップを含む素材パック

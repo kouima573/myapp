@@ -38,6 +38,7 @@ const USAGE = `RPG Studio CLI
   rpg build    --project <dir> [--out <dir>] [--zip] [--run-project-build]  形式に応じて検証・出力（設定コマンドの実行は明示許可が必要）
   rpg audit    --project <dir>          未到達マップ・未使用会話・未使用イベントを検出
   rpg map generate <ID> --project <dir> [--width 30 --height 22 --seed 1 --rooms 6 --enemies a,b --back map:x:y]   部屋と通路のダンジョンを自動生成
+  rpg map export [<ID>] --project <dir> [--out <フォルダ>] [--tile 32]   マップを Tiled 形式（.tmj）と画像（.png）に（ほかのゲームエンジンでも使える）
   rpg devlog   --project <dir> [--days 7] [--out DEVLOG.md]   制作日誌の下書き（いまの内容・コミット・保存履歴の要約）
   rpg sample reset --project projects/<id> [--write]   見本を元の状態に戻す（壊して学ぶ用）
   rpg find     <文字> --project <dir> [--regex] [--case] [--replace <新しい文字> --write]   データの文章を横断検索・置換
@@ -53,6 +54,7 @@ const USAGE = `RPG Studio CLI
   rpg release-check --project <dir>                                             販売前チェック（検証・テスト・エンディング・書きかけ・文章・素材の権利・クレジット）
   rpg chat     <cards|card|plan|pack|apply> --project <dir>                        チャットのAI（ChatGPTなど）と作る: 作業カード・依頼文・返事の取り込み
   rpg asset    catalog <check|verify> --project <dir>                              取得元カタログの見直し（サイトには接続しない・確認日は人が読んだときだけ）
+  rpg art      character --project <dir> --id <id> --name <名前> [--from <見本ID> | --random <シード>] [--spec '<JSON>']   部品を選んで歩くキャラクターを作る（自作として売れる）
   rpg art      generate [--out library] [--style standard|retro|pastel|dusk|mono] [--only tiles,characters,monsters,backgrounds] [--no-previews]   内蔵ジェネレーターで共有素材ライブラリを（再）生成
   rpg library  <list|add|preview> [<id...>] [--kind …] [--query …] --project <dir>  共有素材ライブラリを探す・番号つき見本画像・取り込む（タイル定義も追加）
   rpg packs    <list|add|files|use|remove>                                     買った・DLした素材パックをこのPCの台帳でまとめて管理（パスワードは保存しない）
@@ -478,6 +480,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "asset": if (parsed.sub === "catalog") { const { cmdSourceCatalog } = await import("./sourceCatalog"); return cmdSourceCatalog(parsed.args[0], parsed.args.slice(1), parsed.flags, projectDir(parsed.flags)); }
       return cmdAsset(parsed.sub, projectDir(parsed.flags), parsed.flags);
     case "art": {
+      if (parsed.sub === "character") { const { cmdArtCharacter } = await import("./characterCmd"); return cmdArtCharacter(projectDir(parsed.flags), parsed.flags); }
       if (parsed.sub !== "generate") return cmdArt(parsed.sub, projectDir(parsed.flags), parsed.flags);
       const { generateLibrary } = await import("./artgen/library");
       const out = typeof parsed.flags.out === "string" ? path.resolve(process.cwd(), parsed.flags.out) : path.join(REPO_ROOT, "library");

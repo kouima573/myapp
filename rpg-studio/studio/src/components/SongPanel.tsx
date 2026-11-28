@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Music, Play, Plus, Square as StopIcon } from "lucide-react";
+import { Download, Music, Play, Plus, Square as StopIcon } from "lucide-react";
 import type { AssetEntry, GameContent } from "@rpg/schema";
 import { parseNotes, SONG_WAVES, type Song } from "../../../packages/schema/src/song";
 import { previewSong } from "../../../packages/runtime/src/audio";
+import { songToWav } from "../../../packages/runtime/src/songRender";
+import { download } from "../lib/browserExport";
 import { GRID_PITCHES, gridToNotes, notesToGrid, placeNote } from "../lib/stepgrid";
 import type { ProjectStore } from "../lib/useProject";
 
@@ -64,6 +66,7 @@ export default function SongPanel({ store, content }: { store: ProjectStore; con
       </select>
       <button className="button" onClick={create}><Plus size={13} /> 新しい曲</button>
       {!isPlaying ? <button className="button primary" disabled={!song} onClick={play}><Play size={13} /> 試聴</button> : <button className="button" onClick={stop}><StopIcon size={13} /> 止める</button>}
+      <button className="button" disabled={!song} title="ほかのツールや動画でも使える音声ファイル（WAV）にします。ループする曲は、繰り返すと継ぎ目なくつながります" onClick={() => { if (song) download(`${(path ?? "song").split("/").pop()!.replace(/\.song\.json$/, "")}.wav`, songToWav(song), "audio/wav"); }}><Download size={13} /> WAVで書き出す</button>
     </div>
     {song && <>
       <div className="row">

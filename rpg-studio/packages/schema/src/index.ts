@@ -9,3 +9,4 @@ export * from "./normalized";
 export * from "./rights";
 export * from "./assetPack";
 export * from "./zip";
+export * from "./mapExport";

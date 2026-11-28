@@ -623,3 +623,10 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 .asset-pack .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
 .asset-pack .form-grid label, .asset-pack .field { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
 @media (max-width: 700px) { .asset-pack .form-grid { grid-template-columns: 1fr; } }
+
+/* キャラクター作り */
+.character-preview { width: 512px; max-width: 100%; height: auto; image-rendering: pixelated; background: repeating-conic-gradient(var(--well) 0 25%, var(--bar) 0 50%) 0 0 / 16px 16px; border: 1px solid var(--line); border-radius: 6px; }
+.character-parts { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px 16px; }
+.character-parts label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.character-parts input[type="color"] { width: 32px; height: 24px; padding: 0; border: 1px solid var(--line); background: none; }
+.character-maker .row label { display: flex; align-items: center; gap: 6px; font-size: 12px; }

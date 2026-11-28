@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon, Globe2, Search, GraduationCap, Music, Hexagon, LifeBuoy, Undo2, Redo2, MessagesSquare, HardDrive } from "lucide-react";
+import { Image as ImageIcon, CheckCircle2, ChevronDown, ChevronUp, Database, FlaskConical, Gamepad2, Lightbulb, Loader2, Map as MapIcon, MessageSquare, Plus, ScrollText, Swords, Code2, Palette, Library, XCircle, AlertTriangle, Save, History as HistoryIcon, Globe2, Search, GraduationCap, Music, Hexagon, LifeBuoy, Undo2, Redo2, MessagesSquare, HardDrive, UserRound } from "lucide-react";
 import { GameMapSchema, TilesetSchema, type GameContent, type GameMap, type GameState } from "@rpg/schema";
 import { loadImages, type ImageMap } from "../../packages/runtime/src/render";
 import MapEditor, { type Selection } from "./components/MapEditor";
@@ -23,6 +23,7 @@ import SongPanel from "./components/SongPanel";
 import SkillBoardPanel from "./components/SkillBoardPanel";
 import HelpPanel from "./components/HelpPanel";
 import ChatPanel from "./components/ChatPanel";
+import CharacterMakerPanel from "./components/CharacterMakerPanel";
 import BrowserPanel from "./components/BrowserPanel";
 import ExperiencePanel from "./components/ExperiencePanel";
 import { glossaryLookup } from "./lib/glossary";
@@ -32,7 +33,7 @@ import ConflictDialog from "./components/ConflictDialog";
 import { useProject } from "./lib/useProject";
 import type { PreviewSource, ProjectSource } from "./lib/source";
 
-type Section = "idea" | "experience" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history" | "world" | "search" | "tutorial" | "song" | "skills" | "help" | "chat" | "projects";
+type Section = "idea" | "experience" | "map" | "story" | "rules" | "database" | "scripts" | "pixel" | "library" | "play" | "data" | "assets" | "checks" | "history" | "world" | "search" | "tutorial" | "song" | "skills" | "help" | "chat" | "projects" | "character";
 const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
   { id: "projects", label: "プロジェクト・公開準備", icon: HardDrive },
   { id: "experience", label: "独立作品", icon: Code2 },
@@ -46,6 +47,7 @@ const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
   { id: "database", label: "敵・アイテム・仲間", icon: Swords },
   { id: "skills", label: "スキルボード", icon: Hexagon },
   { id: "scripts", label: "スクリプト（コード）", icon: Code2 },
+  { id: "character", label: "キャラクター作り", icon: UserRound },
   { id: "pixel", label: "ドット絵", icon: Palette },
   { id: "library", label: "素材ライブラリ", icon: Library },
   { id: "song", label: "楽譜BGM", icon: Music },
@@ -236,6 +238,7 @@ export default function App({ source }: { source: ProjectSource }) {
       {section === "assets" && playContent && <AssetsPanel store={store} content={playContent} images={images} />}
       {section === "world" && playContent && <WorldPanel content={playContent} onOpenMap={id => { setMapId(id); setSelection(null); setSection("map"); }} />}
       {section === "chat" && <ChatPanel store={store} />}
+      {section === "character" && playContent && <CharacterMakerPanel store={store} content={playContent} />}
       {section === "projects" && source.kind === "preview" && <BrowserPanel store={store} source={source as PreviewSource} />}
       {section === "help" && playContent && <HelpPanel store={store} content={playContent} />}
       {section === "skills" && playContent && <SkillBoardPanel store={store} content={playContent} />}

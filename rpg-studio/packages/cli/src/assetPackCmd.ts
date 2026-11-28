@@ -4,7 +4,9 @@
  */
 import fs from "node:fs/promises";
 import path from "node:path";
-import { planAssetPack, writeZip, type PackLicense } from "../../schema/src/index";
+import { planAssetPack, writeZip, type PackLicense, type Song } from "../../schema/src/index";
+import { songToWav } from "../../runtime/src/songRender";
+import { renderMapPng } from "./mapExport";
 import { loadProjectFromDisk, resolveInside } from "./load";
 
 type Flags = Record<string, string | boolean>;
@@ -22,14 +24,20 @@ export async function cmdAssetPack(root: string, flags: Flags): Promise<number> 
   const terms = str(flags, "terms-file") ? await fs.readFile(path.resolve(str(flags, "terms-file")!), "utf8") : undefined;
   const title = str(flags, "title") ?? "", author = str(flags, "author") ?? "";
   const id = (str(flags, "id") ?? `${project.id}-pack`).toLowerCase().replace(/[^a-z0-9-]+/g, "-");
-  const plan = planAssetPack(project, assets.assets, ids, { id, title, author, license, terms, paid: Boolean(flags.paid), description: str(flags, "description") }, tileset);
-  // Files that cannot be packed are left out (and listed); missing title / author / nothing selected stops the export.
-  const fatal = plan.problems.filter(p => !plan.refused.some(r => p.startsWith(`${r.id}:`)));
+  const mapIds = str(flags, "maps")?.split(",").map(s => s.trim()).filter(Boolean) ?? [];
+  const plan = planAssetPack(project, assets.assets, str(flags, "ids") || kinds ? ids : mapIds.length ? [] : ids, { id, title, author, license, terms, paid: Boolean(flags.paid), description: str(flags, "description"), mapIds, content: loaded.content }, tileset);
+  // Files / maps that cannot be packed are left out (and listed); missing title / author / nothing selected stops the export.
+  for (const p of plan.problems.filter(p => p.startsWith("マップ "))) console.log(`SKIP ${p}`);
+  const fatal = plan.problems.filter(p => !p.startsWith("マップ ") && !plan.refused.some(r => p.startsWith(`${r.id}:`)));
   for (const r of plan.refused) console.log(`SKIP ${r.id}: ${r.packReason}`);
-  if (fatal.length || !plan.included.length) { for (const p of fatal) console.log(`ERROR ${p}`); if (!plan.included.length) console.log("ERROR 素材のまま配れるもの（自作・内蔵ジェネレーター製）がありません"); return 1; }
+  if (fatal.length || (!plan.included.length && !plan.files.some(f => "mapImage" in f.source))) { for (const p of fatal) console.log(`ERROR ${p}`); if (!plan.included.length) console.log("ERROR 素材のまま配れるもの（自作・内蔵ジェネレーター製）がありません"); return 1; }
   const entries = [];
   for (const f of plan.files) {
-    const data = "text" in f.source ? new TextEncoder().encode(f.source.text) : new Uint8Array(await fs.readFile(resolveInside(root, f.source.assetPath)));
+    const s = f.source;
+    const data = "text" in s ? new TextEncoder().encode(s.text)
+      : "songWav" in s ? songToWav(JSON.parse(await fs.readFile(resolveInside(root, s.songWav), "utf8")) as Song)
+      : "mapImage" in s ? new Uint8Array(await renderMapPng(root, loaded.content, s.mapImage))
+      : new Uint8Array(await fs.readFile(resolveInside(root, s.assetPath)));
     entries.push({ name: f.name, data });
   }
   const out = path.resolve(str(flags, "out") ?? path.join(root, "..", `${id}.zip`));

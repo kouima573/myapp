@@ -43,6 +43,7 @@ pnpm rpg new my-site --type experience --runtime static --title "独自ランタ
 
 - 作ったゲームや素材は作者のものです。工房は「売れる状態に仕上げる」まで手伝います（[docs/selling.md](docs/selling.md)）
 - **販売前チェック**（「検証」画面 / `pnpm rpg release-check`）: 検証・自動テスト・エンディング・書きかけの文章・文章の点検・**素材の権利（売ってよいか）**・クレジット
+- **素材だけの作品**: 「キャラクター作り」画面（部品を選んで歩くキャラ）、楽譜BGMの「WAVで書き出す」、マップの Tiled 形式と1枚絵（`pnpm rpg map export`）
 - **素材パック**（「素材」画面 / `pnpm rpg asset pack`）: キャラクターだけ・音楽だけ・タイルだけ…の素材集を、ライセンス（CC0・CC BY・独自規約）・README・出どころ付きのZIPに。自作と内蔵ジェネレーター製だけが入る
 - 工房のライセンス: MIT（© 2026 AI人狼ラボ、`LICENSE`）。書き出したゲームにはその表記が自動で入ります
 

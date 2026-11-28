@@ -456,3 +456,43 @@ export const CHARACTERS: CharacterSpec[] = [
   { id: "pink-healer", name: "癒し手", tags: ["healer", "hero"], hair: { style: "twintails", color: H.pink }, outfit: { type: "dress", main: P.white, accent: "#e888b0" }, item: "staff" },
   { id: "soldier", name: "兵士", tags: ["soldier", "guard"], skin: P.skin3, outfit: { type: "armor", main: P.iron, accent: "#4a6a3a", pants: "#4a5a3a" }, headgear: { type: "helmet", color: "#8a9488", accent: "#8a9488" }, item: "spear" },
 ];
+
+/* ------------------------------------------------------------------ キャラクター作り（部品を選んで作る） */
+
+export const BODY_TYPES: BodyType[] = ["adult", "slim", "child", "stout"];
+export const HAIR_STYLES: HairStyle[] = ["short", "long", "ponytail", "spiky", "bob", "bun", "twintails", "messy", "bald"];
+export const OUTFITS: Outfit[] = ["tunic", "robe", "dress", "armor", "vest", "coat", "rags"];
+export const HEADGEARS: Headgear[] = ["hat", "wizard", "hood", "helmet", "cap", "crown", "bandana", "horns", "veil", "straw"];
+export const ITEMS: Item[] = ["sword", "staff", "spear", "bow", "book", "lantern", "basket", "shield", "axe", "pick"];
+export const EARS = ["elf", "cat", "dog", "rabbit"] as const;
+export const SPECIALS = ["ghost", "robot", "skeleton"] as const;
+export const PART_LABELS: Record<string, string> = {
+  adult: "大人", slim: "細身", child: "子ども", stout: "がっしり",
+  short: "短い", long: "長い", ponytail: "ポニーテール", spiky: "ツンツン", bob: "ボブ", bun: "おだんご", twintails: "ツインテール", messy: "ぼさぼさ", bald: "なし",
+  tunic: "チュニック", robe: "ローブ", dress: "ドレス", armor: "よろい", vest: "ベスト", coat: "コート", rags: "ぼろ布",
+  hat: "帽子", wizard: "とんがり帽子", hood: "フード", helmet: "かぶと", cap: "キャップ", crown: "王冠", bandana: "バンダナ", horns: "角", veil: "ベール", straw: "麦わら帽子",
+  sword: "剣", staff: "杖", spear: "槍", bow: "弓", book: "本", lantern: "ランタン", basket: "かご", shield: "盾", axe: "斧", pick: "つるはし",
+  elf: "とがった耳", cat: "ねこ耳", dog: "いぬ耳", rabbit: "うさぎ耳", ghost: "幽霊", robot: "ロボット", skeleton: "がいこつ",
+};
+
+const SKINS = ["#f2d0b0", "#e8b890", "#c89068", "#9a6a48", "#6a4a34", "#f6dcc8"];
+const PALETTE = ["#3a6ab0", "#5a9a4a", "#a83a2a", "#4a3a9a", "#c89a3a", "#2e2a3a", "#8a5ac0", "#e888b0", "#3a8a8a", "#6a4a2a", "#e8e4dc", "#5a5a6a"];
+
+/** おまかせ: a random but coherent character from a seed (same seed = same character). */
+export function randomCharacter(seed: number | string, id = "custom", name = "おまかせの人"): CharacterSpec {
+  let s = typeof seed === "number" ? seed >>> 0 : [...String(seed)].reduce((h, c) => Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0, 2166136261);
+  const r = () => { s = (s + 0x6d2b79f5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  const pick = <T,>(list: readonly T[]) => list[Math.floor(r() * list.length)]!;
+  const outfit = pick(OUTFITS);
+  const spec: CharacterSpec = {
+    id, name, tags: ["custom"],
+    body: pick(BODY_TYPES), skin: pick(SKINS),
+    hair: { style: pick(HAIR_STYLES), color: pick(Object.values(H)) },
+    outfit: { type: outfit, main: pick(PALETTE), accent: pick(PALETTE), pants: pick(["#4a4038", "#3a3a44", "#5a4a3a", "#2e2a34"]) },
+  };
+  if (r() < 0.45) spec.headgear = { type: pick(outfit === "armor" ? ["helmet", "cap", "bandana"] as Headgear[] : HEADGEARS), color: pick(PALETTE), accent: pick(PALETTE) };
+  if (r() < 0.6) spec.item = pick(ITEMS);
+  if (r() < 0.25) spec.cape = pick(PALETTE);
+  if (r() < 0.15) { spec.ears = pick(EARS); spec.earColor = spec.hair!.color; if (spec.ears === "cat" || spec.ears === "dog") spec.tail = spec.hair!.color; }
+  return spec;
+}

@@ -12,6 +12,7 @@ type Flags = Record<string, string | boolean>;
 
 export async function cmdMap(sub: string | undefined, args: string[], flags: Flags, root: string): Promise<number> {
   const id = args[0];
+  if (sub === "export") { const { cmdMapExport } = await import("./mapExport"); return cmdMapExport(id, flags, root); }
   if (sub !== "generate" || !id || !/^[a-z0-9][a-z0-9-]*$/.test(id)) { console.log("ERROR rpg map generate <マップID> --project <dir> [--width 30 --height 22 --seed 1 --rooms 6 --floor . --wall # --title 名前 --enemies a,b --back map:x:y]"); return 2; }
   const project = JSON.parse(await fs.readFile(path.join(root, "project.json"), "utf8"));
   if (project.maps.some((m: { id: string }) => m.id === id)) { console.log(`ERROR マップ '${id}' はもうあります`); return 1; }
