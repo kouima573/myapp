@@ -50,6 +50,7 @@ const USAGE = `RPG Studio CLI
   rpg schema   [--check]                schema/*.schema.json（エディター・AI向けJSON Schema）を生成／最新か確認
   rpg asset    <sources|enable|disable|add|gen-sfx|report|credits> --project <dir>   素材の取得元・追加・生成・容量・クレジット
   rpg art      <list|prompt|check> --project <dir>                                   画像の要件定義（art/requests.json）から生成用プロンプト・納品チェック
+  rpg release-check --project <dir>                                             販売前チェック（検証・テスト・エンディング・書きかけ・文章・素材の権利・クレジット）
   rpg chat     <cards|card|plan|pack|apply> --project <dir>                        チャットのAI（ChatGPTなど）と作る: 作業カード・依頼文・返事の取り込み
   rpg asset    catalog <check|verify> --project <dir>                              取得元カタログの見直し（サイトには接続しない・確認日は人が読んだときだけ）
   rpg art      generate [--out library] [--style standard|retro|pastel|dusk|mono] [--only tiles,characters,monsters,backgrounds] [--no-previews]   内蔵ジェネレーターで共有素材ライブラリを（再）生成
@@ -493,6 +494,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     }
     case "library": return cmdLibrary(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
     case "runtime": { const { buildRuntime } = await import("./build"); const out = path.resolve(process.cwd(), typeof parsed.flags.out === "string" ? parsed.flags.out : "dist/runtime"); await buildRuntime(out); console.log(`OK runtime: ${path.relative(process.cwd(), out)}（ブラウザ版の工房の「遊べる形で書き出す」用）`); return 0; }
+    case "release-check": { const { cmdReleaseCheck } = await import("./release"); return cmdReleaseCheck(projectDir(parsed.flags)); }
     case "chat": { const { cmdChat } = await import("./chat"); return cmdChat(parsed.sub, parsed.args, parsed.flags, projectDir(parsed.flags)); }
     case "map": return cmdMap(parsed.sub, parsed.args, parsed.flags, projectDir(parsed.flags));
     case "devlog": return cmdDevlog(parsed.flags, projectDir(parsed.flags));
@@ -504,7 +506,7 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "packs": return cmdPacks(parsed.sub, parsed.flags, parsed.args, () => projectDir(parsed.flags));
     default: {
       if (parsed.command && parsed.command !== "help" && parsed.command !== "--help") {
-        const cmds = ["chat", "new", "genres", "mod", "validate", "test", "build", "dev", "migrate", "catalog", "audit", "refs", "rename", "proofread", "find", "sample", "devlog", "map", "schema", "asset", "art", "library", "packs"];
+        const cmds = ["release-check", "chat", "new", "genres", "mod", "validate", "test", "build", "dev", "migrate", "catalog", "audit", "refs", "rename", "proofread", "find", "sample", "devlog", "map", "schema", "asset", "art", "library", "packs"];
         const dist = (a: string, b: string) => {
           const dp = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
           for (let j = 0; j <= b.length; j++) dp[0]![j] = j;

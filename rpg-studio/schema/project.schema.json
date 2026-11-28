@@ -1336,6 +1336,15 @@
                   "unknown"
                 ]
               },
+              "commercial": {
+                "type": "string",
+                "enum": [
+                  "allowed",
+                  "prohibited",
+                  "varies",
+                  "unknown"
+                ]
+              },
               "automatedDownload": {
                 "type": "string",
                 "enum": [

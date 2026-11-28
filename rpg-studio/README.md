@@ -39,6 +39,13 @@ pnpm rpg new my-work --type experience --title "RPGに限らない作品"
 pnpm rpg new my-site --type experience --runtime static --title "独自ランタイム作品"
 ```
 
+## 作ったものを公開・販売する
+
+- 作ったゲームや素材は作者のものです。工房は「売れる状態に仕上げる」まで手伝います（[docs/selling.md](docs/selling.md)）
+- **販売前チェック**（「検証」画面 / `pnpm rpg release-check`）: 検証・自動テスト・エンディング・書きかけの文章・文章の点検・**素材の権利（売ってよいか）**・クレジット
+- **素材パック**（「素材」画面 / `pnpm rpg asset pack`）: キャラクターだけ・音楽だけ・タイルだけ…の素材集を、ライセンス（CC0・CC BY・独自規約）・README・出どころ付きのZIPに。自作と内蔵ジェネレーター製だけが入る
+- 工房のライセンス: MIT（© 2026 AI人狼ラボ、`LICENSE`）。書き出したゲームにはその表記が自動で入ります
+
 ## Codex / Claude Codeでローカル制作
 
 ZIPをPC上に展開してそのフォルダーをCodexまたはClaude Codeで開くと、同梱の `rpg-studio` スキルから既存のゲームデータや制作規約を参照できます。Codexでは `$rpg-studio`、Claude Codeでは `/rpg-studio` と依頼文を入力してください。導入手順と利用例は [docs/ai-local-workflow.md](docs/ai-local-workflow.md) にあります。工房にAI APIは不要です。

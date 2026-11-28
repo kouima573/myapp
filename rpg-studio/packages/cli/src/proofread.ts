@@ -5,39 +5,12 @@
  * Only reports; never rewrites. Exit code 1 when something was found (so an agent can loop until clean).
  */
 import { readProjectTexts } from "./load";
-import { proofreadText } from "./proofreadText";
-export { proofreadText } from "./proofreadText";
-
-const SHOWN = new Set(["text", "lines", "label", "prompt", "name", "description", "greeting", "message", "title", "subtitle", "speaker"]);
-
-export interface ProofIssue { file: string; at: string; text: string; message: string }
-
-function walk(node: unknown, at: string, key: string, file: string, out: ProofIssue[], opts: { width: number; lines: number }) {
-  if (Array.isArray(node)) {
-    node.forEach((child, i) => {
-      const id = child && typeof child === "object" && typeof (child as { id?: unknown }).id === "string" ? (child as { id: string }).id : String(i);
-      walk(child, `${at}[${id}]`, key, file, out, opts);
-    });
-    return;
-  }
-  if (node && typeof node === "object") {
-    for (const [k, v] of Object.entries(node)) walk(v, at ? `${at}.${k}` : k, k, file, out, opts);
-    return;
-  }
-  if (typeof node !== "string" || !SHOWN.has(key) || !node.trim()) return;
-  // Messages / dialogue lines go into the message window; names and labels only get the typo checks.
-  const message = key === "text" || key === "lines" || key === "prompt" || key === "message" || key === "greeting";
-  for (const message_ of proofreadText(node, { ...opts, message })) out.push({ file, at, text: node, message: message_ });
-}
+import { proofreadProjectTexts, type ProofIssue } from "./proofreadText";
+export { proofreadText, type ProofIssue } from "./proofreadText";
 
 export async function proofread(root: string, opts: { width: number; lines: number }): Promise<ProofIssue[]> {
   const { texts } = await readProjectTexts(root);
-  const out: ProofIssue[] = [];
-  for (const [file, text] of Object.entries(texts)) {
-    if (!file.endsWith(".json") || file === "assets.json" || file === "tiles.json") continue;
-    try { walk(JSON.parse(text), "", "", file, out, opts); } catch { /* broken JSON: validate reports it */ }
-  }
-  return out;
+  return proofreadProjectTexts(texts, opts);
 }
 
 export async function cmdProofread(flags: Record<string, string | boolean>, root: string): Promise<number> {

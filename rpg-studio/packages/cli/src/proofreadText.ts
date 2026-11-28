@@ -28,3 +28,42 @@ export function proofreadText(text: string, opts: { width: number; lines: number
   return out;
 }
 
+
+/* ------------------------------------------------------------------ every text shown to players */
+
+const SHOWN = new Set(["text", "lines", "label", "prompt", "name", "description", "greeting", "message", "title", "subtitle", "speaker"]);
+const MESSAGE_KEYS = new Set(["text", "lines", "prompt", "message", "greeting"]);
+
+export interface ShownText { file: string; at: string; text: string; message: boolean }
+export interface ProofIssue { file: string; at: string; text: string; message: string }
+
+/** Every string a player can see, from the project's JSON files (not assets.json / tiles.json / todo.json). Pure: safe in the browser. */
+export function shownTexts(texts: Record<string, string>): ShownText[] {
+  const out: ShownText[] = [];
+  const walk = (node: unknown, at: string, key: string, file: string) => {
+    if (Array.isArray(node)) {
+      node.forEach((child, i) => {
+        const id = child && typeof child === "object" && typeof (child as { id?: unknown }).id === "string" ? (child as { id: string }).id : String(i);
+        walk(child, `${at}[${id}]`, key, file);
+      });
+      return;
+    }
+    if (node && typeof node === "object") {
+      for (const [k, v] of Object.entries(node)) walk(v, at ? `${at}.${k}` : k, k, file);
+      return;
+    }
+    if (typeof node !== "string" || !SHOWN.has(key) || !node.trim()) return;
+    out.push({ file, at, text: node, message: MESSAGE_KEYS.has(key) });
+  };
+  for (const [file, text] of Object.entries(texts)) {
+    if (!file.endsWith(".json") || file === "assets.json" || file === "tiles.json" || file === "todo.json" || file.startsWith("tests/") || file.startsWith("art/")) continue;
+    try { walk(JSON.parse(text), "", "", file); } catch { /* broken JSON: validate reports it */ }
+  }
+  return out;
+}
+
+export function proofreadProjectTexts(texts: Record<string, string>, opts: { width: number; lines: number }): ProofIssue[] {
+  const out: ProofIssue[] = [];
+  for (const t of shownTexts(texts)) for (const message of proofreadText(t.text, { ...opts, message: t.message })) out.push({ file: t.file, at: t.at, text: t.text, message });
+  return out;
+}

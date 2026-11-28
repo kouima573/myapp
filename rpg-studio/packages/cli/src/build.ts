@@ -7,7 +7,7 @@ import * as esbuild from "esbuild";
 import ts from "typescript";
 import type { Diagnostic } from "../../schema/src/index";
 import { checkAssetFiles, loadProjectFromDisk, resolveInside } from "./load";
-import { creditsMarkdown } from "../../runtime/src/credits";
+import { creditsMarkdown, ENGINE_BANNER, ENGINE_CREDITS_SECTION } from "../../runtime/src/credits";
 import { normalizedDataFiles, type AssetManifest, type ExperienceProject, type GameContent } from "../../schema/src/index";
 import { MODULES } from "../../modules/src/index";
 import { loadExperienceProject } from "./experience";
@@ -257,7 +257,7 @@ export async function buildRuntime(outDir: string): Promise<void> {
     const entry = path.join(work, "runtime-entry.ts");
     await fs.writeFile(entry, `import { bootStandalone } from ${JSON.stringify(posix(RUNTIME_ENTRY))};\nimport { modulesFor } from ${JSON.stringify(posix(path.join(REPO_ROOT, "packages/modules/src/index.ts")))};\nvoid bootStandalone({ systems: [], systemsFor: content => modulesFor(content) });\n`);
     await fs.mkdir(outDir, { recursive: true });
-    await esbuild.build({ alias: PACKAGE_ALIASES, bundle: true, format: "esm", target: "es2020", platform: "browser", logLevel: "silent", legalComments: "none", minify: true, entryPoints: [entry], outfile: path.join(outDir, "game.js") });
+    await esbuild.build({ alias: PACKAGE_ALIASES, bundle: true, format: "esm", target: "es2020", platform: "browser", logLevel: "silent", legalComments: "none", banner: { js: ENGINE_BANNER }, minify: true, entryPoints: [entry], outfile: path.join(outDir, "game.js") });
     await fs.writeFile(path.join(outDir, "index.html"), gameHtml("__RPG_TITLE__"));
     await fs.writeFile(path.join(outDir, "systems.js"), "export const systems = [];\n");
   } finally {
@@ -294,7 +294,7 @@ function experienceCreditsMarkdown(title: string, manifest: AssetManifest): stri
   const rows = manifest.assets.map(a => `| ${a.id} | ${a.kind} | ${a.author ?? ""} | ${a.license} | ${a.url ?? a.sourceId ?? a.source} | ${a.termsCheckedAt ?? ""} |`);
   const credits = manifest.assets.flatMap(a => a.credit ? [`- ${a.credit}`] : []);
   if (manifest.assets.some(a => !a.redistributable || a.sourceId === "dova-syndrome")) credits.push("- 収録素材ファイルの抽出・転用・再配布は禁止です。各素材の利用条件を守ってください。");
-  return `# ${title} — クレジット\n\n${credits.length ? credits.join("\n") : "素材の個別クレジットはありません。"}\n\n## 素材一覧\n\n| ID | 種類 | 作者 | 規約・ライセンス | 入手元 | 規約確認日 |\n| --- | --- | --- | --- | --- | --- |\n${rows.join("\n")}\n\nMade with RPGシステム工房\n`;
+  return `# ${title} — クレジット\n\n${credits.length ? credits.join("\n") : "素材の個別クレジットはありません。"}\n\n## 素材一覧\n\n| ID | 種類 | 作者 | 規約・ライセンス | 入手元 | 規約確認日 |\n| --- | --- | --- | --- | --- | --- |\n${rows.join("\n")}\n\nMade with RPGシステム工房\n\n${ENGINE_CREDITS_SECTION}`;
 }
 
 /** Copy creator-owned web projects as-is. No RPG or Experience host is added to static runtime output. */
@@ -439,7 +439,7 @@ if ("serviceWorker" in navigator) void navigator.serviceWorker.register("./sw.js
     const stage = path.join(work, "out");
     await fs.mkdir(stage, { recursive: true });
     try {
-      await esbuild.build({ alias: PACKAGE_ALIASES, bundle: true, format: "esm", target: "es2020", platform: "browser", logLevel: "silent", legalComments: "none", minify: options.minify ?? true, sourcemap: false, entryPoints: [entry], outfile: path.join(stage, "game.js") });
+      await esbuild.build({ alias: PACKAGE_ALIASES, bundle: true, format: "esm", target: "es2020", platform: "browser", logLevel: "silent", legalComments: "none", banner: { js: ENGINE_BANNER }, minify: options.minify ?? true, sourcemap: false, entryPoints: [entry], outfile: path.join(stage, "game.js") });
     } catch (error) {
       const errors = (error as esbuild.BuildFailure).errors ?? [];
       return { ok: false, diagnostics: [...diagnostics, ...(errors.length ? errors : [{ text: String(error) }]).map(e => ({ severity: "error" as const, file: (e as esbuild.Message).location?.file, at: (e as esbuild.Message).location ? `${(e as esbuild.Message).location!.line}:${(e as esbuild.Message).location!.column + 1}` : undefined, message: e.text }))] };
@@ -543,7 +543,7 @@ export async function buildProject(projectRoot: string, options: BuildOptions = 
 
     const stage = path.join(work, "out");
     await fs.mkdir(path.join(stage, "data"), { recursive: true });
-    const common: esbuild.BuildOptions = { alias: PACKAGE_ALIASES, bundle: true, format: "esm", target: "es2020", platform: "browser", logLevel: "silent", legalComments: "none", minify: options.minify ?? true, sourcemap: false };
+    const common: esbuild.BuildOptions = { alias: PACKAGE_ALIASES, bundle: true, format: "esm", target: "es2020", platform: "browser", logLevel: "silent", legalComments: "none", banner: { js: ENGINE_BANNER }, minify: options.minify ?? true, sourcemap: false };
     try {
       await esbuild.build({ ...common, entryPoints: [gameEntry], outfile: path.join(stage, "game.js") });
       await esbuild.build({ ...common, entryPoints: [systemsEntry], outfile: path.join(stage, "systems.js") });

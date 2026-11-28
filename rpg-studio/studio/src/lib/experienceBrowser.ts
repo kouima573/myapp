@@ -1,4 +1,5 @@
 import { AssetManifestSchema, ExperienceProjectSchema } from "@rpg/schema";
+import { ENGINE_CREDITS_SECTION } from "../../../packages/runtime/src/credits";
 import type { AssetManifest, ExperienceProject } from "@rpg/schema";
 import runtimeSource from "../../../packages/runtime/src/experience.ts?raw";
 import { sampleAssetUrl } from "./source";
@@ -158,7 +159,7 @@ function creditsMarkdown(title: string, assets: AssetManifest): string {
   const credits = assets.assets.flatMap(asset => asset.credit ? [`- ${asset.credit}`] : []);
   if (assets.assets.some(asset => !asset.redistributable || asset.sourceId === "dova-syndrome")) credits.push("- 収録素材ファイルの抽出・転用・再配布は禁止です。各素材の利用条件を守ってください。");
   const rows = assets.assets.map(asset => `| ${asset.id} | ${asset.kind} | ${asset.author ?? ""} | ${asset.license} | ${asset.url ?? asset.sourceId ?? asset.source} | ${asset.termsCheckedAt ?? ""} |`);
-  return `# ${title} — クレジット\n\n${credits.length ? credits.join("\n") : "素材の個別クレジットはありません。"}\n\n## 素材一覧\n\n| ID | 種類 | 作者 | 規約・ライセンス | 入手元 | 規約確認日 |\n| --- | --- | --- | --- | --- | --- |\n${rows.join("\n")}\n\nMade with RPGシステム工房\n`;
+  return `# ${title} — クレジット\n\n${credits.length ? credits.join("\n") : "素材の個別クレジットはありません。"}\n\n## 素材一覧\n\n| ID | 種類 | 作者 | 規約・ライセンス | 入手元 | 規約確認日 |\n| --- | --- | --- | --- | --- | --- |\n${rows.join("\n")}\n\nMade with RPGシステム工房\n\n${ENGINE_CREDITS_SECTION}`;
 }
 
 const esc = (value: string) => value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!);

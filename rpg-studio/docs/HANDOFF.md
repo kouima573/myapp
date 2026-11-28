@@ -44,7 +44,7 @@
 cd rpg-studio
 pnpm install
 pnpm check                      # 型チェック
-pnpm test                       # vitest（現在195件）
+pnpm test                       # vitest（現在198件）
 pnpm rpg proofread --project <dir>   # 台詞の長さ・誤字らしき所（v1.9）
 pnpm rpg validate --project projects/sample-rpg     # ← フォルダは --project で指定（位置引数は無視される）
 pnpm rpg test     --project projects/sample-rpg
@@ -332,3 +332,15 @@ v2.5 の作業コピーは、6.23（2回目）の修正より前の版を元に�
 素材の取得元: `AssetSourceSchema` に `publicRepository`（"private-only" なら検証が警告）と `inquiries`（運営の回答。`verifiedAt` とは別）を追加。OpenTracks・Freesound の回答を記録。
 
 確認: check・test（195件）・3つの見本の validate/test/build・build:site。ブラウザで、空のRPG土台→ゲームZIP、独立作品を作る→試遊→ゲームZIP、どちらのZIPも別の場所で起動してエラーなし。
+
+## 18. 販売と素材パック（2026-11-28）
+
+ユーザーの方針: 作ったもの（ゲームだけでなく、キャラクターだけ・音楽だけ・マップだけ・タイルだけの素材も）を売れるようにする。工房は「売れる状態に仕上げる」まで、お金のやりとりは販売サイトに任せる（自前の決済・DRM・アカウントは作らない）。
+
+- `LICENSE`（MIT、© 2026 AI人狼ラボ ＝ ユーザーのハンドルネーム）。`packages/runtime/src/credits.ts` の `ENGINE_*`: 書き出したゲームの game.js 先頭の注記、CREDITS.md の MIT 全文、ゲーム内クレジット（RPG・独立作品の experience。static は工房のコードを含まないので対象外）
+- 権利の判定 `packages/schema/src/rights.ts`（`assetRights`: sell / pack を ok・check・block）。取得元に `commercial`、素材に `commercial` を追加。カタログの `commercial` は二次情報からの分類で、「ファイルごと」の取得元は varies（人が素材に記録するまで要確認）
+- 販売前チェック `packages/cli/src/releaseCheck.ts`（純粋・工房と共用）、`rpg release-check`、工房の「検証」画面の `ReleaseSection`。文章の走査は `proofreadText.ts` の `shownTexts`（proofread と共用）
+- 素材パック `packages/schema/src/assetPack.ts`（`planAssetPack`）、ZIP は `packages/schema/src/zip.ts`（工房と共用に移動）、`rpg asset pack`、工房の「素材」画面の `AssetPackSection`
+- 確認: test（198件）、ブラウザで販売前チェック（見本の11テストを画面内で実行）と素材パックの書き出し
+
+次の候補（ユーザーの「幅と深さを広げる」）: ストアページの材料の自動生成（スクリーンショット・紹介文）、体験版の書き出し、更新とセーブの互換、楽譜BGMを WAV/OGG に書き出し、マップを画像や Tiled 形式で書き出し、キャラクター・タイルの作成（内蔵ジェネレーターの部品選び・画風）を「素材だけの作品」として作りやすく

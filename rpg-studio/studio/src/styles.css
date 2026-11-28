@@ -613,3 +613,13 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 @media (max-width: 950px) { .experience-layout { grid-template-columns: 1fr; } .experience-editor, .experience-preview { min-height: 440px; } }
 @media (max-width: 800px) { .experience-assets-grid { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .experience-panel { padding: 10px; } .experience-heading { flex-direction: column; } .experience-editor { grid-template-columns: 1fr; } .experience-file-list { flex-direction: row; overflow: auto; border-right: 0; border-bottom: 1px solid var(--line); } .experience-file-list button { flex: 0 0 auto; } .experience-assets-form .field-row > .field { flex-basis: 100%; } .experience-build-fields { grid-template-columns: 1fr; } }
+
+/* 販売前チェック・素材パック */
+.release-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.release-items > li { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+.release-head { display: flex; align-items: center; gap: 6px; }
+.release-items ul { margin: 4px 0 0; padding-left: 20px; }
+.asset-pack-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 2px 12px; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
+.asset-pack .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+.asset-pack .form-grid label, .asset-pack .field { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+@media (max-width: 700px) { .asset-pack .form-grid { grid-template-columns: 1fr; } }

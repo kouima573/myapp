@@ -534,8 +534,10 @@ export const AssetSourceSchema = z.object({
   /** What the agent/person must confirm for each file. */
   checklist: z.array(z.string()).default([]),
   creditRequired: z.enum(["yes", "no", "varies", "unknown"]),
-  /** Raw files inside a shared template / sample project. */
+  /** Raw files inside a shared template / sample project, or sold / given away as an asset pack. */
   redistribution: z.enum(["allowed", "prohibited", "varies", "unknown"]),
+  /** May a game that includes the files be sold? (varies = per file; the person records it on the asset as commercial). */
+  commercial: z.enum(["allowed", "prohibited", "varies", "unknown"]).optional(),
   /** May an AI agent fetch files automatically, or must a person download them? */
   automatedDownload: z.enum(["allowed", "manual", "unknown"]),
   /** null = the summary has not been verified against the original terms page. */
@@ -1372,6 +1374,8 @@ export const AssetEntrySchema = z.object({
   creditRequired: z.boolean().default(false),
   /** May the raw file be shipped inside a shared template / sample project? (Shipping inside your own game is separate.) */
   redistributable: z.boolean().default(true),
+  /** A person checked this file's terms: true = may be used in a game that is sold, false = not. Unset = follow the source catalog. */
+  commercial: z.boolean().optional(),
   /** YYYY-MM-DD when a person/agent read the terms for this file. */
   termsCheckedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   /** Anything the creator said that matters (e.g. "クレジット推奨", "AI学習禁止"). */

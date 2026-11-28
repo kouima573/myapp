@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import AssetPackSection from "./AssetPackSection";
 import { AlertTriangle, ClipboardCopy, ExternalLink, Music2, Play, Square, Upload, Volume2 } from "lucide-react";
 import {
   artPrompt, ArtRequestBundleSchema, isSourceEnabled, SFX_CUES, SOURCE_CATALOG_NOTE, sourcesFor,
@@ -358,6 +359,8 @@ export default function AssetsPanel({ store, content, images }: Props) {
         </div>)}
       </div>
     </section>
+
+    <AssetPackSection store={store} content={content} />
 
     <section className="card wide">
       <header><h3>エージェントへの依頼（素材）</h3></header>

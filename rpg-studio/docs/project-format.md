@@ -219,6 +219,12 @@
 - 属性: `project.json › elements: { "fire": { "label": "炎" } }`。敵の `resist: { "fire": 150 }`（150 = 弱点、50 = 半減、0 = 無効）、武器の `element`（通常攻撃の属性）、防具・装飾品の `resist`（受けるダメージ）、効果 `damage` の `element`。弱点・半減は戦闘ログに「弱点！」などと出る。
 - 自動テスト: `expect.statuses` / `expect.lacksStatuses`。見本: `projects/genre-gallery/tests/status.scenario.json`。
 
+## 販売・素材パックのための記録
+
+- 素材（`assets.json` の各素材）の `commercial: true | false`: 人が規約を読んで「このゲームを売ってよいか」を記録する。未記録なら取得元カタログの `commercial`（allowed / prohibited / varies / unknown）で判定し、varies・unknown は販売前チェックで「要確認」
+- 取得元カタログ（`packages/schema/src/asset-sources.json`）の `commercial`・`publicRepository`・`inquiries`
+- `pnpm rpg release-check --project <dir>`（「不可」があれば終了コード1）、`pnpm rpg asset pack --project <dir> --title … --author … [--ids | --kinds] [--license cc0|cc-by-4.0|terms --terms-file …] [--out …]`
+
 ## 作業カード・台本・仕様書（チャットで作る）
 
 - `todo.json`: `{ "formatVersion": 1, "cards": [{ "id", "title", "goal", "status": "todo"|"doing"|"done", "links": ["npc:village/cat", "dialogue:cat-talk"], "doneWhen": { "test": "tests/cat.scenario.json", "check": "…" }, "notes" }] }`。壊れていてもゲームは動く（検証は警告）
