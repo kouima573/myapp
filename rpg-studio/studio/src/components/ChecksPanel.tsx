@@ -1,5 +1,7 @@
 import { useState } from "react";
 import ReleaseSection from "./ReleaseSection";
+import StorePageSection from "./StorePageSection";
+import DemoSection from "./DemoSection";
 import { CheckCircle2, ClipboardCopy, FlaskConical, Hammer, XCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { formatDiagnostic, type Diagnostic } from "@rpg/schema";
 import type { TestResponse } from "../../../packages/local-server/src/protocol";
@@ -198,6 +200,8 @@ export default function ChecksPanel({ store, diagnostics, onOpenFile, onPlayStat
     </section>
 
     <ReleaseSection store={store} />
+    <StorePageSection store={store} />
+    <DemoSection store={store} />
 
     <section className="card">
       <header><h3>Codex／Claude Codeへの依頼文</h3></header>

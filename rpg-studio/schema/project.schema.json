@@ -1593,6 +1593,26 @@
       },
       "additionalProperties": false
     },
+    "demo": {
+      "type": "object",
+      "properties": {
+        "endWhen": {
+          "$ref": "#/$defs/__schema2"
+        },
+        "title": {
+          "default": "体験版はここまで",
+          "type": "string"
+        },
+        "text": {
+          "default": "遊んでくれてありがとうございます。続きは製品版でお楽しみください。",
+          "type": "string"
+        }
+      },
+      "required": [
+        "endWhen"
+      ],
+      "additionalProperties": false
+    },
     "autosave": {
       "default": true,
       "type": "boolean"

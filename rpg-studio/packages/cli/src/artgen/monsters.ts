@@ -365,7 +365,7 @@ export const MONSTERS: MonsterSpec[] = [
   { id: "slime-green", name: "スライム", tags: ["slime", "weak"], family: "slime", pal: { body: "#5cc85c" } },
   { id: "slime-blue", name: "アオスライム", tags: ["slime", "water"], family: "slime", pal: { body: "#4a8ae8" } },
   { id: "slime-red", name: "ヒノスライム", tags: ["slime", "fire"], family: "slime", pal: { body: "#e8503a", eye: "#3a1010" } },
-  { id: "slime-metal", name: "メタルスライム", tags: ["slime", "rare"], family: "slime", pal: { body: "#b8c0cc" } },
+  { id: "slime-metal", name: "はがねスライム", tags: ["slime", "rare"], family: "slime", pal: { body: "#b8c0cc" } },
   { id: "slime-gold", name: "コガネスライム", tags: ["slime", "rare"], family: "slime", pal: { body: "#e8c040" } },
   { id: "slime-poison", name: "ドクスライム", tags: ["slime", "poison"], family: "slime", pal: { body: "#9a5ac8" } },
   { id: "slime-king", name: "スライムの王", tags: ["slime", "boss"], family: "slime", pal: { body: "#40b0a0" }, extra: "crown" },

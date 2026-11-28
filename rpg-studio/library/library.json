@@ -3415,7 +3415,7 @@
     {
       "id": "mon-slime-metal",
       "kind": "enemy",
-      "title": "メタルスライム",
+      "title": "はがねスライム",
       "path": "enemies/mon-slime-metal.png",
       "tags": [
         "slime",

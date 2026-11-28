@@ -35,7 +35,7 @@ const USAGE = `RPG Studio CLI
   rpg mod      <list|add|export> [<id>] --project <dir>  作り手の仕組み（mod）を共有: 一覧・取り込み・書き出し（出どころは mods.json）
   rpg validate --project <dir>          形式・参照・素材を検証
   rpg test     --project <dir>          RPG / 状態遷移型独立作品の入力シナリオを実行（staticは形式確認）
-  rpg build    --project <dir> [--out <dir>] [--zip] [--run-project-build]  形式に応じて検証・出力（設定コマンドの実行は明示許可が必要）
+  rpg build    --project <dir> [--out <dir>] [--zip] [--demo] [--run-project-build]  形式に応じて検証・出力（設定コマンドの実行は明示許可が必要）
   rpg audit    --project <dir>          未到達マップ・未使用会話・未使用イベントを検出
   rpg map generate <ID> --project <dir> [--width 30 --height 22 --seed 1 --rooms 6 --enemies a,b --back map:x:y]   部屋と通路のダンジョンを自動生成
   rpg map export [<ID>] --project <dir> [--out <フォルダ>] [--tile 32]   マップを Tiled 形式（.tmj）と画像（.png）に（ほかのゲームエンジンでも使える）
@@ -54,6 +54,8 @@ const USAGE = `RPG Studio CLI
   rpg release-check --project <dir>                                             販売前チェック（検証・テスト・エンディング・書きかけ・文章・素材の権利・クレジット）
   rpg chat     <cards|card|plan|pack|apply> --project <dir>                        チャットのAI（ChatGPTなど）と作る: 作業カード・依頼文・返事の取り込み
   rpg asset    catalog <check|verify> --project <dir>                              取得元カタログの見直し（サイトには接続しない・確認日は人が読んだときだけ）
+  rpg art      monster --project <dir> --id <id> --name <名前> [--from <見本ID> | --family slime | --random <シード>] [--body #色 --extra crown]   敵を作る
+  rpg art      tiles --project <dir> --id <id> --name <名前> --tiles "lib-tiles-field/grass,lib-tiles-field/water:hue=40" [--style retro] [--list]   タイル集を作る
   rpg art      character --project <dir> --id <id> --name <名前> [--from <見本ID> | --random <シード>] [--spec '<JSON>']   部品を選んで歩くキャラクターを作る（自作として売れる）
   rpg art      generate [--out library] [--style standard|retro|pastel|dusk|mono] [--only tiles,characters,monsters,backgrounds] [--no-previews]   内蔵ジェネレーターで共有素材ライブラリを（再）生成
   rpg library  <list|add|preview> [<id...>] [--kind …] [--query …] --project <dir>  共有素材ライブラリを探す・番号つき見本画像・取り込む（タイル定義も追加）
@@ -273,7 +275,7 @@ async function cmdTest(flags: Record<string, string | boolean>): Promise<number>
 
 async function cmdBuild(flags: Record<string, string | boolean>): Promise<number> {
   const root = projectDir(flags);
-  const result = await buildProject(root, { outDir: typeof flags.out === "string" ? path.resolve(flags.out) : undefined, zip: Boolean(flags.zip), runProjectBuild: Boolean(flags["run-project-build"]) });
+  const result = await buildProject(root, { outDir: typeof flags.out === "string" ? path.resolve(flags.out) : undefined, zip: Boolean(flags.zip), runProjectBuild: Boolean(flags["run-project-build"]), demo: Boolean(flags.demo) });
   const { errors } = report(result.diagnostics);
   if (!result.ok || errors) { console.log("FAILED build: 前回のビルド成果物はそのまま残っています"); return 1; }
   const kb = (b: number) => `${(b / 1024).toFixed(1)}KB`;
@@ -480,6 +482,8 @@ export async function main(argv = process.argv.slice(2)): Promise<number> {
     case "asset": if (parsed.sub === "catalog") { const { cmdSourceCatalog } = await import("./sourceCatalog"); return cmdSourceCatalog(parsed.args[0], parsed.args.slice(1), parsed.flags, projectDir(parsed.flags)); }
       return cmdAsset(parsed.sub, projectDir(parsed.flags), parsed.flags);
     case "art": {
+      if (parsed.sub === "monster") { const { cmdArtMonster } = await import("./characterCmd"); return cmdArtMonster(projectDir(parsed.flags), parsed.flags); }
+      if (parsed.sub === "tiles") { const { cmdArtTiles } = await import("./characterCmd"); return cmdArtTiles(projectDir(parsed.flags), parsed.flags); }
       if (parsed.sub === "character") { const { cmdArtCharacter } = await import("./characterCmd"); return cmdArtCharacter(projectDir(parsed.flags), parsed.flags); }
       if (parsed.sub !== "generate") return cmdArt(parsed.sub, projectDir(parsed.flags), parsed.flags);
       const { generateLibrary } = await import("./artgen/library");

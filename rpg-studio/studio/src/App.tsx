@@ -23,7 +23,7 @@ import SongPanel from "./components/SongPanel";
 import SkillBoardPanel from "./components/SkillBoardPanel";
 import HelpPanel from "./components/HelpPanel";
 import ChatPanel from "./components/ChatPanel";
-import CharacterMakerPanel from "./components/CharacterMakerPanel";
+import AssetMakerPanel from "./components/AssetMakerPanel";
 import BrowserPanel from "./components/BrowserPanel";
 import ExperiencePanel from "./components/ExperiencePanel";
 import { glossaryLookup } from "./lib/glossary";
@@ -47,7 +47,7 @@ const SECTIONS: Array<{ id: Section; label: string; icon: typeof MapIcon }> = [
   { id: "database", label: "敵・アイテム・仲間", icon: Swords },
   { id: "skills", label: "スキルボード", icon: Hexagon },
   { id: "scripts", label: "スクリプト（コード）", icon: Code2 },
-  { id: "character", label: "キャラクター作り", icon: UserRound },
+  { id: "character", label: "素材作り（キャラ・敵・タイル）", icon: UserRound },
   { id: "pixel", label: "ドット絵", icon: Palette },
   { id: "library", label: "素材ライブラリ", icon: Library },
   { id: "song", label: "楽譜BGM", icon: Music },
@@ -238,7 +238,7 @@ export default function App({ source }: { source: ProjectSource }) {
       {section === "assets" && playContent && <AssetsPanel store={store} content={playContent} images={images} />}
       {section === "world" && playContent && <WorldPanel content={playContent} onOpenMap={id => { setMapId(id); setSelection(null); setSection("map"); }} />}
       {section === "chat" && <ChatPanel store={store} />}
-      {section === "character" && playContent && <CharacterMakerPanel store={store} content={playContent} />}
+      {section === "character" && playContent && <AssetMakerPanel store={store} content={playContent} />}
       {section === "projects" && source.kind === "preview" && <BrowserPanel store={store} source={source as PreviewSource} />}
       {section === "help" && playContent && <HelpPanel store={store} content={playContent} />}
       {section === "skills" && playContent && <SkillBoardPanel store={store} content={playContent} />}

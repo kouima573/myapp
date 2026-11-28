@@ -5,6 +5,7 @@
  * indices and codes are never touched).
  */
 import fs from "node:fs/promises";
+import { mergeTiles } from "./tileMerge";
 import path from "node:path";
 import { addAsset } from "./assets";
 import { REPO_ROOT } from "./build";
@@ -29,20 +30,7 @@ const KIND_ALIASES: Record<string, LibraryItem["kind"] | "tile"> = { tileset: "t
 
 function matches(text: string, query: string) { const q = query.toLowerCase(); return text.toLowerCase().includes(q); }
 
-/** Characters usable as one-character tile codes, in the order they are handed out. */
-export function codePool(): string[] {
-  const ascii: string[] = [];
-  for (let c = 33; c < 127; c++) { const ch = String.fromCharCode(c); if (ch !== "\"" && ch !== "\\") ascii.push(ch); }
-  const letters = ascii.filter(c => /[A-Za-z0-9]/.test(c)), symbols = ascii.filter(c => !/[A-Za-z0-9]/.test(c));
-  const kana: string[] = [];
-  for (let c = 0x3041; c <= 0x3093; c++) kana.push(String.fromCharCode(c)); // ぁ..ん
-  for (let c = 0x30a1; c <= 0x30f3; c++) kana.push(String.fromCharCode(c)); // ァ..ン
-  const greek: string[] = [];
-  for (let c = 0x03b1; c <= 0x03c9; c++) if (c !== 0x03c2) greek.push(String.fromCharCode(c));
-  const kanji: string[] = [];
-  for (let c = 0x4e00; c < 0x4e00 + 2000; c++) kanji.push(String.fromCharCode(c));
-  return [...letters, ...symbols, ...greek, ...kana, ...kanji];
-}
+export { codePool } from "./tileMerge";
 
 export async function cmdLibrary(sub: string | undefined, flags: Flags, args: string[], projectRoot: () => string): Promise<number> {
   const dir = str(flags, "library") ? path.resolve(str(flags, "library")!) : DEFAULT_LIBRARY;
@@ -133,29 +121,7 @@ export async function add(dir: string, flags: Flags, ids: string[], root: string
 
 async function appendTiles(root: string, tilesetPath: string, atlas: string, tiles: NonNullable<LibraryItem["tiles"]>) {
   const file = path.join(root, tilesetPath);
-  type Def = { code: string; atlas?: string; index: number; name: string; key?: string; frames?: number[]; autotile?: unknown };
-  const tileset = JSON.parse(await fs.readFile(file, "utf8")) as { atlas: string; tiles: Def[] };
-  const used = new Set(tileset.tiles.map(t => t.code));
-  const inSheet = tileset.tiles.filter(t => (t.atlas ?? tileset.atlas) === atlas);
-  const pool = codePool().filter(c => !used.has(c));
-  const added: string[] = [], moved: string[] = [];
-  for (const tile of tiles) {
-    // 1) Same picture by key: keep its code (maps use the code) and follow the sheet's current number.
-    const byKey = inSheet.find(t => t.key === tile.key);
-    if (byKey) {
-      if (byKey.index !== tile.index) { moved.push(`${byKey.code}=${tile.name} ${byKey.index}→${tile.index}`); byKey.index = tile.index; }
-      if (tile.frames) byKey.frames = tile.frames; else delete byKey.frames;
-      if (tile.autotile) byKey.autotile = tile.autotile; else delete byKey.autotile;
-      continue;
-    }
-    // 2) Added before keys existed: same number and name → remember the key from now on.
-    const byIndex = inSheet.find(t => t.index === tile.index && !t.key);
-    if (byIndex) { if (byIndex.name === tile.name) byIndex.key = tile.key; continue; }
-    const code = pool.shift();
-    if (!code) throw new Error("空いているタイルコードがありません");
-    tileset.tiles.push({ code, name: tile.name, atlas, index: tile.index, key: tile.key, passable: tile.passable, color: tile.color, ...(tile.frames ? { frames: tile.frames } : {}), ...(tile.autotile ? { autotile: tile.autotile } : {}) } as Def);
-    added.push(`${code}=${tile.name}`);
-  }
+  const { tileset, added, moved } = mergeTiles(JSON.parse(await fs.readFile(file, "utf8")), atlas, tiles);
   await fs.writeFile(file, `${JSON.stringify(tileset, null, 2)}\n`);
   console.log(added.length ? `OK tiles.json に ${added.length} 個追加（${atlas}）: ${added.join(" ")}` : `tiles.json: ${atlas} のタイルは追加済みです`);
   if (moved.length) console.log(`OK 素材の並びが変わったタイルの番号を追従（マップの記号はそのまま）: ${moved.join(" ")}`);

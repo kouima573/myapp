@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Dices, Download, Plus, UserRound } from "lucide-react";
+import { Dices, Download, Plus } from "lucide-react";
 import type { AssetEntry, GameContent } from "@rpg/schema";
 import {
   BODY_TYPES, CHARACTERS, drawCharacterFrame, EARS, FACINGS, HAIR_STYLES, HEADGEARS, ITEMS, OUTFITS, PART_LABELS, randomCharacter, renderCharacterSheet, SPECIALS,
@@ -82,9 +82,8 @@ export default function CharacterMakerPanel({ store, content }: { store: Project
     </select>;
   const color = (value: string | undefined, onChange: (v: string) => void, fallback = "#808080") => <input type="color" value={value ?? fallback} onChange={e => onChange(e.target.value)} />;
 
-  return <div className="panel-page character-maker">
-    <h2><UserRound size={18} /> キャラクター作り</h2>
-    <p className="muted">部品を選んで、歩くキャラクター（4方向×4コマ）を作ります。内蔵ジェネレーター製なので、ゲームに使うのも、素材パックとして配ったり売ったりするのも自由です。CLI: <code>pnpm rpg art character</code></p>
+  return <section className="maker-section character-maker">
+    <p className="muted small">部品を選んで、歩くキャラクター（4方向×4コマ）を作ります。CLI: <code>pnpm rpg art character</code></p>
     <div className="row">
       <label>見本から <select value="" onChange={e => { const t = CHARACTERS.find(c => c.id === e.target.value); if (t) setSpec(clone(t)); }}><option value="">選ぶ…</option>{CHARACTERS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
       {made.length > 0 && <label>作ったものを開く <select value="" onChange={e => { const a = made.find(x => x.id === e.target.value); if (a) { const s = JSON.parse(String(a.generator!.spec)) as CharacterSpec; setSpec(s); setName(s.name); setId(a.id.replace(/^chr-/, "")); } }}><option value="">選ぶ…</option>{made.map(a => <option key={a.id} value={a.id}>{a.id}</option>)}</select></label>}
@@ -112,5 +111,5 @@ export default function CharacterMakerPanel({ store, content }: { store: Project
       <button className="button" onClick={() => void pngBlob().then(async b => download(`${id || "character"}.png`, new Uint8Array(await b.arrayBuffer()), "image/png"))}><Download size={13} /> PNGで保存</button>
     </div>
     <p className="muted small">追加すると <code>assets/characters/chr-ID.png</code>（64×64のコマが4列×4行。行は 下・左・右・上）として登録されます。人物や主人公の見た目に選べ、「素材」画面の素材パックにも入れられます。</p>
-  </div>;
+  </section>;
 }

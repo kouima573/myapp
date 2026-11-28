@@ -8,7 +8,7 @@ import ts from "typescript";
 import type { Diagnostic } from "../../schema/src/index";
 import { checkAssetFiles, loadProjectFromDisk, resolveInside } from "./load";
 import { creditsMarkdown, ENGINE_BANNER, ENGINE_CREDITS_SECTION } from "../../runtime/src/credits";
-import { normalizedDataFiles, type AssetManifest, type ExperienceProject, type GameContent } from "../../schema/src/index";
+import { demoContent, normalizedDataFiles, type AssetManifest, type ExperienceProject, type GameContent } from "../../schema/src/index";
 import { MODULES } from "../../modules/src/index";
 import { loadExperienceProject } from "./experience";
 
@@ -173,6 +173,8 @@ export interface BuildOptions {
   zip?: boolean;
   /** Run a static project's configured command. Only set by the explicit --run-project-build CLI flag. */
   runProjectBuild?: boolean;
+  /** 体験版: end at project.demo.endWhen (output dist/game/<id>-demo by default). */
+  demo?: boolean;
 }
 
 function runCreatorBuildCommand(command: string, projectRoot: string): Promise<void> {
@@ -525,7 +527,8 @@ export async function buildProject(projectRoot: string, options: BuildOptions = 
   if (options.runProjectBuild) return { ok: false, diagnostics: [{ severity: "error", file: "experience.json", message: "--run-project-build は static runtime の作品でのみ使えます" }] };
   const loaded = await loadProjectFromDisk(projectRoot);
   const diagnostics = [...loaded.diagnostics];
-  const content = loaded.content;
+  if (options.demo && loaded.content && !loaded.content.project.demo) return { ok: false, diagnostics: [...diagnostics, { severity: "error", file: "project.json", at: "demo", message: "体験版には project.json の demo（終わる条件 endWhen）が必要です" }] };
+  const content = loaded.content && options.demo ? demoContent(loaded.content) : loaded.content;
   if (!content) return { ok: false, diagnostics };
 
   const work = path.join(REPO_ROOT, ".rpg-studio", `build-${content.project.id}-${crypto.randomBytes(6).toString("hex")}`);
@@ -567,7 +570,7 @@ export async function buildProject(projectRoot: string, options: BuildOptions = 
     await fs.writeFile(path.join(stage, "version.json"), `${JSON.stringify({ version, project: content.project.id, builtAt: new Date().toISOString() }, null, 2)}\n`);
     await writePwaFiles(stage, content.project.title, version);
 
-    const outDir = path.resolve(options.outDir ?? path.join(REPO_ROOT, "dist/game", content.project.id));
+    const outDir = path.resolve(options.outDir ?? path.join(REPO_ROOT, "dist/game", `${content.project.id}${options.demo ? "-demo" : ""}`));
     await fs.mkdir(path.dirname(outDir), { recursive: true });
     const previous = `${outDir}.previous-${crypto.randomBytes(4).toString("hex")}`;
     let moved = false;

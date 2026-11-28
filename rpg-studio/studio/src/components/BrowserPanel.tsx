@@ -133,6 +133,12 @@ export default function BrowserPanel({ store, source }: { store: ProjectStore; s
     setPublishChecks(current => ({ ...current, zip: true }));
     store.log("ok", `${name} を書き出しました。${files}ファイル・素材込み ${Math.ceil(totalBytes / 1024)}KB。ZIPを展開して必須ファイルと重複を点検済みです`);
   });
+  const exportDemo = () => run("体験版の書き出し", async () => {
+    const { bytes, name, files, totalBytes } = await playableZip(store.texts, source.project, source.codeIsSample(), { demo: true });
+    download(name, bytes);
+    setPublishChecks(current => ({ ...current, zip: true }));
+    store.log("ok", `${name} を書き出しました。${files}ファイル・素材込み ${Math.ceil(totalBytes / 1024)}KB。ZIPを展開して必須ファイルと重複を点検済みです`);
+  });
   const copyListing = () => run("投稿文のコピー", async () => {
     await navigator.clipboard.writeText(makeListing(gameTitle, draft));
     setCopied("投稿文をコピーしました");
@@ -199,6 +205,7 @@ export default function BrowserPanel({ store, source }: { store: ProjectStore; s
       </div>
       <div className="publish-export row">
         <button className="primary" disabled={!!busy || (isStaticSite && !staticOutputReady)} onClick={() => void exportPlayable()}><Gamepad2 size={13} /> {isStaticSite ? "配布用サイトZIPを作る" : "ゲームZIPを作る"}</button>
+        {!isExperience && store.content?.project.demo && <button disabled={!!busy} onClick={() => void exportDemo()} title="「検証」画面の「体験版」で決めた所で終わるゲームZIP"><Gamepad2 size={13} /> 体験版ZIPを作る</button>}
         {busy && <span className="muted small">{busy}中…</span>}
         {isExperience && projectInfo.runtime === "static" && <span className="muted small">{projectInfo.build ? `ビルド設定 '${projectInfo.build.command}' は実行せず、${projectInfo.build.outputDir ?? "dist"}/ の既存成果物をZIPに含めます。` : "完成済みサイトのファイルを変換せず、index.html・相対ファイル・素材の台帳を含むZIPにまとめます。"}</span>}
         {isStaticSite && projectInfo.build && !staticOutputReady && <span className="text-amber small">公開用の成果物がまだありません。手元の工房で build.command を確認してから `pnpm rpg build --project &lt;dir&gt; --run-project-build --zip` を実行してください。</span>}

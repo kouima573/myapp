@@ -740,6 +740,11 @@ export const ProjectManifestSchema = z.object({
     /** Background picture (background asset). */
     background: IdSchema.optional(),
   }).strict().default({ enabled: true }),
+  /**
+   * 体験版: \`rpg build --demo\` / ブラウザ版の「体験版ZIPを作る」で、endWhen が成り立った時点で「体験版はここまで」の
+   * エンディングにする（完成版のデータはそのまま）。
+   */
+  demo: z.object({ endWhen: ConditionSchema, title: z.string().default("体験版はここまで"), text: z.string().default("遊んでくれてありがとうございます。続きは製品版でお楽しみください。") }).strict().optional(),
   /** Save automatically to the "オート" slot when entering a map (field, nothing pending). */
   autosave: z.boolean().default(true),
   /**

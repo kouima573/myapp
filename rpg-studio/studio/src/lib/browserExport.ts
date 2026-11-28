@@ -4,7 +4,7 @@
  *  - ZIPからプロジェクトを読み込む
  *  - 遊べる形で書き出す（公開サイトの共通ゲームエンジン ../runtime/ と、検証済みデータ・素材を1つのZIPに）
  */
-import { ExperienceProjectSchema, loadProjectContent, normalizedDataFiles, ProjectManifestSchema, type GameContent } from "@rpg/schema";
+import { demoContent, ExperienceProjectSchema, loadProjectContent, normalizedDataFiles, ProjectManifestSchema, type GameContent } from "@rpg/schema";
 import { creditsMarkdown } from "../../../packages/runtime/src/credits";
 import { freeId, type BrowserProject } from "./browserProjects";
 import { sampleAssetUrl, sampleProjectTexts } from "./source";
@@ -131,12 +131,13 @@ const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt
  * A playable game as a ZIP: index.html at the archive root + game.js + data/ (validated content with defaults) + assets + CREDITS.md.
  * Root-relative paths make the ZIP directly uploadable to HTML5 hosts such as itch.io.
  */
-export async function playableZip(texts: Record<string, string>, project: { files: Record<string, Blob> } | null, codeIsSample: boolean): Promise<{ bytes: Uint8Array; name: string; files: number; totalBytes: number }> {
+export async function playableZip(texts: Record<string, string>, project: { files: Record<string, Blob> } | null, codeIsSample: boolean, options: { demo?: boolean } = {}): Promise<{ bytes: Uint8Array; name: string; files: number; totalBytes: number }> {
   if (texts["experience.json"] !== undefined) return experiencePlayableZip(texts, project?.files ?? {});
   const loaded = loadProjectContent(texts);
   const errors = loaded.diagnostics.filter(d => d.severity === "error");
   if (!loaded.content || errors.length) throw new Error(`検証のエラーを先に直してください（${errors.length}件。「検証」画面）`);
-  const content: GameContent = loaded.content;
+  if (options.demo && !loaded.content.project.demo) throw new Error("体験版の終わる場所が決まっていません（「検証」画面の「体験版」で決めてください）");
+  const content: GameContent = options.demo ? demoContent(loaded.content) : loaded.content;
   const hasCode = content.project.systems.length > 0 || Object.keys(texts).some(f => /^scripts\/.*\.ts$/.test(f));
   let base: string;
   if (!hasCode) base = "../runtime/";
@@ -182,5 +183,5 @@ export async function playableZip(texts: Record<string, string>, project: { file
   const packedNames = new Set(packed.map(entry => entry.name));
   const unreadable = required.filter(name => !packedNames.has(name));
   if (unreadable.length) throw new Error(`ZIPの展開確認に失敗しました: ${unreadable.join(", ")}`);
-  return { bytes, name: `${id}-game.zip`, files: entries.length, totalBytes: entries.reduce((sum, entry) => sum + entry.data.byteLength, 0) };
+  return { bytes, name: `${id}${options.demo ? "-demo" : ""}-game.zip`, files: entries.length, totalBytes: entries.reduce((sum, entry) => sum + entry.data.byteLength, 0) };
 }

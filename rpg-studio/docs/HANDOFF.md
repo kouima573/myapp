@@ -44,7 +44,7 @@
 cd rpg-studio
 pnpm install
 pnpm check                      # 型チェック
-pnpm test                       # vitest（現在202件）
+pnpm test                       # vitest（現在205件）
 pnpm rpg proofread --project <dir>   # 台詞の長さ・誤字らしき所（v1.9）
 pnpm rpg validate --project projects/sample-rpg     # ← フォルダは --project で指定（位置引数は無視される）
 pnpm rpg test     --project projects/sample-rpg
@@ -352,3 +352,12 @@ v2.5 の作業コピーは、6.23（2回目）の修正より前の版を元に�
 - マップ → Tiled（.tmj）と1枚絵: `packages/schema/src/mapExport.ts`（`resolveMapLayers` はゲームの描画と同じ規則：オートタイル9分割・動くタイルは最初のコマ）。CLI `rpg map export`（`mapExport.ts`。PNG は artgen の png でデコード）、工房は `studio/src/lib/renderInBrowser.ts`。工房とCLIのマップ画像は画素まで一致することを確認
 - 素材パックに `mapIds`（使うタイル画像も自動で入れる。配れないタイルを使うマップは除外）
 - 確認: test（202件）、ブラウザでキャラ作成→素材パック、WAV書き出し、マップを含む素材パック
+
+## 20. 敵作り・タイル作り・体験版・作品ページの材料（2026-11-28）
+
+- 「素材作り」画面（`AssetMakerPanel`: キャラクター／敵・モンスター／タイル）。共通の登録は `studio/src/lib/registerGenerated.ts`
+- 敵作り・タイル作り `packages/cli/src/artgen/makers.ts`（`monsterSpec`・`randomMonster`・`customTileSheet`。タイルは内蔵の描き方に模様の種・色相・明るさ・画風を加え、動くタイルのコマとオートタイルの9部品も同じ加工で入れる）。CLI `rpg art monster` / `rpg art tiles [--list]`。tiles.json への追加は `packages/cli/src/tileMerge.ts`（`mergeTiles`。素材ライブラリと共用・工房でも使用）
+- 体験版 `packages/schema/src/demo.ts`（`project.demo.endWhen` → 自動ルールで `demo-end` エンディング）、`rpg build --demo`、ブラウザ版「体験版ZIPを作る」、「検証」画面の `DemoSection`
+- 作品ページの材料 `studio/src/lib/storePage.ts`（ゲームの描画でスクリーンショット、630×500のカバー、紹介文の下書き）、「検証」画面の `StorePageSection`
+- 見本の敵の名前「メタルスライム」を「はがねスライム」に（既存作品の名前を避ける）
+- 確認: test（205件）、ブラウザで敵とタイルを作って登録→検証OK、体験版の設定→体験版ZIP、作品ページの材料ZIP（カバーの見た目も確認）

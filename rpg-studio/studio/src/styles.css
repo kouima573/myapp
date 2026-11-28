@@ -630,3 +630,10 @@ textarea.board { font: 13px/1.25 ui-monospace, monospace; letter-spacing: .15em;
 .character-parts label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .character-parts input[type="color"] { width: 32px; height: 24px; padding: 0; border: 1px solid var(--line); background: none; }
 .character-maker .row label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.maker-section { display: flex; flex-direction: column; gap: 8px; }
+.maker-section .row label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.maker-preview { image-rendering: pixelated; background: repeating-conic-gradient(var(--well) 0 25%, var(--bar) 0 50%) 0 0 / 16px 16px; border: 1px solid var(--line); border-radius: 6px; max-width: 100%; }
+.maker-preview.tiles { width: auto; max-width: 100%; }
+.tile-maker-rows { display: flex; flex-direction: column; gap: 4px; }
+.tile-maker-rows input[type="range"] { width: 90px; }
+.store-cover-preview { width: 315px; max-width: 100%; border: 1px solid var(--line); border-radius: 6px; }

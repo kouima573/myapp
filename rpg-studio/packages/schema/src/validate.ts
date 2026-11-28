@@ -394,6 +394,7 @@ export function checkReferences(content: GameContent, mapFiles: Record<string, s
       }
     });
   };
+  if (project.demo) checkCondition("project.json", "demo.endWhen", project.demo.endWhen);
   const checkRules = (file: string, at: string, rules: Rule[]) => {
     rules.forEach(rule => {
       const here = at === "rules" ? `rules[${rule.id}]` : `${at}.rules[${rule.id}]`;

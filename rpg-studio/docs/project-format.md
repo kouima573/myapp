@@ -219,6 +219,10 @@
 - 属性: `project.json › elements: { "fire": { "label": "炎" } }`。敵の `resist: { "fire": 150 }`（150 = 弱点、50 = 半減、0 = 無効）、武器の `element`（通常攻撃の属性）、防具・装飾品の `resist`（受けるダメージ）、効果 `damage` の `element`。弱点・半減は戦闘ログに「弱点！」などと出る。
 - 自動テスト: `expect.statuses` / `expect.lacksStatuses`。見本: `projects/genre-gallery/tests/status.scenario.json`。
 
+## 体験版（project.json の demo）
+
+- `"demo": { "endWhen": { "flag": "reached-forest" }, "title": "体験版はここまで", "text": "…" }`: 書き出すときだけ、endWhen が成り立った時点で「体験版はここまで」のエンディングになる（自動ルールを1つ足す）。完成版のデータは変わらない。`pnpm rpg build --demo [--zip]`（出力は dist/game/<id>-demo）
+
 ## 販売・素材パックのための記録
 
 - 素材（`assets.json` の各素材）の `commercial: true | false`: 人が規約を読んで「このゲームを売ってよいか」を記録する。未記録なら取得元カタログの `commercial`（allowed / prohibited / varies / unknown）で判定し、varies・unknown は販売前チェックで「要確認」
